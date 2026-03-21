@@ -54,7 +54,7 @@ async function run() {
 
     // ── Paso 4: Generar PDF ──
     console.log('📄 Paso 4/5: Generando PDF...');
-    const pdfPath = path.join(__dirname, '..', 'reporte-semanal.pdf');
+const pdfPath = path.join(__dirname, 'reporte-semanal.pdf');
     await generatePDF(report, aiInsights, pdfPath);
     console.log(`   PDF guardado: ${pdfPath}\n`);
 
