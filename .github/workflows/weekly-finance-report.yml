@@ -18,7 +18,7 @@ jobs:
         with:
           node-version: '20'
       - name: Instalar dependencias
-        run: npm ci
+        run: npm install
       - name: Ejecutar reporte
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
