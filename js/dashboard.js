@@ -414,6 +414,47 @@ function renderDashboard(){
       margenEl.title=spPct<100?'Sobre el '+spPct+'% del ingreso ($'+fmtN(spendBudget)+')':'Sobre el ingreso total';
     } else { margenEl.textContent='—'; }
   }
+
+  // ── Payment method breakdown ──
+  const payMethodSection=document.getElementById('dhc-pay-method-section');
+  const payBar=document.getElementById('dhc-pay-bar');
+  const payLabels=document.getElementById('dhc-pay-labels');
+  if(payMethodSection&&payBar&&payLabels){
+    const methods=[
+      {key:'visa', label:'TC VISA', color:'#e63946'},
+      {key:'amex', label:'TC AMEX', color:'#457b9d'},
+      {key:'deb', label:'Débito', color:'var(--accent)'},
+      {key:'ef', label:'Efectivo', color:'var(--accent3)'}
+    ];
+    const filteredTxns=txns.filter(t=>t.amount>0);
+    const totByMethod={};
+    let totalForBar=0;
+    methods.forEach(m=>{totByMethod[m.key]=0;});
+    filteredTxns.forEach(t=>{
+      const pm=t.payMethod||'';
+      const amt=t.currency==='USD'?t.amount*(USD_TO_ARS||1):t.amount;
+      if(methods.find(m=>m.key===pm)){totByMethod[pm]+=amt;totalForBar+=amt;}
+    });
+    if(totalForBar>0){
+      payMethodSection.style.display='block';
+      payBar.innerHTML=methods.map(m=>{
+        const pct=totalForBar>0?(totByMethod[m.key]/totalForBar*100):0;
+        if(pct<0.5)return '';
+        return '<div style="width:'+pct.toFixed(1)+'%;background:'+m.color+';height:100%;transition:width .5s ease;"></div>';
+      }).join('');
+      payLabels.innerHTML=methods.map(m=>{
+        const pct=totalForBar>0?(totByMethod[m.key]/totalForBar*100):0;
+        if(pct<0.5)return '';
+        return '<div style="display:flex;align-items:center;gap:4px;">'+
+          '<div style="width:8px;height:8px;border-radius:50%;background:'+m.color+';flex-shrink:0;"></div>'+
+          '<span style="font-size:11px;color:var(--text3);">'+m.label+'</span>'+
+          '<span style="font-size:11px;font-weight:700;color:var(--text);font-family:var(--font);">'+Math.round(pct)+'%</span>'+
+        '</div>';
+      }).join('');
+    } else {
+      payMethodSection.style.display='none';
+    }
+  }
   document.getElementById('kpi-usd').textContent=usdMonth>0?'U$D '+fmtN(usdMonth):'—';
 
   const pFill=document.getElementById('dhc-progress-fill');

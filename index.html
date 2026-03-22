@@ -152,6 +152,14 @@
               <span id="dhc-margin-ingreso" style="font-size:10px;color:var(--text3);font-weight:400;"></span>
             </div>
           </div>
+          <!-- Payment method breakdown (spans 2 cols) -->
+          <div id="dhc-pay-method-section" style="grid-column:1/-1;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:none;">
+            <div style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">MEDIOS DE PAGO</div>
+            <!-- Stacked bar -->
+            <div style="height:8px;background:var(--surface3);border-radius:4px;overflow:hidden;display:flex;" id="dhc-pay-bar"></div>
+            <!-- Labels -->
+            <div id="dhc-pay-labels" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;"></div>
+          </div>
         </div>
       </div>
 
