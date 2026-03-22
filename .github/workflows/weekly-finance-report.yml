@@ -2,7 +2,10 @@ name: 📊 Reporte Financiero Semanal
 
 on:
   schedule:
-    - cron: '0 11 * * 1'
+    # Viernes 18:00 Argentina = Viernes 21:00 UTC
+    - cron: '0 21 * * 5'
+    # Lunes 11:00 Argentina (mediodía) = Lunes 14:00 UTC
+    - cron: '0 14 * * 1'
   workflow_dispatch:
 
 jobs:
