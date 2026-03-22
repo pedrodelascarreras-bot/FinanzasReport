@@ -426,7 +426,7 @@ function renderDashboard(){
       {key:'deb', label:'Débito', color:'var(--accent)'},
       {key:'ef', label:'Efectivo', color:'var(--accent3)'}
     ];
-    const filteredTxns=txns.filter(t=>t.amount>0);
+    const filteredTxns=monthTxns.filter(t=>t.amount>0);
     const totByMethod={};
     let totalForBar=0;
     methods.forEach(m=>{totByMethod[m.key]=0;});
