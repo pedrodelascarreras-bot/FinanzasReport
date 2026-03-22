@@ -11,13 +11,12 @@ let cccState = {
 
 // DOM Elements
 const cccEls = {
-  cardFilter: null, cycleFilter: null, uploadArea: null, fileInput: null,
+  cycleFilter: null, uploadArea: null, fileInput: null,
   loading: null, resultsArea: null, kpiTotal: null, kpiConc: null,
   kpiDiff: null, kpiOrphan: null, tbody: null, linkList: null
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  cccEls.cardFilter = document.getElementById('ccc-card-filter');
   cccEls.cycleFilter = document.getElementById('ccc-cycle-filter');
   cccEls.uploadArea = document.getElementById('ccc-upload-area');
   cccEls.fileInput = document.getElementById('ccc-file-input');
@@ -46,23 +45,25 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function initCcCompare() {
-  ccInit();
-  // Populate filters
-  if(!cccEls.cardFilter) return;
+  if(typeof ccInit === 'function') ccInit();
   
-  cccEls.cardFilter.innerHTML = state.ccCards.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
+  // Populate filter
+  cccEls.cycleFilter = document.getElementById('ccc-cycle-filter'); // re-bind just in case
+  if(!cccEls.cycleFilter) return;
   
-  const updateCycles = () => {
-    const cardId = cccEls.cardFilter.value;
-    const cycles = state.ccCycles.filter(c => c.cardId === cardId).sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
-    cccEls.cycleFilter.innerHTML = cycles.map(c => {
-      const open = c.openDate ? c.openDate : '??';
-      return `<option value="${c.id}">${open} al ${c.closeDate} ${c.status==='paid'?'(Pagado)':''}</option>`;
-    }).join('');
+  const cycles = typeof getTcCycles === 'function' ? getTcCycles() : state.tcCycles;
+  if (!cycles || cycles.length === 0) {
+    cccEls.cycleFilter.innerHTML = '<option value="">No hay ciclos configurados</option>';
+  } else {
+    cccEls.cycleFilter.innerHTML = cycles.map(c => `<option value="${c.id}">${esc(c.label)} (Cierre: ${c.closeDate})</option>`).join('');
+  }
+  
+  cccEls.cycleFilter.onchange = () => {
+    if(cccState.pdfTxns.length > 0) {
+      runMatchingAlgorithm();
+      renderCccResults();
+    }
   };
-  
-  cccEls.cardFilter.onchange = updateCycles;
-  updateCycles();
 }
 
 // ── PDF Processing ──
@@ -167,14 +168,14 @@ function parseSantanderText(text) {
 
 // ── Matching Algorithm ──
 function runMatchingAlgorithm() {
-  cccState.selectedCard = cccEls.cardFilter.value;
   cccState.selectedCycle = cccEls.cycleFilter.value;
   
-  const cycle = state.ccCycles.find(c => c.id === cccState.selectedCycle);
+  const cycles = typeof getTcCycles === 'function' ? getTcCycles() : state.tcCycles;
+  const cycle = cycles.find(c => c.id === cccState.selectedCycle);
   if(!cycle) return;
   
   // Get all app transactions belonging to this cycle
-  const appTxns = ccGetCycleExpenses(cycle);
+  const appTxns = typeof ccGetCycleExpenses === 'function' ? ccGetCycleExpenses(cycle) : [];
   let availableAppTxns = [...appTxns];
   
   cccState.matches = [];

@@ -51,18 +51,16 @@
     <!-- Tarjeta de Crédito — colapsable -->
     <div class="nav-section" id="ns-credit-cards" style="margin-top:0;">
       <button class="nav-section-header" onclick="toggleSection('ns-credit-cards')">
-        <div style="display:flex;align-items:center;">
-          <span class="nav-icon" style="margin-right:12px;opacity:0.7;font-size:16px;">💳</span>
-          <span>Tarjeta de Crédito</span>
-        </div>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="icon-ns-credit-cards"><polyline points="6 9 12 15 18 9"></polyline></svg>
+        <span class="ns-icon">💳</span>
+        <span class="ns-label">Tarjeta de Crédito</span>
+        <span class="ns-arrow">›</span>
       </button>
-      <div class="nav-section-items" id="items-ns-credit-cards">
-        <button class="nav-item" id="ni-credit-cards" onclick="nav('credit-cards')">
-          <span>Resumen del ciclo</span>
+      <div class="nav-section-body">
+        <button class="nav-item sub" id="ni-credit-cards" onclick="nav('credit-cards')">
+          <span class="nav-icon">📊</span><span>Resumen del ciclo</span>
         </button>
-        <button class="nav-item" id="ni-cc-compare" onclick="nav('cc-compare')">
-          <span>Comparar resúmenes</span>
+        <button class="nav-item sub" id="ni-cc-compare" onclick="nav('cc-compare')">
+          <span class="nav-icon">⇄</span><span>Comparar resúmenes</span>
         </button>
       </div>
     </div>
@@ -1485,19 +1483,19 @@
 
 <!-- VISTA COMPARAR RESÚMENES (NUEVA) -->
 <div id="page-cc-compare" class="page">
-  <div class="header" style="justify-content:space-between;">
+  <div class="page-header fade-up">
     <div>
-      <h1 style="font-size:32px;font-weight:700;letter-spacing:-0.03em;margin-bottom:8px;">Conciliación de resumen</h1>
-      <div style="color:var(--text3);font-size:14px;">Compara tus gastos registrados con un resumen oficial en PDF.</div>
+      <div class="page-title">Conciliación de resumen</div>
+      <div class="page-subtitle">Compara tus gastos registrados con un resumen oficial en PDF.</div>
     </div>
-    <!-- Filters (Card & Cycle) -->
-    <div style="display:flex;align-items:center;gap:12px;">
-      <select id="ccc-card-filter" class="input" style="width:160px;"></select>
-      <select id="ccc-cycle-filter" class="input" style="width:180px;"></select>
+    <div class="header-actions">
+      <!-- Ciclo filter -->
+      <select id="ccc-cycle-filter" class="txn-select" style="font-family:var(--font);font-weight:700;font-size:13px;"></select>
     </div>
   </div>
 
-  <div class="card" style="padding:24px;">
+  <div id="cc-compare-content" class="fade-up d1">
+    <div class="card" style="padding:24px;">
     <!-- Uploader Area -->
     <div id="ccc-upload-area" style="border:2px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all 0.2s ease;">
       <div style="font-size:32px;margin-bottom:12px;">📄</div>
@@ -1557,6 +1555,7 @@
             <!-- Renderizado via JS -->
           </tbody>
         </table>
+      </div>
       </div>
     </div>
   </div>

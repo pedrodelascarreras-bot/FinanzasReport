@@ -160,7 +160,7 @@ function updateQrBadge(){
 
 // ══ NAV ══
 // Map page → which nav-section contains it (if any)
-const PAGE_SECTION={categories:'ns-config',import:'ns-config'};
+const PAGE_SECTION={categories:'ns-config',import:'ns-config','credit-cards':'ns-credit-cards','cc-compare':'ns-credit-cards'};
 
 function toggleSection(id){
   const sec=document.getElementById(id);if(!sec)return;
@@ -218,6 +218,7 @@ function nav(page){
   if(page==='savings')renderSavingsPage();
   if(page==='reportes')renderReportesPage();
   if(page==='credit-cards')renderCreditCards();
+  if(page==='cc-compare'){if(typeof initCcCompare==='function')initCcCompare();}
   // Apply saved layout for this page
   setTimeout(()=>applyLayout(page), 0);
 }
