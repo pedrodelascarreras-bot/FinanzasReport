@@ -68,12 +68,29 @@ function getDuplicateAmountKeys(){
   // Returns a Set of "amount|currency|date" keys that appear 2+ times
   var counts={};
   state.transactions.forEach(function(t){
+    if(t.notDuplicate) return; // user confirmed not a duplicate
     var k=txnDupKey(t);
     counts[k]=(counts[k]||0)+1;
   });
   var dupKeys=new Set();
   Object.keys(counts).forEach(function(k){ if(counts[k]>1) dupKeys.add(k); });
   return dupKeys;
+}
+
+if(!window._dupGroups) window._dupGroups=[];
+
+function resolveDupInline(groupIdx, action){
+  const ids=window._dupGroups[groupIdx];
+  if(!ids||!ids.length)return;
+  if(action==='delete'){
+    const toDelete=new Set(ids.slice(1)); // keep first, delete rest
+    state.transactions=state.transactions.filter(t=>!toDelete.has(t.id));
+    showToast('🗑 Duplicado eliminado','success');
+  } else {
+    ids.forEach(id=>{const t=state.transactions.find(x=>x.id===id);if(t)t.notDuplicate=true;});
+    showToast('✓ Marcados como gastos distintos','success');
+  }
+  saveState();renderTransactions();renderDashboard();
 }
 
 function renderTransactions(){
@@ -292,9 +309,9 @@ function renderTransactions(){
   let displayTxns = txns;
   let _dupAmtGroupMap = {};
   if(state._dupFilterOn){
-    displayTxns = txns.slice().sort((a,b)=>{const d=b.amount-a.amount;if(d!==0)return d;return(a.currency||'').localeCompare(b.currency||'');});
+    displayTxns = txns.slice().sort((a,b)=>{const d=b.amount-a.amount;if(d!==0)return d;return new Date(b.date)-new Date(a.date);});
     let _gi=0,_lastKey='';
-    displayTxns.forEach(t=>{const k=String(t.amount)+'|'+t.currency;if(k!==_lastKey){_gi++;_lastKey=k;}_dupAmtGroupMap[t.id]=_gi;});
+    displayTxns.forEach(t=>{const k=txnDupKey(t);if(k!==_lastKey){_gi++;_lastKey=k;}_dupAmtGroupMap[t.id]=_gi;});
   }
 
   if(window.innerWidth<=768){
@@ -338,35 +355,57 @@ function renderTransactions(){
         +'<th style="text-align:right;width:110px">Monto</th>'
         +'<th style="width:48px"></th>'
       +'</tr></thead><tbody>'
-      +displayTxns.map(t=>{
-        const _pTag=t.payMethod
-          ?('<span class="pay-tag '+_payCls[t.payMethod]+'" onclick="event.stopPropagation();openPayMethodModal(\''+t.id+'\')" title="Cambiar medio">'+_payLbls[t.payMethod]+'</span>')
-          :('<span class="pay-tag" style="background:var(--surface2);color:var(--text3);border:1px solid var(--border);" onclick="event.stopPropagation();openPayMethodModal(\''+t.id+'\')" title="Asignar medio">+ tag</span>');
-        const _dupBg=state._dupFilterOn&&_dupAmtGroupMap[t.id]%2===0?'background:rgba(200,240,96,0.03);':'';
-        const _isSelected=state._detailTxnId===t.id?'selected':'';
-        const amtColor=t.currency==='USD'?'color:var(--accent2)':t.isPendingCuota?'color:var(--accent3)':'';
-        const comercioHtml=t.comercio_detectado&&t.comercio_detectado.toLowerCase()!==t.description.toLowerCase()
-          ?'<span class="td-desc-secondary"><span class="comercio-detected">'+esc(t.comercio_detectado)+'</span>'+origenChip(t)+cuotaProjectedChip(t)+sugerenciaBadge(t)+'</span>'
-          :'<span class="td-desc-secondary">'+origenChip(t)+cuotaProjectedChip(t)+sugerenciaBadge(t)+'</span>';
-        const _checked=state._selectedTxns&&state._selectedTxns.has(t.id)?' checked':'';
-        const _projStyle=t.isPendingCuota?'border-left:3px solid var(--accent3);':'';
-        return '<tr class="txn-row-v2 '+_isSelected+(_checked?' multi-selected':'')+'" data-txnid="'+t.id+'" style="'+_dupBg+_projStyle+'">'
-          +'<td style="padding:0 6px;"><input type="checkbox" class="txn-cb" data-id="'+t.id+'"'+_checked+' onclick="event.stopPropagation();toggleSelectTxn(\''+t.id+'\')"></td>'
-          +'<td style="font-family:var(--font);font-size:13px;font-weight:500;color:var(--text3);white-space:nowrap;">'+fmtDate(t.date)+'</td>'
-          +'<td class="td-main">'
-            +'<span class="td-desc-primary">'+highlight(t.description,searchVal)+'</span>'
-            +comercioHtml
-          +'</td>'
-          +'<td><span class="cat-badge" style="'+catStyle(t.category)+';cursor:pointer;" onclick="event.stopPropagation();openAssignModal(\''+t.id+'\',this)">'
-            +'<span class="cat-dot" style="background:'+catColor(t.category)+'"></span>'+esc(t.category)+'</span></td>'
-          +'<td>'+_pTag+'</td>'
-          +'<td class="td-amount" style="'+amtColor+';font-size:15px;font-weight:700;letter-spacing:-.4px;">'+(t.currency==='USD'?'U$D ':'$')+fmtN(t.amount)+'</td>'
-          +'<td style="padding:0 4px;white-space:nowrap;text-align:right;">'
-            +'<button class="txn-edit-btn" data-id="'+t.id+'" title="Editar" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:4px 5px;border-radius:6px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">✎</button>'
-            +'<button class="txn-del-btn" data-id="'+t.id+'" title="Eliminar" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:4px 5px;border-radius:6px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">✕</button>'
-          +'</td>'
-        +'</tr>';
-      }).join('')
+      +(()=>{
+        const buildRow=(t)=>{
+          const _pTag=t.payMethod
+            ?('<span class="pay-tag '+_payCls[t.payMethod]+'" onclick="event.stopPropagation();openPayMethodModal(\''+t.id+'\')" title="Cambiar medio">'+_payLbls[t.payMethod]+'</span>')
+            :('<span class="pay-tag" style="background:var(--surface2);color:var(--text3);border:1px solid var(--border);" onclick="event.stopPropagation();openPayMethodModal(\''+t.id+'\')" title="Asignar medio">+ tag</span>');
+          const _dupBg=state._dupFilterOn&&_dupAmtGroupMap[t.id]%2===0?'background:rgba(200,240,96,0.03);':'';
+          const _isSelected=state._detailTxnId===t.id?'selected':'';
+          const amtColor=t.currency==='USD'?'color:var(--accent2)':t.isPendingCuota?'color:var(--accent3)':'';
+          const comercioHtml=t.comercio_detectado&&t.comercio_detectado.toLowerCase()!==t.description.toLowerCase()
+            ?'<span class="td-desc-secondary"><span class="comercio-detected">'+esc(t.comercio_detectado)+'</span>'+origenChip(t)+cuotaProjectedChip(t)+sugerenciaBadge(t)+'</span>'
+            :'<span class="td-desc-secondary">'+origenChip(t)+cuotaProjectedChip(t)+sugerenciaBadge(t)+'</span>';
+          const _checked=state._selectedTxns&&state._selectedTxns.has(t.id)?' checked':'';
+          const _projStyle=t.isPendingCuota?'border-left:3px solid var(--accent3);':'';
+          return '<tr class="txn-row-v2 '+_isSelected+(_checked?' multi-selected':'')+'" data-txnid="'+t.id+'" style="'+_dupBg+_projStyle+'">'
+            +'<td style="padding:0 6px;"><input type="checkbox" class="txn-cb" data-id="'+t.id+'"'+_checked+' onclick="event.stopPropagation();toggleSelectTxn(\''+t.id+'\')"></td>'
+            +'<td style="font-family:var(--font);font-size:13px;font-weight:500;color:var(--text3);white-space:nowrap;">'+fmtDate(t.date)+'</td>'
+            +'<td class="td-main">'
+              +'<span class="td-desc-primary">'+highlight(t.description,searchVal)+'</span>'
+              +comercioHtml
+            +'</td>'
+            +'<td><span class="cat-badge" style="'+catStyle(t.category)+';cursor:pointer;" onclick="event.stopPropagation();openAssignModal(\''+t.id+'\',this)">'
+              +'<span class="cat-dot" style="background:'+catColor(t.category)+'"></span>'+esc(t.category)+'</span></td>'
+            +'<td>'+_pTag+'</td>'
+            +'<td class="td-amount" style="'+amtColor+';font-size:15px;font-weight:700;letter-spacing:-.4px;">'+(t.currency==='USD'?'U$D ':'$')+fmtN(t.amount)+'</td>'
+            +'<td style="padding:0 4px;white-space:nowrap;text-align:right;">'
+              +'<button class="txn-edit-btn" data-id="'+t.id+'" title="Editar" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:12px;padding:4px 5px;border-radius:6px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">✎</button>'
+              +'<button class="txn-del-btn" data-id="'+t.id+'" title="Eliminar" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:4px 5px;border-radius:6px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.5">✕</button>'
+            +'</td>'
+          +'</tr>';
+        };
+        if(!state._dupFilterOn) return displayTxns.map(buildRow).join('');
+        // ── Dup mode: render groups with action rows ──
+        window._dupGroups=[];
+        const grpMap={},grpOrder=[];
+        displayTxns.forEach(t=>{const k=txnDupKey(t);if(!grpMap[k]){grpMap[k]=[];grpOrder.push(k);}grpMap[k].push(t);});
+        return grpOrder.map((k,gi)=>{
+          const grp=grpMap[k];
+          window._dupGroups.push(grp.map(t=>t.id));
+          const amt=(grp[0].currency==='USD'?'U$D ':'$')+fmtN(grp[0].amount);
+          return grp.map(buildRow).join('')
+            +'<tr style="background:var(--surface2);"><td colspan="7" style="padding:7px 14px;border-top:1px solid var(--border);border-bottom:2px solid var(--border);">'
+            +'<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">'
+            +'<span style="font-size:11px;color:var(--text3);">'+grp.length+' movimientos · '+amt+'</span>'
+            +'<span style="flex:1;"></span>'
+            +'<button onclick="resolveDupInline('+gi+',\'delete\')" style="font-size:11px;padding:5px 14px;border-radius:6px;border:1px solid rgba(240,96,96,0.4);background:rgba(240,96,96,0.1);color:#ff3b30;cursor:pointer;font-weight:700;white-space:nowrap;">🗑 Sí, es duplicado — borrar uno</button>'
+            +'<button onclick="resolveDupInline('+gi+',\'keep\')" style="font-size:11px;padding:5px 14px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);cursor:pointer;font-weight:600;white-space:nowrap;">✓ No, son gastos distintos</button>'
+            +'</div>'
+            +'</td></tr>'
+            +'<tr><td colspan="7" style="height:10px;background:var(--bg);"></td></tr>';
+        }).join('');
+      })()
       +'</tbody></table></div>';
   }
 

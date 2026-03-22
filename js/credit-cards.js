@@ -184,6 +184,24 @@ function renderCcActiveCycle(){
 
   const countdownStyle=cd.overdue?'color:var(--danger);font-weight:700;':cd.urgent?'color:var(--accent3);font-weight:700;':'color:var(--text3);';
 
+  // Pre-compute strings that can't be safely inline in template literals
+  const dueDateHtml=activeCycle.dueDate
+    ?'<span>Vencimiento: <strong style="color:var(--text);">'+ccFmtDate(activeCycle.dueDate)+'</strong></span>'
+    :'';
+  const openDateHtml=activeCycle.openDate
+    ?'<span>Apertura: <strong style="color:var(--text);">'+ccFmtDate(activeCycle.openDate)+'</strong></span>'
+    :'';
+  const rangeLabelHtml=activeCycle.openDate
+    ?'<div style="margin-top:4px;font-size:11px;color:var(--text3);">Gastos: '+ccFmtDate(activeCycle.openDate)+' al '+ccFmtDate(new Date(new Date(activeCycle.closeDate+'T12:00:00').getTime()-86400000).toISOString().slice(0,10))+'</div>'
+    :'';
+  const countdownHtml=activeCycle.dueDate&&!isPaid
+    ?'<div style="margin-top:4px;font-size:12px;'+countdownStyle+'">'+cd.text+'</div>'
+    :'';
+  const noGastosTip=(!activeCycle.openDate&&activeCycle.closeDate)
+    ?'<br><span style="font-size:11px;">Tip: agregá una fecha de apertura al ciclo para filtrar correctamente</span>'
+    :'';
+  const noGastosHtml='<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">Sin gastos en este ciclo'+noGastosTip+'</div>';
+
   // Selector de ciclo
   const cycleSelector=cardCycles.length>1
     ?'<div style="margin-top:8px;">'
@@ -244,12 +262,12 @@ function renderCcActiveCycle(){
             ${card?'<span style="font-size:11px;font-weight:700;color:'+card.color+';background:'+card.color+'15;padding:2px 8px;border-radius:6px;">'+esc(card.name)+'</span>':''}
           </div>
           <div style="margin-top:8px;font-size:13px;color:var(--text3);display:flex;flex-wrap:wrap;gap:12px;">
-            ${activeCycle.openDate?'<span>Apertura: <strong style="color:var(--text);">'+ccFmtDate(activeCycle.openDate)+'</strong></span>':''}
+            ${openDateHtml}
             <span>Cierre: <strong style="color:var(--text);">${ccFmtDate(activeCycle.closeDate)}</strong></span>
-            ${activeCycle.dueDate?'<span>Vencimiento: <strong style="color:var(--text);">${ccFmtDate(activeCycle.dueDate)}</strong></span>':''}
+            ${dueDateHtml}
           </div>
-          ${activeCycle.openDate?'<div style="margin-top:4px;font-size:11px;color:var(--text3);">Gastos: '+ccFmtDate(activeCycle.openDate)+' al '+ccFmtDate(new Date(new Date(activeCycle.closeDate+'T12:00:00').getTime()-86400000).toISOString().slice(0,10))+'</div>':''}
-          ${activeCycle.dueDate&&!isPaid?'<div style="margin-top:4px;font-size:12px;'+countdownStyle+'">'+cd.text+'</div>':''}
+          ${rangeLabelHtml}
+          ${countdownHtml}
           ${cycleSelector}
         </div>
         ${actionBtns}
@@ -303,7 +321,7 @@ function renderCcActiveCycle(){
             <tbody>${expRows}</tbody>
           </table>
         </div>
-        `:'<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">Sin gastos en este ciclo${!activeCycle.openDate&&activeCycle.closeDate?'<br><span style=\"font-size:11px;\">Tip: agregá una fecha de apertura al ciclo para filtrar correctamente</span>':''}</div>'}
+        `:noGastosHtml}
       </div>
     </div>
   `;

@@ -230,6 +230,9 @@ async function loadFromDrive(){
     USD_TO_ARS=state.usdRate;
     state.catRules=s.catRules||[];
     state.catHistory=s.catHistory||{};
+    state.ccCards=s.ccCards||[];
+    state.ccCycles=s.ccCycles||[];
+    state.ccActiveCard=s.ccActiveCard||null;
     state.transactions.forEach(t=>{if(!t.week)t.week=getWeekKey(t.date);if(!t.month)t.month=getMonthKey(t.date);});
     // Also persist to localStorage
     try{localStorage.setItem('fin_state',JSON.stringify(s));}catch(e){}
