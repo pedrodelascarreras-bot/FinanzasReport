@@ -1,12 +1,14 @@
 // ══ TC CONFIG ══
 function openTcConfig(){
-  if(!state.tcCycles)state.tcCycles=[];
-  const months=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const d=new Date();
-  document.getElementById('tc-cycle-label').value=months[d.getMonth()]+' '+d.getFullYear();
-  document.getElementById('tc-cycle-close').value='';
-  document.getElementById('modal-tc-config').classList.add('open');
-  renderTcCycleList();
+  // Redirect to Credit Cards page (TC config is now inline there)
+  nav('credit-cards');
+  // Auto-open the TC config section
+  setTimeout(()=>{
+    const body=document.getElementById('cc-tc-config-body');
+    const arrow=document.getElementById('cc-tc-config-arrow');
+    if(body)body.style.display='block';
+    if(arrow)arrow.textContent='▾';
+  },100);
 }
 function openTcConfigModal(){ openTcConfig(); }
 
@@ -83,11 +85,29 @@ function addTcCycle(){
   document.getElementById('tc-cycle-close').value='';
 }
 
+function addTcCycleFromCC(){
+  const labelEl=document.getElementById('tc-cycle-label-cc');
+  const closeEl=document.getElementById('tc-cycle-close-cc');
+  const label=(labelEl?labelEl.value:'').trim();
+  const closeDate=(closeEl?closeEl.value:'');
+  if(!label||!closeDate){showToast('⚠️ Completá nombre y fecha de cierre','error');return;}
+  if(!state.tcCycles)state.tcCycles=[];
+  if(state.tcCycles.find(c=>c.closeDate===closeDate)){showToast('⚠️ Ya existe un ciclo con esa fecha de cierre','error');return;}
+  const id='tc_'+Date.now().toString(36);
+  state.tcCycles.push({id,label,closeDate});
+  saveState();
+  renderCcTcConfig();
+  showToast('✓ Ciclo agregado: '+label,'success');
+  if(labelEl)labelEl.value='';
+  if(closeEl)closeEl.value='';
+}
+
 function deleteTcCycle(id){
   if(!confirm('¿Eliminar este ciclo?'))return;
   state.tcCycles=(state.tcCycles||[]).filter(c=>c.id!==id);
   saveState();
   renderTcCycleList();
+  renderCcTcConfig();
   if(state.dashView==='tc')renderDashboard();
   showToast('Ciclo eliminado','info');
 }

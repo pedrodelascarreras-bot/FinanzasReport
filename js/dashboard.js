@@ -424,7 +424,28 @@ function renderDashboard(){
     if(pLabel)pLabel.textContent=pct+'% usado del ingreso · meta: '+state.alertThreshold+'%';
   } else if(pFill){pFill.style.width='0%';}
 
-  // ── KPI: Tarjeta — siempre muestra el ciclo TC activo ──
+  // ── KPI: Tarjeta — split VISA / AMEX using ccCycles ──
+  ccInit();
+  const _ccCards=state.ccCards||[];
+  const _ccCycles=state.ccCycles||[];
+  _ccCards.forEach(card=>{
+    const cardCycles=[..._ccCycles].filter(c=>c.cardId===card.id).sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
+    const pending=cardCycles.filter(c=>c.status==='pending');
+    const activeCycle=pending.length?pending[0]:cardCycles[0];
+    let cardArs=0,cardUsd=0;
+    if(activeCycle){
+      const expenses=ccGetCycleExpenses(activeCycle);
+      const totals=ccGetTotals(expenses);
+      cardArs=totals.ars;
+      cardUsd=totals.usd;
+    }
+    const prefix=card.payMethodKey==='visa'?'visa':'amex';
+    const arsEl=document.getElementById('kpi-'+prefix+'-ars');
+    const usdEl=document.getElementById('kpi-'+prefix+'-usd');
+    if(arsEl)arsEl.textContent=cardArs>0?'$'+fmtN(Math.round(cardArs)):'—';
+    if(usdEl)usdEl.textContent=cardUsd>0?'U$D '+fmtN(cardUsd):'';
+  });
+  // Hidden compat element
   document.getElementById('kpi-tc').textContent=hasPayTagsWidget?'$'+fmtN(tcWidgetAmt+debWidgetAmt):'$'+fmtN(_tcWidgetTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0));
   document.getElementById('kpi-tc-d').innerHTML=hasPayTagsWidget
     ?'<span style="color:var(--accent2)">💳 $'+fmtN(tcWidgetAmt)+'</span>&nbsp;<span style="color:var(--accent)">🏦 $'+fmtN(debWidgetAmt)+'</span>'

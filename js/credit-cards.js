@@ -118,6 +118,7 @@ function renderCreditCards(){
   renderCcCardTabs();
   renderCcActiveCycle();
   renderCcHistory();
+  renderCcTcConfig();
 }
 
 function renderCcCardTabs(){
@@ -349,9 +350,9 @@ function renderCcHistory(){
     const totals=ccGetTotals(expenses);
     const detailId='cc-hist-detail-'+cycle.id;
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:8px;">'
-      +'<div style="display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;" onclick="ccToggleHistory(\''+detailId+'\')">'
-        +'<span style="color:#00c853;font-weight:700;">✓</span>'
-        +'<div style="flex:1;min-width:0;">'
+      +'<div style="display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;">'
+        +'<span style="color:#00c853;font-weight:700;" onclick="ccToggleHistory(\''+detailId+'\')">'+'✓</span>'
+        +'<div style="flex:1;min-width:0;cursor:pointer;" onclick="ccToggleHistory(\''+detailId+'\')">'
           +'<div style="font-size:13px;font-weight:600;color:var(--text);">Cierre '+ccFmtDate(cycle.closeDate)+'</div>'
           +'<div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:1px;">'
             +(cycle.openDate?'Apertura '+ccFmtDate(cycle.openDate)+' · ':'')
@@ -359,11 +360,15 @@ function renderCcHistory(){
             +totals.count+' gastos'
           +'</div>'
         +'</div>'
-        +'<div style="text-align:right;">'
+        +'<div style="text-align:right;cursor:pointer;" onclick="ccToggleHistory(\''+detailId+'\')">'
           +'<div style="font-size:14px;font-weight:700;color:var(--accent);font-family:var(--font);">$'+fmtN(Math.round(totals.ars))+'</div>'
           +(totals.usd>0?'<div style="font-size:11px;color:var(--accent2);font-family:var(--font);">U$D '+fmtN(totals.usd)+'</div>':'')
         +'</div>'
-        +'<span style="color:var(--text3);font-size:12px;">▸</span>'
+        +'<div style="display:flex;gap:4px;align-items:center;flex-shrink:0;">'
+          +'<button onclick="ccEditHistCycle(\''+cycle.id+'\')" title="Editar ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:4px 6px;border-radius:6px;transition:all .15s;" onmouseover="this.style.color=\'var(--accent)\';this.style.background=\'var(--surface2)\'" onmouseout="this.style.color=\'var(--text3)\';this.style.background=\'none\'">✎</button>'
+          +'<button onclick="ccDeleteHistCycle(\''+cycle.id+'\')" title="Eliminar ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:4px 6px;border-radius:6px;transition:all .15s;" onmouseover="this.style.color=\'var(--danger)\';this.style.background=\'var(--surface2)\'" onmouseout="this.style.color=\'var(--text3)\';this.style.background=\'none\'">🗑</button>'
+          +'<span style="color:var(--text3);font-size:12px;cursor:pointer;" onclick="ccToggleHistory(\''+detailId+'\')">' + '▸</span>'
+        +'</div>'
       +'</div>'
       +'<div id="'+detailId+'" style="display:none;border-top:1px solid var(--border);padding:12px 16px;">'
         +'<table style="width:100%;border-collapse:collapse;">'
@@ -390,11 +395,33 @@ function ccToggleHistory(detailId){
 // ── Nuevo ciclo ──
 function ccOpenNewCycleModal(){
   ccInit();
+  window._ccEditingCycleId=null;
   document.getElementById('modal-cc-cycle-title').textContent='Nuevo ciclo';
   document.getElementById('cc-cycle-open').value='';
   document.getElementById('cc-cycle-close').value='';
   document.getElementById('cc-cycle-due').value='';
   openModal('modal-cc-cycle');
+}
+
+// ── Editar ciclo del historial ──
+function ccEditHistCycle(cycleId){
+  ccInit();
+  const cycle=state.ccCycles.find(c=>c.id===cycleId);if(!cycle)return;
+  window._ccEditingCycleId=cycleId;
+  document.getElementById('modal-cc-cycle-title').textContent='Editar ciclo';
+  document.getElementById('cc-cycle-open').value=cycle.openDate||'';
+  document.getElementById('cc-cycle-close').value=cycle.closeDate||'';
+  document.getElementById('cc-cycle-due').value=cycle.dueDate||'';
+  openModal('modal-cc-cycle');
+}
+
+// ── Eliminar ciclo del historial ──
+function ccDeleteHistCycle(cycleId){
+  if(!confirm('¿Eliminar este ciclo del historial? Se perderán los gastos manuales asociados.'))return;
+  state.ccCycles=state.ccCycles.filter(c=>c.id!==cycleId);
+  saveState();
+  renderCreditCards();
+  showToast('Ciclo eliminado','info');
 }
 
 function ccSaveCycle(){
@@ -403,14 +430,30 @@ function ccSaveCycle(){
   const closeDate=document.getElementById('cc-cycle-close').value;
   const dueDate=document.getElementById('cc-cycle-due').value;
   if(!closeDate){showToast('⚠️ Ingresá la fecha de cierre','error');return;}
-  const cardId=state.ccActiveCard||state.ccCards[0]?.id;
-  const id='cc_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-  state.ccCycles.push({id,cardId,openDate:openDate||null,closeDate,dueDate:dueDate||null,status:'pending',manualExpenses:[],excludedIds:[]});
-  window._ccViewCycle[cardId]=id; // auto-select new cycle
-  saveState();
-  closeModal('modal-cc-cycle');
-  renderCreditCards();
-  showToast('✓ Ciclo agregado','success');
+  const editId=window._ccEditingCycleId;
+  if(editId){
+    // Editing existing cycle
+    const cycle=state.ccCycles.find(c=>c.id===editId);
+    if(!cycle){showToast('⚠️ Ciclo no encontrado','error');return;}
+    cycle.openDate=openDate||null;
+    cycle.closeDate=closeDate;
+    cycle.dueDate=dueDate||null;
+    window._ccEditingCycleId=null;
+    saveState();
+    closeModal('modal-cc-cycle');
+    renderCreditCards();
+    showToast('✓ Ciclo actualizado','success');
+  } else {
+    // Creating new cycle
+    const cardId=state.ccActiveCard||state.ccCards[0]?.id;
+    const id='cc_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+    state.ccCycles.push({id,cardId,openDate:openDate||null,closeDate,dueDate:dueDate||null,status:'pending',manualExpenses:[],excludedIds:[]});
+    window._ccViewCycle[cardId]=id; // auto-select new cycle
+    saveState();
+    closeModal('modal-cc-cycle');
+    renderCreditCards();
+    showToast('✓ Ciclo agregado','success');
+  }
 }
 
 // ── Marcar pagado ──
@@ -484,6 +527,41 @@ function ccDeleteManualExpense(cycleId, expId){
   cycle.manualExpenses=(cycle.manualExpenses||[]).filter(e=>e.id!==expId);
   saveState();
   renderCcActiveCycle();
+}
+
+// ── Render TC Config section inline dentro de la página de Tarjeta de Crédito ──
+function renderCcTcConfig(){
+  const el=document.getElementById('cc-tc-config-list');if(!el)return;
+  const cycles=getTcCycles();
+  if(!cycles.length){
+    el.innerHTML='<div style="color:var(--text3);font-size:12px;font-family:var(--font);padding:16px 0;text-align:center;">Sin ciclos registrados.<br>Agregá el primero arriba.</div>';
+    return;
+  }
+  el.innerHTML=cycles.map((c,idx)=>{
+    const open=getTcCycleOpen(cycles,idx);
+    const openD=new Date(open+'T12:00:00');
+    const closeD=new Date(c.closeDate+'T12:00:00');
+    const fmtD=d=>d.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+    const txns=getTcCycleTxns(c, cycles);
+    const total=txns.reduce((s,t)=>s+(t.currency==='USD'?t.amount*USD_TO_ARS:t.amount),0);
+    return '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">'+
+      '<div style="flex:1;min-width:0;">'+
+        '<div style="font-size:13px;font-weight:700;color:var(--text);">'+esc(c.label)+'</div>'+
+        '<div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;">'+fmtD(openD)+' → '+fmtD(closeD)+'</div>'+
+      '</div>'+
+      '<div style="font-size:13px;font-weight:700;color:var(--accent);font-family:var(--font);">'+(total>0?'$'+fmtN(total):'sin gastos')+'</div>'+
+      '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteTcCycle(\''+c.id+'\')" title="Eliminar">🗑</button>'+
+    '</div>';
+  }).join('');
+}
+
+function ccToggleTcConfig(){
+  const body=document.getElementById('cc-tc-config-body');
+  const arrow=document.getElementById('cc-tc-config-arrow');
+  if(!body)return;
+  const open=body.style.display==='none';
+  body.style.display=open?'block':'none';
+  if(arrow)arrow.textContent=open?'▾':'▸';
 }
 
 window.checkCreditCardAlerts = checkCreditCardAlerts;
