@@ -156,15 +156,25 @@ function renderTcDashboard(){
 function renderMixBar(){}
 function openPayMethodModal(txnId){
   const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
+  window._bulkTagMode=false;
   state._assigningTxnId=txnId;
   document.getElementById('modal-pay-txn-id').value=txnId;
   document.getElementById('modal-pay-desc').textContent='"'+t.description+'" — $'+fmtN(t.amount);
   openModal('modal-pay-method');
 }
 function setPayMethod(method){
-  const id=document.getElementById('modal-pay-txn-id').value;
-  const t=state.transactions.find(x=>x.id===id);
-  if(t){t.payMethod=method;saveState();showToast('✓ Medio de pago actualizado','success');refreshAll();}
+  if(window._bulkTagMode){
+    window._bulkTagMode=false;
+    const ids=[...state._selectedTxns];
+    ids.forEach(id=>{const t=state.transactions.find(x=>x.id===id);if(t)t.payMethod=method;});
+    clearSelection();saveState();refreshAll();
+    const lbl={visa:'Santander VISA',amex:'Santander AMEX',deb:'Santander Débito',ef:'Efectivo'}[method]||method;
+    showToast('✓ "'+lbl+'" aplicado a '+ids.length+' movimientos','success');
+  } else {
+    const id=document.getElementById('modal-pay-txn-id').value;
+    const t=state.transactions.find(x=>x.id===id);
+    if(t){t.payMethod=method;saveState();showToast('✓ Tag actualizado','success');refreshAll();}
+  }
   closeModal('modal-pay-method');
 }
 

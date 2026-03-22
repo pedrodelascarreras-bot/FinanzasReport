@@ -122,8 +122,8 @@ function renderRulesPanel(){
             +'</div>'
             +(Object.keys(catCounts).length>1?'<div style="font-size:9px;color:var(--text3);margin-top:2px;">También: '+esc(allCats)+'</div>':'')
           +'</div>'
-          +'<button style="padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;" onclick="convertLearnedToRule(\''+esc(comercio)+'\',\''+esc(best[0])+'\')" title="Convertir en regla fija">→ Regla</button>'
-          +'<button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.5;" onclick="deleteLearned(\''+esc(comercio)+'\')" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'" title="Eliminar aprendizaje">✕</button>'
+          +'<button style="padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;" data-com="'+esc(comercio)+'" data-cat="'+esc(best[0])+'" onclick="convertLearnedToRule(this.dataset.com,this.dataset.cat)" title="Convertir en regla fija">→ Regla</button>'
+          +'<button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.5;" data-com="'+esc(comercio)+'" onclick="deleteLearned(this.dataset.com)" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'" title="Eliminar aprendizaje">✕</button>'
         +'</div>';
       }).join('')}
       ${histEntries.length>0?'<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px;color:var(--danger);" onclick="clearAllLearned()">🗑 Borrar todo el historial de aprendizaje</button>':''}
@@ -144,7 +144,7 @@ function renderRulesPanel(){
             +'</div>'
             +'<div style="font-size:10px;color:var(--text3);margin-top:2px;">'+s.count+' movimientos · '+s.confidence+'% confianza</div>'
           +'</div>'
-          +'<button style="padding:5px 10px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;" onclick="acceptRuleSuggestion(\''+esc(s.keyword)+'\',\''+esc(s.category)+'\')">+ Crear</button>'
+          +'<button style="padding:5px 10px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;" data-kw="'+esc(s.keyword)+'" data-cat="'+esc(s.category)+'" onclick="acceptRuleSuggestion(this.dataset.kw,this.dataset.cat)">+ Crear</button>'
         +'</div>';
       }).join('')}
       `:''}

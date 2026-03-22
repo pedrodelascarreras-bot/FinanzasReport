@@ -594,10 +594,11 @@ function deduplicateTransactions(){
 
 // ── Find duplicates in current transactions for the UI button ──
 function findDuplicateGroups(){
-  // Group by amount + currency only — user visually confirms if same commerce/date = true dup
+  // Group by amount + currency + date (day) — same amount on same day
   const byAmt={};
   state.transactions.forEach(t=>{
-    const k=String(t.amount)+'|'+t.currency;
+    const d=t.date instanceof Date?t.date.toISOString().slice(0,10):String(t.date).slice(0,10);
+    const k=String(t.amount)+'|'+t.currency+'|'+d;
     if(!byAmt[k])byAmt[k]=[];
     byAmt[k].push(t);
   });

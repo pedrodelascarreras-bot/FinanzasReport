@@ -369,6 +369,10 @@
     <div class="modal-header"><div class="modal-title" id="modal-cc-cycle-title">Nuevo ciclo</div><button class="modal-close" onclick="closeModal('modal-cc-cycle')">✕</button></div>
     <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
       <div>
+        <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Fecha de apertura</label>
+        <input type="date" id="cc-cycle-open" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-family:var(--font);">
+      </div>
+      <div>
         <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Fecha de cierre</label>
         <input type="date" id="cc-cycle-close" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-family:var(--font);">
       </div>
@@ -676,6 +680,7 @@
   <div class="txn-select-bar" id="txn-select-bar">
     <span class="sb-count" id="sb-count">0 seleccionados</span>
     <button class="sb-btn" onclick="bulkCategorize()">📂 Categorizar</button>
+    <button class="sb-btn" onclick="bulkTag()">🏷 Tag</button>
     <button class="sb-btn" onclick="bulkUncategorize()">↩ Descategorizar</button>
     <button class="sb-btn danger" onclick="bulkDelete()">✕ Eliminar</button>
     <div style="margin-left:auto;">
@@ -1915,8 +1920,9 @@
     <div class="modal-sub" id="modal-pay-desc">—</div>
     <input type="hidden" id="modal-pay-txn-id">
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;">
-      <button class="btn" style="background:rgba(96,200,240,0.12);color:var(--accent2);border:1px solid rgba(96,200,240,0.25);justify-content:flex-start;gap:12px;" onclick="setPayMethod('tc')">💳 <span><strong>Tarjeta de Crédito</strong><span style="display:block;font-size:11px;font-family:var(--font);opacity:0.7;">Se paga al cierre del resumen</span></span></button>
-      <button class="btn" style="background:rgba(200,240,96,0.12);color:var(--accent);border:1px solid rgba(200,240,96,0.25);justify-content:flex-start;gap:12px;" onclick="setPayMethod('deb')">🏦 <span><strong>Débito / Transferencia</strong><span style="display:block;font-size:11px;font-family:var(--font);opacity:0.7;">Sale directo de la cuenta</span></span></button>
+      <button class="btn" style="background:rgba(230,57,70,0.12);color:#e63946;border:1px solid rgba(230,57,70,0.3);justify-content:flex-start;gap:12px;" onclick="setPayMethod('visa')">💳 <span><strong>Santander VISA</strong><span style="display:block;font-size:11px;font-family:var(--font);opacity:0.7;">Tarjeta de crédito VISA</span></span></button>
+      <button class="btn" style="background:rgba(69,123,157,0.12);color:#457b9d;border:1px solid rgba(69,123,157,0.3);justify-content:flex-start;gap:12px;" onclick="setPayMethod('amex')">💳 <span><strong>Santander AMEX</strong><span style="display:block;font-size:11px;font-family:var(--font);opacity:0.7;">Tarjeta de crédito American Express</span></span></button>
+      <button class="btn" style="background:rgba(200,240,96,0.12);color:var(--accent);border:1px solid rgba(200,240,96,0.25);justify-content:flex-start;gap:12px;" onclick="setPayMethod('deb')">🏦 <span><strong>Santander Débito</strong><span style="display:block;font-size:11px;font-family:var(--font);opacity:0.7;">Débito / Transferencia bancaria</span></span></button>
       <button class="btn" style="background:rgba(240,160,96,0.12);color:var(--accent3);border:1px solid rgba(240,160,96,0.25);justify-content:flex-start;gap:12px;" onclick="setPayMethod('ef')">💵 <span><strong>Efectivo</strong><span style="display:block;font-size:11px;font-family:var(--font);opacity:0.7;">Pago en efectivo</span></span></button>
     </div>
     <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal('modal-pay-method')">Cancelar</button></div>

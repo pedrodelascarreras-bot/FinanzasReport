@@ -5,13 +5,26 @@
 function ccInit(){
   if(!state.ccCards||!state.ccCards.length){
     state.ccCards=[
-      {id:'card_1',name:'Santander Visa',color:'#e63946'},
-      {id:'card_2',name:'Santander Mastercard',color:'#457b9d'}
+      {id:'card_1',name:'Santander VISA',color:'#e63946',payMethodKey:'visa'},
+      {id:'card_2',name:'Santander AMEX',color:'#457b9d',payMethodKey:'amex'}
     ];
   }
+  // Migrar tarjetas viejas sin payMethodKey
+  state.ccCards.forEach(c=>{
+    if(!c.payMethodKey){
+      if(c.name&&c.name.toLowerCase().includes('visa'))c.payMethodKey='visa';
+      else if(c.name&&(c.name.toLowerCase().includes('amex')||c.name.toLowerCase().includes('mastercard')))c.payMethodKey='amex';
+    }
+    // Fix legacy "Santander Mastercard" name
+    if(c.name==='Santander Mastercard')c.name='Santander AMEX';
+  });
   if(!state.ccCycles) state.ccCycles=[];
   if(!state.ccActiveCard) state.ccActiveCard=state.ccCards[0]?.id||'card_1';
 }
+
+// ── Per-card: which cycle is being viewed ──
+// window._ccViewCycle = { cardId: cycleId }
+if(!window._ccViewCycle) window._ccViewCycle={};
 
 // ── Utilidades de fecha ──
 function ccFmtDate(str){
@@ -29,27 +42,22 @@ function ccCountdown(dueDateStr){
   return{text:'Vence en '+diff+' días',overdue:false,urgent:diff<=3};
 }
 
-// ── Obtener ciclo anterior de una tarjeta ──
-function ccPrevCycleClose(cardId, currentCycle){
-  const sorted=[...state.ccCycles]
-    .filter(c=>c.cardId===cardId&&c.closeDate<currentCycle.closeDate)
-    .sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
-  return sorted[0]?.closeDate||null;
-}
-
 // ── Obtener gastos del ciclo (movimientos + manuales) ──
 function ccGetCycleExpenses(cycle){
-  const prevClose=ccPrevCycleClose(cycle.cardId,cycle);
-  // Rango: día siguiente al cierre anterior → fecha de cierre de este ciclo
-  const from=prevClose?(()=>{const d=new Date(prevClose+'T12:00:00');d.setDate(d.getDate()+1);return d.toISOString().slice(0,10);})():null;
-  const to=cycle.closeDate;
+  const card=state.ccCards.find(c=>c.id===cycle.cardId);
+  const pmKey=card?.payMethodKey||null;
 
-  // Fuente A: transacciones de movimientos en el rango
+  // Rango: openDate → 1 día antes del cierre (d >= openDate && d < closeDate)
+  const from=cycle.openDate||null;
+  const to=cycle.closeDate; // exclusivo: d < to
+
   const excluded=new Set(cycle.excludedIds||[]);
   const txnExpenses=(state.transactions||[]).filter(t=>{
     if(excluded.has(t.id))return false;
+    // Filtrar por tag de tarjeta si está definido
+    if(pmKey && t.payMethod!==pmKey)return false;
     const d=t.date instanceof Date?t.date.toISOString().slice(0,10):String(t.date).slice(0,10);
-    return(!from||d>=from)&&d<=to;
+    return(!from||d>=from)&&d<to;
   }).map(t=>({
     id:t.id,
     date:t.date instanceof Date?t.date.toISOString().slice(0,10):String(t.date).slice(0,10),
@@ -60,9 +68,7 @@ function ccGetCycleExpenses(cycle){
     source:'txn'
   }));
 
-  // Fuente B: gastos manuales
   const manualExpenses=(cycle.manualExpenses||[]).map(e=>({...e,source:'manual'}));
-
   return [...txnExpenses,...manualExpenses].sort((a,b)=>b.date.localeCompare(a.date));
 }
 
@@ -131,9 +137,16 @@ function renderCcCardTabs(){
 function ccSelectCard(cardId){
   ccInit();
   state.ccActiveCard=cardId;
+  window._ccViewCycle[cardId]=null; // reset viewed cycle for this card
   renderCcCardTabs();
   renderCcActiveCycle();
   renderCcHistory();
+}
+
+function ccSelectViewCycle(cycleId){
+  const cardId=state.ccActiveCard||state.ccCards[0]?.id;
+  window._ccViewCycle[cardId]=cycleId;
+  renderCcActiveCycle();
 }
 
 function renderCcActiveCycle(){
@@ -143,18 +156,21 @@ function renderCcActiveCycle(){
   if(!emptyEl||!activeEl)return;
 
   const cardId=state.ccActiveCard||state.ccCards[0]?.id;
+  const card=state.ccCards.find(c=>c.id===cardId);
   const cardCycles=[...state.ccCycles]
     .filter(c=>c.cardId===cardId)
     .sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
 
-  // Ciclo activo = el pending más reciente, o el más reciente si todos paid
-  const pending=cardCycles.filter(c=>c.status==='pending');
-  const activeCycle=pending.length?pending[0]:cardCycles[0]||null;
-
-  if(!activeCycle){
+  if(!cardCycles.length){
     emptyEl.style.display='block';activeEl.style.display='none';return;
   }
   emptyEl.style.display='none';activeEl.style.display='block';
+
+  // Ciclo visible: el que seleccionó el usuario, o el pending más reciente, o el más reciente
+  const viewingId=window._ccViewCycle[cardId];
+  const pending=cardCycles.filter(c=>c.status==='pending');
+  const defaultCycle=pending.length?pending[0]:cardCycles[0];
+  const activeCycle=viewingId?cardCycles.find(c=>c.id===viewingId)||defaultCycle:defaultCycle;
 
   const expenses=ccGetCycleExpenses(activeCycle);
   const totals=ccGetTotals(expenses);
@@ -168,6 +184,18 @@ function renderCcActiveCycle(){
 
   const countdownStyle=cd.overdue?'color:var(--danger);font-weight:700;':cd.urgent?'color:var(--accent3);font-weight:700;':'color:var(--text3);';
 
+  // Selector de ciclo
+  const cycleSelector=cardCycles.length>1
+    ?'<div style="margin-top:8px;">'
+      +'<select onchange="ccSelectViewCycle(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-family:var(--font);cursor:pointer;">'
+      +cardCycles.map(c=>'<option value="'+c.id+'"'+(c.id===activeCycle.id?' selected':'')+'>'+
+        (c.status==='paid'?'✓ ':'⏳ ')+
+        'Cierre '+ccFmtDate(c.closeDate)+(c.openDate?' (desde '+ccFmtDate(c.openDate)+')':'')
+      +'</option>').join('')
+      +'</select>'
+      +'</div>'
+    :'';
+
   const catRows=catSummary.map(r=>'<tr>'
     +'<td style="padding:6px 8px;font-size:12px;color:var(--text);">'+esc(r.cat)+'</td>'
     +'<td style="padding:6px 8px;font-size:12px;font-family:var(--font);text-align:right;color:var(--accent);">'+(r.ars>0?'$'+fmtN(Math.round(r.ars)):'—')+'</td>'
@@ -177,8 +205,8 @@ function renderCcActiveCycle(){
 
   const expRows=expenses.map(e=>{
     const removeBtn=e.source==='txn'
-      ?'<button onclick="ccExcludeTxn(\''+activeCycle.id+'\',\''+e.id+'\')" title="Excluir de este ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 6px;border-radius:4px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'">✕</button>'
-      :'<button onclick="ccDeleteManualExpense(\''+activeCycle.id+'\',\''+e.id+'\')" title="Eliminar gasto manual" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 6px;border-radius:4px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'">✕</button>';
+      ?'<button data-cid="'+activeCycle.id+'" data-tid="'+e.id+'" onclick="ccExcludeTxn(this.dataset.cid,this.dataset.tid)" title="Excluir de este ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 6px;border-radius:4px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'">✕</button>'
+      :'<button data-cid="'+activeCycle.id+'" data-eid="'+e.id+'" onclick="ccDeleteManualExpense(this.dataset.cid,this.dataset.eid)" title="Eliminar gasto manual" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 6px;border-radius:4px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'">✕</button>';
     return '<tr style="border-bottom:1px solid var(--border);">'
       +'<td style="padding:8px;font-size:12px;color:var(--text3);white-space:nowrap;font-family:var(--font);">'+ccFmtDate(e.date)+'</td>'
       +'<td style="padding:8px;font-size:13px;color:var(--text);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(e.description)+'</td>'
@@ -189,22 +217,42 @@ function renderCcActiveCycle(){
     +'</tr>';
   }).join('');
 
+  // Botón PAGADO: grande y verde, o acciones si pendiente
+  const actionBtns=isPaid
+    ?''
+    :'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+      +'<button class="btn btn-ghost btn-sm" data-cid="'+activeCycle.id+'" onclick="ccOpenManualExpenseModal(this.dataset.cid)">+ Agregar gasto</button>'
+      +'<button data-cid="'+activeCycle.id+'" onclick="ccMarkPaid(this.dataset.cid)" style="'
+        +'padding:12px 28px;border-radius:12px;border:none;cursor:pointer;'
+        +'background:linear-gradient(135deg,#00c853,#00e676);color:#fff;'
+        +'font-size:15px;font-weight:800;letter-spacing:.06em;'
+        +'box-shadow:0 4px 16px rgba(0,200,83,0.35);'
+        +'transition:transform .12s,box-shadow .12s;'
+        +'font-family:var(--font);"'
+        +' onmouseover="this.style.transform=\'scale(1.04)\';this.style.boxShadow=\'0 6px 24px rgba(0,200,83,0.5)\'"'
+        +' onmouseout="this.style.transform=\'\';this.style.boxShadow=\'0 4px 16px rgba(0,200,83,0.35)\'"'
+      +'>✓ PAGADO</button>'
+    +'</div>';
+
   activeEl.innerHTML=`
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;">
       <!-- Header del ciclo -->
       <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <div>
-          ${statusBadge}
-          <div style="margin-top:8px;font-size:13px;color:var(--text3);">
-            <span>Cierre: <strong style="color:var(--text);">${ccFmtDate(activeCycle.closeDate)}</strong></span>
-            ${activeCycle.dueDate?`<span style="margin-left:14px;">Vencimiento: <strong style="color:var(--text);">${ccFmtDate(activeCycle.dueDate)}</strong></span>`:''}
+        <div style="flex:1;min-width:0;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            ${statusBadge}
+            ${card?'<span style="font-size:11px;font-weight:700;color:'+card.color+';background:'+card.color+'15;padding:2px 8px;border-radius:6px;">'+esc(card.name)+'</span>':''}
           </div>
-          ${activeCycle.dueDate&&!isPaid?`<div style="margin-top:4px;font-size:12px;${countdownStyle}">${cd.text}</div>`:''}
+          <div style="margin-top:8px;font-size:13px;color:var(--text3);display:flex;flex-wrap:wrap;gap:12px;">
+            ${activeCycle.openDate?'<span>Apertura: <strong style="color:var(--text);">'+ccFmtDate(activeCycle.openDate)+'</strong></span>':''}
+            <span>Cierre: <strong style="color:var(--text);">${ccFmtDate(activeCycle.closeDate)}</strong></span>
+            ${activeCycle.dueDate?'<span>Vencimiento: <strong style="color:var(--text);">${ccFmtDate(activeCycle.dueDate)}</strong></span>':''}
+          </div>
+          ${activeCycle.openDate?'<div style="margin-top:4px;font-size:11px;color:var(--text3);">Gastos: '+ccFmtDate(activeCycle.openDate)+' al '+ccFmtDate(new Date(new Date(activeCycle.closeDate+'T12:00:00').getTime()-86400000).toISOString().slice(0,10))+'</div>':''}
+          ${activeCycle.dueDate&&!isPaid?'<div style="margin-top:4px;font-size:12px;'+countdownStyle+'">'+cd.text+'</div>':''}
+          ${cycleSelector}
         </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;">
-          ${!isPaid?`<button class="btn btn-ghost btn-sm" onclick="ccOpenManualExpenseModal('${activeCycle.id}')">+ Agregar gasto</button>`:''}
-          ${!isPaid?`<button class="btn btn-primary btn-sm" onclick="ccMarkPaid('${activeCycle.id}')">✓ Marcar pagado</button>`:''}
-        </div>
+        ${actionBtns}
       </div>
 
       <!-- KPIs -->
@@ -240,9 +288,7 @@ function renderCcActiveCycle(){
 
       <!-- Tabla de gastos -->
       <div style="padding:16px 20px;border-top:1px solid var(--border);">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-          <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);">Gastos del ciclo</div>
-        </div>
+        <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Gastos del ciclo</div>
         ${expenses.length?`
         <div style="overflow-x:auto;">
           <table style="width:100%;border-collapse:collapse;">
@@ -257,7 +303,7 @@ function renderCcActiveCycle(){
             <tbody>${expRows}</tbody>
           </table>
         </div>
-        `:'<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">Sin gastos en este ciclo</div>'}
+        `:'<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">Sin gastos en este ciclo${!activeCycle.openDate&&activeCycle.closeDate?'<br><span style=\"font-size:11px;\">Tip: agregá una fecha de apertura al ciclo para filtrar correctamente</span>':''}</div>'}
       </div>
     </div>
   `;
@@ -274,10 +320,8 @@ function renderCcHistory(){
     .filter(c=>c.cardId===cardId)
     .sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
 
-  // Historial = todos menos el ciclo activo/pending más reciente
-  const pending=cardCycles.filter(c=>c.status==='pending');
-  const activeCycleId=pending.length?pending[0].id:cardCycles[0]?.id;
-  const history=cardCycles.filter(c=>c.id!==activeCycleId);
+  // Historial = todos los PAGADOS
+  const history=cardCycles.filter(c=>c.status==='paid');
 
   if(!history.length){histSection.style.display='none';return;}
   histSection.style.display='block';
@@ -285,15 +329,14 @@ function renderCcHistory(){
   histList.innerHTML=history.map(cycle=>{
     const expenses=ccGetCycleExpenses(cycle);
     const totals=ccGetTotals(expenses);
-    const isPaid=cycle.status==='paid';
-    const statusIcon=isPaid?'<span style="color:#00c853;font-weight:700;">✓</span>':'<span style="color:#ff9500;font-weight:700;">⏳</span>';
     const detailId='cc-hist-detail-'+cycle.id;
     return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:8px;">'
       +'<div style="display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;" onclick="ccToggleHistory(\''+detailId+'\')">'
-        +statusIcon
+        +'<span style="color:#00c853;font-weight:700;">✓</span>'
         +'<div style="flex:1;min-width:0;">'
           +'<div style="font-size:13px;font-weight:600;color:var(--text);">Cierre '+ccFmtDate(cycle.closeDate)+'</div>'
           +'<div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:1px;">'
+            +(cycle.openDate?'Apertura '+ccFmtDate(cycle.openDate)+' · ':'')
             +(cycle.dueDate?'Vence '+ccFmtDate(cycle.dueDate)+' · ':'')
             +totals.count+' gastos'
           +'</div>'
@@ -330,6 +373,7 @@ function ccToggleHistory(detailId){
 function ccOpenNewCycleModal(){
   ccInit();
   document.getElementById('modal-cc-cycle-title').textContent='Nuevo ciclo';
+  document.getElementById('cc-cycle-open').value='';
   document.getElementById('cc-cycle-close').value='';
   document.getElementById('cc-cycle-due').value='';
   openModal('modal-cc-cycle');
@@ -337,12 +381,14 @@ function ccOpenNewCycleModal(){
 
 function ccSaveCycle(){
   ccInit();
+  const openDate=document.getElementById('cc-cycle-open').value;
   const closeDate=document.getElementById('cc-cycle-close').value;
   const dueDate=document.getElementById('cc-cycle-due').value;
   if(!closeDate){showToast('⚠️ Ingresá la fecha de cierre','error');return;}
   const cardId=state.ccActiveCard||state.ccCards[0]?.id;
   const id='cc_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-  state.ccCycles.push({id,cardId,closeDate,dueDate:dueDate||null,status:'pending',manualExpenses:[],excludedIds:[]});
+  state.ccCycles.push({id,cardId,openDate:openDate||null,closeDate,dueDate:dueDate||null,status:'pending',manualExpenses:[],excludedIds:[]});
+  window._ccViewCycle[cardId]=id; // auto-select new cycle
   saveState();
   closeModal('modal-cc-cycle');
   renderCreditCards();
@@ -355,9 +401,11 @@ function ccMarkPaid(cycleId){
   const cycle=state.ccCycles.find(c=>c.id===cycleId);
   if(!cycle)return;
   cycle.status='paid';
+  const cardId=state.ccActiveCard||state.ccCards[0]?.id;
+  window._ccViewCycle[cardId]=null; // volver al ciclo activo
   saveState();
   renderCreditCards();
-  showToast('✓ Ciclo marcado como pagado','success');
+  showToast('✓ ¡Ciclo marcado como pagado!','success');
 }
 
 // ── Excluir transacción de movimientos ──
@@ -377,7 +425,6 @@ function ccOpenManualExpenseModal(cycleId){
   document.getElementById('cc-exp-desc').value='';
   document.getElementById('cc-exp-ars').value='';
   document.getElementById('cc-exp-usd').value='';
-  // Populate category dropdown
   const sel=document.getElementById('cc-exp-cat');
   if(sel){
     let opts='<option value="Sin categoría">Sin categoría</option>';
@@ -421,7 +468,4 @@ function ccDeleteManualExpense(cycleId, expId){
   renderCcActiveCycle();
 }
 
-// ── Alertas al cargar la app (llamado desde afterDataLoad en state.js) ──
-// checkCreditCardAlerts() es invocado por el sistema de init existente
-// También se registra en el window para que init.js pueda llamarlo
 window.checkCreditCardAlerts = checkCreditCardAlerts;

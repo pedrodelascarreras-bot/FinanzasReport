@@ -59,13 +59,16 @@ function showDeleteConfirm(id, label, amount, currency, date){
 state._dupFilterOn = state._dupFilterOn || false;
 // toggleDupFilter removed — legacy, f-dup-toggle element no longer exists
 
+function txnDupKey(t){
+  const d=t.date instanceof Date?t.date.toISOString().slice(0,10):String(t.date).slice(0,10);
+  return String(t.amount)+'|'+t.currency+'|'+d;
+}
+
 function getDuplicateAmountKeys(){
-  // Returns a Set of "amount|currency" keys that appear 2+ times
-  // among transactions NOT already confirmed as normal by the user
+  // Returns a Set of "amount|currency|date" keys that appear 2+ times
   var counts={};
   state.transactions.forEach(function(t){
-    if(t.estado_revision==='confirmado_por_usuario') return; // excluir confirmados
-    var k=String(t.amount)+'|'+t.currency;
+    var k=txnDupKey(t);
     counts[k]=(counts[k]||0)+1;
   });
   var dupKeys=new Set();
@@ -187,22 +190,14 @@ function renderTransactions(){
   const dupKeys = getDuplicateAmountKeys();
 
   // Marcar duplicados en todos los movimientos (no solo los visibles)
-  if(dupKeys.size){
-    state.transactions.forEach(t=>{
-      if(dupKeys.has(String(t.amount)+'|'+t.currency)){
-        if(t.estado_revision!=='confirmado_por_usuario') t.estado_revision='duplicado_sospechoso';
-      }
-    });
-  }
-
   if(state._dupFilterOn){
-    txns = txns.filter(t=>dupKeys.has(String(t.amount)+'|'+t.currency));
+    txns = txns.filter(t=>dupKeys.has(txnDupKey(t)));
   }
 
   // ── Filtro de estado (solo si NO estamos en modo duplicados) ──
   const estadoF = state.txnEstadoFilter||'all';
-  if(estadoF!=='all' && estadoF!=='duplicado_sospechoso'){
-    txns = txns.filter(t=>(t.estado_revision||'detectado_automaticamente')===estadoF);
+  if(estadoF==='sin_categoria'){
+    txns = txns.filter(t=>!t.category||t.category==='Procesando...');
   }
 
   txns.sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -213,10 +208,10 @@ function renderTransactions(){
     if(mode==='mes'&&!state._dupFilterOn){const mfv=mf?.value||activeMesKey;if(mfv)base=base.filter(t=>(t.month||getMonthKey(t.date))===mfv);}
     return base;
   })();
+  const _dupKeysForCount = getDuplicateAmountKeys();
   const estadoCounts = {
-    pendiente_de_revision: allPeriodTxns.filter(t=>t.estado_revision==='pendiente_de_revision').length,
-    duplicado_sospechoso:  getDuplicateAmountKeys().size>0?allPeriodTxns.filter(t=>getDuplicateAmountKeys().has(String(t.amount)+'|'+t.currency)).length:0,
-    // confirmado hidden from UI
+    sin_categoria: allPeriodTxns.filter(t=>!t.category||t.category==='Procesando...').length,
+    duplicado_sospechoso: _dupKeysForCount.size>0?allPeriodTxns.filter(t=>_dupKeysForCount.has(txnDupKey(t))).length:0,
   };
 
   // Actualizar estado tabs
@@ -224,7 +219,7 @@ function renderTransactions(){
   if(estadoTabs){
     estadoTabs.innerHTML = [
       {k:'all',label:'Todos',cls:''},
-      {k:'pendiente_de_revision',label:'⏳ Pendientes',cls:'pendiente'},
+      {k:'sin_categoria',label:'⏳ Sin categoría',cls:'pendiente'},
       {k:'duplicado_sospechoso',label:'⊘ Duplicados',cls:'duplicado'},
     ].map(tab=>{
       const cnt=tab.k==='all'?allPeriodTxns.length:(estadoCounts[tab.k]||0);
@@ -233,13 +228,13 @@ function renderTransactions(){
     }).join('');
   }
 
-  // Banner pendientes
+  // Banner sin categoría
   const banEl=document.getElementById('pendientes-banner');
   if(banEl){
-    const nPend=estadoCounts.pendiente_de_revision;
+    const nPend=estadoCounts.sin_categoria;
     if(nPend>0&&estadoF==='all'){
       banEl.classList.add('show');
-      banEl.innerHTML='<span class="pb-text">⏳ '+nPend+' movimiento'+(nPend!==1?'s':'')+' pendiente'+(nPend!==1?'s':'')+' de revisión</span><button class="pb-btn" onclick="setEstadoFilter(\'pendiente_de_revision\')">Revisar ahora →</button>';
+      banEl.innerHTML='<span class="pb-text">⏳ '+nPend+' movimiento'+(nPend!==1?'s':'')+' sin categoría</span><button class="pb-btn" onclick="setEstadoFilter(\'sin_categoria\')">Categorizar ahora →</button>';
     } else { banEl.classList.remove('show'); }
   }
 
@@ -282,10 +277,7 @@ function renderTransactions(){
     const m = ORIGEN_MAP[origen]||{cls:'origen-resumen',label:origen};
     return '<span class="origen-chip '+m.cls+'">'+m.label+'</span>';
   }
-  function sugerenciaBadge(t){
-    if(!t.cat_sugerida || t.cat_sugerida==='Otros' || t.cat_sugerida===t.category || t.estado_revision==='confirmado_por_usuario') return '';
-    return '<span class="sugerencia-badge" onclick="event.stopPropagation();acceptTxnSuggestion(\''+t.id+'\')" title="'+esc(t.cat_motivo||'')+'">💡 '+esc(t.cat_sugerida)+' ✓</span>';
-  }
+  function sugerenciaBadge(t){ return ''; }
 
   // ── Tabla ──
   const wrap=document.getElementById('txn-wrap');
@@ -293,8 +285,8 @@ function renderTransactions(){
     wrap.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">'+(searchVal?'Sin resultados para "'+searchVal+'"':'Sin movimientos')+'</div></div>';return;
   }
 
-  const _payLbls={tc:'💳 TC',deb:'🏦 Déb',ef:'💵 Ef'};
-  const _payCls={tc:'tc',deb:'deb',ef:'ef'};
+  const _payLbls={visa:'💳 VISA',amex:'💳 AMEX',deb:'🏦 Débito',ef:'💵 Efectivo'};
+  const _payCls={visa:'tc',amex:'tc',deb:'deb',ef:'ef'};
 
   // Sort duplicates together
   let displayTxns = txns;
@@ -487,10 +479,10 @@ function applyBulkCategory(catName){
 function bulkUncategorize(){
   const ids=[...state._selectedTxns];
   if(!ids.length)return;
-  if(!confirm('¿Descategorizar '+ids.length+' movimiento'+(ids.length!==1?'s':'')+'? Pasarán a "Uncategorized".'))return;
+  if(!confirm('¿Descategorizar '+ids.length+' movimiento'+(ids.length!==1?'s':'')+'?'))return;
   ids.forEach(id=>{
     const t=state.transactions.find(x=>x.id===id);
-    if(t){t.category='Uncategorized';t.estado_revision='pendiente_de_revision';}
+    if(t) t.category='';
   });
   clearSelection();
   saveState();refreshAll();
@@ -505,6 +497,15 @@ function bulkDelete(){
   clearSelection();
   saveState();refreshAll();
   showToast('✕ '+ids.length+' eliminados','info');
+}
+
+function bulkTag(){
+  const ids=[...state._selectedTxns];
+  if(!ids.length)return;
+  window._bulkTagMode=true;
+  document.getElementById('modal-pay-desc').textContent=ids.length+' movimientos seleccionados';
+  document.getElementById('modal-pay-txn-id').value='';
+  openModal('modal-pay-method');
 }
 
 function setEstadoFilter(k){
@@ -581,7 +582,7 @@ function openTxnDetail(txnId){
         ${t.comercio_detectado?'<div class="tdp-field"><div class="tdp-field-label">Comercio detectado</div><div class="tdp-field-value" style="font-weight:700;">'+esc(t.comercio_detectado)+'</div></div>':''}
         <div class="tdp-field"><div class="tdp-field-label">Origen</div><div class="tdp-field-value">${esc(ORIGEN_LABELS[t.origen_del_movimiento]||t.origen_del_movimiento||'—')}</div></div>
         <div class="tdp-field"><div class="tdp-field-label">Estado</div><div class="tdp-field-value">${esc(ESTADO_LABELS[t.estado_revision]||t.estado_revision||'—')}</div></div>
-        ${t.payMethod?'<div class="tdp-field"><div class="tdp-field-label">Medio de pago</div><div class="tdp-field-value">'+(t.payMethod==='tc'?'💳 Tarjeta de crédito':t.payMethod==='deb'?'🏦 Débito':'💵 Efectivo')+'</div></div>':''}
+        ${t.payMethod?'<div class="tdp-field"><div class="tdp-field-label">Tag de pago</div><div class="tdp-field-value">'+({visa:'💳 Santander VISA',amex:'💳 Santander AMEX',deb:'🏦 Santander Débito',ef:'💵 Efectivo'}[t.payMethod]||t.payMethod)+'</div></div>':''}
       </div>
 
       <!-- Actions -->

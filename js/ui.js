@@ -153,10 +153,7 @@ function qrNav(dir){
 function updateQrBadge(){
   const badge = document.getElementById('qr-badge');
   if(!badge) return;
-  const n = state.transactions.filter(t=>
-    t.estado_revision !== 'confirmado_por_usuario' &&
-    (!t.category || t.category === 'Procesando...')
-  ).length;
+  const n = state.transactions.filter(t=>!t.category||t.category==='Procesando...').length;
   if(n>0){ badge.style.display='block'; badge.textContent=n; }
   else { badge.style.display='none'; }
 }
