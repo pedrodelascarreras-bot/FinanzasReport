@@ -84,7 +84,7 @@ function addTcCycle(){
   document.getElementById('tc-cycle-label').value='';
   document.getElementById('tc-cycle-close').value='';
 }
-
+// Removed duplicate function
 function addTcCycleFromCC(){
   const labelEl=document.getElementById('tc-cycle-label-cc');
   const closeEl=document.getElementById('tc-cycle-close-cc');

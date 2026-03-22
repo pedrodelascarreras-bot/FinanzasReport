@@ -47,9 +47,25 @@
     <button class="nav-item" id="ni-compare" onclick="nav('compare')">
       <span class="nav-icon">⇄</span><span>Mes vs Mes</span>
     </button>
-    <button class="nav-item" id="ni-credit-cards" onclick="nav('credit-cards')">
-      <span class="nav-icon">💳</span><span>Tarjeta de Crédito</span>
-    </button>
+    
+    <!-- Tarjeta de Crédito — colapsable -->
+    <div class="nav-section" id="ns-credit-cards" style="margin-top:0;">
+      <button class="nav-section-header" onclick="toggleSection('ns-credit-cards')">
+        <div style="display:flex;align-items:center;">
+          <span class="nav-icon" style="margin-right:12px;opacity:0.7;font-size:16px;">💳</span>
+          <span>Tarjeta de Crédito</span>
+        </div>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="icon-ns-credit-cards"><polyline points="6 9 12 15 18 9"></polyline></svg>
+      </button>
+      <div class="nav-section-items" id="items-ns-credit-cards">
+        <button class="nav-item" id="ni-credit-cards" onclick="nav('credit-cards')">
+          <span>Resumen del ciclo</span>
+        </button>
+        <button class="nav-item" id="ni-cc-compare" onclick="nav('cc-compare')">
+          <span>Comparar resúmenes</span>
+        </button>
+      </div>
+    </div>
     <button class="nav-item" id="ni-reportes" onclick="nav('reportes')">
       <span class="nav-icon">⬕</span><span>Reportes</span>
     </button>
@@ -1467,6 +1483,85 @@
   </div>
 </div>
 
+<!-- VISTA COMPARAR RESÚMENES (NUEVA) -->
+<div id="page-cc-compare" class="page">
+  <div class="header" style="justify-content:space-between;">
+    <div>
+      <h1 style="font-size:32px;font-weight:700;letter-spacing:-0.03em;margin-bottom:8px;">Conciliación de resumen</h1>
+      <div style="color:var(--text3);font-size:14px;">Compara tus gastos registrados con un resumen oficial en PDF.</div>
+    </div>
+    <!-- Filters (Card & Cycle) -->
+    <div style="display:flex;align-items:center;gap:12px;">
+      <select id="ccc-card-filter" class="input" style="width:160px;"></select>
+      <select id="ccc-cycle-filter" class="input" style="width:180px;"></select>
+    </div>
+  </div>
+
+  <div class="card" style="padding:24px;">
+    <!-- Uploader Area -->
+    <div id="ccc-upload-area" style="border:2px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all 0.2s ease;">
+      <div style="font-size:32px;margin-bottom:12px;">📄</div>
+      <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">Subir resumen PDF</div>
+      <div style="font-size:13px;color:var(--text3);">Hacé clic o arrastrá tu resumen bancario de Santander aquí.</div>
+      <input type="file" id="ccc-file-input" accept="application/pdf" style="display:none;">
+    </div>
+
+    <!-- State: Loading -->
+    <div id="ccc-loading" style="display:none;text-align:center;padding:40px 20px;">
+      <div class="spinner" style="margin:0 auto 16px;"></div>
+      <div style="font-size:14px;color:var(--text3);">Analizando extracto inteligente...</div>
+    </div>
+
+    <!-- Results Area (hidden until parsed) -->
+    <div id="ccc-results-area" style="display:none;margin-top:24px;">
+      <!-- KPIs -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;">
+        <div style="background:var(--surface2);padding:16px;border-radius:12px;border:1px solid var(--border);">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">MOVIMIENTOS PDF</div>
+          <div style="font-size:24px;font-weight:700;color:var(--text);" id="ccc-kpi-total">0</div>
+        </div>
+        <div style="background:var(--green-sys)15;padding:16px;border-radius:12px;border:1px solid var(--green-sys)30;">
+          <div style="font-size:11px;font-weight:700;color:var(--green-sys);text-transform:uppercase;margin-bottom:4px;">CONCILIADOS</div>
+          <div style="font-size:24px;font-weight:700;color:var(--green-sys);" id="ccc-kpi-conc">0</div>
+        </div>
+        <div style="background:var(--warning-sys)15;padding:16px;border-radius:12px;border:1px solid var(--warning-sys)30;">
+          <div style="font-size:11px;font-weight:700;color:var(--warning-sys);text-transform:uppercase;margin-bottom:4px;">DIFERENCIAS</div>
+          <div style="font-size:24px;font-weight:700;color:var(--warning-sys);" id="ccc-kpi-diff">0</div>
+        </div>
+        <div style="background:var(--danger)15;padding:16px;border-radius:12px;border:1px solid var(--danger)30;">
+          <div style="font-size:11px;font-weight:700;color:var(--danger);text-transform:uppercase;margin-bottom:4px;">HUÉRFANOS PDF</div>
+          <div style="font-size:24px;font-weight:700;color:var(--danger);" id="ccc-kpi-orphan">0</div>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <div style="font-size:16px;font-weight:700;">Detalle de la conciliación</div>
+        <button class="btn btn-primary" onclick="cccSaveSession()">Guardar progreso</button>
+      </div>
+
+      <!-- Table -->
+      <div class="table-container">
+        <table class="table" style="font-size:13px;">
+          <thead>
+            <tr>
+              <th style="width:110px;">ESTADO</th>
+              <th style="width:70px;">FECHA</th>
+              <th>DESCRIPCIÓN ORIGINAL (PDF)</th>
+              <th style="text-align:right;">MONTO PDF</th>
+              <th>VINCULACIÓN (APP)</th>
+              <th style="text-align:right;">DIFERENCIA</th>
+              <th style="width:140px;text-align:center;">ACCIONES</th>
+            </tr>
+          </thead>
+          <tbody id="ccc-table-body">
+            <!-- Renderizado via JS -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 </main>
 </div>
 
@@ -2159,6 +2254,57 @@
   </div>
 </div>
 
+<!-- Modal para Vincular Manualmente -->
+<div class="modal-overlay" id="modal-ccc-link">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Vincular con App</div>
+      <button class="modal-close" onclick="closeModal('modal-ccc-link')">×</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--text3);margin-bottom:16px;">Seleccioná un gasto registrado en este ciclo para asociarlo al movimiento del PDF.</p>
+      <div id="ccc-link-list" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal para Agregar Gasto Faltante Rápido -->
+<div class="modal-overlay" id="modal-ccc-add-missing">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Registrar Gasto Faltante</div>
+      <button class="modal-close" onclick="closeModal('modal-ccc-add-missing')">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Fecha</label>
+        <input type="date" id="ccc-add-date" class="input">
+      </div>
+      <div class="form-group">
+        <label>Descripción</label>
+        <input type="text" id="ccc-add-desc" class="input">
+      </div>
+      <div class="form-group">
+        <label>Categoría</label>
+        <select id="ccc-add-cat" class="input"></select>
+      </div>
+      <div style="display:flex;gap:12px;">
+        <div class="form-group" style="flex:1;">
+          <label>ARS</label>
+          <input type="number" id="ccc-add-ars" class="input" step="0.01">
+        </div>
+        <div class="form-group" style="flex:1;">
+          <label>USD</label>
+          <input type="number" id="ccc-add-usd" class="input" step="0.01">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-ccc-add-missing')">Cancelar</button>
+      <button class="btn btn-primary" onclick="cccSaveMissingExpense()">Guardar e idenficar</button>
+    </div>
+  </div>
+</div>
 
 <script src="js/config.js"></script>
 <script src="js/state.js"></script>
@@ -2175,7 +2321,11 @@
 <script src="js/ui.js"></script>
 <script src="js/init.js"></script>
 <script src="js/credit-cards.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+<script src="js/cc-compare.js"></script>
 </body>
 
 </html>
-
+```
