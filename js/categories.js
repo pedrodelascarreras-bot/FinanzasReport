@@ -144,7 +144,7 @@ function renderRulesPanel(){
             +'</div>'
             +'<div style="font-size:10px;color:var(--text3);margin-top:2px;">'+s.count+' movimientos · '+s.confidence+'% confianza</div>'
           +'</div>'
-          +'<button style="padding:5px 10px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;" onclick="acceptSuggestion(\''+esc(s.keyword)+'\',\''+esc(s.category)+'\')">+ Crear</button>'
+          +'<button style="padding:5px 10px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;" onclick="acceptRuleSuggestion(\''+esc(s.keyword)+'\',\''+esc(s.category)+'\')">+ Crear</button>'
         +'</div>';
       }).join('')}
       `:''}
@@ -175,7 +175,7 @@ function clearAllLearned(){
 }
 
 
-function acceptSuggestion(keyword,category){
+function acceptRuleSuggestion(keyword,category){
   window._rulesJustRendered=true;
   if(!state.catRules)state.catRules=[];
   const id=Date.now().toString(36);

@@ -153,7 +153,10 @@ function qrNav(dir){
 function updateQrBadge(){
   const badge = document.getElementById('qr-badge');
   if(!badge) return;
-  const n = state.transactions.filter(t=>!t.category||t.category==='Procesando...'||t.category==='Otros').length;
+  const n = state.transactions.filter(t=>
+    t.estado_revision !== 'confirmado_por_usuario' &&
+    (!t.category || t.category === 'Procesando...')
+  ).length;
   if(n>0){ badge.style.display='block'; badge.textContent=n; }
   else { badge.style.display='none'; }
 }
@@ -189,6 +192,7 @@ function refreshAll(){
   if(document.getElementById('page-cuotas').classList.contains('active')) {renderCuotas();renderSubs();renderFixed();renderCompromisosSummary();}
   if(document.getElementById('page-income').classList.contains('active')) renderIncomePage();
   if(document.getElementById('page-savings').classList.contains('active')) renderSavingsPage();
+  if(document.getElementById('page-credit-cards')&&document.getElementById('page-credit-cards').classList.contains('active')) renderCreditCards();
 }
 
 function nav(page){
@@ -216,6 +220,7 @@ function nav(page){
   if(page==='income')renderIncomePage();
   if(page==='savings')renderSavingsPage();
   if(page==='reportes')renderReportesPage();
+  if(page==='credit-cards')renderCreditCards();
   // Apply saved layout for this page
   setTimeout(()=>applyLayout(page), 0);
 }

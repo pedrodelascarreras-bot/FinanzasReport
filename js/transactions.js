@@ -283,8 +283,8 @@ function renderTransactions(){
     return '<span class="origen-chip '+m.cls+'">'+m.label+'</span>';
   }
   function sugerenciaBadge(t){
-    if(!t.cat_sugerida || t.cat_sugerida===t.category || t.estado_revision==='confirmado_por_usuario') return '';
-    return '<span class="sugerencia-badge" onclick="event.stopPropagation();acceptSuggestion(\''+t.id+'\')" title="'+esc(t.cat_motivo||'')+'">💡 '+esc(t.cat_sugerida)+' ✓</span>';
+    if(!t.cat_sugerida || t.cat_sugerida==='Otros' || t.cat_sugerida===t.category || t.estado_revision==='confirmado_por_usuario') return '';
+    return '<span class="sugerencia-badge" onclick="event.stopPropagation();acceptTxnSuggestion(\''+t.id+'\')" title="'+esc(t.cat_motivo||'')+'">💡 '+esc(t.cat_sugerida)+' ✓</span>';
   }
 
   // ── Tabla ──
@@ -518,7 +518,7 @@ function setEstadoFilter(k){
   renderTransactions();
 }
 
-function acceptSuggestion(txnId){
+function acceptTxnSuggestion(txnId){
   const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
   if(t.cat_sugerida){
     learnFromConfirmation(t,t.cat_sugerida);
@@ -790,6 +790,8 @@ function confirmAssignInline(txnId, catName){
   const t=state.transactions.find(x=>x.id===txnId);
   if(t){
     t.category=catName;
+    t.estado_revision='confirmado_por_usuario';
+    learnFromConfirmation(t, catName);
     saveState();refreshAll();
     updateQrBadge();
     const picker=document.getElementById('cat-inline-picker');

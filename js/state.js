@@ -36,7 +36,8 @@ function getStateSnapshot(){
     incomeSources:state.incomeSources,incomeMonths:state.incomeMonths,
     savAccounts:state.savAccounts,savGoals:state.savGoals,savDeposits:state.savDeposits||[],tcConfig:state.tcConfig,
     usdRate:state.usdRate||1420,usdRateSource:state.usdRateSource||'blue',usdRateUpdated:state.usdRateUpdated||null,
-    catRules:state.catRules||[],catHistory:state.catHistory||{}
+    catRules:state.catRules||[],catHistory:state.catHistory||{},
+    ccCards:state.ccCards||[],ccCycles:state.ccCycles||[],ccActiveCard:state.ccActiveCard||null
   };
 }
 function saveState(){
@@ -260,6 +261,9 @@ function loadState(){
     USD_TO_ARS=state.usdRate;
     state.catRules=s.catRules||[];
     state.catHistory=s.catHistory||{};
+    state.ccCards=s.ccCards||[];
+    state.ccCycles=s.ccCycles||[];
+    state.ccActiveCard=s.ccActiveCard||null;
     state.apiKey=localStorage.getItem('fin_apikey')||'';
     state.transactions.forEach(t=>{if(!t.week)t.week=getWeekKey(t.date);if(!t.month)t.month=getMonthKey(t.date);});
     // Enrichment retroactivo (sin sobreescribir confirmados)

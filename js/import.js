@@ -272,18 +272,20 @@ function autoCreateGmailCuotas(txns){
 
 function finishImport(txns,source,origen){
   const origenVal = origen || (source==='gmail'?'importado_desde_gmail': source==='paste'?'pegado_manualmente':'importado_desde_resumen');
+  const isGmail = origenVal === 'importado_desde_gmail';
   txns.forEach(t=>{
-    if(t.category==='Procesando...' || !t.category) t.category=ruleBasedCategory(t.description);
+    // Gmail imports: skip auto-categorization, leave for manual review
+    if(!isGmail && (t.category==='Procesando...' || !t.category)) t.category=ruleBasedCategory(t.description);
     enrichTransaction(t, origenVal);
+    // Gmail imports stay as pending
+    if(isGmail) t.estado_revision='pendiente_de_revision';
   });
   const before=state.transactions.length;
   const existingIds=new Set(state.transactions.map(t=>t.id));
   state.transactions=[...state.transactions,...txns];
   deduplicateTransactions();
   // Auto-generate projected installment transactions for Gmail cuota purchases
-  if(source==='Gmail · Santander Río'||origenVal==='importado_desde_gmail'){
-    autoCreateGmailCuotas(txns);
-  }
+  if(isGmail) autoCreateGmailCuotas(txns);
   const added=state.transactions.length-before;
   const duplicates=txns.length-added;
   const pi=detectPeriod(txns);
@@ -294,7 +296,12 @@ function finishImport(txns,source,origen){
   const dupMsg=duplicates>0?' · '+duplicates+' duplicadas':'' ;
   showToast('✓ '+added+' nuevas'+dupMsg+' — '+pi.label,'success');
   afterDataLoad();
-  Promise.resolve(categorizeWithAI()).then(()=>{saveState();renderDashboard();renderTransactions();});
+  // Gmail imports: don't auto-categorize, just render
+  if(isGmail){
+    saveState();renderDashboard();renderTransactions();updateQrBadge();
+  } else {
+    Promise.resolve(categorizeWithAI()).then(()=>{saveState();renderDashboard();renderTransactions();});
+  }
 }
 function detectPeriod(txns){
   if(!txns.length)return{label:'Sin fecha',weekKey:'',monthKey:''};
@@ -662,5 +669,7 @@ function afterDataLoad(){
   if(state.transactions.length>1)renderTendencia();
   document.getElementById('dash-empty').style.display='none';
   document.getElementById('dash-content').style.display='flex';
+  // CC alerts
+  if(typeof checkCreditCardAlerts==='function') checkCreditCardAlerts();
 }
 

@@ -388,9 +388,10 @@ function renderDashboard(){
   const marginSection=document.getElementById('dhc-margin-section');
   if(marginSection&&incTotalARS>0){
     marginSection.style.display='block';
-    const margenDisp=incTotalARS-totalGastoARS;
-    const margenPct=Math.max(0,Math.min(100,Math.round(margenDisp/incTotalARS*100)));
-    const gastoPct=Math.min(100,Math.round(totalGastoARS/incTotalARS*100));
+    // Use spendBudget (respects the configured spend % from Ingresos window)
+    const margenDisp=spendBudget-totalGastoARS;
+    const margenPct=Math.max(0,Math.min(100,Math.round(margenDisp/spendBudget*100)));
+    const gastoPct=Math.min(100,Math.round(totalGastoARS/spendBudget*100));
     const isOver=margenDisp<0;
     document.getElementById('dhc-margin-val').textContent=(isOver?'−$':'$')+fmtN(Math.abs(Math.round(margenDisp)));
     document.getElementById('dhc-margin-val').style.color=isOver?'var(--danger)':margenPct<20?'var(--accent3)':'var(--green-sys)';
@@ -398,7 +399,8 @@ function renderDashboard(){
     mFill.style.width=gastoPct+'%';
     mFill.style.background=isOver?'var(--danger)':gastoPct>=state.alertThreshold?'var(--accent3)':'var(--accent)';
     document.getElementById('dhc-margin-sub').textContent=isOver?'Excedido en $'+fmtN(Math.abs(Math.round(margenDisp))):'Te quedan $'+fmtN(Math.round(margenDisp))+' disponibles';
-    document.getElementById('dhc-margin-ingreso').textContent='Ingreso $'+fmtN(incTotalARS);
+    const _sp=state.spendPct||100;
+    document.getElementById('dhc-margin-ingreso').textContent=_sp<100?'Presupuesto $'+fmtN(Math.round(spendBudget))+' ('+_sp+'% del ingreso)':'Ingreso $'+fmtN(Math.round(incTotalARS));
   } else if(marginSection){
     marginSection.style.display='none';
   }
@@ -506,6 +508,12 @@ function renderDashboard(){
     }
   }
 
+  // Ensure a valid chart mode is always set before rendering
+  if(!['bars','area','daily'].includes(state.chartMode)) state.chartMode='bars';
+  ['bars','area','daily'].forEach(m=>{
+    const btn=document.getElementById('cmt-'+m);
+    if(btn)btn.classList.toggle('active',state.chartMode===m);
+  });
   renderWeeklyChart(monthTxns);
   renderCatBars(monthTxns);
   renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLeft);
@@ -530,8 +538,9 @@ function getCatData(txns,byGroup){
 }
 
 function setChartMode(mode){
-  state.chartMode=mode||'bars';
-  ['bars','area','daily'].forEach(m=>{
+  const validModes=['bars','area','daily'];
+  state.chartMode=validModes.includes(mode)?mode:'bars';
+  validModes.forEach(m=>{
     const btn=document.getElementById('cmt-'+m);
     if(btn)btn.classList.toggle('active',state.chartMode===m);
   });
