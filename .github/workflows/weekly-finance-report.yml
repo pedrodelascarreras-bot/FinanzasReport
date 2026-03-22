@@ -2,9 +2,7 @@ name: 📊 Reporte Financiero Semanal
 
 on:
   schedule:
-    # Viernes 18:00 Argentina = Viernes 21:00 UTC
     - cron: '0 21 * * 5'
-    # Lunes 11:00 Argentina (mediodía) = Lunes 14:00 UTC
     - cron: '0 14 * * 1'
   workflow_dispatch:
 
@@ -21,8 +19,10 @@ jobs:
         with:
           node-version: '20'
       - name: Instalar dependencias
+        working-directory: ./report
         run: npm install
       - name: Ejecutar reporte
+        working-directory: ./report
         env:
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
@@ -35,5 +35,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: reporte-semanal
-          path: reporte-semanal.pdf
+          path: report/reporte-semanal.pdf
           retention-days: 30
