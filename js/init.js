@@ -634,7 +634,36 @@ function parseSantanderEmail(email) {
     const horaMatch = body.match(/Hora[\s\S]*?(\d{2}:\d{2})/i);
     if (horaMatch) hora = horaMatch[1];
 
-    const description = comercio + (hora ? ' ' + hora : '');
+    // Detect Cuotas (installments) from email body
+    let cuotaTotal = null;
+    const cuotasHtmlMatch = body.match(/Cuotas[\s\S]{0,200}?<strong[^>]*>\s*(\d+)\s*<\/strong>/i)
+                         || body.match(/Cuotas[\s\S]{0,200}?<td[^>]*>\s*<strong[^>]*>\s*(\d+)\s*<\/strong>/i)
+                         || body.match(/Cuotas[\s\S]{0,200}?<\/td>[\s\S]{0,50}?<td[^>]*>\s*(\d+)\s*<\/td>/i);
+    if (!cuotasHtmlMatch) {
+      // Plain text fallback
+      const cuotasPtMatch = body.replace(/<[^>]+>/g, '\n').match(/Cuotas\s*\n+(\d+)/i);
+      if (cuotasPtMatch) {
+        const n = parseInt(cuotasPtMatch[1]);
+        if (n >= 2 && n <= 72) cuotaTotal = n;
+      }
+    } else {
+      const n = parseInt(cuotasHtmlMatch[1]);
+      if (n >= 2 && n <= 72) cuotaTotal = n;
+    }
+
+    const totalAmount = amount;
+    let cuotaNum = null;
+    let cuotaGroupId = null;
+    if (cuotaTotal && cuotaTotal >= 2) {
+      amount = Math.round(totalAmount / cuotaTotal);
+      cuotaNum = 1;
+      cuotaGroupId = 'cg_' + emailId;
+    }
+
+    const baseDesc = comercio;
+    const description = cuotaTotal && cuotaTotal >= 2
+      ? baseDesc + ' (Cuota 1/' + cuotaTotal + ')' + (hora ? ' ' + hora : '')
+      : baseDesc + (hora ? ' ' + hora : '');
     const id = 'gmail_' + emailId; // stable ID = no duplicates
 
     return {
@@ -642,12 +671,19 @@ function parseSantanderEmail(email) {
       gmailId: emailId,
       date: txnDate,
       description,
+      _baseDesc: baseDesc,
       amount,
       currency: txnCurrency,
       category: 'Procesando...',
       week: getWeekKey(txnDate),
       month: getMonthKey(txnDate),
-      source: 'gmail'
+      source: 'gmail',
+      ...(cuotaTotal && cuotaTotal >= 2 ? {
+        cuotaNum,
+        cuotaTotal,
+        cuotaTotalAmount: totalAmount,
+        cuotaGroupId
+      } : {})
     };
   } catch(e) {
     console.error('Error parsing email:', e);
@@ -757,15 +793,20 @@ function showGmailResultModal(txns, totalFound, dateFrom, dateTo) {
     for (const t of clean) {
       const d = safeDateFmt(t.date);
       const amt = t.currency === 'ARS' ? '$' + safeFmt(t.amount) : 'U$D ' + safeFmt(t.amount);
-      html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);gap:12px;margin-bottom:5px;" id="row-${safeEsc(t.id)}">
+      const isCuota = t.cuotaTotal >= 2;
+      const cuotaBadge = isCuota
+        ? `<span style="display:inline-flex;align-items:center;gap:4px;font-size:10px;font-weight:700;color:var(--accent3);background:rgba(255,149,0,0.12);border:1px solid rgba(255,149,0,0.3);border-radius:5px;padding:2px 7px;margin-top:3px;">📋 ${t.cuotaTotal} cuotas · ${amt}/mes · Total $${safeFmt(t.cuotaTotalAmount)}</span>`
+        : '';
+      html += `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface2);border-radius:8px;border:1px solid ${isCuota?'rgba(255,149,0,0.35)':'var(--border)'};gap:12px;margin-bottom:5px;" id="row-${safeEsc(t.id)}">
         <label style="display:flex;align-items:center;gap:10px;cursor:pointer;flex:1;min-width:0;">
           <input type="checkbox" checked data-gmail-id="${safeEsc(t.id)}" onchange="gmailUpdateCounter();this.closest('[id]').style.opacity=this.checked?'1':'0.4';" style="width:14px;height:14px;flex-shrink:0;cursor:pointer;accent-color:var(--accent);">
           <div style="min-width:0;">
             <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${safeEsc(t.description)}</div>
             <div style="font-size:11px;color:var(--text2);font-family:var(--font);margin-top:1px;">${d}</div>
+            ${cuotaBadge}
           </div>
         </label>
-        <div style="font-size:14px;font-weight:700;color:var(--accent);font-family:var(--font);white-space:nowrap;flex-shrink:0;">${amt}</div>
+        <div style="font-size:14px;font-weight:700;color:${isCuota?'var(--accent3)':'var(--accent)'};font-family:var(--font);white-space:nowrap;flex-shrink:0;">${amt}</div>
       </div>`;
     }
   }

@@ -223,6 +223,53 @@ function cancelImportReview(){
   closeModal('modal-import-review');
   window._pendingImportTxns=[];
 }
+function autoCreateGmailCuotas(txns){
+  // For each imported Gmail cuota transaction, generate projected installment transactions
+  const cuotaTxns=txns.filter(t=>t.cuotaGroupId&&t.cuotaTotal>=2);
+  if(!cuotaTxns.length) return;
+  const existingIds=new Set(state.transactions.map(t=>t.id));
+  const toAdd=[];
+  for(const t of cuotaTxns){
+    for(let n=2;n<=t.cuotaTotal;n++){
+      const projId='proj_'+t.id+'_c'+n;
+      if(existingIds.has(projId)) continue; // already generated
+      const origDate=t.date instanceof Date?t.date:new Date(t.date);
+      // Add (n-1) months to the original purchase date
+      const projDate=new Date(origDate.getFullYear(),origDate.getMonth()+(n-1),origDate.getDate());
+      // Clamp day to valid range for that month
+      const maxDay=new Date(projDate.getFullYear(),projDate.getMonth()+1,0).getDate();
+      if(projDate.getDate()>maxDay) projDate.setDate(maxDay);
+      const base=t._baseDesc||(t.description.replace(/\s*\(Cuota\s*\d+\/\d+\)\s*$/i,'').replace(/\s*\d{2}:\d{2}\s*$/,'').trim());
+      const projDesc=base+' (Cuota '+n+'/'+t.cuotaTotal+')';
+      toAdd.push({
+        id:projId,
+        gmailId:null,
+        date:projDate,
+        description:projDesc,
+        _baseDesc:base,
+        amount:t.amount,
+        currency:t.currency,
+        category:t.category||'Procesando...',
+        week:getWeekKey(projDate),
+        month:getMonthKey(projDate),
+        source:'gmail',
+        cuotaNum:n,
+        cuotaTotal:t.cuotaTotal,
+        cuotaGroupId:t.cuotaGroupId,
+        isPendingCuota:true,
+        origen_del_movimiento:'importado_desde_gmail',
+        comercio_detectado:t.comercio_detectado||null,
+        cat_sugerida:t.cat_sugerida||null,
+        cat_motivo:'Cuota proyectada automáticamente',
+        cat_source:'cuota',
+        estado_revision:'detectado_automaticamente'
+      });
+      existingIds.add(projId);
+    }
+  }
+  if(toAdd.length) state.transactions=[...state.transactions,...toAdd];
+}
+
 function finishImport(txns,source,origen){
   const origenVal = origen || (source==='gmail'?'importado_desde_gmail': source==='paste'?'pegado_manualmente':'importado_desde_resumen');
   txns.forEach(t=>{
@@ -233,6 +280,10 @@ function finishImport(txns,source,origen){
   const existingIds=new Set(state.transactions.map(t=>t.id));
   state.transactions=[...state.transactions,...txns];
   deduplicateTransactions();
+  // Auto-generate projected installment transactions for Gmail cuota purchases
+  if(source==='Gmail · Santander Río'||origenVal==='importado_desde_gmail'){
+    autoCreateGmailCuotas(txns);
+  }
   const added=state.transactions.length-before;
   const duplicates=txns.length-added;
   const pi=detectPeriod(txns);

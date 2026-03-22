@@ -25,14 +25,17 @@ function renderCuotas(){
   // Build all auto cuota cards
   const autoCards=autoGroups.map(g=>{
     const cfg=state.autoCuotaConfig[g.key]||{};
-    const txSorted=g.transactions.sort((a,b)=>b.cuotaNum-a.cuotaNum);
+    // Only count actual (non-projected) transactions as "paid"
+    const actualTxns=g.transactions.filter(t=>!t.isPendingCuota);
+    const txSorted=actualTxns.sort((a,b)=>b.cuotaNum-a.cuotaNum);
     const maxPaid=txSorted[0]?.cuotaNum||1;
     const total=cfg.total||g.transactions[0]?.cuotaTotal||maxPaid;
     const paid=cfg.paid!==undefined?cfg.paid:maxPaid;
     const rem=total-paid;const pct=Math.round(paid/total*100);
     const day=cfg.day||null;const daysUntil=getDaysUntilNext(day);
-    const acc=g.transactions.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);
-    const amtPerCuota=paid>0?acc/paid:g.amount;
+    // Calculate amount per cuota from actual transactions only
+    const acc=actualTxns.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);
+    const amtPerCuota=actualTxns.length>0?acc/actualTxns.length:g.amount;
     const remainingTotal=rem*amtPerCuota;
     return buildCuotaCard(g.key,g.name,'🛒',amtPerCuota,g.currency||'ARS',paid,total,rem,pct,daysUntil,day,remainingTotal,false);
   }).join('');
@@ -48,12 +51,12 @@ function renderCuotas(){
   else manualSection.style.display='none';
   // Summary
   const allRem=[
-    ...autoGroups.map(g=>{const cfg=state.autoCuotaConfig[g.key]||{};const maxP=g.transactions.sort((a,b)=>b.cuotaNum-a.cuotaNum)[0]?.cuotaNum||1;const total=cfg.total||g.transactions[0]?.cuotaTotal||maxP;const paid=cfg.paid!==undefined?cfg.paid:maxP;const acc=g.transactions.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);return(total-paid)*(paid>0?acc/paid:g.amount);}),
+    ...autoGroups.map(g=>{const cfg=state.autoCuotaConfig[g.key]||{};const actualT=g.transactions.filter(t=>!t.isPendingCuota);const maxP=actualT.sort((a,b)=>b.cuotaNum-a.cuotaNum)[0]?.cuotaNum||1;const total=cfg.total||g.transactions[0]?.cuotaTotal||maxP;const paid=cfg.paid!==undefined?cfg.paid:maxP;const acc=actualT.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);return(total-paid)*(actualT.length>0?acc/actualT.length:g.amount);}),
     ...state.cuotas.map(c=>(c.total-c.paid)*c.amount)
   ];
   const totalRem=allRem.reduce((s,v)=>s+v,0);
   const nextMonth=[
-    ...autoGroups.map(g=>{const cfg=state.autoCuotaConfig[g.key]||{};const maxP=g.transactions.sort((a,b)=>b.cuotaNum-a.cuotaNum)[0]?.cuotaNum||1;const paid=cfg.paid!==undefined?cfg.paid:maxP;const total=cfg.total||g.transactions[0]?.cuotaTotal||maxP;if(paid>=total)return 0;const acc=g.transactions.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);return paid>0?acc/paid:g.amount;}),
+    ...autoGroups.map(g=>{const cfg=state.autoCuotaConfig[g.key]||{};const actualT=g.transactions.filter(t=>!t.isPendingCuota);const maxP=actualT.sort((a,b)=>b.cuotaNum-a.cuotaNum)[0]?.cuotaNum||1;const paid=cfg.paid!==undefined?cfg.paid:maxP;const total=cfg.total||g.transactions[0]?.cuotaTotal||maxP;if(paid>=total)return 0;const acc=actualT.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);return actualT.length>0?acc/actualT.length:g.amount;}),
     ...state.cuotas.filter(c=>c.paid<c.total).map(c=>c.amount)
   ].reduce((s,v)=>s+v,0);
   const totalCount=autoGroups.length+state.cuotas.length;
@@ -213,7 +216,7 @@ function renderCompromisosSummary(){
   // ARS: cuotas + subs ARS + fijos ARS
   const autoGroups=detectAutoCuotas?detectAutoCuotas():[];
   const cuotasARS=[
-    ...autoGroups.map(g=>{const cfg=state.autoCuotaConfig[g.key]||{};const maxP=g.transactions.sort((a,b)=>b.cuotaNum-a.cuotaNum)[0]?.cuotaNum||1;const paid=cfg.paid!==undefined?cfg.paid:maxP;const total=cfg.total||g.transactions[0]?.cuotaTotal||maxP;if(paid>=total)return 0;const acc=g.transactions.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);return paid>0?acc/paid:g.amount;}),
+    ...autoGroups.map(g=>{const cfg=state.autoCuotaConfig[g.key]||{};const actualT=g.transactions.filter(t=>!t.isPendingCuota);const maxP=actualT.sort((a,b)=>b.cuotaNum-a.cuotaNum)[0]?.cuotaNum||1;const paid=cfg.paid!==undefined?cfg.paid:maxP;const total=cfg.total||g.transactions[0]?.cuotaTotal||maxP;if(paid>=total)return 0;const acc=actualT.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);return actualT.length>0?acc/actualT.length:g.amount;}),
     ...state.cuotas.filter(c=>c.paid<c.total).map(c=>c.amount)
   ].reduce((s,v)=>s+v,0);
   const subsARS=state.subscriptions.filter(s=>s.currency==='ARS').reduce((a,s)=>a+toMonthly(s),0);

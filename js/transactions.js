@@ -267,6 +267,10 @@ function renderTransactions(){
     pegado_manualmente:       {cls:'origen-manual',  label:'✎ Manual'},
     importado_desde_gmail:    {cls:'origen-gmail',   label:'✉ Gmail'},
   };
+  function cuotaProjectedChip(t){
+    if(!t.isPendingCuota) return '';
+    return '<span class="origen-chip" style="background:rgba(255,149,0,0.12);color:var(--accent3);border:1px solid rgba(255,149,0,0.3);">📋 Cuota '+t.cuotaNum+'/'+t.cuotaTotal+'</span>';
+  }
 
   function estadoBadge(t){
     const estado = t.estado_revision || 'detectado_automaticamente';
@@ -310,7 +314,8 @@ function renderTransactions(){
         const amtColor=t.currency==='USD'?'var(--accent2)':'var(--accent)';
         const catDot='<span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:'+catColor(t.category)+';margin-right:4px;flex-shrink:0;"></span>';
         const _mChecked=state._selectedTxns&&state._selectedTxns.has(t.id)?' checked':'';
-        return '<div style="display:flex;align-items:center;padding:11px 14px;'+(i>0?'border-top:1px solid var(--border)':'')+';gap:10px;" data-txnid="'+t.id+'">'
+        const _mAmtColor=t.isPendingCuota?'var(--accent3)':amtColor;
+        return '<div style="display:flex;align-items:center;padding:11px 14px;'+(i>0?'border-top:1px solid var(--border)':'')+';gap:10px;'+(t.isPendingCuota?'border-left:3px solid var(--accent3);':'')+'" data-txnid="'+t.id+'">'
           +'<input type="checkbox" class="txn-cb" data-id="'+t.id+'"'+_mChecked+' onclick="event.stopPropagation();toggleSelectTxn(\''+t.id+'\')">'
           +'<div style="flex:1;min-width:0;">'
             +'<div style="font-size:13px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(t.description)+'</div>'
@@ -318,10 +323,11 @@ function renderTransactions(){
               +'<span>'+d+'</span>'
               +'<span style="color:var(--border2);">·</span>'
               +'<span style="display:inline-flex;align-items:center;">'+catDot+esc(t.category||'—')+'</span>'
+              +(t.isPendingCuota?'<span style="color:var(--accent3);font-weight:700;">📋 '+t.cuotaNum+'/'+t.cuotaTotal+'</span>':'')
             +'</div>'
           +'</div>'
           +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">'
-            +'<span style="font-size:14px;font-weight:700;color:'+amtColor+';font-family:var(--font);">'+amt+'</span>'
+            +'<span style="font-size:14px;font-weight:700;color:'+_mAmtColor+';font-family:var(--font);">'+amt+'</span>'
             +'<button class="txn-edit-btn" data-id="'+t.id+'" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:4px;line-height:1;border-radius:6px;">✎</button>'
             +'<button class="txn-del-btn" data-id="'+t.id+'" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:4px;line-height:1;border-radius:6px;">✕</button>'
           +'</div>'
@@ -346,12 +352,13 @@ function renderTransactions(){
           :('<span class="pay-tag" style="background:var(--surface2);color:var(--text3);border:1px solid var(--border);" onclick="event.stopPropagation();openPayMethodModal(\''+t.id+'\')" title="Asignar medio">+ tag</span>');
         const _dupBg=state._dupFilterOn&&_dupAmtGroupMap[t.id]%2===0?'background:rgba(200,240,96,0.03);':'';
         const _isSelected=state._detailTxnId===t.id?'selected':'';
-        const amtColor=t.currency==='USD'?'color:var(--accent2)':'';
+        const amtColor=t.currency==='USD'?'color:var(--accent2)':t.isPendingCuota?'color:var(--accent3)':'';
         const comercioHtml=t.comercio_detectado&&t.comercio_detectado.toLowerCase()!==t.description.toLowerCase()
-          ?'<span class="td-desc-secondary"><span class="comercio-detected">'+esc(t.comercio_detectado)+'</span>'+origenChip(t)+sugerenciaBadge(t)+'</span>'
-          :'<span class="td-desc-secondary">'+origenChip(t)+sugerenciaBadge(t)+'</span>';
+          ?'<span class="td-desc-secondary"><span class="comercio-detected">'+esc(t.comercio_detectado)+'</span>'+origenChip(t)+cuotaProjectedChip(t)+sugerenciaBadge(t)+'</span>'
+          :'<span class="td-desc-secondary">'+origenChip(t)+cuotaProjectedChip(t)+sugerenciaBadge(t)+'</span>';
         const _checked=state._selectedTxns&&state._selectedTxns.has(t.id)?' checked':'';
-        return '<tr class="txn-row-v2 '+_isSelected+(_checked?' multi-selected':'')+'" data-txnid="'+t.id+'" style="'+_dupBg+'">'
+        const _projStyle=t.isPendingCuota?'border-left:3px solid var(--accent3);':'';
+        return '<tr class="txn-row-v2 '+_isSelected+(_checked?' multi-selected':'')+'" data-txnid="'+t.id+'" style="'+_dupBg+_projStyle+'">'
           +'<td style="padding:0 6px;"><input type="checkbox" class="txn-cb" data-id="'+t.id+'"'+_checked+' onclick="event.stopPropagation();toggleSelectTxn(\''+t.id+'\')"></td>'
           +'<td style="font-family:var(--font);font-size:13px;font-weight:500;color:var(--text3);white-space:nowrap;">'+fmtDate(t.date)+'</td>'
           +'<td class="td-main">'
