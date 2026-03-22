@@ -424,14 +424,26 @@ function renderDashboard(){
     if(pLabel)pLabel.textContent=pct+'% usado del ingreso · meta: '+state.alertThreshold+'%';
   } else if(pFill){pFill.style.width='0%';}
 
-  // ── KPI: Tarjeta — split VISA / AMEX using ccCycles ──
+  // ── KPI: Tarjeta — split VISA / AMEX using ccCycles (always current cycle) ──
   ccInit();
   const _ccCards=state.ccCards||[];
   const _ccCycles=state.ccCycles||[];
+  const _todayStr=dateToYMD(new Date());
   _ccCards.forEach(card=>{
     const cardCycles=[..._ccCycles].filter(c=>c.cardId===card.id).sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
-    const pending=cardCycles.filter(c=>c.status==='pending');
-    const activeCycle=pending.length?pending[0]:cardCycles[0];
+    // Find the cycle whose range includes TODAY
+    let activeCycle=null;
+    for(const cy of cardCycles){
+      const open=cy.openDate||null;
+      const close=cy.closeDate;
+      if(open && _todayStr>=open && _todayStr<=close){activeCycle=cy;break;}
+      if(!open && _todayStr<=close){activeCycle=cy;break;}
+    }
+    // Fallback: most recent pending, then most recent overall
+    if(!activeCycle){
+      const pending=cardCycles.filter(c=>c.status==='pending');
+      activeCycle=pending.length?pending[0]:cardCycles[0];
+    }
     let cardArs=0,cardUsd=0;
     if(activeCycle){
       const expenses=ccGetCycleExpenses(activeCycle);

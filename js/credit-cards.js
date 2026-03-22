@@ -189,11 +189,15 @@ function renderCcActiveCycle(){
   const dueDateHtml=activeCycle.dueDate
     ?'<span>Vencimiento: <strong style="color:var(--text);">'+ccFmtDate(activeCycle.dueDate)+'</strong></span>'
     :'';
-  const openDateHtml=activeCycle.openDate
-    ?'<span>Apertura: <strong style="color:var(--text);">'+ccFmtDate(activeCycle.openDate)+'</strong></span>'
-    :'';
-  const rangeLabelHtml=activeCycle.openDate
-    ?'<div style="margin-top:4px;font-size:11px;color:var(--text3);">Gastos: '+ccFmtDate(activeCycle.openDate)+' al '+ccFmtDate(new Date(new Date(activeCycle.closeDate+'T12:00:00').getTime()-86400000).toISOString().slice(0,10))+'</div>'
+  // Always compute apertura: use openDate if available, otherwise closeDate - 30 days
+  const computedOpenDate=activeCycle.openDate||(()=>{
+    const d=new Date(activeCycle.closeDate+'T12:00:00');
+    d.setDate(d.getDate()-30);
+    return d.toISOString().slice(0,10);
+  })();
+  const openDateHtml='<span>Apertura: <strong style="color:var(--text);">'+ccFmtDate(computedOpenDate)+'</strong></span>';
+  const rangeLabelHtml=computedOpenDate
+    ?'<div style="margin-top:4px;font-size:11px;color:var(--text3);">Gastos: '+ccFmtDate(computedOpenDate)+' al '+ccFmtDate(new Date(new Date(activeCycle.closeDate+'T12:00:00').getTime()-86400000).toISOString().slice(0,10))+'</div>'
     :'';
   const countdownHtml=activeCycle.dueDate&&!isPaid
     ?'<div style="margin-top:4px;font-size:12px;'+countdownStyle+'">'+cd.text+'</div>'
@@ -305,9 +309,13 @@ function renderCcActiveCycle(){
       </div>
       `:''}
 
-      <!-- Tabla de gastos -->
+      <!-- Tabla de gastos (collapsible) -->
       <div style="padding:16px 20px;border-top:1px solid var(--border);">
-        <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Gastos del ciclo</div>
+        <div onclick="ccToggleExpenses()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
+          <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);">Gastos del ciclo (${expenses.length})</div>
+          <span id="cc-expenses-toggle-arrow" style="font-size:12px;color:var(--text3);transition:transform .15s;">▾</span>
+        </div>
+        <div id="cc-expenses-toggle-body" style="margin-top:10px;">
         ${expenses.length?`
         <div style="overflow-x:auto;">
           <table style="width:100%;border-collapse:collapse;">
@@ -323,6 +331,7 @@ function renderCcActiveCycle(){
           </table>
         </div>
         `:noGastosHtml}
+        </div>
       </div>
     </div>
   `;
@@ -390,6 +399,15 @@ function renderCcHistory(){
 function ccToggleHistory(detailId){
   const el=document.getElementById(detailId);if(!el)return;
   el.style.display=el.style.display==='none'?'block':'none';
+}
+
+function ccToggleExpenses(){
+  const body=document.getElementById('cc-expenses-toggle-body');
+  const arrow=document.getElementById('cc-expenses-toggle-arrow');
+  if(!body)return;
+  const open=body.style.display!=='none';
+  body.style.display=open?'none':'block';
+  if(arrow)arrow.textContent=open?'▸':'▾';
 }
 
 // ── Nuevo ciclo ──
