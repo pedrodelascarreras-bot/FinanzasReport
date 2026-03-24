@@ -585,7 +585,17 @@ function deduplicateTransactions(){
       .replace(/\s*\d{2}:\d{2}\s*/g,'')            // strip HH:MM timestamps
       .replace(/\s*\(cuota\s*\d+\/\d+\)\s*$/i,'')  // strip (Cuota X/Y) suffix
       .trim();
-    const k=d+'-'+descNorm+'-'+t.amount+'-'+t.currency;
+    
+    // Si la transacción proviene de Gmail, usamos su ID único provisto por Google
+    // para garantizar que correos distintos no se fusionen, incluso si son del mismo monto, fecha y comercio.
+    const suffix = t.gmailId ? '-gmail-'+t.gmailId : '';
+    
+    // Si es un gasto exportado del PDF de la TC, también tiene un identificador de origen que podríamos aislar, 
+    // pero por ahora el ID seguro que se pierde en la deduplicación es el de Gmail.
+    // También conservamos transacciones manuales creadas desde "cc-compare" si tuvieran un marker,
+    // pero gmailId cubre el problema reportado.
+    
+    const k=d+'-'+descNorm+'-'+t.amount+'-'+t.currency+suffix;
     if(seen.has(k))return false;
     seen.add(k);
     return true;
