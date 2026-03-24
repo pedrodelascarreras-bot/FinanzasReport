@@ -187,8 +187,123 @@ async function generateDashInsights(){
   loadEl.style.display='none';feedEl.style.display='flex';
 }
 
+function renderDashNotifications() {
+  const notifEl = document.getElementById('dash-notifications');
+  if(!notifEl) return;
+  
+  const notifs = [];
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0,10);
+  
+  // 1. Credit Card Deadlines
+  const cycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
+  cycles.forEach(cyc => {
+    const card = (state.creditCards||[]).find(c => c.id === cyc.cardId);
+    const closeDate = new Date(cyc.closeDate + 'T12:00:00');
+    const dueDate = cyc.dueDate ? new Date(cyc.dueDate + 'T12:00:00') : null;
+    
+    const daysToClose = Math.round((closeDate - today) / 86400000);
+    if(daysToClose >= 0 && daysToClose <= 5) {
+      notifs.push({
+        type: 'warn',
+        icon: '💳',
+        title: 'Cierre de Tarjeta',
+        body: `Tu tarjeta <strong>${card?.name || 'TC'}</strong> cierra en ${daysToClose === 0 ? 'hoy' : daysToClose + ' días'}.`,
+        link: 'credit-cards'
+      });
+    }
+    
+    if(dueDate) {
+      const daysToDue = Math.round((dueDate - today) / 86400000);
+      if(daysToDue >= 0 && daysToDue <= 7) {
+        notifs.push({
+          type: 'alert',
+          icon: '💰',
+          title: 'Vencimiento de Tarjeta',
+          body: `El pago de <strong>${card?.name || 'TC'}</strong> vence en ${daysToDue === 0 ? 'hoy' : daysToDue + ' días'}.`,
+          link: 'credit-cards'
+        });
+      }
+    }
+  });
+
+  // 2. Spending vs Income
+  const monthTxns = getCurrentMonthTxns();
+  const arsT = monthTxns.filter(t => t.currency === 'ARS').reduce((s,t) => s + t.amount, 0);
+  const totalIncome = (state.income?.ars || 0) + (state.income?.varArs || 0);
+  if(totalIncome > 0) {
+    const pct = (arsT / totalIncome) * 100;
+    if(pct >= 85) {
+      notifs.push({
+        type: 'alert',
+        icon: '⚠️',
+        title: 'Límite de Presupuesto',
+        body: `Ya gastaste el <strong>${Math.round(pct)}%</strong> de tus ingresos este mes. Recomendamos moderar gastos.`,
+        link: 'dashboard'
+      });
+    } else if(pct >= 70) {
+      notifs.push({
+        type: 'warn',
+        icon: '📊',
+        title: 'Alerta de Gasto',
+        body: `Has consumido el <strong>${Math.round(pct)}%</strong> de tu presupuesto mensual.`,
+        link: 'dashboard'
+      });
+    }
+  }
+
+  // 3. Recurring Payments (Subscriptions)
+  // Simple check: same day as today in previous months or predicted
+  const cuotas = state.transactions.filter(t => t.isPendingCuota && t.currency === 'ARS');
+  cuotas.forEach(c => {
+    const cDate = new Date(c.date + 'T12:00:00');
+    if(cDate.getMonth() === today.getMonth() && cDate.getFullYear() === today.getFullYear()) {
+      const dDiff = Math.round((cDate - today) / 86400000);
+      if(dDiff >= 0 && dDiff <= 3) {
+        notifs.push({
+          type: 'info',
+          icon: '🔄',
+          title: 'Próximo Compromiso',
+          body: `En ${dDiff === 0 ? 'hoy' : dDiff + ' días'} vence la cuota de: <strong>${c.descripcion || c.description}</strong>.`,
+          link: 'cuotas'
+        });
+      }
+    }
+  });
+
+  // 4. Uncategorized Transactions Tip
+  const uncategorized = monthTxns.filter(t => !t.category || t.category === 'Uncategorized' || t.category === 'Procesando...');
+  if(uncategorized.length >= 5) {
+    notifs.push({
+      type: 'info',
+      icon: '🏷️',
+      title: 'Mejorá tu Reporte',
+      body: `Tenés <strong>${uncategorized.length}</strong> movimientos sin categoría. Clasificalos para mejores insights.`,
+      link: 'transactions'
+    });
+  }
+
+  if(!notifs.length) {
+    notifEl.style.display = 'none';
+    return;
+  }
+
+  notifEl.style.display = 'flex';
+  notifEl.innerHTML = notifs.map(n => `
+    <div class="notif-item notif-${n.type}" onclick="nav('${n.link}')">
+      <div class="notif-icon">${n.icon}</div>
+      <div class="notif-content">
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-body">${n.body}</div>
+      </div>
+      <div class="notif-chevron">❯</div>
+    </div>
+  `).join('');
+}
+
 
 function renderDashboard(){
+  renderDashNotifications();
   if(!state.transactions.length)return;
   const today=new Date();
   const activeMk=getActiveDashMonth();

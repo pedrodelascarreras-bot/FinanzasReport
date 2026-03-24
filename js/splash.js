@@ -63,16 +63,51 @@
     const pmDate = new Date(today.getFullYear(), today.getMonth()-1, 1);
     const prevMK = pmDate.getFullYear()+'-'+String(pmDate.getMonth()+1).padStart(2,'0');
 
-    // ── Month spending ──
-    const _mk = t => t.month || getMonthKey(t.date);
-    const curTxns  = state.transactions.filter(t=> _mk(t)===curMK  && t.currency==='ARS' && t.amount>0 && !t.isPendingCuota);
-    const prevTxns = state.transactions.filter(t=> _mk(t)===prevMK && t.currency==='ARS' && t.amount>0 && !t.isPendingCuota);
-    const curTotal  = curTxns.reduce((s,t)=>s+t.amount, 0);
-    const prevTotal = prevTxns.reduce((s,t)=>s+t.amount, 0);
-    const delta     = prevTotal > 0 ? (curTotal - prevTotal) / prevTotal * 100 : null;
+    // ── CC cycle spending (User request) ──
+    const allCyc = typeof getTcCycles === 'function' ? getTcCycles() : [];
+    let curTotal = 0;
+    let prevTotal = 0;
+    let hasCycles = false;
+    let curTxns = [];
+
+    if (allCyc.length > 0) {
+      const activeCycles = [];
+      allCyc.forEach((cyc, idx) => {
+        const op = typeof getTcCycleOpen === 'function' ? getTcCycleOpen(allCyc, idx) : null;
+        if (op && todayStr >= op && todayStr <= cyc.closeDate) {
+          activeCycles.push({ cyc, idx });
+        }
+      });
+
+      if (activeCycles.length > 0) {
+        hasCycles = true;
+        activeCycles.forEach(({ cyc, idx }) => {
+          const txns = typeof getTcCycleTxns === 'function' ? getTcCycleTxns(cyc, allCyc) : [];
+          const filtered = txns.filter(t => t.currency === 'ARS' && t.amount > 0);
+          curTotal += filtered.reduce((s, t) => s + t.amount, 0);
+          curTxns = curTxns.concat(filtered);
+
+          // Previous cycle for comparison
+          const prevCyc = allCyc.slice().reverse().find(c => c.cardId === cyc.cardId && c.closeDate < cyc.closeDate);
+          if (prevCyc) {
+            const pTxns = typeof getTcCycleTxns === 'function' ? getTcCycleTxns(prevCyc, allCyc) : [];
+            prevTotal += pTxns.filter(t => t.currency === 'ARS' && t.amount > 0).reduce((s, t) => s + t.amount, 0);
+          }
+        });
+      }
+    }
+
+    // Fallback if no active cycles: use monthly
+    if (!hasCycles) {
+      const _mk = t => t.month || getMonthKey(t.date);
+      curTxns = state.transactions.filter(t => _mk(t) === curMK && t.currency === 'ARS' && t.amount > 0 && !t.isPendingCuota);
+      const prevTxns = state.transactions.filter(t => _mk(t) === prevMK && t.currency === 'ARS' && t.amount > 0 && !t.isPendingCuota);
+      curTotal = curTxns.reduce((s, t) => s + t.amount, 0);
+      prevTotal = prevTxns.reduce((s, t) => s + t.amount, 0);
+    }
+    const delta = prevTotal > 0 ? (curTotal - prevTotal) / prevTotal * 100 : null;
 
     // ── CC cycle alerts ──
-    const allCyc   = typeof getTcCycles === 'function' ? getTcCycles() : [];
     const ccAlerts = [];
     allCyc.forEach((cyc, i)=>{
       const op = typeof getTcCycleOpen === 'function' ? getTcCycleOpen(allCyc, i) : null;
@@ -147,9 +182,15 @@
     // ── Month card ──
     const monthCard = hasCur
       ? `<div class="sp-main-card">
-          <div class="sp-card-lbl">GASTO · ${MONTHS[today.getMonth()].toUpperCase()}</div>
-          <div class="sp-card-amount">$${fmtN(curTotal)}</div>
-          <div class="sp-card-delta" style="color:${deltaClr};">${deltaLbl}</div>
+          <div class="sp-hero">
+        <div class="sp-h-label">${hasCycles ? 'CICLO ACTUAL' : 'ESTE MES'}</div>
+        <div class="sp-h-val">$${fmtN(curTotal)}</div>
+        ${delta !== null ? `
+          <div class="sp-h-delta ${delta > 0 ? 'up' : 'down'}">
+            ${delta > 0 ? '▲' : '▼'} ${Math.abs(delta).toFixed(0)}% vs ant.
+          </div>
+        ` : ''}
+      </div>
         </div>`
       : `<div class="sp-main-card sp-no-data">
           <div class="sp-card-lbl">SIN MOVIMIENTOS ESTE MES</div>
@@ -160,12 +201,42 @@
     const content = document.getElementById('sp-content');
     if(content){
       content.innerHTML = `
-        <div class="sp-date">${dateStr}</div>
-        <div class="sp-greeting">${greeting} 👋</div>
-        ${monthCard}
-        ${ccHtml}
-        ${catHtml}
-      `;
+      <div class="sp-presentation">
+        <div class="sp-pre-header fade-in">
+          <div class="sp-pre-greeting">${greeting}, ${state.userName || 'Usuario'}</div>
+          <div class="sp-pre-date">${dateStr}</div>
+        </div>
+
+        <div class="sp-pre-main">
+           <div class="sp-pre-label fade-in d1">${hasCycles ? 'CICLO ACTUAL' : 'ESTE MES'}</div>
+           <div class="sp-pre-amount-wrap fade-in d2">
+              <span class="sp-pre-sym">$</span><span class="sp-pre-amount">${fmtN(curTotal)}</span>
+           </div>
+           ${delta !== null ? `
+             <div class="sp-pre-delta ${delta > 0 ? 'up' : 'down'} fade-in d3">
+               ${delta > 0 ? '▲' : '▼'} ${Math.abs(delta).toFixed(1)}% <span>vs anterior</span>
+             </div>
+           ` : ''}
+        </div>
+
+        <div class="sp-pre-grid fade-in d4">
+          ${topEntry ? `
+            <div class="sp-pre-item">
+              <div class="sp-pre-item-icon">${topEmoji}</div>
+              <div class="sp-pre-item-label">Top Categoría</div>
+              <div class="sp-pre-item-val">${topEntry[0]}</div>
+            </div>
+          ` : ''}
+          ${ccAlerts.length > 0 ? `
+            <div class="sp-pre-item">
+              <div class="sp-pre-item-icon">💳</div>
+              <div class="sp-pre-item-label">Próximo Cierre</div>
+              <div class="sp-pre-item-val">${ccAlerts[0].name} (${ccAlerts[0].days}d)</div>
+            </div>
+          ` : ''}
+        </div>
+      </div>
+    `;
     }
   }
 

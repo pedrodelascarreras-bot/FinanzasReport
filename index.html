@@ -158,6 +158,8 @@
     <div class="upload-tags"><span class="tag green">Santander</span><span class="tag">CSV</span><span class="tag">ARS + USD</span><span class="tag">IA Auto</span></div>
   </div>
   <div id="dash-content" style="display:none;flex-direction:column;gap:20px;">
+    <!-- Smart Notifications -->
+    <div id="dash-notifications" class="dash-notif-container fade-up" style="display:none;"></div>
 
     <div class="layout-section" data-page="dashboard" data-key="hero"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('dashboard','hero',this)">● Hero del mes</button></div>
     <!-- FILA 1: Hero del mes + 3 stats secundarios -->
@@ -227,7 +229,7 @@
 
       <!-- 3 KPI cards secundarias -->
       <div class="dash-kpis-col">
-        <div class="dkpi" style="flex-direction:column;align-items:stretch;gap:8px;">
+        <div class="dkpi" style="flex-direction:column;align-items:stretch;gap:8px;cursor:pointer;" onclick="nav('credit-cards')" title="Ver detalle de tarjetas">
           <div style="display:flex;align-items:center;justify-content:space-between;">
             <div class="dkpi-label">CICLO TARJETAS</div>
             <div class="dkpi-icon" style="opacity:0.35;font-size:18px;">💳</div>
@@ -268,7 +270,7 @@
             </div>
           </div>
         </div>
-        <div class="dkpi">
+        <div class="dkpi" style="cursor:pointer;" onclick="nav('cuotas')" title="Ver compromisos">
           <div class="dkpi-left">
             <div class="dkpi-label">Compromisos próx. mes</div>
             <div class="dkpi-value" id="kpi-compromisos">—</div>
@@ -319,7 +321,7 @@
         </div>
         <div class="chart-wrap" style="height:200px"><canvas id="chart-weekly"></canvas></div>
       </div>
-      <div class="chart-card">
+      <div class="chart-card" style="cursor:pointer;" onclick="nav('tendencia')" title="Ver tendencias por categoría">
         <div class="chart-card-title" style="margin-bottom:14px;">Categorías del mes</div>
         <div id="cat-bars" class="cat-list"></div>
       </div>
@@ -331,7 +333,7 @@
     <div class="dash-widgets-row fade-up d3">
 
       <!-- Widget 1: Margen disponible -->
-      <div class="dw-card dw-margin">
+      <div class="dw-card dw-margin" style="cursor:pointer;" onclick="nav('income')" title="Ver ingresos y configuración">
         <div class="dw-label">MARGEN DISPONIBLE</div>
         <div class="dw-value" id="dw-margen-val">—</div>
         <div class="dw-sub" id="dw-margen-sub">hasta fin de mes</div>

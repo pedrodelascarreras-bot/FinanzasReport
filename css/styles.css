@@ -2435,3 +2435,155 @@ body.ios-scroll-locked {
 }
 .ccc-kpi-min strong { font-size: 18px; font-weight: 900; }
 .ccc-kpi-min span { font-size: 9px; font-weight: 700; color: var(--text3); margin-top: 2px; }
+
+/* ─── Apple Presentation Splash ─── */
+.sp-presentation {
+  color: var(--text);
+  text-align: center;
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+}
+.sp-pre-header { margin-bottom: 60px; }
+.sp-pre-greeting { font-size: 24px; font-weight: 500; color: var(--text2); margin-bottom: 8px; }
+.sp-pre-date { font-size: 16px; color: var(--text3); font-weight: 400; }
+
+.sp-pre-main { margin-bottom: 80px; }
+.sp-pre-label { 
+  font-size: 14px; 
+  font-weight: 800; 
+  letter-spacing: 0.15em; 
+  color: var(--text3); 
+  margin-bottom: 16px;
+  text-transform: uppercase;
+}
+.sp-pre-amount-wrap { 
+  display: flex; 
+  align-items: flex-start; 
+  justify-content: center; 
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.sp-pre-sym { font-size: 40px; font-weight: 600; color: var(--text3); margin-top: 14px; }
+.sp-pre-amount { 
+  font-size: 100px; 
+  font-weight: 800; 
+  letter-spacing: -0.04em; 
+  line-height: 1;
+}
+.sp-pre-delta { 
+  font-size: 18px; 
+  font-weight: 600; 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  gap: 6px;
+}
+.sp-pre-delta.up { color: var(--warning-sys); }
+.sp-pre-delta.down { color: var(--green-sys); }
+.sp-pre-delta span { color: var(--text3); font-weight: 400; }
+
+.sp-pre-grid { 
+  display: flex; 
+  gap: 40px; 
+  justify-content: center;
+}
+.sp-pre-item { text-align: left; background: var(--surface2); padding: 18px 28px; border-radius: 20px; border: 1px solid var(--border); }
+.sp-pre-item-icon { font-size: 24px; margin-bottom: 8px; }
+.sp-pre-item-label { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; margin-bottom: 4px; }
+.sp-pre-item-val { font-size: 16px; font-weight: 600; }
+
+/* Splash Animations */
+.fade-in { animation: fadeIn 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards; opacity: 0; }
+.fade-in.d1 { animation-delay: 0.2s; }
+.fade-in.d2 { animation-delay: 0.4s; }
+.fade-in.d3 { animation-delay: 0.6s; }
+.fade-in.d4 { animation-delay: 0.8s; }
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+#splash .sp-inner {
+  width: 900px !important;
+  max-width: 95vw !important;
+  padding: 60px !important;
+  border-radius: 40px !important;
+}
+
+/* ─── Insights Spacing ─── */
+#dash-insight-feed {
+  gap: 20px !important;
+  padding-bottom: 30px !important;
+}
+.insight-item {
+  padding: 24px !important;
+  border-radius: var(--r2) !important;
+  gap: 16px !important;
+}
+
+/* ─── Smart Notifications ─── */
+.dash-notif-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+.notif-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 20px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  overflow: hidden;
+}
+.notif-item:hover {
+  background: var(--surface3);
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+.notif-icon {
+  font-size: 20px;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.05);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+.notif-content {
+  flex: 1;
+}
+.notif-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.notif-body {
+  font-size: 12px;
+  color: var(--text3);
+  line-height: 1.4;
+}
+.notif-chevron {
+  font-size: 14px;
+  color: var(--text3);
+  opacity: 0.5;
+}
+
+/* Notif types */
+.notif-item.notif-warn { border-left: 4px solid var(--warning-sys); }
+.notif-item.notif-info { border-left: 4px solid var(--accent); }
+.notif-item.notif-success { border-left: 4px solid var(--green-sys); }
+.notif-item.notif-alert { border-left: 4px solid var(--danger); }

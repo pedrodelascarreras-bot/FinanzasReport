@@ -75,7 +75,16 @@ async function processPdf(file) {
   
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({data: arrayBuffer}).promise;
+    
+    let loadingTask;
+    try {
+      loadingTask = pdfjsLib.getDocument({ data: arrayBuffer, stopAtErrors: false });
+    } catch(e) {
+      // Fallback for different pdf.js versions
+      loadingTask = pdfjsLib.getDocument(arrayBuffer);
+    }
+    
+    const pdf = await loadingTask.promise;
     let fullText = '';
     
     // Extract text from all pages
@@ -157,9 +166,10 @@ function parseSantanderText(text) {
 
   // Pattern: "26 Feb 19 0002789842 K[/*] DESCRIPTION [C.N/T] 1.234,56 [20,00]"
   // Supports both Spanish abbreviated months (Feb) and numeric dates (DD/MM fallback)
-  const TXN_RE = /^(\d{2})\s+(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)[a-záéíóú]*\s+(\d{1,2})\s+\d{4,12}\s+[Kk]\/?[*]?\s*(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
-  // Fallback pattern for old "DD/MM" format
-  const OLD_RE = /^(\d{2})\/(\d{2})\s+(.+?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/;
+  const TXN_RE  = /^(\d{2})\s+([a-z]{3})[a-z]*\s+(\d{1,2})\s+\d{4,12}\s+[Kk]\/?[*]?\s*(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
+  // Generic pattern for other lines (Date DD/MM DESCRIPTION AMT_ARS [AMT_USD])
+  const GEN_RE  = /^(\d{2})\s+([a-z]{3})[a-z]*\s+(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
+  const OLD_RE  = /^(\d{2})\/(\d{2})\s+(.+?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/;
 
   let currentHolder = 'Titular';
 
@@ -251,6 +261,41 @@ function parseSantanderText(text) {
       continue;
     }
 
+    // ── Generic Santander format: DD MON Description Amt_ARS [Amt_USD] ──
+    const gn = line.match(GEN_RE);
+    if(gn) {
+      const dd3 = parseInt(gn[1]);
+      const monStr3 = gn[2].toLowerCase().slice(0,3);
+      let desc3 = gn[3].trim();
+      const amtStrA = gn[4], amtStrB = gn[5];
+      const mm3 = MONTHS[monStr3];
+      if(mm3) {
+        const yyyy3 = (mm3 > today.getMonth()+2) ? today.getFullYear()-1 : today.getFullYear();
+        const isoDate3 = `${yyyy3}-${String(mm3).padStart(2,'0')}-${String(dd3).padStart(2,'0')}`;
+        
+        let cuotas3 = null;
+        const cuotaM3 = desc3.match(/\s+C\.(\d+)\/(\d+)$/i);
+        if(cuotaM3) {
+          cuotas3 = `${cuotaM3[1]}/${cuotaM3[2]}`;
+          desc3 = desc3.replace(/\s+C\.\d+\/\d+$/i,'').trim();
+        }
+
+        txns.push({
+          id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
+          rawDate: `${String(dd3).padStart(2,'0')}/${String(mm3).padStart(2,'0')}`,
+          isoDate: isoDate3,
+          rawDesc: desc3,
+          amountARS: parseAmt(amtStrA),
+          amountUSD: amtStrB ? parseAmt(amtStrB) : 0,
+          cuotas: cuotas3,
+          holder: currentHolder,
+          isBankFee: false,
+          isPayment: false
+        });
+        continue;
+      }
+    }
+
     // ── Fallback: old DD/MM format ──────────────────────
     const fo = line.match(OLD_RE);
     if(fo) {
@@ -260,13 +305,16 @@ function parseSantanderText(text) {
       const cM2 = desc2.match(/\s+C\.(\d+)\/(\d+)$/i) || desc2.match(/\s+(\d{2})\/(\d{2})$/);
       if(cM2) { cuotas2 = `${cM2[1]}/${cM2[2]}`; desc2 = desc2.replace(cM2[0],'').trim(); }
       if(desc2.length > 2 && parseAmt(amt1) !== 0) {
+        const yyyy2 = (parseInt(mm2) > today.getMonth()+2) ? today.getFullYear()-1 : today.getFullYear();
         txns.push({
           id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
-          rawDate: `${dd2}/${mm2}`, isoDate: null,
+          rawDate: `${dd2}/${mm2}`, 
+          isoDate: `${yyyy2}-${mm2}-${dd2}`,
           rawDesc: desc2,
           amountARS: parseAmt(amt1),
-          amountUSD: parseAmt(amt2),
+          amountUSD: parseAmt(amt2)||0,
           cuotas: cuotas2,
+          holder: currentHolder,
           isBankFee: false,
           isPayment: false
         });
@@ -286,7 +334,8 @@ function runMatchingAlgorithm() {
   if(!cycle) return;
   
   // Get all app transactions belonging to this cycle
-  const appTxns = typeof ccGetCycleExpenses === 'function' ? ccGetCycleExpenses(cycle) : [];
+  // Fix: ccGetCycleExpenses expects (cardId, tcCycleId)
+  const appTxns = typeof ccGetCycleExpenses === 'function' ? ccGetCycleExpenses(cycle.cardId, cycle.id) : [];
   let availableAppTxns = [...appTxns];
   
   cccState.matches = [];
@@ -323,19 +372,50 @@ function runMatchingAlgorithm() {
           usdDiff = Math.abs(pTxn.amountUSD - aTxn.amountUSD);
        }
 
-       if(arsDiff < 1 && usdDiff < 1) { // Same amount
+        if(arsDiff < 1 && usdDiff < 1) { // Same amount
           let score = 50;
-          if(dayDiff <= 3) score += 30;
+          if(dayDiff <= 3) score += 40;
           
-          // Check text similarity (basic JS includes)
+          // Check text similarity
           const pDesc = pTxn.rawDesc.toLowerCase();
-          const aDesc = (aTxn.descripcion || aTxn.description).toLowerCase();
-          if(pDesc.includes(aDesc.substring(0,5)) || aDesc.includes(pDesc.substring(0,5))) score += 20;
+          const aDesc = (aTxn.descripcion || aTxn.description || '').toLowerCase();
+          // Splitting into words for better fuzzy match
+          const pWords = pDesc.split(/\s+/).filter(w => w.length > 3);
+          const aWords = aDesc.split(/\s+/).filter(w => w.length > 3);
+          const matchCount = pWords.filter(pw => aWords.some(aw => aw.includes(pw) || pw.includes(aw))).length;
+          
+          if(matchCount > 0) score += 20 + (matchCount * 5);
           
           if(score > bestScore) {
             bestScore = score;
             bestMatch = aTxn;
             idxToRemove = i;
+          }
+        }
+    }
+    
+    // 2. Pass: If no exact amount match, try fuzzy amount (for rounding or discrepancies)
+    if(!bestMatch) {
+       for(let i=0; i<availableAppTxns.length; i++) {
+          const aTxn = availableAppTxns[i];
+          const aDateObj = new Date(aTxn.date + 'T12:00:00');
+          const dayDiff = pdfDateObj ? Math.abs((pdfDateObj - aDateObj) / 86400000) : 100;
+          
+          if(dayDiff > 7) continue;
+
+          let arsDiff = Math.abs(pTxn.amountARS - Math.abs(aTxn.currency==='ARS'?aTxn.amount:0));
+          if(aTxn.amountARS !== undefined) arsDiff = Math.abs(pTxn.amountARS - aTxn.amountARS);
+
+          // If difference is small (e.g. < 50 pesos) or percentage is small
+          if(arsDiff > 0 && arsDiff < 50) { 
+             const pDesc = pTxn.rawDesc.toLowerCase();
+             const aDesc = (aTxn.descripcion || aTxn.description || '').toLowerCase();
+             if(pDesc.includes(aDesc.substring(0,6)) || aDesc.includes(pDesc.substring(0,6))) {
+                bestMatch = aTxn;
+                bestScore = 60; // Flag as "posible"
+                idxToRemove = i;
+                break;
+             }
           }
        }
     }
