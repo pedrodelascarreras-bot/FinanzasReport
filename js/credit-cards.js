@@ -353,8 +353,20 @@ function renderCcActiveCycle(){
         </div>
       </div>
     </div>
-    ${paidHistoryHtml}
   `;
+
+  // Update History Section
+  const histSec = document.getElementById('cc-history-section');
+  const histList = document.getElementById('cc-history-list');
+  if (histSec && histList) {
+    if (paidCycles.length) {
+      histSec.style.display = 'block';
+      histList.innerHTML = _ccBuildPaidHistoryHtml(cardId, paidCycles, tcCycles);
+    } else {
+      histSec.style.display = 'none';
+      histList.innerHTML = '';
+    }
+  }
 }
 
 // ── Paid History HTML builder ──

@@ -519,7 +519,15 @@ function updateGmailBtn(status) {
     label.textContent = 'Gmail · Sincronizado ✓';
     dot.style.background = 'var(--accent)';
   } else {
-    label.textContent = 'Gmail · Sincronizar';
+    // Show last sync if available
+    if (state.lastGmailSync) {
+      const d = new Date(state.lastGmailSync);
+      const time = d.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
+      const date = d.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'});
+      label.innerHTML = `Gmail · <span style="font-size:10px;opacity:0.8;font-weight:400;">u. sinc: ${date} ${time}</span>`;
+    } else {
+      label.textContent = 'Gmail · Sincronizar';
+    }
     dot.style.background = 'var(--text3)';
   }
 }
@@ -574,7 +582,7 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
     const txns = [];
     const annulments = [];
     for (const email of emails) { 
-        const txn = parseSantanderEmail(email); 
+        const txn = parseSantanderEmail(email, txns); 
         if (txn) {
             if (txn.isAnulacion) annulments.push(txn);
             else txns.push(txn);
@@ -615,9 +623,12 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
       if (annulments.length > 0) {
         showToast('Correos procesados. Se registraron anulaciones sin gastos extra.', 'success');
       } else {
-        showToast('No se pudieron parsear movimientos nuevos', 'error');
+        showToast('✓ No se encontraron movimientos nuevos', 'success');
       }
-      updateGmailBtn('connected'); return;
+      updateGmailBtn('connected');
+      state.lastGmailSync = new Date().toISOString(); // Update last sync even if no new txns
+      saveState();
+      return;
     }
     pendingGmailTxns = txns;
     showGmailResultModal(txns, totalFound, dateFrom, dateTo);
@@ -669,7 +680,7 @@ function getEmailBody(payload) {
   return '';
 }
 
-function parseSantanderEmail(email) {
+function parseSantanderEmail(email, currentBatch) {
   try {
     const emailId = email.id;
     const headers = email.payload.headers || [];
@@ -755,9 +766,12 @@ function parseSantanderEmail(email) {
       // Así todos los emails del mismo plan de cuotas quedan en el mismo grupo
       const _cgSlug = comercio.toLowerCase().replace(/[^a-z0-9]/g,'').substring(0,15);
       cuotaGroupId = 'cg_' + _cgSlug + '_' + amount + '_' + cuotaTotal;
+      
       // Determinar qué número de cuota es: contamos los reales ya existentes en el grupo
       const _prevReal = (state.transactions||[]).filter(t => t.cuotaGroupId === cuotaGroupId && !t.isPendingCuota);
-      cuotaNum = _prevReal.length + 1;
+      const _prevInBatch = (currentBatch||[]).filter(t => t.cuotaGroupId === cuotaGroupId && !t.isAnulacion);
+      cuotaNum = _prevReal.length + _prevInBatch.length + 1;
+      
       if(cuotaNum > cuotaTotal) cuotaNum = cuotaTotal;
     }
 

@@ -25,6 +25,7 @@ let state={
   catRules:[],           // [{id, keyword, category, active, priority}]
   catHistory:{},         // {comercio_normalized: {cat: count}} — aprendizaje local
   txnEstadoFilter:'all', // 'all'|'pendiente_de_revision'|'duplicado_sospechoso'|'confirmado_por_usuario'|'detectado_automaticamente'
+  lastGmailSync: null,
 };
 
 // ══ PERSIST ══
@@ -37,7 +38,8 @@ function getStateSnapshot(){
     savAccounts:state.savAccounts,savGoals:state.savGoals,savDeposits:state.savDeposits||[],tcConfig:state.tcConfig,
     usdRate:state.usdRate||1420,usdRateSource:state.usdRateSource||'blue',usdRateUpdated:state.usdRateUpdated||null,
     catRules:state.catRules||[],catHistory:state.catHistory||{},
-    ccCards:state.ccCards||[],ccCycles:state.ccCycles||[],ccActiveCard:state.ccActiveCard||null
+    ccCards:state.ccCards||[],ccCycles:state.ccCycles||[],ccActiveCard:state.ccActiveCard||null,
+    lastGmailSync:state.lastGmailSync||null
   };
 }
 function saveState(){
@@ -233,6 +235,7 @@ async function loadFromDrive(){
     state.ccCards=s.ccCards||[];
     state.ccCycles=s.ccCycles||[];
     state.ccActiveCard=s.ccActiveCard||null;
+    state.lastGmailSync=s.lastGmailSync||null;
     state.transactions.forEach(t=>{if(!t.week)t.week=getWeekKey(t.date);if(!t.month)t.month=getMonthKey(t.date);});
     // Also persist to localStorage
     try{localStorage.setItem('fin_state',JSON.stringify(s));}catch(e){}
@@ -267,6 +270,7 @@ function loadState(){
     state.ccCards=s.ccCards||[];
     state.ccCycles=s.ccCycles||[];
     state.ccActiveCard=s.ccActiveCard||null;
+    state.lastGmailSync=s.lastGmailSync||null;
     state.apiKey=localStorage.getItem('fin_apikey')||'';
     state.transactions.forEach(t=>{if(!t.week)t.week=getWeekKey(t.date);if(!t.month)t.month=getMonthKey(t.date);});
     // Enrichment retroactivo (sin sobreescribir confirmados)

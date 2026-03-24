@@ -36,13 +36,12 @@
 
     <!-- Footer: progress + CTA -->
     <div class="sp-footer">
-      <div class="sp-progress-wrap">
+      <div class="sp-progress-wrap" style="flex:1;">
         <div class="sp-progress-bar">
           <div id="splash-progress-fill" class="sp-progress-fill"></div>
         </div>
-        <span id="splash-countdown" class="sp-countdown">8s</span>
       </div>
-      <button class="sp-cta" onclick="dismissSplash()">Comenzar &nbsp;→</button>
+      <button class="sp-cta" onclick="dismissSplash()">Continuar &nbsp;→</button>
     </div>
 
   </div>
@@ -1544,7 +1543,10 @@
 
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
         <div style="font-size:16px;font-weight:700;">Detalle de la conciliación</div>
-        <button class="btn btn-primary" onclick="cccSaveSession()">Guardar progreso</button>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-secondary" onclick="cccImportAllFees()" title="Importar todos los impuestos detectados">📥 Importar Impuestos</button>
+          <button class="btn btn-primary" onclick="cccSaveSession()">Guardar progreso</button>
+        </div>
       </div>
 
       <!-- Table -->
@@ -2314,7 +2316,7 @@
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-ccc-add-missing')">Cancelar</button>
-      <button class="btn btn-primary" onclick="cccSaveMissingExpense()">Guardar e idenficar</button>
+      <button class="btn btn-primary" onclick="cccSaveMissingExpense()">Guardar e identificar</button>
     </div>
   </div>
 </div>

@@ -563,12 +563,21 @@ function renderDashboard(){
     const nC=autoGroups.length+state.cuotas.filter(c=>c.paid<c.total).length;
     const nS=state.subscriptions.length;
     const nF=(state.fixedExpenses||[]).length;
-    const parts=[];
-    if(nC>0)parts.push(nC+' cuota'+(nC!==1?'s':''));
-    if(nS>0)parts.push(nS+' sub'+(nS!==1?'s':''));
-    if(nF>0)parts.push(nF+' fijo'+(nF!==1?'s':''));
-    if(compromisoUSD>0)parts.push('U$D '+fmtN(compromisoUSD));
-    if(compD)compD.textContent=parts.join(' · ')||'Sin compromisos';
+    
+    // Detailed visibility for counts
+    let htmlCounts = '';
+    if(nC>0) htmlCounts += `<div class="comp-mini-badge"><span class="mini-icon">🛒</span> <strong>${nC}</strong> cuota${nC!==1?'s':''}</div>`;
+    if(nS>0) htmlCounts += `<div class="comp-mini-badge"><span class="mini-icon">🔔</span> <strong>${nS}</strong> sub${nS!==1?'s':''}</div>`;
+    if(nF>0) htmlCounts += `<div class="comp-mini-badge"><span class="mini-icon">🏠</span> <strong>${nF}</strong> fijo${nF!==1?'s':''}</div>`;
+    
+    if(compD) {
+      compD.innerHTML = htmlCounts || '<span style="color:var(--text3)">Vencimientos de este mes</span>';
+      // Use styles for the mini badges
+      compD.style.display = 'flex';
+      compD.style.gap = '8px';
+      compD.style.marginTop = '12px';
+      compD.style.flexWrap = 'wrap';
+    }
     // Animate compromisos donut (% of income)
     const compDonut=document.getElementById('comp-donut-fill');
     const compDonutLabel=document.getElementById('comp-donut-label');

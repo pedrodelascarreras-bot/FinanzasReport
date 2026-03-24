@@ -50,26 +50,12 @@
 
   // ── Countdown + progress bar ─────────────────────────────
   function _startCountdown(el){
-    const SECS = 8;
-    const fill      = document.getElementById('splash-progress-fill');
-    const cdEl      = document.getElementById('splash-countdown');
-    let remaining   = SECS;
-
-    // CSS transition handles the smooth progress bar fill
+    const fill = document.getElementById('splash-progress-fill');
     if(fill){
-      fill.style.transition = 'width '+SECS+'s linear';
-      setTimeout(()=>{ fill.style.width = '100%'; }, 80);
+      fill.style.width = '100%';
+      fill.style.transition = 'width 0.5s ease';
     }
-    if(cdEl) cdEl.textContent = SECS+'s';
-
-    el._interval = setInterval(()=>{
-      remaining--;
-      if(cdEl) cdEl.textContent = remaining > 0 ? remaining+'s' : '';
-      if(remaining <= 0){
-        clearInterval(el._interval);
-        dismissSplash();
-      }
-    }, 1000);
+    // Auto-dismiss removed per user request.
   }
 
   // ── Build dynamic content ────────────────────────────────

@@ -144,9 +144,18 @@ function parseSantanderText(text) {
   // Fallback pattern for old "DD/MM" format
   const OLD_RE = /^(\d{2})\/(\d{2})\s+(.+?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/;
 
+  let currentHolder = 'Titular';
+
   for(let rawLine of lines) {
     const line = rawLine.trim().replace(/\s{2,}/g,' ');
     if(!line) continue;
+
+    // ── Holder detection ────────────────────────────────
+    const holderM = line.match(/^(TITULAR|ADICIONAL):\s*(.*)/i);
+    if(holderM) {
+      currentHolder = holderM[2].trim();
+      continue;
+    }
 
     // ── Bank fee lines ─────────────────────────────────
     if(isBankFeeLine(line)) {
@@ -218,6 +227,7 @@ function parseSantanderText(text) {
         rawDesc: desc,
         amountARS, amountUSD,
         cuotas,
+        holder: currentHolder,
         isBankFee: false,
         isPayment: false
       });
@@ -324,17 +334,11 @@ function runMatchingAlgorithm() {
       });
       availableAppTxns.splice(idxToRemove, 1);
     } else {
-      // Check if it's a bank fee automatically
-      const isFee = pTxn.rawDesc.toLowerCase().includes('iva') || 
-                    pTxn.rawDesc.toLowerCase().includes('mantenimiento') ||
-                    pTxn.rawDesc.toLowerCase().includes('impuesto') ||
-                    pTxn.rawDesc.toLowerCase().includes('rg 4815');
-                    
       cccState.matches.push({
         id: 'mat_' + Date.now() + Math.random().toString(36).substr(2,5),
         pdfTxn: pTxn,
         appTxn: null,
-        status: isFee ? 'bank_fee' : 'orphan_pdf',
+        status: pTxn.isBankFee ? 'bank_fee' : 'orphan_pdf',
         diffARS: pTxn.amountARS,
         diffUSD: pTxn.amountUSD
       });
@@ -363,13 +367,32 @@ function renderCccResults() {
   const rows = cccState.matches.map(m => {
     if(m.status === 'conc') conc++;
     else if(m.status === 'posible' || m.status === 'diff') diff++;
-    else if(m.status === 'orphan_pdf') orphan++;
+    else if(m.status === 'orphan_pdf' || m.status === 'orphan_app') orphan++;
     
+    const holderHtml = m.pdfTxn && m.pdfTxn.holder && m.pdfTxn.holder !== 'Titular' 
+      ? `<div style="font-size:9px;color:var(--accent2);text-transform:uppercase;font-weight:700;margin-bottom:2px;">💳 ${esc(m.pdfTxn.holder)}</div>`
+      : '';
+
+    const actions = [];
+    if (m.status === 'orphan_pdf') {
+       actions.push(`<button class="btn btn-sm btn-secondary" onclick="cccLinkApp('${m.id}')">Vincular</button>`);
+       actions.push(`<button class="btn btn-sm" style="margin-top:4px;" onclick="cccAddMissing('${m.id}')">Alta</button>`);
+       actions.push(`<button class="btn btn-sm btn-ghost" style="margin-top:4px;opacity:0.6" onclick="cccExcludePdfTxn('${m.id}')">Excluir</button>`);
+    } else if (m.status === 'diff' || m.status === 'posible') {
+       actions.push(`<button class="btn btn-sm btn-secondary" onclick="cccEditAppTxn('${m.id}')">Corregir App</button>`);
+       actions.push(`<button class="btn btn-sm btn-danger btn-icon" style="margin-top:4px;" onclick="cccUnlink('${m.id}')">✖</button>`);
+    } else if (m.appTxn && m.pdfTxn) {
+       actions.push(`<button class="btn btn-sm btn-danger btn-icon" title="Desvincular" onclick="cccUnlink('${m.id}')">✖</button>`);
+    }
+
     return `
       <tr style="background:${m.status==='orphan_app'?'var(--danger)10':''}">
         <td>${renderCccStatusBadge(m.status)}</td>
         <td>${m.pdfTxn ? m.pdfTxn.rawDate : '—'}</td>
-        <td style="font-weight:${m.pdfTxn?'700':'400'}">${m.pdfTxn ? esc(m.pdfTxn.rawDesc) + (m.pdfTxn.cuotas ? ' <span style="font-size:10px;color:var(--text3)">('+m.pdfTxn.cuotas+')</span>' : '') : '<span style="color:var(--text3)">Ausente en resumen</span>'}</td>
+        <td style="font-weight:${m.pdfTxn?'700':'400'}">
+          ${holderHtml}
+          ${m.pdfTxn ? esc(m.pdfTxn.rawDesc) + (m.pdfTxn.cuotas ? ' <span style="font-size:10px;color:var(--text3)">('+m.pdfTxn.cuotas+')</span>' : '') : '<span style="color:var(--text3)">Ausente en resumen</span>'}
+        </td>
         <td style="text-align:right;">
           ${m.pdfTxn && m.pdfTxn.amountARS ? '<div style="color:var(--accent)">$'+fmtN(m.pdfTxn.amountARS)+'</div>' : ''}
           ${m.pdfTxn && m.pdfTxn.amountUSD ? '<div style="color:var(--accent2)">U$D '+fmtN(m.pdfTxn.amountUSD)+'</div>' : ''}
@@ -386,8 +409,9 @@ function renderCccResults() {
            ${!m.diffARS && !m.diffUSD ? '—' : ''}
         </td>
         <td style="text-align:center;">
-          ${m.status==='orphan_pdf' ? `<button class="btn btn-sm btn-secondary" onclick="cccLinkApp('${m.id}')">Vincular</button><button class="btn btn-sm" style="margin-top:4px;" onclick="cccAddMissing('${m.id}')">Alta</button>` : ''}
-          ${m.appTxn && m.pdfTxn ? `<button class="btn btn-sm btn-danger btn-icon" title="Desvincular" onclick="cccUnlink('${m.id}')">✖</button>` : ''}
+           <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
+             ${actions.join('')}
+           </div>
         </td>
       </tr>
     `;
@@ -407,9 +431,93 @@ function renderCccStatusBadge(status) {
     'diff': '<span style="background:var(--danger)20;color:var(--danger);padding:4px 8px;border-radius:12px;font-size:10px;font-weight:700">Dif. Monto</span>',
     'orphan_pdf': '<span style="background:var(--danger)20;color:var(--danger);padding:4px 8px;border-radius:12px;font-size:10px;font-weight:700">Falta en App</span>',
     'orphan_app': '<span style="background:var(--danger)20;color:var(--danger);padding:4px 8px;border-radius:12px;font-size:10px;font-weight:700">Falta PDF</span>',
-    'bank_fee': '<span style="background:var(--surface3);color:var(--text3);padding:4px 8px;border-radius:12px;font-size:10px;font-weight:700">Impositivo</span>'
+    'bank_fee': '<span style="background:var(--surface3);color:var(--text3);padding:4px 8px;border-radius:12px;font-size:10px;font-weight:700">Impositivo</span>',
+    'excluded': '<span style="background:var(--surface2);color:var(--text3);padding:4px 8px;border-radius:12px;font-size:10px;font-weight:400">Excluido</span>'
   };
   return map[status] || status;
+}
+
+// ── Discrepancy Resolution ──
+function cccEditAppTxn(matchId) {
+  const m = cccState.matches.find(x => x.id === matchId);
+  if(!m || !m.appTxn) return;
+  
+  const a = m.appTxn;
+  const currAmt = a.amountARS || a.amount || 0;
+  const newAmt = prompt(`Editar monto para "${a.descripcion || a.description}"\n\nMonto actual: ${currAmt}\nNuevo monto ARS:`, currAmt);
+  if (newAmt === null) return;
+  
+  const val = parseFloat(newAmt);
+  if (isNaN(val)) { showToast('Monto inválido','error'); return; }
+  
+  // 1. Check if it's a manual expense in the cycle
+  const cycle = state.ccCycles.find(c => c.id === cccState.selectedCycle);
+  if(cycle && cycle.manualExpenses) {
+    const manualExp = cycle.manualExpenses.find(e => e.id === a.id);
+    if (manualExp) {
+      manualExp.amountARS = val;
+      saveState();
+      runMatchingAlgorithm();
+      renderCccResults();
+      showToast('✓ Gasto manual actualizado','success');
+      return;
+    }
+  }
+  
+  // 2. Check if it's a general transaction
+  if (state.transactions) {
+    const txn = state.transactions.find(t => t.id === a.id);
+    if (txn) {
+       txn.amount = val;
+       saveState();
+       runMatchingAlgorithm();
+       renderCccResults();
+       showToast('✓ Transacción institucional actualizada','success');
+       return;
+    }
+  }
+  
+  showToast('No se puede editar este gasto (puede ser un gasto automático o cuota)','info');
+}
+
+function cccImportAllFees() {
+  const fees = cccState.matches.filter(m => m.status === 'bank_fee' && !m.appTxn);
+  if (!fees.length) { showToast('No hay impuestos pendientes de importar','info'); return; }
+  
+  if (!confirm(`¿Importar ${fees.length} cargos impositivos del PDF a la App?`)) return;
+  
+  const cycle = state.ccCycles.find(c => c.id === cccState.selectedCycle);
+  if(!cycle) return;
+  if(!cycle.manualExpenses) cycle.manualExpenses = [];
+  
+  fees.forEach(f => {
+    const newExp = {
+      id: 'mce_' + Date.now().toString(36) + Math.random().toString(36).substr(2,3),
+      date: cycle.closeDate, // Default to close date of cycle
+      description: f.pdfTxn.rawDesc,
+      category: 'Impuestos y Comisiones',
+      amountARS: f.pdfTxn.amountARS,
+      amountUSD: f.pdfTxn.amountUSD
+    };
+    cycle.manualExpenses.push(newExp);
+  });
+  
+  saveState();
+  runMatchingAlgorithm();
+  renderCccResults();
+  showToast(`✓ ${fees.length} cargos importados`,'success');
+}
+
+function cccExcludePdfTxn(matchId) {
+  const m = cccState.matches.find(x => x.id === matchId);
+  if(!m || !m.pdfTxn) return;
+  
+  if(!confirm('¿Excluir esta línea del PDF? No aparecerá como pendiente.')) return;
+  
+  m.status = 'excluded';
+  m.diffARS = 0;
+  m.diffUSD = 0;
+  renderCccResults();
 }
 
 // ── Manual Actions ──
