@@ -451,3 +451,130 @@ function onDragEnd(e) {
   _dragSrc = null;
 }
 
+function toggleNotifPanel() {
+  const panel = document.getElementById('notif-panel');
+  if(!panel) return;
+  const isShow = panel.style.display === 'none';
+  panel.style.display = isShow ? 'flex' : 'none';
+  if(isShow) renderNotifications();
+}
+
+function renderNotifications() {
+  const list = document.getElementById('notif-list');
+  const badge = document.getElementById('notif-badge');
+  if(!list) return;
+
+  const notifs = [];
+  const today = new Date();
+
+  // 1. Credit Card Closures
+  const cycles = typeof getTcCycles === 'function' ? getTcCycles() : state.tcCycles;
+  cycles.forEach(c => {
+    const closeD = new Date(c.closeDate + 'T12:00:00');
+    const diff = Math.ceil((closeD - today) / (1000 * 60 * 60 * 24));
+    if(diff > 0 && diff <= 5) {
+      notifs.push({
+        type: 'tc-close',
+        title: `Cierre de ${c.label}`,
+        desc: `Tu tarjeta cierra en ${diff} día${diff!==1?'s':''}. ¡Revisá tus consumos!`,
+        icon: '💳',
+        color: 'var(--accent)',
+        time: `Vence el ${closeD.toLocaleDateString('es-AR')}`
+      });
+    }
+  });
+
+  // 2. Credit Card Payments (Due dates)
+  cycles.forEach(c => {
+    if(!c.dueDate) return;
+    const dueD = new Date(c.dueDate + 'T12:00:00');
+    const diff = Math.ceil((dueD - today) / (1000 * 60 * 60 * 24));
+    if(diff > 0 && diff <= 5) {
+      notifs.push({
+        type: 'tc-due',
+        title: `Vencimiento de ${c.label}`,
+        desc: `El pago de tu tarjeta es en ${diff} día${diff!==1?'s':''}.`,
+        icon: '💸',
+        color: 'var(--danger)',
+        time: `Pagar antes del ${dueD.toLocaleDateString('es-AR')}`
+      });
+    }
+  });
+
+  // 3. Subscriptions (if any renewal is close)
+  state.subscriptions.forEach(s => {
+    if(s.freq === 'monthly') {
+      const day = s.day || 15;
+      const nextDate = new Date(today.getFullYear(), today.getMonth(), day);
+      if(nextDate < today) nextDate.setMonth(nextDate.getMonth() + 1);
+      const diff = Math.ceil((nextDate - today) / (1000 * 60 * 60 * 24));
+      if(diff <= 3) {
+        notifs.push({
+          id: `sub-${s.id}-${nextDate.toISOString().slice(0,10)}`,
+          type: 'sub',
+          title: `Renovación: ${s.name}`,
+          desc: `Tu suscripción de ${s.currency}$ ${s.price} se renueva en ${diff} día${diff!==1?'s':''}.`,
+          icon: '🔔',
+          color: 'var(--accent2)',
+          time: diff === 0 ? 'Hoy' : `En ${diff} días`
+        });
+      }
+    }
+  });
+
+  // 4. Spending vs Income (Fixed Logic)
+  const cycleTotal = typeof getDashCycleTotal === 'function' ? getDashCycleTotal() : 0;
+  const monthIncome = typeof getDashMonthIncome === 'function' ? getDashMonthIncome() : 0;
+  if(monthIncome > 0) {
+    const usage = (cycleTotal / monthIncome) * 100;
+    if(usage >= 80) {
+      notifs.push({
+        id: `spend-limit-${today.toISOString().slice(0,7)}`,
+        type: 'alert',
+        title: 'Límite de Gastos',
+        desc: `Atención: ya utilizaste el ${Math.round(usage)}% de tus ingresos del ciclo actual.`,
+        icon: '⚠️',
+        color: 'var(--danger)',
+        time: 'Alerta crítica'
+      });
+    }
+  }
+
+  // Filter out dismissed
+  const activeNotifs = notifs.filter(n => !(state.dismissedNotifs || []).includes(n.id || n.title));
+
+  // Badge handling
+  if(badge) badge.style.display = activeNotifs.length > 0 ? 'block' : 'none';
+
+  if(activeNotifs.length === 0) {
+    list.innerHTML = `
+      <div class="notif-empty">
+        <div class="notif-empty-icon">✨</div>
+        <div class="notif-empty-title">Todo al día</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:4px;">No tenés avisos o alertas pendientes por ahora.</div>
+      </div>
+    `;
+    return;
+  }
+
+  list.innerHTML = activeNotifs.map(n => `
+    <div class="notif-item" id="notif-${n.id}">
+      <div class="notif-icon-box" style="background:${n.color}22;color:${n.color};">
+        ${n.icon}
+      </div>
+      <div class="notif-content">
+        <div class="notif-title">${n.title}</div>
+        <div class="notif-desc">${n.desc}</div>
+        <div class="notif-time">${n.time}</div>
+      </div>
+      <button class="notif-item-close" onclick="dismissNotif('${n.id || n.title}')" title="Quitar">✕</button>
+    </div>
+  `).join('');
+}
+
+function dismissNotif(id) {
+  if(!state.dismissedNotifs) state.dismissedNotifs = [];
+  state.dismissedNotifs.push(id);
+  saveState();
+  renderNotifications();
+}

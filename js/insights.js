@@ -236,6 +236,16 @@ function _renderInsightsChart(data) {
 
 // ── Health score ──────────────────────────────────────────
 function _getHealthScore(data) {
+  // If no transactions or income, return a neutral/insufficient state
+  if(!data.arsThis && !data.incomeARS) {
+    return {
+      score: 0, 
+      factors: [], 
+      label: 'Sin datos ⚪️', 
+      desc: 'Agregá movimientos para calcular tu salud financiera.', 
+      scoreColor: '#8e8e93'
+    };
+  }
   let score=100;
   const factors=[];
 
@@ -296,8 +306,14 @@ function _renderScoreCard(data) {
   if(descEl)descEl.textContent=desc;
   const factorsEl=document.getElementById('score-factors');
   if(factorsEl){
+    const tooltipMap = {
+      'Presupuesto': 'Mide qué porcentaje de tus ingresos ya gastaste en este ciclo.',
+      'Tendencia': 'Compara tu gasto actual contra el mismo período del mes pasado.',
+      'Cuotas': 'Impacto de tus compras financiadas sobre tus ingresos mensuales.',
+      'Gastos fijos': 'Porcentaje de ingresos comprometido en gastos recurrentes obligatorios.'
+    };
     factorsEl.innerHTML=factors.map(f=>`
-      <div style="display:flex;flex-direction:column;gap:3px;">
+      <div style="display:flex;flex-direction:column;gap:3px;" title="${tooltipMap[f.label] || ''}">
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:11px;color:var(--text3);">${f.label}</span>
           <span style="font-size:11px;font-weight:700;color:${f.color};">${f.value}</span>

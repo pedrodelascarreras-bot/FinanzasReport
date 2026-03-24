@@ -318,7 +318,16 @@ function renderTransactions(){
   // ── Tabla ──
   const wrap=document.getElementById('txn-wrap');
   if(!txns.length){
-    wrap.innerHTML='<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">'+(searchVal?'Sin resultados para "'+searchVal+'"':'Sin movimientos')+'</div></div>';return;
+    wrap.innerHTML=`
+      <div class="empty-state fade-up">
+        <div class="empty-icon">📊</div>
+        <div class="empty-title">${searchVal ? 'Sin resultados' : 'Sin movimientos aún'}</div>
+        <p class="empty-sub">${searchVal ? 'No encontramos nada que coincida con "' + esc(searchVal) + '" en este período.' : 'Empezá importando tus gastos de Santander o conectando tu Gmail para ver el detalle aquí.'}</p>
+        <div class="empty-actions">
+           ${searchVal ? '<button class="btn btn-secondary" onclick="clearSearch()">Limpiar búsqueda</button>' : '<button class="btn btn-primary" onclick="nav(\'import\')">Importar movimientos</button>'}
+        </div>
+      </div>`;
+    return;
   }
 
   const _payLbls={visa:'💳 VISA',amex:'💳 AMEX',deb:'🏦 Débito',ef:'💵 Efectivo'};

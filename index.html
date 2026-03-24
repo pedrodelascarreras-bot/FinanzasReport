@@ -136,8 +136,24 @@
 
 <!-- DASHBOARD -->
 <div id="page-dashboard" class="page active">
-  <div class="page-header fade-up">
-    <div><div class="page-title">Dashboard</div><div class="page-subtitle" id="dash-date">—</div></div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div id="notif-trigger" onclick="toggleNotifPanel()" style="position:relative;cursor:pointer;padding:8px;background:var(--surface-vibrant);border-radius:12px;display:flex;align-items:center;justify-content:center;transition:all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
+        <span style="font-size:18px;">🔔</span>
+        <span id="notif-badge" style="position:absolute;top:2px;right:2px;width:10px;height:10px;background:var(--danger);border:2px solid var(--surface);border-radius:50%;display:none;"></span>
+      </div>
+      <div><div class="page-title">Dashboard</div><div class="page-subtitle" id="dash-date">—</div></div>
+    </div>
+    
+    <!-- Notification Panel Popover -->
+    <div id="notif-panel" class="notif-panel fade-up" style="display:none;">
+      <div class="notif-panel-header">
+        <div style="font-weight:700;">Notificaciones</div>
+        <button class="notif-close" onclick="toggleNotifPanel()">✕</button>
+      </div>
+      <div id="notif-list" class="notif-list">
+        <!-- Content injected by JS -->
+      </div>
+    </div>
     <div class="header-actions">
       <!-- Mes / TC toggle -->
       <div style="display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;">
@@ -166,7 +182,7 @@
     <div class="dash-row-hero fade-up d1">
 
       <!-- Card principal: gasto del mes -->
-      <div class="dash-hero-card">
+      <div class="dash-hero-card" style="cursor:pointer;" onclick="nav('transactions')" title="Ver detalle de gastos">
         <div class="dhc-eyebrow">GASTO TOTAL · <span id="dhc-month-label">—</span></div>
         <div class="dhc-main">
           <div class="dhc-amount" id="kpi-ars">—</div>
@@ -185,7 +201,7 @@
             <div style="font-size:26px;font-weight:700;letter-spacing:-0.03em;color:var(--accent2);line-height:1;" id="dhc-usd-line">—</div>
           </div>
           <!-- Margen card (spans 2 cols) -->
-          <div id="dhc-margin-section" style="grid-column:1/-1;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:none;">
+          <div id="dhc-margin-section" style="grid-column:1/-1;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:none;cursor:pointer;" onclick="nav('income')" title="Ver ingresos y configuración">
             <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
               <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text3);">MARGEN DISPONIBLE</span>
               <span id="dhc-margin-val" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;color:var(--text);"></span>
@@ -779,7 +795,14 @@
       </div>
     </div>
   </div>
-  <div id="tendencia-empty" class="empty-state fade-up"><div class="empty-icon">◫</div><div class="empty-title">Sin datos suficientes</div><div class="empty-sub">Importá al menos dos períodos para ver tendencias</div></div>
+  <div id="tendencia-empty" class="empty-state fade-up">
+    <div class="empty-icon">📈</div>
+    <div class="empty-title">Sin datos suficientes</div>
+    <p class="empty-sub">Importá al menos dos períodos (meses o ciclos de tarjeta) para ver el análisis de tendencias y evolución.</p>
+    <div class="empty-actions">
+      <button class="btn btn-primary" onclick="nav('import')">Importar resumen</button>
+    </div>
+  </div>
   <div id="tendencia-content" style="display:none;flex-direction:column;gap:20px;">
 
     <!-- 1. RESUMEN EJECUTIVO -->
@@ -832,7 +855,14 @@
       </div>
     </div>
   </div>
-  <div id="compare-empty" class="empty-state fade-up"><div class="empty-icon">⇄</div><div class="empty-title">Sin datos suficientes</div><div class="empty-sub">Importá al menos dos períodos para poder comparar</div></div>
+  <div id="compare-empty" class="empty-state fade-up">
+    <div class="empty-icon">⇄</div>
+    <div class="empty-title">Sin datos suficientes</div>
+    <p class="empty-sub">Necesitás tener al menos dos meses registrados para poder comparar tu desempeño financiero entre ellos.</p>
+    <div class="empty-actions">
+      <button class="btn btn-primary" onclick="nav('import')">Importar resumen</button>
+    </div>
+  </div>
   <div id="compare-content" style="display:none;flex-direction:column;gap:20px;">
     <div class="layout-edit-banner" id="banner-compare"><strong>✦ Modo edición</strong> · Arrastrá · Toggle · <button class="btn btn-ghost btn-sm" onclick="toggleEditMode('compare')">Listo ✓</button></div>
 

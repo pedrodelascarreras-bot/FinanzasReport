@@ -16,6 +16,14 @@
     el.style.display = 'flex';
     requestAnimationFrame(()=> requestAnimationFrame(()=> el.classList.add('visible')));
 
+    // Ensure the CTA button is clickable
+    const cta = el.querySelector('.sp-cta');
+    if(cta) {
+      cta.onclick = (e) => {
+        dismissSplash();
+      };
+    }
+
     _startCountdown(el);
 
     const _kd = e => {
@@ -135,67 +143,21 @@
     const DAYS   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
     const MONTHS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
                     'septiembre','octubre','noviembre','diciembre'];
+    // ── Greet & Last Visit ──
     const h = today.getHours();
     const greeting = h<12 ? 'Buen día' : h<20 ? 'Buenas tardes' : 'Buenas noches';
     const dateStr  = DAYS[today.getDay()]+' · '+today.getDate()+' de '+MONTHS[today.getMonth()]+' '+today.getFullYear();
+    
+    // Capture and update last visit
+    const lastVisitVal = state.lastVisit;
+    state.lastVisit = new Date().toISOString();
+    saveState();
 
-    // ── Delta display ──
-    const hasCur   = curTotal > 0;
-    const deltaAbs = delta !== null ? Math.abs(Math.round(delta)) : null;
-    const deltaUp  = delta !== null && delta > 0;
-    const deltaClr = delta === null ? 'rgba(255,255,255,0.4)' : deltaUp ? '#FF9F0A' : '#34C759';
-    const deltaArrow = delta === null ? '' : deltaUp ? '↑ ' : '↓ ';
-    const deltaLbl   = delta === null
-      ? 'primer mes registrado'
-      : `${deltaArrow}${deltaAbs}% vs ${MONTHS[pmDate.getMonth()]}`;
-
-    // ── CC badges HTML ──
-    let ccHtml = '';
-    if(ccAlerts.length){
-      const badges = ccAlerts.map(a=>{
-        const clr  = a.days <= 3 ? '#FF453A' : a.days <= 7 ? '#FF9F0A' : '#34C759';
-        const icon = a.days <= 3 ? '🔴' : a.days <= 7 ? '🟡' : '🟢';
-        const lbl  = a.days <= 0 ? 'cierra hoy' : `en ${a.days} día${a.days!==1?'s':''}`;
-        return `<div class="sp-cc-badge">
-          <span class="sp-cc-icon">${icon}</span>
-          <span class="sp-cc-name">${a.name}</span>
-          <span class="sp-cc-days" style="color:${clr};">${lbl}</span>
-        </div>`;
-      }).join('');
-      ccHtml = `
-        <div class="sp-section-label">CIERRES DE TARJETA</div>
-        <div class="sp-cc-row">${badges}</div>`;
+    let lastVisitStr = '';
+    if(lastVisitVal) {
+      const lv = new Date(lastVisitVal);
+      lastVisitStr = `Tu última visita fue el ${lv.toLocaleDateString('es-AR')} a las ${lv.getHours()}:${String(lv.getMinutes()).padStart(2,'0')}`;
     }
-
-    // ── Top category chip ──
-    let catHtml = '';
-    if(topEntry && hasCur){
-      const pct = Math.round(topEntry[1] / curTotal * 100);
-      catHtml = `
-        <div class="sp-section-label">DESTACADO</div>
-        <div class="sp-cat-chip">
-          <span class="sp-cat-emoji">${topEmoji}</span>
-          <span><strong>${topEntry[0]}</strong> concentra el ${pct}% de tu gasto este mes · <span style="opacity:.65;">$${fmtN(topEntry[1])}</span></span>
-        </div>`;
-    }
-
-    // ── Month card ──
-    const monthCard = hasCur
-      ? `<div class="sp-main-card">
-          <div class="sp-hero">
-        <div class="sp-h-label">${hasCycles ? 'CICLO ACTUAL' : 'ESTE MES'}</div>
-        <div class="sp-h-val">$${fmtN(curTotal)}</div>
-        ${delta !== null ? `
-          <div class="sp-h-delta ${delta > 0 ? 'up' : 'down'}">
-            ${delta > 0 ? '▲' : '▼'} ${Math.abs(delta).toFixed(0)}% vs ant.
-          </div>
-        ` : ''}
-      </div>
-        </div>`
-      : `<div class="sp-main-card sp-no-data">
-          <div class="sp-card-lbl">SIN MOVIMIENTOS ESTE MES</div>
-          <div class="sp-card-sub">Importá tus gastos para ver el resumen diario</div>
-        </div>`;
 
     // ── Inject ──
     const content = document.getElementById('sp-content');
@@ -203,8 +165,9 @@
       content.innerHTML = `
       <div class="sp-presentation">
         <div class="sp-pre-header fade-in">
-          <div class="sp-pre-greeting">${greeting}, ${state.userName || 'Usuario'}</div>
+          <div class="sp-pre-greeting">${greeting}, ${state.userName || 'Pedro'}</div>
           <div class="sp-pre-date">${dateStr}</div>
+          ${lastVisitStr ? `<div class="sp-pre-last-visit" style="font-size:10px;opacity:0.6;margin-top:4px;font-weight:500;">${lastVisitStr}</div>` : ''}
         </div>
 
         <div class="sp-pre-main">

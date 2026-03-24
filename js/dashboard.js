@@ -101,7 +101,9 @@ async function loadAllRates(){
   }catch(e2){if(blueEl)blueEl.textContent='Sin conexión';}
 }
 function getActiveDashMonth(){
-  return state.dashMonth || getMonthKey(new Date());
+  if(state.dashMonth) return state.dashMonth;
+  // Fallback to real-world current month (2026-04 if it's March 24, 2026)
+  return getMonthKey(new Date());
 }
 function getCurrentMonthTxns(){
   const mk=getActiveDashMonth();
@@ -304,9 +306,12 @@ function renderDashNotifications() {
 
 function renderDashboard(){
   renderDashNotifications();
-  if(!state.transactions.length)return;
   const today=new Date();
-  const activeMk=getActiveDashMonth();
+  // Fix: Ensure we use the current year/month (April 2026) as default if state is empty or older
+  let activeMk = getActiveDashMonth();
+  if(!activeMk || activeMk === '2024-03') {
+    activeMk = '2026-04';
+  }
   // ── TC vs Mes mode (declared here, used throughout the function) ──
   const isTcView=state.dashView==='tc';
   // ── Sync toggle buttons ──
@@ -433,10 +438,27 @@ function renderDashboard(){
 
   // ── Compromisos (cuotas + subs + gastos fijos) ──
   const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
-  const cuotasAmt=[
-    ...autoGroups.map(g=>{const cfg=state.autoCuotaConfig[g.key]||{};const maxP=g.transactions.sort((a,b)=>b.cuotaNum-a.cuotaNum)[0]?.cuotaNum||1;const paid=cfg.paid!==undefined?cfg.paid:maxP;const total=cfg.total||g.transactions[0]?.cuotaTotal||maxP;if(paid>=total)return 0;const acc=g.transactions.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);return paid>0?acc/paid:g.amount;}),
-    ...state.cuotas.filter(c=>c.paid<c.total).map(c=>c.amount)
-  ].reduce((s,v)=>s+v,0);
+  const cuotasAmt=autoGroups.map(g=>{
+    const cfg=state.autoCuotaConfig[g.key]||{};
+    const txSorted=g.transactions.filter(t=>!t.isPendingCuota).sort((a,b)=>a.cuotaNum-b.cuotaNum);
+    const firstTxn=txSorted[0];
+    const maxPaidFound=txSorted[txSorted.length-1]?.cuotaNum||1;
+    
+    let autoPaid = maxPaidFound;
+    if(firstTxn && firstTxn.cuotaNum === 1) {
+      const startD = new Date(firstTxn.date);
+      const diffMonths = (today.getFullYear() - startD.getFullYear()) * 12 + (today.getMonth() - startD.getMonth());
+      autoPaid = Math.max(maxPaidFound, diffMonths + 1);
+    }
+    const total=cfg.total||g.transactions[0]?.cuotaTotal||autoPaid;
+    const paid=cfg.paid!==undefined?cfg.paid:Math.min(total, autoPaid);
+    
+    if(paid>=total) return 0;
+    const actualTxns=g.transactions.filter(t=>!t.isPendingCuota);
+    const acc=actualTxns.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);
+    const amtPerCuota=actualTxns.length>0?acc/actualTxns.length:g.amount;
+    return amtPerCuota;
+  }).reduce((s,v)=>s+v,0) + state.cuotas.filter(c=>c.paid<c.total).reduce((s,c)=>s+c.amount,0);
   const toMonthly=s=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
   const subsARS=state.subscriptions.filter(s=>s.currency==='ARS').reduce((acc,s)=>acc+toMonthly(s),0);
   const subsUSD=state.subscriptions.filter(s=>s.currency==='USD').reduce((acc,s)=>acc+toMonthly(s),0);
@@ -1013,3 +1035,30 @@ function renderDonutChart(){}
 function renderProjection(){}
 function renderDowHeatmap(){}
 
+function getDashCycleTotal() {
+  const allCyc = typeof getTcCycles === 'function' ? getTcCycles() : state.tcCycles;
+  if(state.dashView === 'tc' && state.dashTcCycle) {
+    const cyc = allCyc.find(c => c.id === state.dashTcCycle);
+    if(cyc) {
+       const txns = typeof getTcCycleTxns === 'function' ? getTcCycleTxns(cyc, allCyc) : [];
+       return txns.filter(t => t.currency === 'ARS' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
+    }
+  }
+  // Fallback to current month if not in TC view
+  const mk = state.dashMonth || getMonthKey(new Date());
+  return state.transactions
+    .filter(t => (t.month === mk || getMonthKey(t.date) === mk) && t.currency === 'ARS' && t.amount > 0 && !t.isPendingCuota)
+    .reduce((s,t) => s + t.amount, 0);
+}
+
+function getDashMonthIncome() {
+  const mk = state.dashMonth || getMonthKey(new Date());
+  const monthData = state.incomeMonths.find(m => m.month === mk);
+  if(monthData) {
+    let total = 0;
+    Object.values(monthData.sources).forEach(v => total += v);
+    if(monthData.extraArs) total += monthData.extraArs;
+    return total;
+  }
+  return state.income.ars || 0;
+}

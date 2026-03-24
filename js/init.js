@@ -533,10 +533,12 @@ function updateGmailBtn(status) {
 
 function _getLastSyncTag() {
   if (!state.lastGmailSync) return '';
+  const today = new Date();
   const d = new Date(state.lastGmailSync);
   const time = d.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
-  const date = d.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'});
-  return `<span style="font-size:10px;opacity:0.8;font-weight:400;">u. sinc: ${date} ${time}</span>`;
+  const isToday = d.toDateString() === today.toDateString();
+  const date = isToday ? 'Hoy' : d.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'});
+  return `<span style="font-size:11px;opacity:0.9;font-weight:600;display:block;margin-top:2px;color:var(--text3);">Sincronizado: ${date} ${time}</span>`;
 }
 
 async function fetchSantanderEmails(dateFrom, dateTo) {

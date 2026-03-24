@@ -27,10 +27,21 @@ function renderCuotas(){
     const cfg=state.autoCuotaConfig[g.key]||{};
     // Only count actual (non-projected) transactions as "paid"
     const actualTxns=g.transactions.filter(t=>!t.isPendingCuota);
-    const txSorted=actualTxns.sort((a,b)=>b.cuotaNum-a.cuotaNum);
-    const maxPaid=txSorted[0]?.cuotaNum||1;
-    const total=cfg.total||g.transactions[0]?.cuotaTotal||maxPaid;
-    const paid=cfg.paid!==undefined?cfg.paid:maxPaid;
+    const txSorted=actualTxns.sort((a,b)=>a.cuotaNum-b.cuotaNum); // sort asc
+    const firstTxn=txSorted[0];
+    const maxPaidFound=txSorted[txSorted.length-1]?.cuotaNum||1;
+    
+    // Auto-calculate paid based on date if we have a first installment
+    let autoPaid = maxPaidFound;
+    if(firstTxn && firstTxn.cuotaNum === 1) {
+      const startD = new Date(firstTxn.date);
+      const today = new Date();
+      const diffMonths = (today.getFullYear() - startD.getFullYear()) * 12 + (today.getMonth() - startD.getMonth());
+      autoPaid = Math.max(maxPaidFound, diffMonths + 1);
+    }
+
+    const total=cfg.total||g.transactions[0]?.cuotaTotal||autoPaid;
+    const paid=cfg.paid!==undefined?cfg.paid:Math.min(total, autoPaid);
     const rem=total-paid;const pct=Math.round(paid/total*100);
     const day=cfg.day||null;const daysUntil=getDaysUntilNext(day);
     // Calculate amount per cuota from actual transactions only

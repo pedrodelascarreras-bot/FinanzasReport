@@ -153,87 +153,92 @@ function parseSantanderText(text) {
 
   const parseAmt = (s) => {
     if(!s || s==='-') return 0;
-    return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
+    // Remove dots (thousands), change comma to dot (decimal)
+    let clean = s.replace(/\./g,'').replace(',','.');
+    return parseFloat(clean) || 0;
   };
 
   const isBankFeeLine = (l) =>
     /impuesto de sellos/i.test(l) || /iibb percep/i.test(l) ||
     /iva rg \d/i.test(l) || /db\.rg \d/i.test(l) ||
-    /mantenimiento/i.test(l);
+    /mantenimiento/i.test(l) || /percepc/i.test(l);
 
   const isPaymentLine = (l) =>
     /su pago en pesos/i.test(l) || /su pago en d[oó]lares/i.test(l);
 
-  // Pattern: "26 Feb 19 0002789842 K[/*] DESCRIPTION [C.N/T] 1.234,56 [20,00]"
-  // Supports both Spanish abbreviated months (Feb) and numeric dates (DD/MM fallback)
-  const TXN_RE  = /^(\d{2})\s+([a-z]{3})[a-z]*\s+(\d{1,2})\s+\d{4,12}\s+[Kk]\/?[*]?\s*(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
-  // Generic pattern for other lines (Date DD/MM DESCRIPTION AMT_ARS [AMT_USD])
-  const GEN_RE  = /^(\d{2})\s+([a-z]{3})[a-z]*\s+(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
-  const OLD_RE  = /^(\d{2})\/(\d{2})\s+(.+?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/;
+  // Patterns
+  // 1. YY MON DD comprobante K/ DESCRIPTION amt [usd]
+  const TXN_RE1 = /^(\d{2})\s+([a-z]{3})[a-z]*\s+(\d{1,2})\s+\d{4,12}\s+[Kk]\/?[*]?\s*(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
+  // 2. DD MON DESCRIPTION amt [usd] (Newer format)
+  const TXN_RE2 = /^(\d{1,2})\s+([a-z]{3})[a-z]*\s+(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
+  // 3. DD/MM DESCRIPTION amt [usd]
+  const TXN_RE3 = /^(\d{1,2})\/(\d{1,2})\s+(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
+  // 4. YY MON DD DESCRIPTION amt [usd]
+  const TXN_RE4 = /^(\d{2})\s+([a-z]{3})[a-z]*\s+(\d{1,2})\s+(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
 
   let currentHolder = 'Titular';
+  const currentYear = new Date().getFullYear();
 
   for(let rawLine of lines) {
     const line = rawLine.trim().replace(/\s{2,}/g,' ');
     if(!line) continue;
 
-    // ── Holder detection ────────────────────────────────
+    // Holder detection
     const holderM = line.match(/^(TITULAR|ADICIONAL):\s*(.*)/i);
-    if(holderM) {
-      currentHolder = holderM[2].trim();
-      continue;
-    }
+    if(holderM) { currentHolder = holderM[2].trim(); continue; }
 
-    // ── Bank fee lines ─────────────────────────────────
+    // Bank fees
     if(isBankFeeLine(line)) {
       const amtM = line.match(/([\d\.]+,\d{2})$/);
       if(amtM) {
-        const desc = line.replace(/([\d\.]+,\d{2})$/, '').trim();
         txns.push({
           id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
           rawDate: null, isoDate: null,
-          rawDesc: desc,
-          amountARS: parseAmt(amtM[1]),
-          amountUSD: 0,
-          cuotas: null,
-          isBankFee: true,
-          isPayment: false
+          rawDesc: line.replace(/([\d\.]+,\d{2})$/, '').trim(),
+          amountARS: parseAmt(amtM[1]), amountUSD: 0,
+          cuotas: null, isBankFee: true, isPayment: false
         });
       }
       continue;
     }
 
-    // ── Payment lines ──────────────────────────────────
+    // Payments
     if(isPaymentLine(line)) {
-      const amtM = line.match(/-?([\d\.]+,\d{2})$/);
-      if(amtM) {
-        const isUSD = /d[oó]lares/i.test(line);
-        txns.push({
-          id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
-          rawDate: null, isoDate: null,
-          rawDesc: line.replace(/-?([\d\.]+,\d{2})$/, '').trim(),
-          amountARS: isUSD ? 0 : parseAmt(amtM[1]),
-          amountUSD: isUSD ? parseAmt(amtM[1]) : 0,
-          cuotas: null,
-          isBankFee: false,
-          isPayment: true
-        });
-      }
-      continue;
+       const amtM = line.match(/-?([\d\.]+,\d{2})$/);
+       if(amtM) {
+         const isUSD = /d[oó]lares/i.test(line);
+         txns.push({
+           id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
+           rawDate: null, isoDate: null,
+           rawDesc: line.replace(/-?([\d\.]+,\d{2})$/, '').trim(),
+           amountARS: isUSD ? 0 : parseAmt(amtM[1]),
+           amountUSD: isUSD ? parseAmt(amtM[1]) : 0,
+           cuotas: null, isBankFee: false, isPayment: true
+         });
+       }
+       continue;
     }
 
-    // ── New Santander format: YY MON DD comprobante K/ DESCRIPTION amt [usd] ──
-    const m = line.match(TXN_RE);
+    let m = line.match(TXN_RE1);
+    let day, month, year, desc, arsStr, usdStr;
+
     if(m) {
-      const yy = parseInt(m[1]);
-      const monStr = m[2].toLowerCase().slice(0,3);
-      const dd = parseInt(m[3]);
-      let desc = (m[4]||'').trim();
-      const amtStr1 = m[5], amtStr2 = m[6];
-      const mm = MONTHS[monStr];
-      if(!mm) continue;
-      const yyyy = 2000 + yy;
-      const isoDate = `${yyyy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+      year = 2000 + parseInt(m[1]); month = MONTHS[m[2].toLowerCase().slice(0,3)]; day = parseInt(m[3]);
+      desc = m[4]; arsStr = m[5]; usdStr = m[6];
+    } else if((m = line.match(TXN_RE4))) {
+      year = 2000 + parseInt(m[1]); month = MONTHS[m[2].toLowerCase().slice(0,3)]; day = parseInt(m[3]);
+      desc = m[4]; arsStr = m[5]; usdStr = m[6];
+    } else if((m = line.match(TXN_RE2))) {
+      year = currentYear; month = MONTHS[m[2].toLowerCase().slice(0,3)]; day = parseInt(m[1]);
+      desc = m[3]; arsStr = m[4]; usdStr = m[5];
+    } else if((m = line.match(TXN_RE3))) {
+      year = currentYear; day = parseInt(m[1]); month = parseInt(m[2]);
+      desc = m[3]; arsStr = m[4]; usdStr = m[5];
+    }
+
+    if(day && month && desc && arsStr) {
+      const isoDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      desc = desc.trim();
 
       // Extract cuota notation C.N/T from end of description
       let cuotas = null;
@@ -243,86 +248,26 @@ function parseSantanderText(text) {
         desc = desc.replace(/\s+C\.\d+\/\d+$/i,'').trim();
       }
 
-      // Determine ARS vs USD amounts
-      let amountARS = parseAmt(amtStr1);
-      let amountUSD = amtStr2 ? parseAmt(amtStr2) : 0;
-
       txns.push({
         id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
-        rawDate: `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}`,
-        isoDate,
+        rawDate: `${day} ${month}`, isoDate,
         rawDesc: desc,
-        amountARS, amountUSD,
-        cuotas,
-        holder: currentHolder,
-        isBankFee: false,
-        isPayment: false
+        amountARS: parseAmt(arsStr),
+        amountUSD: usdStr ? parseAmt(usdStr) : 0,
+        cuotas, isBankFee: false, isPayment: false,
+        holder: currentHolder
       });
-      continue;
-    }
-
-    // ── Generic Santander format: DD MON Description Amt_ARS [Amt_USD] ──
-    const gn = line.match(GEN_RE);
-    if(gn) {
-      const dd3 = parseInt(gn[1]);
-      const monStr3 = gn[2].toLowerCase().slice(0,3);
-      let desc3 = gn[3].trim();
-      const amtStrA = gn[4], amtStrB = gn[5];
-      const mm3 = MONTHS[monStr3];
-      if(mm3) {
-        const yyyy3 = (mm3 > today.getMonth()+2) ? today.getFullYear()-1 : today.getFullYear();
-        const isoDate3 = `${yyyy3}-${String(mm3).padStart(2,'0')}-${String(dd3).padStart(2,'0')}`;
-        
-        let cuotas3 = null;
-        const cuotaM3 = desc3.match(/\s+C\.(\d+)\/(\d+)$/i);
-        if(cuotaM3) {
-          cuotas3 = `${cuotaM3[1]}/${cuotaM3[2]}`;
-          desc3 = desc3.replace(/\s+C\.\d+\/\d+$/i,'').trim();
-        }
-
-        txns.push({
-          id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
-          rawDate: `${String(dd3).padStart(2,'0')}/${String(mm3).padStart(2,'0')}`,
-          isoDate: isoDate3,
-          rawDesc: desc3,
-          amountARS: parseAmt(amtStrA),
-          amountUSD: amtStrB ? parseAmt(amtStrB) : 0,
-          cuotas: cuotas3,
-          holder: currentHolder,
-          isBankFee: false,
-          isPayment: false
-        });
-        continue;
-      }
-    }
-
-    // ── Fallback: old DD/MM format ──────────────────────
-    const fo = line.match(OLD_RE);
-    if(fo) {
-      const dd2 = fo[1], mm2 = fo[2];
-      let desc2 = fo[3], amt1 = fo[4], amt2 = fo[5];
-      let cuotas2 = null;
-      const cM2 = desc2.match(/\s+C\.(\d+)\/(\d+)$/i) || desc2.match(/\s+(\d{2})\/(\d{2})$/);
-      if(cM2) { cuotas2 = `${cM2[1]}/${cM2[2]}`; desc2 = desc2.replace(cM2[0],'').trim(); }
-      if(desc2.length > 2 && parseAmt(amt1) !== 0) {
-        const yyyy2 = (parseInt(mm2) > today.getMonth()+2) ? today.getFullYear()-1 : today.getFullYear();
-        txns.push({
-          id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
-          rawDate: `${dd2}/${mm2}`, 
-          isoDate: `${yyyy2}-${mm2}-${dd2}`,
-          rawDesc: desc2,
-          amountARS: parseAmt(amt1),
-          amountUSD: parseAmt(amt2)||0,
-          cuotas: cuotas2,
-          holder: currentHolder,
-          isBankFee: false,
-          isPayment: false
-        });
-      }
+      console.log(`Matched: ${isoDate} | ${desc} | ARS ${arsStr}`);
+    } else {
+      console.warn(`Unmatched line: ${line}`);
     }
   }
 
   cccState.pdfTxns = txns;
+  console.log(`Finished parsing. Found ${txns.length} transactions.`);
+  if(txns.length === 0) {
+    throw new Error('No se detectaron transacciones en el formato esperado. Verificá que sea un resumen de Santander.');
+  }
 }
 
 // ── Matching Algorithm ──
@@ -346,13 +291,13 @@ function runMatchingAlgorithm() {
     let bestScore = -1;
     let idxToRemove = -1;
     
-    // Parse PDF date (DD/MM) assuming current cycle year
-    // This is tricky, simplified assumption:
+    // Parse PDF date
     let pdfDateObj = null;
-    if(cycle.closeDate && pTxn.rawDate) {
+    if(pTxn.isoDate) {
+      pdfDateObj = new Date(pTxn.isoDate + 'T12:00:00');
+    } else if(cycle.closeDate && pTxn.rawDate) {
       let [dd, mm] = pTxn.rawDate.split('/');
       let yyyy = cycle.closeDate.split('-')[0];
-      // If month is 12 and close is 01, year is prev year
       if(mm === '12' && cycle.closeDate.split('-')[1] === '01') yyyy = String(Number(yyyy)-1);
       pdfDateObj = new Date(`${yyyy}-${mm}-${dd}T12:00:00`);
     }
@@ -458,129 +403,141 @@ function runMatchingAlgorithm() {
 }
 
 function renderCccResults() {
-  let conc = 0, diff = 0, orphan = 0;
-  
-  // Categorize matches
-  const groups = {
-    pending: [], // orphan_pdf, orphan_app, diff, posible
-    conciliated: [], // conc, bank_fee
-    excluded: [] // excluded
-  };
+  let conc = 0, diff = 0, orphanPdf = 0, orphanApp = 0;
+  let totalPdfARS = 0, totalAppARS = 0;
+  let totalPdfUSD = 0, totalAppUSD = 0;
 
   cccState.matches.forEach(m => {
-    if(['orphan_pdf','orphan_app','diff','posible'].includes(m.status)) groups.pending.push(m);
-    else if(['conc','bank_fee'].includes(m.status)) groups.conciliated.push(m);
-    else groups.excluded.push(m);
+    if(m.status === 'conc' || m.status === 'bank_fee') conc++;
+    else if(m.status === 'orphan_pdf') orphanPdf++;
+    else if(m.status === 'orphan_app') orphanApp++;
+    else if(m.status === 'diff' || m.status === 'posible') diff++;
 
-    if(m.status === 'conc') conc++;
-    else if(m.status === 'posible' || m.status === 'diff') diff++;
-    else if(m.status === 'orphan_pdf' || m.status === 'orphan_app') orphan++;
+    // Totals for the hero
+    if(m.pdfTxn) {
+      totalPdfARS += m.pdfTxn.amountARS || 0;
+      totalPdfUSD += m.pdfTxn.amountUSD || 0;
+    }
+    if(m.appTxn) {
+      totalAppARS += m.appTxn.amountARS || m.appTxn.amount || 0;
+      totalAppUSD += m.appTxn.amountUSD || (m.appTxn.currency==='USD'?m.appTxn.amount:0) || 0;
+    }
   });
 
-  const renderGroup = (title, list, emptyMsg) => {
-    if(!list.length) return `<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px;">${emptyMsg}</div>`;
-    return `
-      <div class="ccc-group-title">${title} (${list.length})</div>
-      <div class="ccc-cards-grid">
-        ${list.map(m => renderCccCard(m)).join('')}
-      </div>
-    `;
+  const diffARS = totalPdfARS - totalAppARS;
+  const groups = {
+    pending: cccState.matches.filter(m => ['orphan_pdf','orphan_app','diff','posible'].includes(m.status)),
+    conciliated: cccState.matches.filter(m => ['conc','bank_fee'].includes(m.status)),
+    excluded: cccState.matches.filter(m => m.status === 'excluded')
   };
 
   cccEls.resultsArea.innerHTML = `
+    <!-- Summary Hero -->
+    <div class="ccc-summary-hero fade-up">
+      <div class="ccc-stat-item">
+        <div class="ccc-stat-label">Total Resumen (PDF)</div>
+        <div class="ccc-stat-val">$${fmtN(Math.round(totalPdfARS))}</div>
+      </div>
+      <div class="ccc-stat-item">
+        <div class="ccc-stat-label">Registrado en App</div>
+        <div class="ccc-stat-val">$${fmtN(Math.round(totalAppARS))}</div>
+      </div>
+      <div class="ccc-stat-item">
+        <div class="ccc-stat-label">Diferencia / Gap</div>
+        <div class="ccc-stat-val ${Math.abs(diffARS) > 1 ? 'diff' : 'match'}">
+          ${diffARS > 0 ? '+' : ''}$${fmtN(Math.round(diffARS))}
+        </div>
+      </div>
+    </div>
+
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:12px;flex-wrap:wrap;">
-       <div style="display:flex;gap:12px;">
-         <div class="ccc-kpi-min"><strong>${cccState.pdfTxns.length}</strong><span>PDF</span></div>
-         <div class="ccc-kpi-min"><strong>${conc}</strong><span>CONCILIADOS</span></div>
-         <div class="ccc-kpi-min" style="color:var(--danger)"><strong>${orphan}</strong><span>FALTANTES</span></div>
-       </div>
+       <div style="font-size:14px;font-weight:700;color:var(--text2);">Detalle de conciliación</div>
        <div style="display:flex;gap:8px;">
          <button class="btn btn-sm btn-accent" onclick="cccSmartMatch()"><span style="margin-right:4px;">✨</span> Smart Match</button>
          <button class="btn btn-sm" onclick="cccImportAllFees()">Importar Impuestos</button>
-         <button class="btn btn-sm btn-secondary" onclick="cccSaveSession()">Guardar Progreso</button>
+         <button class="btn btn-sm btn-secondary" onclick="cccSaveSession()">Guardar</button>
        </div>
     </div>
+
     <div id="ccc-matching-container">
-      ${renderGroup('Pendientes de Conciliación', groups.pending, '¡No hay pendientes! Todo está conciliado.')}
-      ${renderGroup('Conciliados / Impositivos', groups.conciliated, 'Nada conciliado aún.')}
-      ${renderGroup('Excluidos', groups.excluded, 'No hay elementos excluidos.')}
+      ${renderGroup('Pendientes', groups.pending, '¡Excelente! No hay diferencias pendientes.')}
+      ${renderGroup('Conciliados', groups.conciliated, 'Nada conciliado aún.')}
     </div>
   `;
-  
-  cccEls.kpiTotal.textContent = cccState.pdfTxns.length;
-  cccEls.kpiConc.textContent = conc;
-  cccEls.kpiDiff.textContent = diff;
-  cccEls.kpiOrphan.textContent = orphan;
 }
 
-function renderCccCard(m) {
-  const isOrphanPdf = m.status === 'orphan_pdf';
-  const isOrphanApp = m.status === 'orphan_app';
+function renderGroup(title, list, emptyMsg) {
+  const iconMap = { 'Pendientes': '⏳', 'Conciliados': '✅', 'Excluidos': '🚫' };
+  return `
+    <div class="ccc-group-title">${iconMap[title] || ''} ${title} (${list.length})</div>
+    <div class="ccc-row-list">
+      ${list.length ? list.map(m => renderCccRow(m)).join('') : `<div class="ccc-empty-notice">${emptyMsg}</div>`}
+    </div>
+  `;
+}
+
+function renderCccRow(m) {
+  const isMatch = m.status === 'conc' || m.status === 'bank_fee';
+  const isMissing = m.status === 'orphan_pdf';
+  const isExtra = m.status === 'orphan_app';
   const isDiff = m.status === 'diff' || m.status === 'posible';
-  const isConc = m.status === 'conc' || m.status === 'bank_fee';
-  
-  const holderHtml = m.pdfTxn && m.pdfTxn.holder && m.pdfTxn.holder !== 'Titular' 
-      ? `<span class="ccc-holder-badge">${esc(m.pdfTxn.holder)}</span>`
-      : '';
+
+  let rowClass = 'match';
+  if(isMissing) rowClass = 'missing';
+  if(isExtra) rowClass = 'extra';
+  if(isDiff) rowClass = 'diff';
+  if(m.status === 'bank_fee') rowClass = 'fee';
 
   const actions = [];
-  if (isOrphanPdf) {
-     actions.push(`<button class="ccc-action-btn primary" onclick="cccLinkApp('${m.id}')">Vincular</button>`);
-     actions.push(`<button class="ccc-action-btn" onclick="cccAddMissing('${m.id}')">Alta</button>`);
-     actions.push(`<button class="ccc-action-btn ghost" onclick="cccExcludePdfTxn('${m.id}')">Excluir</button>`);
+  if (isMissing) {
+     actions.push(`<button class="ccc-row-btn primary" onclick="cccAddMissing('${m.id}')">Agregar a App</button>`);
+     actions.push(`<button class="ccc-row-btn" onclick="cccLinkApp('${m.id}')">Vincular</button>`);
   } else if (isDiff) {
-     actions.push(`<button class="ccc-action-btn primary" onclick="cccEditAppTxn('${m.id}')">Ajustar App</button>`);
-     actions.push(`<button class="ccc-action-btn danger" onclick="cccUnlink('${m.id}')">Separar</button>`);
-  } else if (isOrphanApp) {
-     actions.push(`<div style="font-size:11px;color:var(--danger);font-weight:700;">No está en el PDF</div>`);
-  } else if (isConc) {
-     actions.push(`<button class="ccc-action-btn danger icon" title="Desvincular" onclick="cccUnlink('${m.id}')">✖</button>`);
+     actions.push(`<button class="ccc-row-btn primary" onclick="cccEditAppTxn('${m.id}')">Ajustar</button>`);
+     actions.push(`<button class="ccc-row-btn danger" onclick="cccUnlink('${m.id}')">Separar</button>`);
+  } else if (isMatch) {
+     actions.push(`<button class="ccc-row-btn danger" title="Desvincular" onclick="cccUnlink('${m.id}')">✖</button>`);
   }
 
   return `
-    <div class="ccc-card ${m.status}" id="${m.id}">
-      <div class="ccc-card-body">
-        <!-- PDF Side -->
-        <div class="ccc-card-side pdf">
-          <div class="ccc-side-hdr">RESUMEN (PDF) ${renderCccStatusBadge(m.status)}</div>
-          ${m.pdfTxn ? `
-            <div class="ccc-txn-main">
-              <div class="ccc-txn-date">${m.pdfTxn.rawDate || '—'}</div>
-              <div class="ccc-txn-desc">
-                ${holderHtml}
-                ${esc(m.pdfTxn.rawDesc)} ${m.pdfTxn.cuotas ? `<span class="ccc-cuota">(${m.pdfTxn.cuotas})</span>` : ''}
-              </div>
-            </div>
-            <div class="ccc-txn-amt">
-              ${m.pdfTxn.amountARS ? `<div class="amt ars">$${fmtN(m.pdfTxn.amountARS)}</div>` : ''}
-              ${m.pdfTxn.amountUSD ? `<div class="amt usd">U$D ${fmtN(m.pdfTxn.amountUSD)}</div>` : ''}
-            </div>
-          ` : `<div class="ccc-empty-side">Sin dato en PDF</div>`}
-        </div>
-
-        <div class="ccc-card-sep">
-           <div class="ccc-sep-line"></div>
-           <div class="ccc-sep-icon">${isConc ? '🔗' : '❓'}</div>
-           <div class="ccc-sep-line"></div>
-        </div>
-
-        <!-- App Side -->
-        <div class="ccc-card-side app">
-          <div class="ccc-side-hdr">REGISTRADO EN APP</div>
-          ${m.appTxn ? `
-            <div class="ccc-txn-main">
-              <div class="ccc-txn-date">${ccFmtDate(m.appTxn.date)}</div>
-              <div class="ccc-txn-desc">${esc(m.appTxn.descripcion || m.appTxn.description)}</div>
-            </div>
-            <div class="ccc-txn-amt">
-              ${m.appTxn.amountARS > 0 || (m.appTxn.currency==='ARS' && m.appTxn.amount > 0) ? `<div class="amt ars">$${fmtN(m.appTxn.amountARS || m.appTxn.amount)}</div>` : ''}
-              ${m.appTxn.amountUSD > 0 || (m.appTxn.currency==='USD' && m.appTxn.amount > 0) ? `<div class="amt usd">U$D ${fmtN(m.appTxn.amountUSD || m.appTxn.amount)}</div>` : ''}
-            </div>
-          ` : `<div class="ccc-empty-side">Pendiente de vincular</div>`}
-        </div>
+    <div class="ccc-row ${rowClass} fade-up" id="${m.id}">
+      <!-- PDF SIDE -->
+      <div class="ccc-row-side">
+        <div class="ccc-row-label">Resumen PDF</div>
+        ${m.pdfTxn ? `
+          <div class="ccc-row-desc">${esc(m.pdfTxn.rawDesc)}</div>
+          <div class="ccc-row-date">${m.pdfTxn.rawDate} ${m.pdfTxn.holder ? '· '+esc(m.pdfTxn.holder) : ''}</div>
+        ` : '<div class="ccc-row-desc" style="color:var(--text3); font-style:italic;">— No presente —</div>'}
       </div>
-      <div class="ccc-card-footer">
-        <div class="ccc-card-actions">${actions.join('')}</div>
+
+      <!-- MIDDLE ICON -->
+      <div class="ccc-row-middle">
+        ${isMatch ? '🔗' : isDiff ? '⚠️' : '❓'}
+      </div>
+
+      <!-- APP SIDE -->
+      <div class="ccc-row-side">
+        <div class="ccc-row-label">Registrado en App</div>
+        ${m.appTxn ? `
+          <div class="ccc-row-desc">${esc(m.appTxn.descripcion || m.appTxn.description)}</div>
+          <div class="ccc-row-date">${ccFmtDate(m.appTxn.date)}</div>
+        ` : '<div class="ccc-row-desc" style="color:var(--text3); font-style:italic;">— Pendiente —</div>'}
+      </div>
+
+      <!-- AMOUNT -->
+      <div style="text-align:right; min-width:100px;">
+        <div class="ccc-row-label">Monto</div>
+        ${m.pdfTxn ? `
+          <div class="ccc-row-amt ars">$${fmtN(Math.round(m.pdfTxn.amountARS || 0))}</div>
+          ${m.pdfTxn.amountUSD ? `<div class="ccc-row-amt usd">U$D ${fmtN(m.pdfTxn.amountUSD)}</div>` : ''}
+        ` : `
+          <div class="ccc-row-amt ars">$${fmtN(Math.round(m.appTxn.amountARS || m.appTxn.amount || 0))}</div>
+        `}
+      </div>
+
+      <!-- ACTIONS -->
+      <div class="ccc-row-actions">
+        ${actions.join('')}
       </div>
     </div>
   `;

@@ -26,6 +26,9 @@ let state={
   catHistory:{},         // {comercio_normalized: {cat: count}} — aprendizaje local
   txnEstadoFilter:'all', // 'all'|'pendiente_de_revision'|'duplicado_sospechoso'|'confirmado_por_usuario'|'detectado_automaticamente'
   lastGmailSync: null,
+  userName: 'Pedro',
+  lastVisit: null,
+  dismissedNotifs: [], // IDs of notifications the user dismissed
 };
 
 // ══ PERSIST ══
@@ -39,7 +42,10 @@ function getStateSnapshot(){
     usdRate:state.usdRate||1420,usdRateSource:state.usdRateSource||'blue',usdRateUpdated:state.usdRateUpdated||null,
     catRules:state.catRules||[],catHistory:state.catHistory||{},
     ccCards:state.ccCards||[],ccCycles:state.ccCycles||[],ccActiveCard:state.ccActiveCard||null,
-    lastGmailSync:state.lastGmailSync||null
+    lastGmailSync:state.lastGmailSync||null,
+    userName:state.userName||'Pedro',
+    lastVisit:state.lastVisit||null,
+    dismissedNotifs:state.dismissedNotifs||[]
   };
 }
 function saveState(){
