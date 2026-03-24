@@ -519,17 +519,22 @@ function updateGmailBtn(status) {
 async function fetchSantanderEmails(dateFrom, dateTo) {
   updateGmailBtn('syncing');
   try {
-    const importedEmailIds = new Set(state.transactions.map(t => t.gmailId).filter(Boolean));
     const fmtGmail = d => d.toISOString().slice(0,10).replace(/-/g,'/');
     const beforeDate = new Date(dateTo); beforeDate.setDate(beforeDate.getDate()+1);
     const dateQuery = ` after:${fmtGmail(dateFrom)} before:${fmtGmail(beforeDate)}`;
+    
+    // Obtenemos los IDs de emails ya importados y anulados procesados
+    const importedEmailIds = new Set([
+      ...state.transactions.map(t => t.gmailId).filter(Boolean),
+      ...(state.gmailAnulados || [])
+    ]);
 
     // Fetch ALL pages (paginación) para no limitar a los primeros 50
     let allMessages = [];
     let pageToken = null;
     do {
       const tokenParam = pageToken ? `&pageToken=${pageToken}` : '';
-      const query = encodeURIComponent(`from:${GMAIL_SENDER} subject:Pagaste${dateQuery}`);
+      const query = encodeURIComponent(`from:${GMAIL_SENDER} (subject:Pagaste OR subject:"Tu pago fue anulado")${dateQuery}`);
       const listRes = await gmailFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${query}&maxResults=500${tokenParam}`);
       const data = await listRes.json();
       if (data.messages) allMessages = allMessages.concat(data.messages);
@@ -555,13 +560,55 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
         batch.map(m => gmailFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=full`).then(r => r.json()))
       );
       emails.push(...batchResults);
-      // Small delay between batches to be gentle with the API
       if (i + BATCH_SIZE < newMessages.length) await new Promise(r => setTimeout(r, 200));
     }
+    
     const txns = [];
-    for (const email of emails) { const txn = parseSantanderEmail(email); if (txn) txns.push(txn); }
+    const annulments = [];
+    for (const email of emails) { 
+        const txn = parseSantanderEmail(email); 
+        if (txn) {
+            if (txn.isAnulacion) annulments.push(txn);
+            else txns.push(txn);
+        } 
+    }
+    
+    // Procesar anulaciones
+    if (annulments.length > 0) {
+      if (!state.gmailAnulados) state.gmailAnulados = [];
+      let stateChanged = false;
+      
+      for (const an of annulments) {
+        state.gmailAnulados.push(an.gmailId);
+        stateChanged = true;
+        
+        // Buscar en la lista de nuevos (por si llegaron ambos juntos)
+        let matchIdx = txns.findIndex(t => 
+            t.amount === an.amount && t.currency === an.currency && t._baseDesc === an._baseDesc
+        );
+        if (matchIdx !== -1) {
+            txns.splice(matchIdx, 1);
+        } else {
+            // Buscar en transacciones existentes
+            let stateIdx = state.transactions.findIndex(t => 
+                t.amount === an.amount && t.currency === an.currency && t._baseDesc === an._baseDesc &&
+                Math.abs(new Date(t.date) - an.date) < 86400000 * 5 // tolerancia de 5 días
+            );
+            if (stateIdx !== -1) {
+                state.transactions.splice(stateIdx, 1);
+                stateChanged = true;
+            }
+        }
+      }
+      if (stateChanged) saveState();
+    }
+
     if (!txns.length) {
-      showToast('No se pudieron parsear los correos del período', 'error');
+      if (annulments.length > 0) {
+        showToast('Correos procesados. Se registraron anulaciones sin gastos extra.', 'success');
+      } else {
+        showToast('No se pudieron parsear movimientos nuevos', 'error');
+      }
       updateGmailBtn('connected'); return;
     }
     pendingGmailTxns = txns;
@@ -621,21 +668,31 @@ function parseSantanderEmail(email) {
     const subject = headers.find(h => h.name === 'Subject')?.value || '';
     const dateHeader = headers.find(h => h.name === 'Date')?.value || '';
 
-    // Extract amount — soporta ARS ($17.200,00) y USD (U$S20,00 o U$S 20,00)
-    let txnCurrency = 'ARS';
-    let subjectMatch = subject.match(/Pagaste\s+U\$S\s*([\d.,]+)/i);
-    if (subjectMatch) {
-      txnCurrency = 'USD';
-    } else {
-      subjectMatch = subject.match(/Pagaste\s*\$?([\d.,]+)/i);
-    }
-    if (!subjectMatch) return null;
-    const amountStr = subjectMatch[1].replace(/\./g, '').replace(',', '.');
-    const amount = parseFloat(amountStr);
-    if (!amount || amount <= 0) return null;
-
-    // Parse email body
+    const isAnulacion = /anulado/i.test(subject);
+    
+    // Parse email body early to extract amount if necessary
     const body = getEmailBody(email.payload);
+
+    let txnCurrency = 'ARS';
+    let amount = 0;
+
+    if (isAnulacion) {
+      const montoMatch = body.match(/Monto[\s\S]*?(U\$S|\$)\s*([\d.,]+)/i);
+      if (!montoMatch) return null;
+      if (montoMatch[1].toUpperCase() === 'U$S') txnCurrency = 'USD';
+      amount = parseFloat(montoMatch[2].replace(/\./g, '').replace(',', '.'));
+    } else {
+      let subjectMatch = subject.match(/Pagaste\s+U\$S\s*([\d.,]+)/i);
+      if (subjectMatch) {
+        txnCurrency = 'USD';
+      } else {
+        subjectMatch = subject.match(/Pagaste\s*\$?([\d.,]+)/i);
+      }
+      if (!subjectMatch) return null;
+      amount = parseFloat(subjectMatch[1].replace(/\./g, '').replace(',', '.'));
+    }
+    
+    if (!amount || amount <= 0) return null;
 
     // Extract Comercio
     let comercio = 'Santander';
@@ -699,6 +756,7 @@ function parseSantanderEmail(email) {
     return {
       id,
       gmailId: emailId,
+      isAnulacion,
       date: txnDate,
       description,
       _baseDesc: baseDesc,
