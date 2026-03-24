@@ -8,15 +8,16 @@ function toggleBreakdown(id){
   if(chev)chev.style.transform=open?'rotate(0deg)':'rotate(90deg)';
 }
 function setTendMode(m){
+  // Si se pide modo semana (legado), redirigir a mes
+  if(m==='week') m='month';
   state.tendMode=m;
-  document.getElementById('tend-tog-week').classList.toggle('active',m==='week');
   document.getElementById('tend-tog-month').classList.toggle('active',m==='month');
   const tcBtn=document.getElementById('tend-tog-tc');
   if(tcBtn){tcBtn.classList.toggle('active',m==='tc');tcBtn.style.display=getTcCycles().length?'':'none';}
   renderTendencia();
 }
 function getTendPeriodKeys(){
-  if(state.tendMode==='week')return[...new Set(state.transactions.map(t=>t.week||getWeekKey(t.date)))].sort();
+  if(false&&state.tendMode==='week')return[...new Set(state.transactions.map(t=>t.week||getWeekKey(t.date)))].sort();
   if(state.tendMode==='tc'){
     const cycles=getTcCycles().slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
     return cycles.map(c=>c.id);
@@ -177,13 +178,13 @@ function renderTendencia(){
   } else if(tendMode==='line'&&ctx1){
     // VISTA 2: Evolución temporal por categoría
     chartTitle.textContent='Evolución por categoría';
-    chartSub.textContent='Top '+Math.min(activeParents.length,8)+' categorías · '+keys.length+' períodos';
-    const lineLabels=keys.map(k=>getTendPeriodLabel(k));
+    chartSub.textContent='Top '+Math.min(activeParents.length,8)+' categorías · '+activeKeys.length+' períodos';
+    const lineLabels=activeKeys.map(k=>getTendPeriodLabel(k));
     const lineCats=activeParents.slice(0,8);
     const datasets=lineCats.map(([parent])=>{
       const grp=CATEGORY_GROUPS.find(g=>g.group===parent);
       const c=grp?grp.color:'#888';
-      return{label:grp?grp.emoji+' '+parent:parent,data:keys.map(k=>getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&grp?.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0)),borderColor:c,backgroundColor:c+'18',borderWidth:2,fill:false,tension:0.35,pointRadius:3,pointBackgroundColor:c,pointBorderColor:'#fff',pointBorderWidth:1.5};
+      return{label:grp?grp.emoji+' '+parent:parent,data:activeKeys.map(k=>getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&grp?.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0)),borderColor:c,backgroundColor:c+'18',borderWidth:2,fill:false,tension:0.35,pointRadius:3,pointBackgroundColor:c,pointBorderColor:'#fff',pointBorderWidth:1.5};
     });
     state.charts.tendMain=new Chart(ctx1,{
       type:'line',data:{labels:lineLabels,datasets},
@@ -237,19 +238,22 @@ function renderTendencia(){
   sparksEl.innerHTML=activeParents.map(([parent])=>{
     const grp=CATEGORY_GROUPS.find(g=>g.group===parent);
     const c=grp?grp.color:'#888';const emoji=grp?grp.emoji:'';
-    const vals=keys.map(k=>getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&grp?.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0));
+    // Use activeKeys so sparklines reflect the selected period(s) only
+    const vals=activeKeys.map(k=>getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&grp?.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0));
     const totalVal=vals.reduce((s,v)=>s+v,0);
     const lastVal=vals[vals.length-1]||0,prevVal=vals[vals.length-2]||0;
     const delta=prevVal>0?((lastVal-prevVal)/prevVal*100).toFixed(0):null;
     const deltaClass=delta===null?'neutral':+delta>0?'up':'down';
     const deltaText=delta===null?'\u2014':(+delta>0?'+':'')+delta+'%';
     const sparkId='spark-'+parent.replace(/[^a-zA-Z0-9]/g,'_');
+    const singlePeriod=activeKeys.length===1;
     setTimeout(()=>{
       const ctx=document.getElementById(sparkId);if(!ctx)return;
-      const ch=new Chart(ctx,{type:'line',data:{labels:keys.map(k=>getTendPeriodLabel(k)),datasets:[{data:vals,borderColor:c,backgroundColor:c+'18',borderWidth:1.5,fill:true,tension:0.4,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
+      const ch=new Chart(ctx,{type:'line',data:{labels:activeKeys.map(k=>getTendPeriodLabel(k)),datasets:[{data:vals,borderColor:c,backgroundColor:c+'18',borderWidth:1.5,fill:true,tension:0.4,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
       state.charts._sparklines.push(ch);
     },50);
-    return '<div class="tend-sparkline-card"><div class="tend-spark-header"><div class="tend-spark-cat" style="color:'+c+';">'+emoji+' '+parent+'</div><div class="tend-spark-delta '+deltaClass+'">'+deltaText+'</div></div><div class="tend-spark-amount" style="color:'+c+';">$'+fmtN(totalVal)+'</div><div class="tend-spark-sub">total \u00b7 prom $'+fmtN(totalVal/Math.max(vals.length,1))+'/per\u00edodo</div><div class="sparkline-wrap"><canvas id="'+sparkId+'"></canvas></div></div>';
+    const subText=singlePeriod?'período seleccionado':'total \u00b7 prom $'+fmtN(totalVal/Math.max(vals.length,1))+'/per\u00edodo';
+    return '<div class="tend-sparkline-card"><div class="tend-spark-header"><div class="tend-spark-cat" style="color:'+c+';">'+emoji+' '+parent+'</div><div class="tend-spark-delta '+deltaClass+'">'+deltaText+'</div></div><div class="tend-spark-amount" style="color:'+c+';">$'+fmtN(totalVal)+'</div><div class="tend-spark-sub">'+subText+'</div><div class="sparkline-wrap"><canvas id="'+sparkId+'"></canvas></div></div>';
   }).join('');
 
   // ════════════════════════════════════════════
@@ -300,46 +304,6 @@ function renderTendencia(){
       bHtml+='</div>';
     });
     breakdownEl.innerHTML=bHtml;
-  }
-
-  // ════════════════════════════════════════════
-  // 6. INSIGHTS
-  // ════════════════════════════════════════════
-  const insEl=document.getElementById('tend-insights');
-  if(insEl){
-    const insights=[];
-    if(activeParents.length&&grandTotal>0){
-      const topP=activeParents[0];const topPct=Math.round(topP[1]/grandTotal*100);
-      if(topPct>40)insights.push({icon:'⚠️',type:'warn',text:'<strong>'+topP[0]+'</strong> representa el '+topPct+'% del gasto total. Alta concentración en una sola categoría.'});
-    }
-    if(totalDelta!==null){
-      if(totalDelta>15)insights.push({icon:'🔴',type:'alert',text:'Tu gasto total subió un <strong>+'+Math.round(totalDelta)+'%</strong> respecto al período anterior. Revisá qué categorías crecieron.'});
-      else if(totalDelta<-10)insights.push({icon:'🟢',type:'good',text:'¡Bajaste un <strong>'+Math.abs(Math.round(totalDelta))+'%</strong> vs el período anterior! Excelente control.'});
-    }
-    // Fast growers
-    const growers=Object.entries(parentDeltas).filter(([,d])=>d.pct>20&&d.prev>0).sort((a,b)=>b[1].pct-a[1].pct);
-    if(growers.length)insights.push({icon:'📈',type:'warn',text:growers.map(([p,d])=>'<strong>'+p+'</strong> +'+Math.round(d.pct)+'%').join(', ')+' — las que más crecieron.'});
-    // Declining
-    const decliners=Object.entries(parentDeltas).filter(([,d])=>d.pct<-15&&d.prev>0).sort((a,b)=>a[1].pct-b[1].pct);
-    if(decliners.length)insights.push({icon:'📉',type:'good',text:'Redujiste gasto en '+decliners.map(([p])=>p).join(', ')+'.'});
-    // Subcategory concentration
-    activeParents.slice(0,3).forEach(([parent,total])=>{
-      const subs=Object.entries(parentSubTotals[parent]||{}).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-      if(subs.length>=2){const topSubPct=Math.round(subs[0][1]/total*100);
-        if(topSubPct>75)insights.push({icon:'🔍',type:'info',text:'En <strong>'+parent+'</strong>, el '+topSubPct+'% se concentra en '+subs[0][0]+'.'});}
-    });
-    // Trend over time
-    if(keys.length>=4){
-      const half=Math.floor(keys.length/2);
-      const firstAvg=keys.slice(0,half).reduce((s,k)=>s+getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS').reduce((ss,t)=>ss+t.amount,0),0)/half;
-      const secAvg=keys.slice(half).reduce((s,k)=>s+getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS').reduce((ss,t)=>ss+t.amount,0),0)/(keys.length-half);
-      if(secAvg>firstAvg*1.15)insights.push({icon:'📊',type:'warn',text:'Tu gasto promedio subió un <strong>+'+Math.round((secAvg/firstAvg-1)*100)+'%</strong> en la segunda mitad del período.'});
-      else if(firstAvg>secAvg*1.1)insights.push({icon:'🎉',type:'good',text:'Tu promedio bajó un <strong>'+Math.round((1-secAvg/firstAvg)*100)+'%</strong> en la segunda mitad. ¡Buen trabajo!'});
-    }
-    if(!insights.length)insights.push({icon:'👍',type:'info',text:'Todo dentro de parámetros normales. Seguí así.'});
-    const colors={warn:'rgba(255,100,50,0.08)',good:'rgba(52,199,89,0.08)',alert:'rgba(255,59,48,0.1)',info:'var(--surface2)'};
-    const borders={warn:'rgba(255,100,50,0.2)',good:'rgba(52,199,89,0.2)',alert:'rgba(255,59,48,0.25)',info:'var(--border)'};
-    insEl.innerHTML=insights.map(i=>'<div style="display:flex;gap:10px;align-items:flex-start;padding:10px 14px;background:'+(colors[i.type]||colors.info)+';border:1px solid '+(borders[i.type]||borders.info)+';border-radius:10px;"><span style="font-size:16px;flex-shrink:0;">'+i.icon+'</span><span style="font-size:12px;color:var(--text2);line-height:1.5;">'+i.text+'</span></div>').join('');
   }
 
   document.getElementById('tend-sub-title').textContent=(state.tendMode==='week'?'Por semana':'Por mes')+' · '+activeParents.length+' categorías activas';
@@ -453,64 +417,7 @@ function renderCompare(){
   renderCompareLineChart(ka,kb,la,lb);
 }
 
-// ══ INSIGHTS IA (REDESIGNED) ══
-async function generateInsights(){
-  if(!state.transactions.length)return;
-  if(!document.getElementById('insights-empty'))return;
-  document.getElementById('insights-empty').style.display='none';document.getElementById('insights-content').style.display='none';document.getElementById('insights-loading').style.display='flex';
-  const catD=getCatData();const wkD=getWeeklyData();
-  const arsT=state.transactions.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const usdT=state.transactions.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-  const incArs=state.income.ars+state.income.varArs;
-  const avgWeek=arsT/Math.max(wkD.values.length,1);
-  const monthEstimate=avgWeek*4.3;
-  // Find fastest growing category across periods
-  const pKeys=getTendPeriodKeys();
-  let topGrow=null,topGrowPct=0;
-  if(pKeys.length>=2){
-    const last=pKeys[pKeys.length-1],prev=pKeys[pKeys.length-2];
-    const txLast=getTxnsForTendPeriod(last),txPrev=getTxnsForTendPeriod(prev);
-    const cLast=getCatData(txLast),cPrev=getCatData(txPrev);
-    const cMapL={},cMapP={};cLast.labels.forEach((l,i)=>{cMapL[l]=cLast.values[i];});cPrev.labels.forEach((l,i)=>{cMapP[l]=cPrev.values[i];});
-    Object.keys(cMapL).forEach(cat=>{if(cMapP[cat]>0){const pct=(cMapL[cat]-cMapP[cat])/cMapP[cat]*100;if(pct>topGrowPct){topGrowPct=pct;topGrow=cat;}}});
-  }
-  // Sidebar stats
-  document.getElementById('ins-monthly').textContent='$'+fmtN(monthEstimate);
-  document.getElementById('ins-monthly-sub').textContent='Basado en $'+fmtN(avgWeek)+' / semana';
-  if(topGrow){document.getElementById('ins-top-grow').textContent=topGrow;document.getElementById('ins-top-grow-sub').textContent='+'+topGrowPct.toFixed(0)+'% vs período anterior';}
-  else{document.getElementById('ins-top-grow').textContent='—';document.getElementById('ins-top-grow-sub').textContent='Necesitás más períodos';}
-  // Mini proj chart
-  if(state.charts.proj)state.charts.proj.destroy();
-  const ctx=document.getElementById('chart-proj');
-  const today=new Date();const daysInMonth=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();const dayOfMonth=today.getDate();
-  const soFar=state.transactions.filter(t=>t.currency==='ARS'&&t.month===getMonthKey(today)).reduce((s,t)=>s+t.amount,0)||arsT;
-  const projected=soFar/dayOfMonth*daysInMonth;
-  const incLimit=incArs>0?incArs*state.alertThreshold/100:null;
-  if(ctx)state.charts.proj=new Chart(ctx,{type:'bar',data:{labels:['Actual','Proyectado',...(incLimit?['Límite']:[])] ,datasets:[{data:[soFar,projected,...(incLimit?[incLimit]:[])],backgroundColor:['rgba(200,240,96,0.3)',projected>soFar*1.5?'rgba(240,96,96,0.3)':'rgba(96,200,240,0.3)',...(incLimit?['rgba(240,160,96,0.2)']:[])],borderColor:['#007aff',projected>soFar*1.5?'#ff3b30':'#34c759',...(incLimit?['#ff9500']:[])],borderWidth:1.5,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:_isL()?'#1d1d1f':'#2c2c2e',titleColor:_isL()?'#fff':'#f5f5f7',bodyColor:'#8e8e93',borderColor:'rgba(0,0,0,0.08)',borderWidth:1,callbacks:{label:c=>' $'+fmtN(c.parsed.y)+' ARS'}}},scales:{x:{grid:{display:false},ticks:{color:'#c7c7cc',font:{size:11}}},y:{grid:{color:'#1a1a1a'},ticks:{color:'#c7c7cc',font:{size:10},callback:v=>'$'+fmtN(v)}}}}});
-  // Generate insight items
-  const summary={total_ars:arsT,total_usd:usdT,income_ars:incArs,spending_pct:incArs>0?Math.round(arsT/incArs*100):null,categories:catD.labels.map((l,i)=>({name:l,amount:catD.values[i],pct:Math.round(catD.values[i]/arsT*100)})).slice(0,8),weekly_avg:avgWeek,monthly_est:monthEstimate,top_grow:topGrow,top_grow_pct:topGrowPct.toFixed(0),txn_count:state.transactions.length,periods:pKeys.length,alert_threshold:state.alertThreshold};
-  let items=[];const apiKey=getApiKey();
-  if(apiKey){
-    try{
-      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,messages:[{role:'user',content:'Sos asesor financiero experto en finanzas personales argentinas. Analizá estos datos REALES y generá exactamente 6 insights accionables y específicos en español rioplatense informal. Cada insight debe ser concreto, usar los números reales y decir algo útil.\n\nDatos: '+JSON.stringify(summary)+'\n\nResponde SOLO este JSON (sin backticks, sin texto extra):\n[{"emoji":"X","type":"good|warn|info|bad","label":"TITULO CORTO","headline":"Una oración directa con el dato concreto","body":"2-3 oraciones de contexto y qué hacer, mencionando montos exactos"}]'}]})});
-      const d=await r.json();items=JSON.parse((d.content?.[0]?.text||'[]').replace(/```json|```/g,'').trim());
-    }catch(e){items=fallbackInsights(summary);}
-  }else items=fallbackInsights(summary);
-  document.getElementById('insight-feed').innerHTML=items.map(item=>'<div class="insight-item '+item.type+'-item"><div class="i-emoji">'+item.emoji+'</div><div class="i-content"><div class="i-label">'+esc(item.label)+'</div><div class="i-headline">'+esc(item.headline)+'</div><div class="i-body">'+item.body+'</div></div></div>').join('');
-  document.getElementById('insights-loading').style.display='none';document.getElementById('insights-content').style.display='flex';
-}
-function fallbackInsights(s){
-  const top=s.categories[0];const sec=s.categories[1];
-  const pct=s.spending_pct;const overBudget=pct&&pct>s.alert_threshold;
-  return[
-    {emoji:overBudget?'🔴':'🟢',type:overBudget?'bad':'good',label:'PRESUPUESTO',headline:overBudget?'Estás al '+pct+'% de tu ingreso — sobre el límite del '+s.alert_threshold+'%':'Bien encaminado: usaste el '+pct+'% del ingreso',body:overBudget?'Gastaste <strong>$'+fmtN(s.total_ars)+' ARS</strong> de un ingreso de <strong>$'+fmtN(s.income_ars)+'</strong>. Revisá '+top?.name+' y '+sec?.name+' para recortar.':'Gastaste <strong>$'+fmtN(s.total_ars)+' ARS</strong>. El margen restante es <strong>$'+fmtN(s.income_ars-s.total_ars)+'</strong>. Buen trabajo.'},
-    {emoji:'🏆',type:'info',label:'CATEGORÍA TOP',headline:top?.name+' se llevó el '+top?.pct+'% de tus gastos',body:'<strong>$'+fmtN(top?.amount)+'</strong> en '+top?.name+'. El segundo puesto es '+sec?.name+' con <strong>$'+fmtN(sec?.amount)+'</strong>. Juntos suman el '+(top?.pct+sec?.pct)+'% del total.'},
-    {emoji:'📅',type:'info',label:'RITMO SEMANAL',headline:'Gastás $'+fmtN(s.weekly_avg)+' ARS por semana en promedio',body:'A este ritmo, el mes te sale <strong>$'+fmtN(s.monthly_est)+'</strong>.'+(s.income_ars>0?' Eso es el '+Math.round(s.monthly_est/s.income_ars*100)+'% de tu ingreso mensual.':'')},
-    {emoji:s.total_usd>0?'💵':'💡',type:s.total_usd>0?'warn':'info',label:s.total_usd>0?'GASTOS USD':'SIN USD',headline:s.total_usd>0?'U$D '+fmtN(s.total_usd)+' en gastos en dólares':'No tenés gastos en dólares registrados',body:s.total_usd>0?'Tené en cuenta el tipo de cambio para estimar el impacto real en pesos. Estos gastos no entran en los porcentajes ARS.':'Si tenés suscripciones en USD (Netflix, Spotify, etc.) podés agregarlas en la sección Suscripciones.'},
-    {emoji:s.top_grow?'📈':'📊',type:s.top_grow?'warn':'info',label:'CRECIMIENTO',headline:s.top_grow?s.top_grow+' creció un +'+s.top_grow_pct+'% vs el período anterior':'Sin comparación disponible aún',body:s.top_grow?'Ojo con <strong>'+s.top_grow+'</strong> — fue la categoría que más aumentó. Revisá si fue algo puntual o una tendencia.':'Importá más períodos para ver qué categorías están creciendo.'},
-    {emoji:'🎯',type:'good',label:'PRÓXIMOS PASOS',headline:'Tenés '+s.txn_count+' movimientos en '+s.periods+' período'+(s.periods!==1?'s':'')+' importados',body:'Para un análisis completo importá al menos 4 semanas. Revisá la pestaña <strong>Cuotas</strong> para ver compromisos futuros y <strong>Suscripciones</strong> para tener visibilidad total de gastos fijos.'}
-  ];
-}
+// ══ INSIGHTS — delegado a js/insights.js ══
 
 // ══ COMPARE LINE CHART (mes a mes, acumulado diario) ══
 function renderCompareLineChart(ka,kb,la,lb){

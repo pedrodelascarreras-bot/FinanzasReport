@@ -1272,6 +1272,34 @@ select.input-field { cursor: pointer; }
 .ins-proj-sub { font-size: 11px; color: var(--text2); margin-bottom: 14px; }
 
 /* ════════════════════════════════════════════════
+   INSIGHTS (NUEVO)
+════════════════════════════════════════════════ */
+.ins-tab {
+  flex: 1;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text3);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .15s;
+  font-family: var(--font);
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+}
+.ins-tab.active {
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(0,122,255,0.3);
+}
+.ins-tab:hover:not(.active) {
+  background: var(--surface3);
+  color: var(--text);
+}
+
+/* ════════════════════════════════════════════════
    COMPROMISOS
 ════════════════════════════════════════════════ */
 .cuotas-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: start; }

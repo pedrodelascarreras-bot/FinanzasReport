@@ -222,63 +222,6 @@ function renderSavingsPage(){
     }
   }
 
-  /* ─── Análisis / tips ─── */
-  renderSavTipsManual(totalARS,totalUSD,totalEquiv,avgDep,avgRate,streak,goals,allMonths,monthTotals);
-}
-
-function renderSavTipsManual(totalARS,totalUSD,totalEquiv,avgDep,avgRate,streak,goals,allMonths,monthTotals){
-  const tipsEl = document.getElementById('sav-tips-grid'); if(!tipsEl)return;
-  const tips = [];
-
-  // 1. Tasa de ahorro vs ingreso
-  if(avgRate!==null){
-    if(avgRate>=20)
-      tips.push({type:'positive',emoji:'🏆',title:'Tasa de ahorro del '+avgRate+'% — excelente',body:'Estás ahorrando en promedio el <strong>'+avgRate+'%</strong> de tu ingreso mensual. El estándar recomendado es 20%. Estás arriba.'});
-    else if(avgRate>=10)
-      tips.push({type:'warning',emoji:'💡',title:'Tasa de ahorro del '+avgRate+'% — podés mejorar',body:'Ahorrás el <strong>'+avgRate+'%</strong> del ingreso en promedio. La regla 50/30/20 sugiere apuntar al 20%. Tenés margen para crecer.'});
-    else
-      tips.push({type:'warning',emoji:'⚠️',title:'Tasa de ahorro del '+avgRate+'% — baja',body:'Solo el <strong>'+avgRate+'%</strong> de tu ingreso va a ahorros. Revisá en qué categorías podés recortar para subir esta cifra.'});
-  }
-
-  // 2. Hábito / racha
-  if(streak>=3)
-    tips.push({type:'positive',emoji:'🔥',title:'¡'+streak+' meses seguidos ahorrando!',body:'La consistencia es el mayor activo. Llevás <strong>'+streak+' meses</strong> seguidos registrando depósitos. Ese hábito compuesto en el tiempo es lo que construye patrimonio real.'});
-  else if(!allMonths.length)
-    tips.push({type:'challenge',emoji:'✨',title:'Empezá tu historial hoy',body:'Registrá tu primer depósito haciendo click en <strong>"+ Registrar ahorro"</strong>. No importa el monto — lo que importa es empezar.'});
-  else
-    tips.push({type:'positive',emoji:'💪',title:'Ya tenés '+allMonths.length+' mes'+(allMonths.length!==1?'es':'')+' registrado'+(allMonths.length!==1?'s':''),body:'Seguí registrando cada mes para ver tu progreso real. La constancia mes a mes es lo que hace crecer el patrimonio.'});
-
-  // 2. Tendencia: último mes vs anterior
-  if(monthTotals.length>=2){
-    const last=monthTotals[monthTotals.length-1], prev=monthTotals[monthTotals.length-2];
-    const diff=last-prev, pct=prev>0?Math.round(Math.abs(diff)/prev*100):0;
-    if(diff>0)
-      tips.push({type:'positive',emoji:'📈',title:'Este mes depositaste más que el anterior',body:'Registraste <strong>$'+fmtN(last)+'</strong>, un <strong>+'+pct+'%</strong> más que el mes pasado ($'+fmtN(prev)+'). Excelente tendencia.'});
-    else if(diff<0)
-      tips.push({type:'warning',emoji:'📉',title:'Este mes depositaste menos que el anterior',body:'Registraste <strong>$'+fmtN(last)+'</strong> vs <strong>$'+fmtN(prev)+'</strong> el mes anterior ('+pct+'% menos). Si fue algo puntual no hay drama — si no, revisá dónde podés recortar.'});
-  }
-
-  // 3. Meta más cercana
-  const nearestGoal = goals.filter(g=>{const _gc=g.currency==='USD'?totalUSD+(totalARS/USD_TO_ARS):totalARS+(totalUSD*USD_TO_ARS);return g.target>_gc;}).sort((a,b)=>{const ca=a.currency==='USD'?totalUSD+(totalARS/USD_TO_ARS):totalARS+(totalUSD*USD_TO_ARS);const cb=b.currency==='USD'?totalUSD+(totalARS/USD_TO_ARS):totalARS+(totalUSD*USD_TO_ARS);return (cb/b.target)-(ca/a.target);})[0];
-  if(nearestGoal){
-    const _ngCur=nearestGoal.currency==='USD'?totalUSD+(totalARS/USD_TO_ARS):totalARS+(totalUSD*USD_TO_ARS);
-    const rem=nearestGoal.target-_ngCur;
-    const mn=avgDep>0?Math.ceil(rem/avgDep):null;
-    tips.push({type:'positive',emoji:'🎯',title:'"'+nearestGoal.name+'" — tu meta más cercana',body:'Te faltan <strong>$'+fmtN(rem)+'</strong>.'+(mn?' Al promedio actual de $'+fmtN(avgDep)+'/mes, la alcanzás en <strong>'+mn+' mes'+(mn!==1?'es':'')+'</strong>.':' Registrá depósitos para ver el estimado.')});
-  }
-
-  // 4. Hito patrimonial
-  const milestones=[100000,250000,500000,1000000,2000000,5000000,10000000];
-  const nextMile = milestones.find(m=>m>totalEquiv);
-  if(nextMile){
-    const rem=nextMile-totalEquiv;
-    const mn=avgDep>0?Math.ceil(rem/avgDep):null;
-    tips.push({type:'challenge',emoji:'🏆',title:'Próximo hito: $'+fmtN(nextMile),body:'Te faltan <strong>$'+fmtN(Math.round(rem))+' ARS equiv.</strong> para llegar a $'+fmtN(nextMile)+'.'+(mn?' Estimado: <strong>'+mn+' meses</strong> al ritmo de depósitos actual.':'')});
-  }
-
-  tipsEl.innerHTML = tips.map(t=>
-    '<div class="sav-tip-card '+t.type+'"><div class="sav-tip-emoji">'+t.emoji+'</div><div><div class="sav-tip-title">'+esc(t.title)+'</div><div class="sav-tip-body">'+t.body+'</div></div></div>'
-  ).join('');
 }
 
 // ── Depósitos CRUD ──

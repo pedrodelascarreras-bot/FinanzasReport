@@ -504,9 +504,7 @@ function renderDashboard(){
   });
   // Hidden compat element
   document.getElementById('kpi-tc').textContent=hasPayTagsWidget?'$'+fmtN(tcWidgetAmt+debWidgetAmt):'$'+fmtN(_tcWidgetTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0));
-  document.getElementById('kpi-tc-d').innerHTML=hasPayTagsWidget
-    ?'<span style="color:var(--accent2)">💳 $'+fmtN(tcWidgetAmt)+'</span>&nbsp;<span style="color:var(--accent)">🏦 $'+fmtN(debWidgetAmt)+'</span>'
-    :'<span style="color:var(--text3)">Etiquetá con 💳/🏦</span>';
+  // kpi-tc-d removed from HTML
 
   // ── KPI: Proyección ──
   const projEl=document.getElementById('kpi-proj');

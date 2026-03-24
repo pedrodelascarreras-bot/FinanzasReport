@@ -32,6 +32,9 @@
     <button class="nav-item" id="ni-tendencia" onclick="nav('tendencia')">
       <span class="nav-icon">◫</span><span>Tendencias</span>
     </button>
+    <button class="nav-item" id="ni-insights" onclick="nav('insights')">
+      <span class="nav-icon">◈</span><span>Insights</span>
+    </button>
     <button class="nav-item" id="ni-transactions" onclick="nav('transactions')">
       <span class="nav-icon">≡</span><span>Movimientos</span>
     </button>
@@ -216,7 +219,6 @@
               <div id="kpi-amex-usd" style="font-size:10px;color:var(--accent2);font-family:var(--font);margin-top:2px;"></div>
             </div>
           </div>
-          <div class="dkpi-sub" id="kpi-tc-d"></div>
           <!-- hidden compat -->
           <div id="kpi-tc" style="display:none;">—</div>
         </div>
@@ -739,8 +741,7 @@
         <option value="">Todos los períodos</option>
       </select>
       <div class="view-toggle">
-        <button class="toggle-btn active" id="tend-tog-week" onclick="setTendMode('week')">Semanas</button>
-        <button class="toggle-btn" id="tend-tog-month" onclick="setTendMode('month')">Meses</button>
+        <button class="toggle-btn active" id="tend-tog-month" onclick="setTendMode('month')">Meses</button>
         <button class="toggle-btn" id="tend-tog-tc" onclick="setTendMode('tc')">Ciclo TC</button>
       </div>
     </div>
@@ -782,15 +783,6 @@
         <div class="table-sub" id="tend-breakdown-sub" style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;"></div>
       </div>
       <div id="tend-breakdown" style="padding:0 20px 16px;"></div>
-    </div>
-
-    <!-- 6. INSIGHTS -->
-    <div class="table-card fade-up d4" id="tend-insights-card">
-      <div class="table-header" style="padding:16px 20px 8px;">
-        <div class="table-title">💡 Insights</div>
-        <div class="table-sub" style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;">Patrones y alertas detectadas automáticamente</div>
-      </div>
-      <div id="tend-insights" style="padding:8px 20px 16px;display:flex;flex-direction:column;gap:8px;"></div>
     </div>
 
   </div>
@@ -856,26 +848,48 @@
 <!-- INSIGHTS IA (REDESIGNED) -->
 <div id="page-insights" class="page">
   <div class="page-header fade-up">
-    <div><div class="page-title">Insights</div><div class="page-subtitle">Análisis inteligente con IA</div></div>
-    <button class="btn btn-primary" onclick="generateInsights()">⚡ Regenerar</button>
+    <div><div class="page-title">Insights</div><div class="page-subtitle" id="insights-subtitle">Análisis de tu salud financiera</div></div>
+    <button class="btn btn-primary" onclick="generateInsights()">⚡ Actualizar</button>
   </div>
-  <div id="insights-loading" class="ai-loading" style="display:none;"><div class="spinner"></div>Analizando con IA...</div>
-  <div id="insights-empty" class="empty-state fade-up"><div class="empty-icon">◈</div><div class="empty-title">Importá datos primero</div><div class="empty-sub">La IA analizará tus patrones automáticamente</div></div>
-  <div id="insights-content" style="display:none;flex-direction:column;gap:18px;">
-    <div class="insights-layout fade-up d1">
-      <div class="table-card" style="border-radius:var(--r);overflow:hidden;">
-        <div id="insight-feed" class="insight-feed"></div>
+
+  <div id="insights-empty" class="empty-state fade-up">
+    <div class="empty-icon">◈</div>
+    <div class="empty-title">Importá datos primero</div>
+    <div class="empty-sub">Necesitás al menos un mes de movimientos para ver tus insights</div>
+  </div>
+
+  <div id="insights-content" style="display:none;flex-direction:column;gap:20px;">
+
+    <!-- ── Score Hero ── -->
+    <div class="fade-up d1" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px 28px;display:flex;align-items:center;gap:28px;flex-wrap:wrap;">
+      <div style="flex-shrink:0;">
+        <svg viewBox="0 0 100 100" width="96" height="96">
+          <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" stroke-width="8"/>
+          <circle id="score-arc" cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="8"
+            stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="251.2"
+            transform="rotate(-90 50 50)" style="transition:stroke-dashoffset 1s ease,stroke 0.5s;"/>
+          <text x="50" y="56" text-anchor="middle" font-size="22" font-weight="700" fill="var(--text)" id="score-number" font-family="system-ui,sans-serif">—</text>
+        </svg>
       </div>
-      <div class="insight-sidebar-stack">
-        <div class="ins-stat-card"><div class="ins-stat-label">Ritmo mensual estimado</div><div class="ins-stat-value" id="ins-monthly">—</div><div class="ins-stat-sub" id="ins-monthly-sub">—</div></div>
-        <div class="ins-stat-card"><div class="ins-stat-label">Categoría que más creció</div><div class="ins-stat-value" style="font-size:18px;" id="ins-top-grow">—</div><div class="ins-stat-sub" id="ins-top-grow-sub">—</div></div>
-        <div class="ins-proj-card">
-          <div class="ins-proj-title">Proyección al cierre del mes</div>
-          <div class="ins-proj-sub">Basado en el ritmo actual</div>
-          <div class="chart-wrap" style="height:150px;"><canvas id="chart-proj"></canvas></div>
-        </div>
+      <div style="flex:1;min-width:160px;">
+        <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">SALUD FINANCIERA</div>
+        <div id="score-label" style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:6px;">—</div>
+        <div id="score-desc" style="font-size:12px;color:var(--text3);line-height:1.55;max-width:280px;">—</div>
       </div>
+      <div id="score-factors" style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:10px;"></div>
     </div>
+
+    <!-- ── Tabs ── -->
+    <div class="fade-up d2" style="display:flex;gap:5px;background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:5px;">
+      <button class="ins-tab active" id="ins-tab-general" onclick="setInsightTab('general')">📊 General</button>
+      <button class="ins-tab" id="ins-tab-ahorro" onclick="setInsightTab('ahorro')">💰 Ahorro</button>
+      <button class="ins-tab" id="ins-tab-cuidado" onclick="setInsightTab('cuidado')">🛡 Cuidá tu plata</button>
+      <button class="ins-tab" id="ins-tab-economia" onclick="setInsightTab('economia')">📈 Economía</button>
+    </div>
+
+    <!-- ── Cards Grid ── -->
+    <div id="insights-grid" class="fade-up d3" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px;"></div>
+
   </div>
 </div>
 
@@ -1304,11 +1318,6 @@
     </div>
   </div>
 
-  <!-- Análisis / Tips -->
-  <div class="fade-up d4">
-    <div style="font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--text3);margin-bottom:14px;">ANÁLISIS</div>
-    <div id="sav-tips-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;"></div>
-  </div>
 </div>
 
 <!-- IMPORT -->
@@ -2280,6 +2289,7 @@
 <script src="js/dashboard.js"></script>
 <script src="js/transactions.js"></script>
 <script src="js/analytics.js"></script>
+<script src="js/insights.js"></script>
 <script src="js/expenses.js"></script>
 <script src="js/income.js"></script>
 <script src="js/savings.js"></script>
