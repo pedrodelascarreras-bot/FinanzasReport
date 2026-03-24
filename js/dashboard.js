@@ -192,21 +192,22 @@ async function generateDashInsights(){
 function renderDashNotifications() {
   const notifEl = document.getElementById('dash-notifications');
   if(!notifEl) return;
-  
+
   const notifs = [];
   const today = new Date();
-  const todayStr = today.toISOString().slice(0,10);
-  
+  const monthKey = today.toISOString().slice(0,7);
+
   // 1. Credit Card Deadlines
   const cycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
   cycles.forEach(cyc => {
     const card = (state.creditCards||[]).find(c => c.id === cyc.cardId);
     const closeDate = new Date(cyc.closeDate + 'T12:00:00');
     const dueDate = cyc.dueDate ? new Date(cyc.dueDate + 'T12:00:00') : null;
-    
+
     const daysToClose = Math.round((closeDate - today) / 86400000);
     if(daysToClose >= 0 && daysToClose <= 5) {
       notifs.push({
+        id: `tc-close-${cyc.id}-${cyc.closeDate}`,
         type: 'warn',
         icon: '💳',
         title: 'Cierre de Tarjeta',
@@ -214,11 +215,12 @@ function renderDashNotifications() {
         link: 'credit-cards'
       });
     }
-    
+
     if(dueDate) {
       const daysToDue = Math.round((dueDate - today) / 86400000);
       if(daysToDue >= 0 && daysToDue <= 7) {
         notifs.push({
+          id: `tc-due-${cyc.id}-${cyc.dueDate}`,
           type: 'alert',
           icon: '💰',
           title: 'Vencimiento de Tarjeta',
@@ -237,6 +239,7 @@ function renderDashNotifications() {
     const pct = (arsT / totalIncome) * 100;
     if(pct >= 85) {
       notifs.push({
+        id: `budget-85-${monthKey}`,
         type: 'alert',
         icon: '⚠️',
         title: 'Límite de Presupuesto',
@@ -245,6 +248,7 @@ function renderDashNotifications() {
       });
     } else if(pct >= 70) {
       notifs.push({
+        id: `budget-70-${monthKey}`,
         type: 'warn',
         icon: '📊',
         title: 'Alerta de Gasto',
@@ -254,8 +258,7 @@ function renderDashNotifications() {
     }
   }
 
-  // 3. Recurring Payments (Subscriptions)
-  // Simple check: same day as today in previous months or predicted
+  // 3. Recurring Payments (Cuotas)
   const cuotas = state.transactions.filter(t => t.isPendingCuota && t.currency === 'ARS');
   cuotas.forEach(c => {
     const cDate = new Date(c.date + 'T12:00:00');
@@ -263,6 +266,7 @@ function renderDashNotifications() {
       const dDiff = Math.round((cDate - today) / 86400000);
       if(dDiff >= 0 && dDiff <= 3) {
         notifs.push({
+          id: `cuota-${c.id}-${monthKey}`,
           type: 'info',
           icon: '🔄',
           title: 'Próximo Compromiso',
@@ -277,6 +281,7 @@ function renderDashNotifications() {
   const uncategorized = monthTxns.filter(t => !t.category || t.category === 'Uncategorized' || t.category === 'Procesando...');
   if(uncategorized.length >= 5) {
     notifs.push({
+      id: `uncat-${monthKey}`,
       type: 'info',
       icon: '🏷️',
       title: 'Mejorá tu Reporte',
@@ -285,13 +290,17 @@ function renderDashNotifications() {
     });
   }
 
-  if(!notifs.length) {
+  // Filter dismissed
+  const dismissed = state.dismissedNotifs || [];
+  const active = notifs.filter(n => !dismissed.includes(n.id));
+
+  if(!active.length) {
     notifEl.style.display = 'none';
     return;
   }
 
   notifEl.style.display = 'flex';
-  notifEl.innerHTML = notifs.map(n => `
+  notifEl.innerHTML = active.map(n => `
     <div class="notif-item notif-${n.type}" onclick="nav('${n.link}')">
       <div class="notif-icon">${n.icon}</div>
       <div class="notif-content">
@@ -299,6 +308,7 @@ function renderDashNotifications() {
         <div class="notif-body">${n.body}</div>
       </div>
       <div class="notif-chevron">❯</div>
+      <button class="notif-item-close" onclick="event.stopPropagation();dismissNotif('${n.id}')" title="Quitar">✕</button>
     </div>
   `).join('');
 }

@@ -474,6 +474,7 @@ function renderNotifications() {
     const diff = Math.ceil((closeD - today) / (1000 * 60 * 60 * 24));
     if(diff > 0 && diff <= 5) {
       notifs.push({
+        id: `tc-close-${c.id}-${c.closeDate}`,
         type: 'tc-close',
         title: `Cierre de ${c.label}`,
         desc: `Tu tarjeta cierra en ${diff} día${diff!==1?'s':''}. ¡Revisá tus consumos!`,
@@ -491,6 +492,7 @@ function renderNotifications() {
     const diff = Math.ceil((dueD - today) / (1000 * 60 * 60 * 24));
     if(diff > 0 && diff <= 5) {
       notifs.push({
+        id: `tc-due-${c.id}-${c.dueDate}`,
         type: 'tc-due',
         title: `Vencimiento de ${c.label}`,
         desc: `El pago de tu tarjeta es en ${diff} día${diff!==1?'s':''}.`,
@@ -557,8 +559,10 @@ function renderNotifications() {
     return;
   }
 
-  list.innerHTML = activeNotifs.map(n => `
-    <div class="notif-item" id="notif-${n.id}">
+  list.innerHTML = activeNotifs.map(n => {
+    const key = n.id || n.title;
+    return `
+    <div class="notif-item"${n.id ? ` id="notif-${n.id}"` : ''}>
       <div class="notif-icon-box" style="background:${n.color}22;color:${n.color};">
         ${n.icon}
       </div>
@@ -567,9 +571,9 @@ function renderNotifications() {
         <div class="notif-desc">${n.desc}</div>
         <div class="notif-time">${n.time}</div>
       </div>
-      <button class="notif-item-close" onclick="dismissNotif('${n.id || n.title}')" title="Quitar">✕</button>
+      <button class="notif-item-close" onclick="event.stopPropagation();dismissNotif('${key.replace(/'/g,"\\'")}')" title="Quitar">✕</button>
     </div>
-  `).join('');
+  `}).join('');
 }
 
 function dismissNotif(id) {
