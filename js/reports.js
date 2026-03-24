@@ -46,12 +46,10 @@ function setRepMode(mode){
 
 function setRepDesign(design){
   state.repDesign=design||'executive';
-  ['exec','detail','minimal'].forEach(d=>{
-    const btn=document.getElementById('rep-design-'+d.replace('ive','').replace('ed',''));
-  });
   document.getElementById('rep-design-exec')?.classList.toggle('active',design==='executive');
   document.getElementById('rep-design-detail')?.classList.toggle('active',design==='detailed');
   document.getElementById('rep-design-minimal')?.classList.toggle('active',design==='minimal');
+  updateRepPreview();
 }
 
 function getRepTxns(){
@@ -566,7 +564,13 @@ function updateRepPreview(){
   document.querySelectorAll('.rep-check-item').forEach(el=>{
     el.classList.toggle('checked',el.querySelector('input').checked);
   });
-  content.innerHTML=buildReportHTML(txns,sections,label);
+
+  const design = state.repDesign || 'executive';
+  const html = buildReportHTML(txns,sections,label);
+  
+  // Apply design-specific classes to simulation preview
+  content.className = 'rep-preview-content design-' + design;
+  content.innerHTML = html;
 }
 
 function exportRepHTML(){showToast('Usá Guardar PDF','info');}

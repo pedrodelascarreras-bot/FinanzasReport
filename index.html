@@ -498,11 +498,11 @@
       <div class="rep-config-card">
         <div class="rep-section-title">Período</div>
         <div style="display:flex;flex-direction:column;gap:8px;">
-          <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <button class="tft-btn active" id="rep-mode-mes" onclick="setRepMode('mes')" style="flex:1;min-width:60px;border:1px solid var(--border);border-radius:8px;font-size:11px;">📅 Mes</button>
-            <button class="tft-btn" id="rep-mode-tc" onclick="setRepMode('tc')" style="flex:1;min-width:60px;border:1px solid var(--border);border-radius:8px;font-size:11px;">💳 Ciclo TC</button>
-            <button class="tft-btn" id="rep-mode-rango" onclick="setRepMode('rango')" style="flex:1;min-width:60px;border:1px solid var(--border);border-radius:8px;font-size:11px;">📆 Rango</button>
-            <button class="tft-btn" id="rep-mode-all" onclick="setRepMode('todo')" style="flex:1;min-width:60px;border:1px solid var(--border);border-radius:8px;font-size:11px;">📊 Todo</button>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <button class="tft-btn active" id="rep-mode-mes" onclick="setRepMode('mes')" style="border:1px solid var(--border);border-radius:8px;font-size:11px;padding:8px 4px;">📅 Mes</button>
+            <button class="tft-btn" id="rep-mode-tc" onclick="setRepMode('tc')" style="border:1px solid var(--border);border-radius:8px;font-size:11px;padding:8px 4px;">💳 Ciclo TC</button>
+            <button class="tft-btn" id="rep-mode-rango" onclick="setRepMode('rango')" style="border:1px solid var(--border);border-radius:8px;font-size:11px;padding:8px 4px;">📆 Rango</button>
+            <button class="tft-btn" id="rep-mode-all" onclick="setRepMode('todo')" style="border:1px solid var(--border);border-radius:8px;font-size:11px;padding:8px 4px;">📊 Todo</button>
           </div>
           <!-- Month / TC selector -->
           <select id="rep-period-select" class="rep-select" onchange="updateRepPreview()">
@@ -534,10 +534,10 @@
           <button class="btn btn-ghost" onclick="printReport()" style="justify-content:center;min-width:90px;font-size:12px;padding:10px 14px;">
             🖨️ Imprimir
           </button>
-          <div style="display:flex;gap:4px;">
-            <button class="tft-btn active" id="rep-design-exec" onclick="setRepDesign('executive')" style="border:1px solid var(--border);border-radius:6px;font-size:9px;padding:5px 8px;">🏢 Ejecutivo</button>
-            <button class="tft-btn" id="rep-design-detail" onclick="setRepDesign('detailed')" style="border:1px solid var(--border);border-radius:6px;font-size:9px;padding:5px 8px;">📋 Detallado</button>
-            <button class="tft-btn" id="rep-design-minimal" onclick="setRepDesign('minimal')" style="border:1px solid var(--border);border-radius:6px;font-size:9px;padding:5px 8px;">◻ Minimal</button>
+          <div style="display:flex;gap:4px;width:100%;margin-top:4px;">
+            <button class="tft-btn active" id="rep-design-exec" onclick="setRepDesign('executive')" style="flex:1;border:1px solid var(--border);border-radius:6px;font-size:9px;padding:6px 4px;">🏢 Ejecutivo</button>
+            <button class="tft-btn" id="rep-design-detail" onclick="setRepDesign('detailed')" style="flex:1;border:1px solid var(--border);border-radius:6px;font-size:9px;padding:6px 4px;">📋 Detallado</button>
+            <button class="tft-btn" id="rep-design-minimal" onclick="setRepDesign('minimal')" style="flex:1;border:1px solid var(--border);border-radius:6px;font-size:9px;padding:6px 4px;">◻ Minimal</button>
           </div>
         </div>
         <div style="font-size:9px;color:var(--text3);margin-top:6px;">Seleccioná el diseño y hacé click para abrir el diálogo de impresión → "Guardar como PDF"</div>
@@ -1082,8 +1082,8 @@
 
   <!-- Hero KPIs — rediseñado con tarjetas tipo imagen referencia -->
   <div class="fade-up d1">
-    <!-- Fila 1: 5 tarjetas -->
-    <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:12px;">
+    <!-- Fila 1: 4 tarjetas -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
 
       <!-- ARS Fijo -->
       <div style="background:linear-gradient(135deg,rgba(200,240,96,0.07) 0%,rgba(200,240,96,0.02) 100%);border:1px solid rgba(200,240,96,0.15);border-radius:14px;padding:16px 18px;">
@@ -1128,15 +1128,6 @@
         <div id="inc-kpi-avg-sub" style="margin-top:7px;font-size:9px;font-family:var(--font);font-weight:400;color:var(--text3);">ARS + USD×TC</div>
       </div>
 
-      <!-- Mejor Mes -->
-      <div style="background:linear-gradient(135deg,rgba(240,200,96,0.07) 0%,rgba(240,200,96,0.02) 100%);border:1px solid rgba(240,200,96,0.15);border-radius:14px;padding:16px 18px;">
-        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;">
-          <span style="font-size:16px;">🏆</span>
-          <span style="font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:rgba(240,200,96,0.6);font-family:var(--font);">MEJOR MES</span>
-        </div>
-        <div id="inc-kpi-best" style="font-size:clamp(16px,1.8vw,22px);font-weight:700;font-family:var(--font);letter-spacing:-0.03em;color:var(--accent);line-height:1.1;">—</div>
-        <div id="inc-kpi-best-sub" style="margin-top:7px;font-size:9px;font-family:var(--font);font-weight:400;color:var(--text3);">—</div>
-      </div>
     </div>
 
     <!-- Fila 2: Ratio ahorro + Retomances -->

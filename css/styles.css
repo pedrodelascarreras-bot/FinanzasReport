@@ -1721,8 +1721,8 @@ html { -webkit-text-size-adjust: 100%; }
 }
 
 /* 7. Strip iOS default appearance from interactive controls */
-button { -webkit-appearance: none; }
-input[type="search"], .search-input { -webkit-appearance: none; border-radius: 8px; }
+button { -webkit-appearance: none; appearance: none; }
+input[type="search"], .search-input { -webkit-appearance: none; appearance: none; border-radius: 8px; }
 select { -webkit-appearance: none; appearance: none; }
 
 /* 8. Ensure minimum 44pt touch targets (Apple HIG) */
@@ -1865,10 +1865,38 @@ body.ios-scroll-locked {
 }
 
 /* 16. Add -webkit-backdrop-filter to txn-detail-panel (missing prefix) */
-#txn-detail-panel { -webkit-backdrop-filter: blur(40px); }
+#txn-detail-panel { -webkit-backdrop-filter: blur(40px); backdrop-filter: blur(40px); }
 
 /* 17. Remove hover cursor on cards on touch devices */
 @media (hover: none) {
   .kpi-card, .cat-badge { cursor: default; }
 }
 
+
+/* ════════════════════════════════════════════════
+   REPORT DESIGNS (PREVIEW)
+════════════════════════════════════════════════ */
+.design-executive .rpt { --rpt-accent: #1d1d1f; font-size: 12px; padding: 32px; }
+.design-executive .rpt-header { border-bottom: 3px solid #1d1d1f; }
+.design-executive .rpt-brand { font-size: 20px; }
+.design-executive .rpt-kpi { background: #f7f7f7; }
+.design-executive .rpt-section-title { font-size: 11px; }
+
+.design-detailed .rpt { --rpt-accent: #0071e3; font-size: 11px; padding: 24px; }
+.design-detailed .rpt-header { border-bottom: 2px solid #0071e3; }
+.design-detailed .rpt-brand { font-size: 18px; }
+.design-detailed .rpt-kpi { background: #f0f5ff; }
+.design-detailed .rpt-section-title { font-size: 10px; }
+.design-detailed .rpt-cat-bar-fill { background: #0071e3 !important; }
+
+.design-minimal .rpt { --rpt-accent: #333; font-size: 11px; padding: 28px; }
+.design-minimal .rpt-header { border-bottom: 1px solid #ccc; }
+.design-minimal .rpt-brand { font-size: 16px; }
+.design-minimal .rpt-kpi { background: #fafafa; }
+.design-minimal .rpt-section-title { font-size: 9px; }
+.design-minimal .rpt-kpi-val { font-size: 18px; }
+.design-minimal .rpt-cat-bar-fill { background: #666 !important; }
+
+/* Apply accent color to preview elements */
+.rep-preview-content .rpt-brand, 
+.rep-preview-content .rpt-kpi-val { color: var(--rpt-accent, #1d1d1f); }

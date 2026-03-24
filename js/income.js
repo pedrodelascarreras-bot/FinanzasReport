@@ -96,8 +96,8 @@ function renderIncomePage(){
   const bestMonth=months[bestMonthIdx];
   document.getElementById('inc-kpi-avg').textContent='$'+fmtN(avgCombined);
   document.getElementById('inc-kpi-avg-sub').textContent='ARS + USD×TC';
-  document.getElementById('inc-kpi-best').textContent='$'+fmtN(bestCombined);
-  document.getElementById('inc-kpi-best-sub').textContent=bestMonth?fmtMonthLabel(bestMonth.month):'—';
+  if(document.getElementById('inc-kpi-best')) document.getElementById('inc-kpi-best').textContent='$'+fmtN(bestCombined);
+  if(document.getElementById('inc-kpi-best-sub')) document.getElementById('inc-kpi-best-sub').textContent=bestMonth?fmtMonthLabel(bestMonth.month):'—';
   document.getElementById('inc-kpi-count').textContent=months.length;
   document.getElementById('inc-kpi-count-sub').textContent=' mes'+(months.length!==1?'es':'')+' registrado'+(months.length!==1?'s':'');
 
