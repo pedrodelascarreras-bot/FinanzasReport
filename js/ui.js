@@ -10,7 +10,7 @@ function openCatReview(mode){
   const uncat = mode==='all'
     ? [...state.transactions].sort((a,b)=> new Date(b.date)-new Date(a.date)).map(t=>t.id)
     : state.transactions
-        .filter(t=>!t.category||t.category==='Procesando...'||t.category==='Otros')
+        .filter(t=>!t.category||t.category==='Procesando...'||t.category==='Otros'||t.category==='Uncategorized')
         .sort((a,b)=>new Date(b.date)-new Date(a.date))
         .map(t=>t.id);
 
@@ -153,7 +153,7 @@ function qrNav(dir){
 function updateQrBadge(){
   const badge = document.getElementById('qr-badge');
   if(!badge) return;
-  const n = state.transactions.filter(t=>!t.category||t.category==='Procesando...').length;
+  const n = state.transactions.filter(t=>!t.category||t.category==='Procesando...'||t.category==='Uncategorized').length;
   if(n>0){ badge.style.display='block'; badge.textContent=n; }
   else { badge.style.display='none'; }
 }

@@ -218,7 +218,7 @@ function reApplySuggestionsAll(){
     t.comercio_detectado=detectComercio(t.description)||t.comercio_detectado;
     const sug=suggestCategory(t.description);
     t.cat_sugerida=sug.category;t.cat_motivo=sug.reason;t.cat_source=sug.source;
-    if(t.category==='Otros'||t.category==='Procesando...'||!t.category){
+    if(t.category==='Otros'||t.category==='Procesando...'||t.category==='Uncategorized'||!t.category){
       t.category=sug.category;count++;
     }
   });

@@ -602,7 +602,7 @@ function getWeeklyData(txns){
 function getCatData(txns,byGroup){
   txns=txns||state.transactions;
   const c={};
-  txns.filter(t=>t.category&&t.category!=='Procesando...').forEach(t=>{
+  txns.filter(t=>t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized').forEach(t=>{
     const amt=t.currency==='USD'?t.amount*USD_TO_ARS:t.amount;
     const key=byGroup?catGroup(t.category):t.category;
     c[key]=(c[key]||0)+amt;
@@ -715,7 +715,7 @@ function renderCatBars(monthTxns){
   // Group by parent category
   const grouped={};
   CATEGORY_GROUPS.forEach(g=>{grouped[g.group]={total:0,color:g.color,emoji:g.emoji};});
-  txns.filter(t=>t.category&&t.category!=='Procesando...').forEach(t=>{
+  txns.filter(t=>t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized').forEach(t=>{
     const amt=t.currency==='USD'?t.amount*USD_TO_ARS:t.amount;
     const parent=catGroup(t.category);
     if(!grouped[parent])grouped[parent]={total:0,color:'#888',emoji:''};

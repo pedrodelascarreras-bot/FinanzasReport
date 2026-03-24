@@ -116,7 +116,7 @@ function renderTransactions(){
       tcf.innerHTML='<option value="">Ciclo actual</option>'+cycles.map(c=>'<option value="'+c.id+'" '+(c.id===tcv?'selected':'')+'>'+esc(c.label)+'</option>').join('');
     } else { tcf.innerHTML='<option value="">Sin ciclos</option>'; }
   }
-  const cats=[...new Set(state.transactions.map(t=>t.category))].filter(c=>c&&c!=='Procesando...').sort();
+  const cats=[...new Set(state.transactions.map(t=>t.category))].filter(c=>c&&c!=='Procesando...'&&c!=='Uncategorized').sort();
   const cf=document.getElementById('f-cat');const cv=cf?.value||'';
   if(cf){
     let fHtml='<option value="">Todas las categorías</option>';
@@ -214,7 +214,7 @@ function renderTransactions(){
   // ── Filtro de estado (solo si NO estamos en modo duplicados) ──
   const estadoF = state.txnEstadoFilter||'all';
   if(estadoF==='sin_categoria'){
-    txns = txns.filter(t=>!t.category||t.category==='Procesando...');
+    txns = txns.filter(t=>!t.category||t.category==='Procesando...'||t.category==='Uncategorized');
   }
 
   txns.sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -227,7 +227,7 @@ function renderTransactions(){
   })();
   const _dupKeysForCount = getDuplicateAmountKeys();
   const estadoCounts = {
-    sin_categoria: allPeriodTxns.filter(t=>!t.category||t.category==='Procesando...').length,
+    sin_categoria: allPeriodTxns.filter(t=>!t.category||t.category==='Procesando...'||t.category==='Uncategorized').length,
     duplicado_sospechoso: _dupKeysForCount.size>0?allPeriodTxns.filter(t=>_dupKeysForCount.has(txnDupKey(t))).length:0,
   };
 

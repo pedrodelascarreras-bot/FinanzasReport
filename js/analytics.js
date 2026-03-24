@@ -73,7 +73,7 @@ function renderTendencia(){
   const parentTotals={};const parentSubTotals={};
   CATEGORY_GROUPS.forEach(g=>{parentTotals[g.group]=0;parentSubTotals[g.group]={};g.subs.forEach(s=>{parentSubTotals[g.group][s]=0;});});
   activeKeys.forEach(k=>{
-    getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...').forEach(t=>{
+    getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized').forEach(t=>{
       const parent=catGroup(t.category);
       parentTotals[parent]=(parentTotals[parent]||0)+t.amount;
       if(!parentSubTotals[parent])parentSubTotals[parent]={};
