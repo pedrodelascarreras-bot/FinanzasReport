@@ -178,13 +178,13 @@ function renderTendencia(){
   } else if(tendMode==='line'&&ctx1){
     // VISTA 2: Evolución temporal por categoría
     chartTitle.textContent='Evolución por categoría';
-    chartSub.textContent='Top '+Math.min(activeParents.length,8)+' categorías · '+activeKeys.length+' períodos';
-    const lineLabels=activeKeys.map(k=>getTendPeriodLabel(k));
+    chartSub.textContent='Top '+Math.min(activeParents.length,8)+' categorías · '+keys.length+' períodos';
+    const lineLabels=keys.map(k=>getTendPeriodLabel(k));
     const lineCats=activeParents.slice(0,8);
     const datasets=lineCats.map(([parent])=>{
       const grp=CATEGORY_GROUPS.find(g=>g.group===parent);
       const c=grp?grp.color:'#888';
-      return{label:grp?grp.emoji+' '+parent:parent,data:activeKeys.map(k=>getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&grp?.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0)),borderColor:c,backgroundColor:c+'18',borderWidth:2,fill:false,tension:0.35,pointRadius:3,pointBackgroundColor:c,pointBorderColor:'#fff',pointBorderWidth:1.5};
+      return{label:grp?grp.emoji+' '+parent:parent,data:keys.map(k=>getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&grp?.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0)),borderColor:c,backgroundColor:c+'18',borderWidth:2,fill:false,tension:0.35,pointRadius:3,pointBackgroundColor:c,pointBorderColor:'#fff',pointBorderWidth:1.5};
     });
     state.charts.tendMain=new Chart(ctx1,{
       type:'line',data:{labels:lineLabels,datasets},

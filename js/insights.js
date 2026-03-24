@@ -1,12 +1,10 @@
 // ══ INSIGHTS ENGINE ══
 // Análisis financiero local — sin IA, instantáneo, 100% basado en datos reales
 
-let _insightTab = 'general';
-
 // ── Entry point ──────────────────────────────────────────
 function generateInsights() {
   const txns = (state.transactions||[]).filter(t => !t.isPendingCuota);
-  const emptyEl  = document.getElementById('insights-empty');
+  const emptyEl   = document.getElementById('insights-empty');
   const contentEl = document.getElementById('insights-content');
   if(!txns.length) {
     if(emptyEl)  emptyEl.style.display = 'flex';
@@ -18,17 +16,13 @@ function generateInsights() {
 
   const data = _computeInsightsData();
   _renderScoreCard(data);
-  setInsightTab(_insightTab || 'general');
+  _renderInsightsChart(data);
+  _renderAllInsightSections(data);
+  showToast('✓ Insights actualizados','success');
 }
 
-function setInsightTab(tab) {
-  _insightTab = tab;
-  ['general','ahorro','cuidado','economia'].forEach(t => {
-    const btn = document.getElementById('ins-tab-' + t);
-    if(btn) btn.classList.toggle('active', t === tab);
-  });
-  _renderInsightCards();
-}
+// Legacy stub kept for any old callers
+function setInsightTab(tab) { generateInsights(); }
 
 // ── Data computation ──────────────────────────────────────
 function _computeInsightsData() {
@@ -63,12 +57,14 @@ function _computeInsightsData() {
   const maxDayAmt=Math.max(...dayTotals);
   const topDay=maxDayAmt>0?dayTotals.indexOf(maxDayAmt):-1;
 
-  // Income (sumamos fuentes activas)
-  const incomeARS=(state.incomeSources||[]).reduce((s,src)=>{
-    if(src.active===false)return s;
-    const monthly=src.freq==='annual'?(src.amount/12):src.amount;
-    return s+(src.currency==='USD'?monthly*(USD_TO_ARS||1500):monthly);
-  },0)||(state.income?.ars||0);
+  // Income — ARS + USD converted, from incomeSources or legacy income object
+  const incomeARS = (state.incomeSources||[]).length
+    ? (state.incomeSources||[]).reduce((s,src)=>{
+        if(src.active===false) return s;
+        const monthly = src.freq==='annual' ? (src.amount/12) : src.amount;
+        return s + (src.currency==='USD' ? monthly*(USD_TO_ARS||1500) : monthly);
+      }, 0)
+    : ((state.income?.ars||0) + (state.income?.usd||0)*(USD_TO_ARS||1500));
 
   const spendPct=incomeARS>0?Math.round(arsThis/incomeARS*100):null;
 
@@ -120,6 +116,7 @@ function _computeInsightsData() {
   const allMonths=[...new Set(txns.map(t=>t.month||getMonthKey(t.date)))].sort();
   const monthlyData=allMonths.map(m=>({
     month:m,
+    label:MNAMES[parseInt(m.split('-')[1])-1]+' '+m.split('-')[0].slice(2),
     total:txns.filter(t=>(t.month||getMonthKey(t.date))===m&&t.currency==='ARS').reduce((s,t)=>s+t.amount,0)
   }));
   const avgMonthly=monthlyData.length>0?monthlyData.reduce((s,m)=>s+m.total,0)/monthlyData.length:0;
@@ -158,12 +155,59 @@ function _computeInsightsData() {
   };
 }
 
+// ── Monthly Evolution Chart ───────────────────────────────
+function _renderInsightsChart(data) {
+  const ctx = document.getElementById('ins-chart');
+  const subEl = document.getElementById('ins-chart-sub');
+  if(!ctx) return;
+
+  if(window._insChart) { try{window._insChart.destroy();}catch(e){} }
+
+  const months = data.monthlyData.slice(-12); // last 12 months
+  if(months.length < 2) { ctx.parentElement.style.display='none'; return; }
+  ctx.parentElement.style.display='block';
+
+  const labels = months.map(m=>m.label);
+  const values = months.map(m=>m.total);
+  const avg    = data.avgMonthly;
+  const isL    = typeof _isL==='function'?_isL():false;
+
+  // Color bars: red if above avg, green if below
+  const barColors = values.map(v=>v>avg*1.1?'rgba(255,59,48,0.75)':v<avg*0.9?'rgba(52,199,89,0.75)':'rgba(0,122,255,0.65)');
+
+  if(subEl) subEl.textContent = `Últimos ${months.length} meses · Promedio $${fmtN(Math.round(avg))}/mes`;
+
+  window._insChart = new Chart(ctx, {
+    type:'bar',
+    data:{
+      labels,
+      datasets:[
+        {label:'Gasto ARS', data:values, backgroundColor:barColors, borderRadius:5, borderSkipped:false, order:2},
+        {label:'Promedio', data:values.map(()=>avg), type:'line', borderColor:'rgba(160,154,148,0.5)', borderWidth:1.5,
+         borderDash:[5,4], pointRadius:0, fill:false, tension:0, order:1}
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{
+        legend:{display:false},
+        tooltip:{backgroundColor:'#1c1a18',titleColor:'#f0ebe6',bodyColor:'#a09a94',borderColor:'#2e2b28',borderWidth:1,padding:10,
+          callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y)):' $'+fmtN(Math.round(c.parsed.y))}}
+      },
+      scales:{
+        x:{ticks:{color:isL?'#86868b':'#7a7470',font:{size:10}}, grid:{display:false}},
+        y:{ticks:{color:isL?'#86868b':'#7a7470',font:{size:10},callback:v=>'$'+fmtN(v)},
+           grid:{color:isL?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.05)'}}
+      }
+    }
+  });
+}
+
 // ── Health score ──────────────────────────────────────────
 function _getHealthScore(data) {
   let score=100;
   const factors=[];
 
-  // Factor 1: Budget utilization (40 pts)
   if(data.spendPct!==null){
     const pts=data.spendPct<=70?40:data.spendPct<=85?28:data.spendPct<=100?14:0;
     score-=(40-pts);
@@ -171,22 +215,16 @@ function _getHealthScore(data) {
   } else {
     factors.push({label:'Presupuesto',value:'Sin ingreso',pct:50,color:'var(--text3)'});
   }
-
-  // Factor 2: MoM trend (25 pts)
   if(data.momChange!==null){
     const pts=data.momChange<=-5?25:data.momChange<=5?20:data.momChange<=20?10:0;
     score-=(25-pts);
     factors.push({label:'Tendencia',value:(data.momChange>0?'+':'')+data.momChange+'%',pct:data.momChange<=0?100:Math.max(0,100-data.momChange*4),color:data.momChange<=0?'var(--accent2)':data.momChange<=15?'var(--accent3)':'var(--danger)'});
   }
-
-  // Factor 3: Cuota burden (20 pts)
   if(data.cuotasPct!==null){
     const pts=data.cuotasPct<=15?20:data.cuotasPct<=30?12:0;
     score-=(20-pts);
     factors.push({label:'Cuotas',value:data.cuotasPct+'% ingreso',pct:Math.max(0,100-data.cuotasPct*2.5),color:data.cuotasPct<=15?'var(--accent2)':data.cuotasPct<=30?'var(--accent3)':'var(--danger)'});
   }
-
-  // Factor 4: Fixed burden (15 pts)
   if(data.fixedPct!==null){
     const pts=data.fixedPct<=40?15:data.fixedPct<=60?8:0;
     score-=(15-pts);
@@ -209,7 +247,7 @@ function _renderScoreCard(data) {
   const circumference=2*Math.PI*40;
   const offset=circumference-(score/100)*circumference;
   const arc=document.getElementById('score-arc');
-  if(arc){arc.style.stroke=scoreColor;setTimeout(()=>{arc.style.strokeDashoffset=offset;},100);}
+  if(arc){arc.style.strokeDashoffset=circumference;arc.style.stroke=scoreColor;setTimeout(()=>{arc.style.strokeDashoffset=offset;},100);}
   const numEl=document.getElementById('score-number');
   if(numEl){numEl.textContent=score;numEl.setAttribute('fill',scoreColor);}
   const labelEl=document.getElementById('score-label');
@@ -233,20 +271,38 @@ function _renderScoreCard(data) {
   if(subEl)subEl.textContent='Salud financiera: '+label+' · '+new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
 }
 
-// ── Cards render ──────────────────────────────────────────
-function _renderInsightCards() {
-  const data=_computeInsightsData();
-  const grid=document.getElementById('insights-grid');
-  if(!grid)return;
-  const cards=_buildCards(data,_insightTab);
-  if(!cards.length){
-    grid.innerHTML='<div style="grid-column:1/-1;color:var(--text3);font-size:13px;text-align:center;padding:32px;">No hay suficientes datos para este análisis todavía.</div>';
-    return;
-  }
-  grid.innerHTML=cards.map(c=>_cardHTML(c)).join('');
+// ── Render ALL sections expanded ──────────────────────────
+function _renderAllInsightSections(data) {
+  const grid = document.getElementById('insights-grid');
+  if(!grid) return;
+
+  const SECTIONS = [
+    { key:'general',  emoji:'📊', title:'General',        desc:'Resumen del mes en curso' },
+    { key:'ahorro',   emoji:'💰', title:'Ahorro',          desc:'Proyección y oportunidades de ahorro' },
+    { key:'cuidado',  emoji:'🛡', title:'Cuidá tu plata',  desc:'Cuotas, fijos y compromisos' },
+    { key:'economia', emoji:'📈', title:'Economía',        desc:'Contexto macro y tendencias' },
+  ];
+
+  grid.innerHTML = SECTIONS.map(sec => {
+    const cards = _buildCards(data, sec.key);
+    const cardsHtml = cards.length
+      ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:12px;">${cards.map(c=>_cardHTML(c)).join('')}</div>`
+      : `<div style="color:var(--text3);font-size:13px;padding:20px 0;">No hay suficientes datos para este análisis todavía.</div>`;
+    return `
+      <div class="ins-section-block">
+        <div class="ins-section-hdr">
+          <span class="ins-section-ico">${sec.emoji}</span>
+          <div>
+            <div class="ins-section-ttl">${sec.title}</div>
+            <div class="ins-section-dsc">${sec.desc}</div>
+          </div>
+        </div>
+        ${cardsHtml}
+      </div>`;
+  }).join('');
 }
 
-// ── Build cards per tab ───────────────────────────────────
+// ── Build cards per section ───────────────────────────────
 function _buildCards(data,tab) {
   const fmtM=n=>'$'+fmtN(Math.round(n));
   const MNAMES=data.MNAMES;
@@ -321,12 +377,12 @@ function _buildCards(data,tab) {
       cards.push({type:data.momChange>10?'warn':data.momChange<-5?'good':'info',
         emoji:data.momChange<0?'📉':'📈',tag:'VARIACIÓN MES A MES',
         headline:`Gastaste ${data.momChange>0?'+':''}${data.momChange}% ${data.momChange>=0?'más':'menos'} que el mes pasado`,
-        body:`Este mes: <strong>${fmtM(data.arsThis)}</strong> · Anterior: <strong>${fmtM(data.arsPrev)}</strong>. ${data.momChange>15?'El aumento es significativo. Identificá qué categoría subió más.':data.momChange<-5?'¡Muy bien! Vas en la dirección correcta.':'Gasto estable.'}`});
+        body:`Este mes: <strong>${fmtM(data.arsThis)}</strong> · Anterior: <strong>${fmtM(data.arsPrev)}</strong>. ${data.momChange>15?'El aumento es significativo.':data.momChange<-5?'¡Muy bien! Vas en la dirección correcta.':'Gasto estable.'}`});
     }
     if(data.subsTotal>0){
       cards.push({type:'info',emoji:'📱',tag:'SUSCRIPCIONES',
         headline:`Pagás ${fmtM(data.subsTotal)}/mes en suscripciones`,
-        body:`Revisá regularmente si usás todos tus servicios.${data.incomeARS>0?` Representan el ${Math.round(data.subsTotal/data.incomeARS*100)}% de tu ingreso.`:''} Cada suscripción que no usás es dinero que podés ahorrar.`});
+        body:`Revisá regularmente si usás todos tus servicios.${data.incomeARS>0?` Representan el ${Math.round(data.subsTotal/data.incomeARS*100)}% de tu ingreso.`:''} Cada suscripción sin uso es dinero que podés ahorrar.`});
     }
     if(data.largestTxn){
       cards.push({type:'info',emoji:'🧾',tag:'MAYOR GASTO',

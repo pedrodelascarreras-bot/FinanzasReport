@@ -117,52 +117,136 @@ async function processPdf(file) {
 function parseSantanderText(text) {
   const lines = text.split('\n');
   const txns = [];
-  // Typical Santander format: "12/03 ESTABLECIMIENTO CUALQUIERA 03/12 1.500,00"
-  // Or: "12/03 ESTABLECIMIENTO CUALQUIERA 1.500,00 5,00" (ARS USD)
-  const regex = /^(\d{2}\/\d{2})\s+(.+?)(?:\s+(\d{2}\/\d{2}))?\s+([\d\.,\-]+)(?:\s+([\d\.,\-]+))?$/;
-  
-  for(let line of lines) {
-    line = line.trim().replace(/\s{2,}/g, ' '); // normalize spaces
-    const match = line.match(regex);
-    if(match) {
-      const dateStr = match[1]; // "DD/MM"
-      let desc = match[2];
-      const quotaStr = match[3]; // "03/12" optional
-      const arsStr = match[4];
-      const usdStr = match[5];
-      
-      // Parse amount (Santander uses . for thousands and , for decimals)
-      const parseAmt = (s) => {
-        if(!s || s==='-') return 0;
-        let v = s.replace(/\./g, '').replace(',', '.');
-        return parseFloat(v) || 0;
-      };
-      
-      let amountARS = parseAmt(arsStr);
-      let amountUSD = parseAmt(usdStr);
-      
-      // Heuristic fix: sometimes dates match at the end
-      if(desc.length > 5 && amountARS !== 0) {
-        let cuotas = null;
-        if(quotaStr) cuotas = quotaStr;
-        else if(desc.match(/\d{2}\/\d{2}$/)) {
-          // quota might be stuck at the end of desc
-          const m = desc.match(/(\d{2}\/\d{2})$/);
-          cuotas = m[1];
-          desc = desc.replace(/\d{2}\/\d{2}$/, '').trim();
-        }
-        
+
+  const MONTHS = {
+    ene:1, enero:1, jan:1, feb:2, febrero:2, mar:3, marzo:3,
+    abr:4, abril:4, apr:4, may:5, mayo:5, jun:6, junio:6,
+    jul:7, julio:7, ago:8, agosto:8, aug:8, sep:9, septiembre:9,
+    oct:10, octubre:10, nov:11, noviembre:11, dic:12, diciembre:12
+  };
+
+  const parseAmt = (s) => {
+    if(!s || s==='-') return 0;
+    return parseFloat(s.replace(/\./g,'').replace(',','.')) || 0;
+  };
+
+  const isBankFeeLine = (l) =>
+    /impuesto de sellos/i.test(l) || /iibb percep/i.test(l) ||
+    /iva rg \d/i.test(l) || /db\.rg \d/i.test(l) ||
+    /mantenimiento/i.test(l);
+
+  const isPaymentLine = (l) =>
+    /su pago en pesos/i.test(l) || /su pago en d[oó]lares/i.test(l);
+
+  // Pattern: "26 Feb 19 0002789842 K[/*] DESCRIPTION [C.N/T] 1.234,56 [20,00]"
+  // Supports both Spanish abbreviated months (Feb) and numeric dates (DD/MM fallback)
+  const TXN_RE = /^(\d{2})\s+(ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)[a-záéíóú]*\s+(\d{1,2})\s+\d{4,12}\s+[Kk]\/?[*]?\s*(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
+  // Fallback pattern for old "DD/MM" format
+  const OLD_RE = /^(\d{2})\/(\d{2})\s+(.+?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/;
+
+  for(let rawLine of lines) {
+    const line = rawLine.trim().replace(/\s{2,}/g,' ');
+    if(!line) continue;
+
+    // ── Bank fee lines ─────────────────────────────────
+    if(isBankFeeLine(line)) {
+      const amtM = line.match(/([\d\.]+,\d{2})$/);
+      if(amtM) {
+        const desc = line.replace(/([\d\.]+,\d{2})$/, '').trim();
         txns.push({
-          id: 'pdf_' + Date.now() + Math.random().toString(36).substr(2,5),
-          rawDate: dateStr,
+          id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
+          rawDate: null, isoDate: null,
           rawDesc: desc,
-          amountARS,
-          amountUSD,
-          cuotas
+          amountARS: parseAmt(amtM[1]),
+          amountUSD: 0,
+          cuotas: null,
+          isBankFee: true,
+          isPayment: false
+        });
+      }
+      continue;
+    }
+
+    // ── Payment lines ──────────────────────────────────
+    if(isPaymentLine(line)) {
+      const amtM = line.match(/-?([\d\.]+,\d{2})$/);
+      if(amtM) {
+        const isUSD = /d[oó]lares/i.test(line);
+        txns.push({
+          id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
+          rawDate: null, isoDate: null,
+          rawDesc: line.replace(/-?([\d\.]+,\d{2})$/, '').trim(),
+          amountARS: isUSD ? 0 : parseAmt(amtM[1]),
+          amountUSD: isUSD ? parseAmt(amtM[1]) : 0,
+          cuotas: null,
+          isBankFee: false,
+          isPayment: true
+        });
+      }
+      continue;
+    }
+
+    // ── New Santander format: YY MON DD comprobante K/ DESCRIPTION amt [usd] ──
+    const m = line.match(TXN_RE);
+    if(m) {
+      const yy = parseInt(m[1]);
+      const monStr = m[2].toLowerCase().slice(0,3);
+      const dd = parseInt(m[3]);
+      let desc = (m[4]||'').trim();
+      const amtStr1 = m[5], amtStr2 = m[6];
+      const mm = MONTHS[monStr];
+      if(!mm) continue;
+      const yyyy = 2000 + yy;
+      const isoDate = `${yyyy}-${String(mm).padStart(2,'0')}-${String(dd).padStart(2,'0')}`;
+
+      // Extract cuota notation C.N/T from end of description
+      let cuotas = null;
+      const cuotaM = desc.match(/\s+C\.(\d+)\/(\d+)$/i);
+      if(cuotaM) {
+        cuotas = `${cuotaM[1]}/${cuotaM[2]}`;
+        desc = desc.replace(/\s+C\.\d+\/\d+$/i,'').trim();
+      }
+
+      // Determine ARS vs USD amounts
+      let amountARS = parseAmt(amtStr1);
+      let amountUSD = amtStr2 ? parseAmt(amtStr2) : 0;
+
+      txns.push({
+        id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
+        rawDate: `${String(dd).padStart(2,'0')}/${String(mm).padStart(2,'0')}`,
+        isoDate,
+        rawDesc: desc,
+        amountARS, amountUSD,
+        cuotas,
+        isBankFee: false,
+        isPayment: false
+      });
+      continue;
+    }
+
+    // ── Fallback: old DD/MM format ──────────────────────
+    const fo = line.match(OLD_RE);
+    if(fo) {
+      const dd2 = fo[1], mm2 = fo[2];
+      let desc2 = fo[3], amt1 = fo[4], amt2 = fo[5];
+      let cuotas2 = null;
+      const cM2 = desc2.match(/\s+C\.(\d+)\/(\d+)$/i) || desc2.match(/\s+(\d{2})\/(\d{2})$/);
+      if(cM2) { cuotas2 = `${cM2[1]}/${cM2[2]}`; desc2 = desc2.replace(cM2[0],'').trim(); }
+      if(desc2.length > 2 && parseAmt(amt1) !== 0) {
+        txns.push({
+          id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
+          rawDate: `${dd2}/${mm2}`, isoDate: null,
+          rawDesc: desc2,
+          amountARS: parseAmt(amt1),
+          amountUSD: parseAmt(amt2),
+          cuotas: cuotas2,
+          isBankFee: false,
+          isPayment: false
         });
       }
     }
   }
+
   cccState.pdfTxns = txns;
 }
 

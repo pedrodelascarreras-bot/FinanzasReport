@@ -257,6 +257,13 @@ function renderCcActiveCycle(){
 
   const noGastosHtml='<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">Sin gastos en este ciclo</div>';
 
+  // Due date
+  const countdown = ccCountdown(ccState?.dueDate);
+
+  // Paid history
+  const paidCycles = (state.ccCycles||[]).filter(c => c.cardId === cardId && c.status === 'paid');
+  const paidHistoryHtml = paidCycles.length ? _ccBuildPaidHistoryHtml(cardId, paidCycles, tcCycles) : '';
+
   activeEl.innerHTML=`
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;">
       <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
@@ -265,9 +272,13 @@ function renderCcActiveCycle(){
             ${statusBadge}
             ${card?'<span style="font-size:11px;font-weight:700;color:'+card.color+';background:'+card.color+'15;padding:2px 8px;border-radius:6px;">'+esc(card.name)+'</span>':''}
           </div>
-          <div style="margin-top:8px;font-size:13px;color:var(--text3);display:flex;flex-wrap:wrap;gap:12px;">
+          <div style="margin-top:8px;font-size:13px;color:var(--text3);display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
             <span>Apertura: <strong style="color:var(--text);">${ccFmtDate(openDate)}</strong></span>
             <span>Cierre: <strong style="color:var(--text);">${ccFmtDate(activeTcCycle.closeDate)}</strong></span>
+            ${ccState.dueDate
+              ? `<span>Vencimiento: <strong style="color:${countdown.overdue?'var(--red)':countdown.urgent?'var(--orange)':'var(--text)'}">${ccFmtDate(ccState.dueDate)}</strong>&nbsp;<span style="font-size:10px;font-weight:600;color:${countdown.overdue?'var(--red)':countdown.urgent?'var(--orange)':'var(--text3)'};">(${countdown.text})</span></span>`
+              : `<button onclick="ccSetDueDate('${activeTcCycle.id}')" style="background:none;border:1px dashed var(--border);border-radius:6px;padding:3px 9px;cursor:pointer;color:var(--text3);font-size:11px;font-family:var(--font);transition:border-color .12s,color .12s;" onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--text3)'" onmouseout="this.style.color='var(--text3)';this.style.borderColor='var(--border)'">📅 + Vencimiento</button>`
+            }
           </div>
         </div>
         ${actionBtns}
@@ -329,10 +340,75 @@ function renderCcActiveCycle(){
         </div>
       </div>
     </div>
+    ${paidHistoryHtml}
   `;
 }
 
+// ── Paid History HTML builder ──
+function _ccBuildPaidHistoryHtml(cardId, paidCycles, tcCycles) {
+  const rows = paidCycles.map(pc => {
+    const tc = tcCycles.find(c => c.id === pc.tcCycleId);
+    if(!tc) return '';
+    const pidx = tcCycles.findIndex(c => c.id === pc.tcCycleId);
+    const pOpen = getTcCycleOpen(tcCycles, pidx);
+    const pExp = ccGetCycleExpenses(cardId, pc.tcCycleId);
+    const pTot = ccGetTotals(pExp);
+    const isViewing = window._ccViewCycle[cardId] === pc.tcCycleId;
+    const dueTxt = pc.dueDate ? ccFmtDate(pc.dueDate) : '—';
+    return `<div onclick="ccSelectViewCycle('${pc.tcCycleId}')"
+      style="padding:12px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);cursor:pointer;background:${isViewing?'rgba(52,199,89,0.07)':'transparent'};transition:background .12s;"
+      onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${isViewing?'rgba(52,199,89,0.07)':'transparent'}'">
+      <span style="font-size:18px;color:var(--green-sys);">✓</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:13px;font-weight:700;color:var(--text);">${esc(tc.label)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">${ccFmtDate(pOpen)} → ${ccFmtDate(tc.closeDate)}${pc.dueDate?' · Vto. '+dueTxt:''}</div>
+      </div>
+      <div style="text-align:right;">
+        <div style="font-size:13px;font-weight:700;color:var(--accent);font-family:var(--font);">$${fmtN(Math.round(pTot.ars))}</div>
+        ${pTot.usd>0?`<div style="font-size:11px;color:var(--accent2);">U$D ${fmtN(pTot.usd)}</div>`:''}
+      </div>
+    </div>`;
+  }).join('');
 
+  return `<div id="cc-paid-history-wrap" style="margin-top:10px;background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;">
+    <div onclick="ccTogglePaidHistory()" style="padding:14px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;">
+      <div style="display:flex;align-items:center;gap:8px;">
+        <span style="font-size:14px;color:var(--green-sys);">✓</span>
+        <span style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);">Historial de pagos (${paidCycles.length})</span>
+      </div>
+      <span id="cc-hist-arrow" style="font-size:12px;color:var(--text3);transition:transform .15s;">▾</span>
+    </div>
+    <div id="cc-paid-history-body" style="border-top:1px solid var(--border);">${rows}</div>
+  </div>`;
+}
+
+// ── Set due date ──
+function ccSetDueDate(tcCycleId) {
+  const cardId = state.ccActiveCard || state.ccCards[0]?.id;
+  let ccState = state.ccCycles.find(c => c.cardId === cardId && c.tcCycleId === tcCycleId);
+  const current = ccState?.dueDate || '';
+  const date = prompt('Fecha de vencimiento (YYYY-MM-DD):', current);
+  if(date === null) return;
+  if(date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) { showToast('⚠️ Formato inválido. Usá YYYY-MM-DD','error'); return; }
+  if(!ccState) {
+    ccState = {id:tcCycleId+'_'+cardId, cardId, tcCycleId, status:'pending', manualExpenses:[], excludedIds:[]};
+    state.ccCycles.push(ccState);
+  }
+  ccState.dueDate = date || null;
+  saveState();
+  renderCcActiveCycle();
+  showToast(date ? '✓ Vencimiento guardado' : 'Vencimiento eliminado','success');
+}
+
+// ── Toggle paid history ──
+function ccTogglePaidHistory() {
+  const body = document.getElementById('cc-paid-history-body');
+  const arrow = document.getElementById('cc-hist-arrow');
+  if(!body) return;
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  if(arrow) { arrow.style.transform = open ? '' : 'rotate(-90deg)'; }
+}
 
 
 
