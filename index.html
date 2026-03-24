@@ -1505,71 +1505,24 @@
 
   <div id="cc-compare-content" class="fade-up d1">
     <div class="card" style="padding:24px;">
-    <!-- Uploader Area -->
-    <div id="ccc-upload-area" style="border:2px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all 0.2s ease;">
-      <div style="font-size:32px;margin-bottom:12px;">📄</div>
-      <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">Subir resumen PDF</div>
-      <div style="font-size:13px;color:var(--text3);">Hacé clic o arrastrá tu resumen bancario de Santander aquí.</div>
-      <input type="file" id="ccc-file-input" accept="application/pdf" style="display:none;">
+      <!-- Uploader Area -->
+      <div id="ccc-upload-area" style="border:2px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all 0.2s ease;">
+        <div style="font-size:32px;margin-bottom:12px;">📄</div>
+        <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">Subir resumen PDF</div>
+        <div style="font-size:13px;color:var(--text3);">Hacé clic o arrastrá tu resumen bancario de Santander aquí.</div>
+        <input type="file" id="ccc-file-input" accept="application/pdf" style="display:none;">
+      </div>
+
+      <!-- State: Loading -->
+      <div id="ccc-loading" style="display:none;text-align:center;padding:40px 20px;">
+        <div class="spinner" style="margin:0 auto 16px;"></div>
+        <div style="font-size:14px;color:var(--text3);">Analizando extracto inteligente...</div>
+      </div>
+
+      <!-- Results Area (Injected by JS) -->
+      <div id="ccc-results-area" style="display:none;margin-top:24px;"></div>
     </div>
-
-    <!-- State: Loading -->
-    <div id="ccc-loading" style="display:none;text-align:center;padding:40px 20px;">
-      <div class="spinner" style="margin:0 auto 16px;"></div>
-      <div style="font-size:14px;color:var(--text3);">Analizando extracto inteligente...</div>
-    </div>
-
-    <!-- Results Area (hidden until parsed) -->
-    <div id="ccc-results-area" style="display:none;margin-top:24px;">
-      <!-- KPIs -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;">
-        <div style="background:var(--surface2);padding:16px;border-radius:12px;border:1px solid var(--border);">
-          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;margin-bottom:4px;">MOVIMIENTOS PDF</div>
-          <div style="font-size:24px;font-weight:700;color:var(--text);" id="ccc-kpi-total">0</div>
-        </div>
-        <div style="background:var(--green-sys)15;padding:16px;border-radius:12px;border:1px solid var(--green-sys)30;">
-          <div style="font-size:11px;font-weight:700;color:var(--green-sys);text-transform:uppercase;margin-bottom:4px;">CONCILIADOS</div>
-          <div style="font-size:24px;font-weight:700;color:var(--green-sys);" id="ccc-kpi-conc">0</div>
-        </div>
-        <div style="background:var(--warning-sys)15;padding:16px;border-radius:12px;border:1px solid var(--warning-sys)30;">
-          <div style="font-size:11px;font-weight:700;color:var(--warning-sys);text-transform:uppercase;margin-bottom:4px;">DIFERENCIAS</div>
-          <div style="font-size:24px;font-weight:700;color:var(--warning-sys);" id="ccc-kpi-diff">0</div>
-        </div>
-        <div style="background:var(--danger)15;padding:16px;border-radius:12px;border:1px solid var(--danger)30;">
-          <div style="font-size:11px;font-weight:700;color:var(--danger);text-transform:uppercase;margin-bottom:4px;">HUÉRFANOS PDF</div>
-          <div style="font-size:24px;font-weight:700;color:var(--danger);" id="ccc-kpi-orphan">0</div>
-        </div>
-      </div>
-
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
-        <div style="font-size:16px;font-weight:700;">Detalle de la conciliación</div>
-        <div style="display:flex;gap:8px;">
-          <button class="btn btn-secondary" onclick="cccImportAllFees()" title="Importar todos los impuestos detectados">📥 Importar Impuestos</button>
-          <button class="btn btn-primary" onclick="cccSaveSession()">Guardar progreso</button>
-        </div>
-      </div>
-
-      <!-- Table -->
-      <div class="table-container">
-        <table class="table" style="font-size:13px;">
-          <thead>
-            <tr>
-              <th style="width:110px;">ESTADO</th>
-              <th style="width:70px;">FECHA</th>
-              <th>DESCRIPCIÓN ORIGINAL (PDF)</th>
-              <th style="text-align:right;">MONTO PDF</th>
-              <th>VINCULACIÓN (APP)</th>
-              <th style="text-align:right;">DIFERENCIA</th>
-              <th style="width:140px;text-align:center;">ACCIONES</th>
-            </tr>
-          </thead>
-          <tbody id="ccc-table-body">
-            <!-- Renderizado via JS -->
-          </tbody>
-        </table>
-      </div>
-      </div>
-    </div>
+  </div>
   </div>
 </div>
 

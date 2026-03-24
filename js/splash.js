@@ -8,9 +8,6 @@
   function initSplash(){
     if(!state.transactions||!state.transactions.length) return;
 
-    const today = new Date().toISOString().slice(0,10);
-    if(localStorage.getItem('fin_splash_last') === today) return;
-
     const el = document.getElementById('splash');
     if(!el) return;
 
@@ -36,7 +33,6 @@
     const el = document.getElementById('splash');
     if(!el || !el.classList.contains('visible')) return;
 
-    localStorage.setItem('fin_splash_last', new Date().toISOString().slice(0,10));
 
     if(el._interval) clearInterval(el._interval);
     if(el._kd)       document.removeEventListener('keydown', el._kd);

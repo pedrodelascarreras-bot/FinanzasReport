@@ -75,6 +75,11 @@ function _computeInsightsData() {
     // Legacy: include BOTH ARS and USD income
     incomeARS = ((state.income?.ars||0) + (state.income?.varArs||0)) + ((state.income?.usd||0) + (state.income?.varUsd||0))*(USD_TO_ARS||1500);
   }
+  
+  // Ensure we don't have 0 income if we have sources (fallback)
+  if(incomeARS <= 0 && (state.incomeSources||[]).length) {
+    incomeARS = state.incomeSources.reduce((s,src)=> s + (src.currency==='USD' ? src.amount*(USD_TO_ARS||1500) : src.amount), 0);
+  }
 
   const spendPct=incomeARS>0?Math.round(arsThis/incomeARS*100):null;
 
@@ -88,9 +93,25 @@ function _computeInsightsData() {
   const daysWithout=daysPassed-daysWithSpending;
   const momChange=arsPrev>0?Math.round((arsThis-arsPrev)/arsPrev*100):null;
 
-  // Cuotas
-  const cuotasTxns=monthTxns.filter(t=>t.cuotaNum);
-  const cuotasTotal=cuotasTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  // Cuotas (Installments) — Sum physical payments + upcoming/manual ones
+  const cuotasTxns=monthTxns.filter(t=>t.cuotaNum || t.cuotaGroupId);
+  let cuotasTotal=cuotasTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  
+  // Supplement with detectable quotas not yet paid this month
+  try {
+    const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
+    autoGroups.forEach(g=>{
+      const alreadyPaid = monthTxns.some(t => t.cuotaGroupId === g.key || (t.description.includes(g.name) && t.amount === g.amount));
+      if(!alreadyPaid) cuotasTotal += (g.currency === 'USD' ? g.amount * (USD_TO_ARS||1500) : g.amount);
+    });
+    (state.cuotas||[]).forEach(c=>{
+       if(c.paid < c.total) {
+         const alreadyPaid = monthTxns.some(t => t.description.includes(c.name));
+         if(!alreadyPaid) cuotasTotal += (c.currency === 'USD' ? c.amount * (USD_TO_ARS||1500) : c.amount);
+       }
+    });
+  } catch(e){}
+  
   const cuotasPct=incomeARS>0?Math.round(cuotasTotal/incomeARS*100):null;
 
   // Fixed expenses
@@ -231,14 +252,23 @@ function _getHealthScore(data) {
     factors.push({label:'Tendencia',value:(data.momChange>0?'+':'')+data.momChange+'%',pct:data.momChange<=0?100:Math.max(0,100-data.momChange*4),color:data.momChange<=0?'var(--accent2)':data.momChange<=15?'var(--accent3)':'var(--danger)'});
   }
   if(data.cuotasPct!==null){
-    const pts=data.cuotasPct<=15?20:data.cuotasPct<=30?12:0;
+    const pts=data.cuotasPct<=15?20:data.cuotasPct<=30?10:data.cuotasPct<=50?5:0;
     score-=(20-pts);
-    factors.push({label:'Cuotas',value:data.cuotasPct+'% ingreso',pct:Math.max(0,100-data.cuotasPct*2.5),color:data.cuotasPct<=15?'var(--accent2)':data.cuotasPct<=30?'var(--accent3)':'var(--danger)'});
+    factors.push({label:'Cuotas',value:data.cuotasPct+'% ingreso',pct:Math.max(0,100-data.cuotasPct*2),color:data.cuotasPct<=15?'var(--accent2)':data.cuotasPct<=30?'var(--accent3)':'var(--danger)'});
   }
   if(data.fixedPct!==null){
-    const pts=data.fixedPct<=40?15:data.fixedPct<=60?8:0;
+    const pts=data.fixedPct<=35?15:data.fixedPct<=50?8:0;
     score-=(15-pts);
-    factors.push({label:'Gastos fijos',value:data.fixedPct+'% ingreso',pct:Math.max(0,100-data.fixedPct),color:data.fixedPct<=40?'var(--accent2)':data.fixedPct<=60?'var(--accent3)':'var(--danger)'});
+    factors.push({label:'Gastos fijos',value:data.fixedPct+'% ingreso',pct:Math.max(0,100-data.fixedPct*1.5),color:data.fixedPct<=35?'var(--accent2)':data.fixedPct<=50?'var(--accent3)':'var(--danger)'});
+  }
+  
+  // Penalty for overspending income
+  if(data.spendPct > 100) {
+    score -= Math.min(30, (data.spendPct - 100) * 0.5);
+  }
+  // Penalty for USD exposure if high
+  if(data.usdExposurePct > 40) {
+    score -= 5;
   }
 
   score=Math.max(10,Math.min(100,Math.round(score)));

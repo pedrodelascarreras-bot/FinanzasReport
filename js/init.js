@@ -512,24 +512,31 @@ function updateGmailBtn(status) {
     dot.style.background = 'var(--accent3)';
   } else if (status === 'connected') {
     btn.classList.add('connected');
-    label.textContent = 'Gmail · Conectado';
+    const lastSyncTag = _getLastSyncTag();
+    label.innerHTML = 'Gmail · Conectado' + (lastSyncTag ? ' · ' + lastSyncTag : '');
     dot.style.background = 'var(--accent2)';
   } else if (status === 'done') {
     btn.classList.add('connected');
-    label.textContent = 'Gmail · Sincronizado ✓';
+    const lastSyncTag = _getLastSyncTag();
+    label.innerHTML = 'Gmail · Sincronizado ✓' + (lastSyncTag ? ' · ' + lastSyncTag : '');
     dot.style.background = 'var(--accent)';
   } else {
-    // Show last sync if available
-    if (state.lastGmailSync) {
-      const d = new Date(state.lastGmailSync);
-      const time = d.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
-      const date = d.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'});
-      label.innerHTML = `Gmail · <span style="font-size:10px;opacity:0.8;font-weight:400;">u. sinc: ${date} ${time}</span>`;
+    const lastSyncTag = _getLastSyncTag();
+    if (lastSyncTag) {
+      label.innerHTML = `Gmail · ${lastSyncTag}`;
     } else {
       label.textContent = 'Gmail · Sincronizar';
     }
     dot.style.background = 'var(--text3)';
   }
+}
+
+function _getLastSyncTag() {
+  if (!state.lastGmailSync) return '';
+  const d = new Date(state.lastGmailSync);
+  const time = d.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
+  const date = d.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'});
+  return `<span style="font-size:10px;opacity:0.8;font-weight:400;">u. sinc: ${date} ${time}</span>`;
 }
 
 async function fetchSantanderEmails(dateFrom, dateTo) {

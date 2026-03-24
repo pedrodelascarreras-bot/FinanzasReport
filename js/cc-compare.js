@@ -103,6 +103,7 @@ async function processPdf(file) {
     
     parseSantanderText(fullText);
     runMatchingAlgorithm();
+    cccSmartMatch(false); // Silent smart match on first load
     renderCccResults();
     
     cccEls.loading.style.display = 'none';
@@ -112,6 +113,22 @@ async function processPdf(file) {
     cccEls.loading.style.display = 'none';
     showToast('Error procesando el PDF', 'error');
   }
+}
+
+function cccSmartMatch(notify=true) {
+  let matchedCount = 0;
+  cccState.matches.forEach(m => {
+    if(m.status === 'posible' || m.status === 'diff') {
+      // If it's a high-confidence match already, "confirm" it
+      if(m.appTxn && m.pdfTxn) {
+        m.status = 'conc';
+        matchedCount++;
+      }
+    }
+  });
+  if(notify && matchedCount > 0) showToast(`✓ ${matchedCount} vinculaciones automáticas realizadas`,'success');
+  else if(notify) showToast('No se encontraron nuevas coincidencias exactas','info');
+  if(matchedCount > 0) renderCccResults();
 }
 
 function parseSantanderText(text) {
@@ -360,79 +377,144 @@ function runMatchingAlgorithm() {
   }
 }
 
-// ── Rendering ──
 function renderCccResults() {
   let conc = 0, diff = 0, orphan = 0;
   
-  const rows = cccState.matches.map(m => {
+  // Categorize matches
+  const groups = {
+    pending: [], // orphan_pdf, orphan_app, diff, posible
+    conciliated: [], // conc, bank_fee
+    excluded: [] // excluded
+  };
+
+  cccState.matches.forEach(m => {
+    if(['orphan_pdf','orphan_app','diff','posible'].includes(m.status)) groups.pending.push(m);
+    else if(['conc','bank_fee'].includes(m.status)) groups.conciliated.push(m);
+    else groups.excluded.push(m);
+
     if(m.status === 'conc') conc++;
     else if(m.status === 'posible' || m.status === 'diff') diff++;
     else if(m.status === 'orphan_pdf' || m.status === 'orphan_app') orphan++;
-    
-    const holderHtml = m.pdfTxn && m.pdfTxn.holder && m.pdfTxn.holder !== 'Titular' 
-      ? `<div style="font-size:9px;color:var(--accent2);text-transform:uppercase;font-weight:700;margin-bottom:2px;">💳 ${esc(m.pdfTxn.holder)}</div>`
-      : '';
+  });
 
-    const actions = [];
-    if (m.status === 'orphan_pdf') {
-       actions.push(`<button class="btn btn-sm btn-secondary" onclick="cccLinkApp('${m.id}')">Vincular</button>`);
-       actions.push(`<button class="btn btn-sm" style="margin-top:4px;" onclick="cccAddMissing('${m.id}')">Alta</button>`);
-       actions.push(`<button class="btn btn-sm btn-ghost" style="margin-top:4px;opacity:0.6" onclick="cccExcludePdfTxn('${m.id}')">Excluir</button>`);
-    } else if (m.status === 'diff' || m.status === 'posible') {
-       actions.push(`<button class="btn btn-sm btn-secondary" onclick="cccEditAppTxn('${m.id}')">Corregir App</button>`);
-       actions.push(`<button class="btn btn-sm btn-danger btn-icon" style="margin-top:4px;" onclick="cccUnlink('${m.id}')">✖</button>`);
-    } else if (m.appTxn && m.pdfTxn) {
-       actions.push(`<button class="btn btn-sm btn-danger btn-icon" title="Desvincular" onclick="cccUnlink('${m.id}')">✖</button>`);
-    }
-
+  const renderGroup = (title, list, emptyMsg) => {
+    if(!list.length) return `<div style="padding:20px;text-align:center;color:var(--text3);font-size:13px;">${emptyMsg}</div>`;
     return `
-      <tr style="background:${m.status==='orphan_app'?'var(--danger)10':''}">
-        <td>${renderCccStatusBadge(m.status)}</td>
-        <td>${m.pdfTxn ? m.pdfTxn.rawDate : '—'}</td>
-        <td style="font-weight:${m.pdfTxn?'700':'400'}">
-          ${holderHtml}
-          ${m.pdfTxn ? esc(m.pdfTxn.rawDesc) + (m.pdfTxn.cuotas ? ' <span style="font-size:10px;color:var(--text3)">('+m.pdfTxn.cuotas+')</span>' : '') : '<span style="color:var(--text3)">Ausente en resumen</span>'}
-        </td>
-        <td style="text-align:right;">
-          ${m.pdfTxn && m.pdfTxn.amountARS ? '<div style="color:var(--accent)">$'+fmtN(m.pdfTxn.amountARS)+'</div>' : ''}
-          ${m.pdfTxn && m.pdfTxn.amountUSD ? '<div style="color:var(--accent2)">U$D '+fmtN(m.pdfTxn.amountUSD)+'</div>' : ''}
-        </td>
-        <td>
-          ${m.appTxn ? 
-            '<div style="font-size:12px;color:var(--text3)">' + ccFmtDate(m.appTxn.date) + '</div>' + 
-            '<div style="font-weight:600">' + esc(m.appTxn.descripcion || m.appTxn.description) + '</div>' 
-            : '<span style="color:var(--danger)">Asignar manualmente...</span>'}
-        </td>
-        <td style="text-align:right;">
-           ${m.diffARS ? '<div style="color:var(--danger);font-weight:700">ARS '+fmtN(m.diffARS)+'</div>' : ''}
-           ${m.diffUSD ? '<div style="color:var(--danger);font-weight:700">USD '+fmtN(m.diffUSD)+'</div>' : ''}
-           ${!m.diffARS && !m.diffUSD ? '—' : ''}
-        </td>
-        <td style="text-align:center;">
-           <div style="display:flex;flex-direction:column;align-items:center;gap:2px;">
-             ${actions.join('')}
-           </div>
-        </td>
-      </tr>
+      <div class="ccc-group-title">${title} (${list.length})</div>
+      <div class="ccc-cards-grid">
+        ${list.map(m => renderCccCard(m)).join('')}
+      </div>
     `;
-  }).join('');
+  };
+
+  cccEls.resultsArea.innerHTML = `
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:12px;flex-wrap:wrap;">
+       <div style="display:flex;gap:12px;">
+         <div class="ccc-kpi-min"><strong>${cccState.pdfTxns.length}</strong><span>PDF</span></div>
+         <div class="ccc-kpi-min"><strong>${conc}</strong><span>CONCILIADOS</span></div>
+         <div class="ccc-kpi-min" style="color:var(--danger)"><strong>${orphan}</strong><span>FALTANTES</span></div>
+       </div>
+       <div style="display:flex;gap:8px;">
+         <button class="btn btn-sm btn-accent" onclick="cccSmartMatch()"><span style="margin-right:4px;">✨</span> Smart Match</button>
+         <button class="btn btn-sm" onclick="cccImportAllFees()">Importar Impuestos</button>
+         <button class="btn btn-sm btn-secondary" onclick="cccSaveSession()">Guardar Progreso</button>
+       </div>
+    </div>
+    <div id="ccc-matching-container">
+      ${renderGroup('Pendientes de Conciliación', groups.pending, '¡No hay pendientes! Todo está conciliado.')}
+      ${renderGroup('Conciliados / Impositivos', groups.conciliated, 'Nada conciliado aún.')}
+      ${renderGroup('Excluidos', groups.excluded, 'No hay elementos excluidos.')}
+    </div>
+  `;
   
-  cccEls.tbody.innerHTML = rows;
   cccEls.kpiTotal.textContent = cccState.pdfTxns.length;
   cccEls.kpiConc.textContent = conc;
   cccEls.kpiDiff.textContent = diff;
   cccEls.kpiOrphan.textContent = orphan;
 }
 
+function renderCccCard(m) {
+  const isOrphanPdf = m.status === 'orphan_pdf';
+  const isOrphanApp = m.status === 'orphan_app';
+  const isDiff = m.status === 'diff' || m.status === 'posible';
+  const isConc = m.status === 'conc' || m.status === 'bank_fee';
+  
+  const holderHtml = m.pdfTxn && m.pdfTxn.holder && m.pdfTxn.holder !== 'Titular' 
+      ? `<span class="ccc-holder-badge">${esc(m.pdfTxn.holder)}</span>`
+      : '';
+
+  const actions = [];
+  if (isOrphanPdf) {
+     actions.push(`<button class="ccc-action-btn primary" onclick="cccLinkApp('${m.id}')">Vincular</button>`);
+     actions.push(`<button class="ccc-action-btn" onclick="cccAddMissing('${m.id}')">Alta</button>`);
+     actions.push(`<button class="ccc-action-btn ghost" onclick="cccExcludePdfTxn('${m.id}')">Excluir</button>`);
+  } else if (isDiff) {
+     actions.push(`<button class="ccc-action-btn primary" onclick="cccEditAppTxn('${m.id}')">Ajustar App</button>`);
+     actions.push(`<button class="ccc-action-btn danger" onclick="cccUnlink('${m.id}')">Separar</button>`);
+  } else if (isOrphanApp) {
+     actions.push(`<div style="font-size:11px;color:var(--danger);font-weight:700;">No está en el PDF</div>`);
+  } else if (isConc) {
+     actions.push(`<button class="ccc-action-btn danger icon" title="Desvincular" onclick="cccUnlink('${m.id}')">✖</button>`);
+  }
+
+  return `
+    <div class="ccc-card ${m.status}" id="${m.id}">
+      <div class="ccc-card-body">
+        <!-- PDF Side -->
+        <div class="ccc-card-side pdf">
+          <div class="ccc-side-hdr">RESUMEN (PDF) ${renderCccStatusBadge(m.status)}</div>
+          ${m.pdfTxn ? `
+            <div class="ccc-txn-main">
+              <div class="ccc-txn-date">${m.pdfTxn.rawDate || '—'}</div>
+              <div class="ccc-txn-desc">
+                ${holderHtml}
+                ${esc(m.pdfTxn.rawDesc)} ${m.pdfTxn.cuotas ? `<span class="ccc-cuota">(${m.pdfTxn.cuotas})</span>` : ''}
+              </div>
+            </div>
+            <div class="ccc-txn-amt">
+              ${m.pdfTxn.amountARS ? `<div class="amt ars">$${fmtN(m.pdfTxn.amountARS)}</div>` : ''}
+              ${m.pdfTxn.amountUSD ? `<div class="amt usd">U$D ${fmtN(m.pdfTxn.amountUSD)}</div>` : ''}
+            </div>
+          ` : `<div class="ccc-empty-side">Sin dato en PDF</div>`}
+        </div>
+
+        <div class="ccc-card-sep">
+           <div class="ccc-sep-line"></div>
+           <div class="ccc-sep-icon">${isConc ? '🔗' : '❓'}</div>
+           <div class="ccc-sep-line"></div>
+        </div>
+
+        <!-- App Side -->
+        <div class="ccc-card-side app">
+          <div class="ccc-side-hdr">REGISTRADO EN APP</div>
+          ${m.appTxn ? `
+            <div class="ccc-txn-main">
+              <div class="ccc-txn-date">${ccFmtDate(m.appTxn.date)}</div>
+              <div class="ccc-txn-desc">${esc(m.appTxn.descripcion || m.appTxn.description)}</div>
+            </div>
+            <div class="ccc-txn-amt">
+              ${m.appTxn.amountARS > 0 || (m.appTxn.currency==='ARS' && m.appTxn.amount > 0) ? `<div class="amt ars">$${fmtN(m.appTxn.amountARS || m.appTxn.amount)}</div>` : ''}
+              ${m.appTxn.amountUSD > 0 || (m.appTxn.currency==='USD' && m.appTxn.amount > 0) ? `<div class="amt usd">U$D ${fmtN(m.appTxn.amountUSD || m.appTxn.amount)}</div>` : ''}
+            </div>
+          ` : `<div class="ccc-empty-side">Pendiente de vincular</div>`}
+        </div>
+      </div>
+      <div class="ccc-card-footer">
+        <div class="ccc-card-actions">${actions.join('')}</div>
+      </div>
+    </div>
+  `;
+}
+
 function renderCccStatusBadge(status) {
   const map = {
-    'conc': '<span style="background:var(--green-sys)20;color:var(--green-sys);padding:4px 8px;border-radius:12px;font-size:10px;font-weight:700">Conciliado</span>',
-    'posible': '<span style="background:var(--warning-sys)20;color:var(--warning-sys);padding:4px 8px;border-radius:12px;font-size:10px;font-weight:700">Revisar</span>',
-    'diff': '<span style="background:var(--danger)20;color:var(--danger);padding:4px 8px;border-radius:12px;font-size:10px;font-weight:700">Dif. Monto</span>',
-    'orphan_pdf': '<span style="background:var(--danger)20;color:var(--danger);padding:4px 8px;border-radius:12px;font-size:10px;font-weight:700">Falta en App</span>',
-    'orphan_app': '<span style="background:var(--danger)20;color:var(--danger);padding:4px 8px;border-radius:12px;font-size:10px;font-weight:700">Falta PDF</span>',
-    'bank_fee': '<span style="background:var(--surface3);color:var(--text3);padding:4px 8px;border-radius:12px;font-size:10px;font-weight:700">Impositivo</span>',
-    'excluded': '<span style="background:var(--surface2);color:var(--text3);padding:4px 8px;border-radius:12px;font-size:10px;font-weight:400">Excluido</span>'
+    'conc': '<span class="ccc-badge conc">CONCILIADO</span>',
+    'posible': '<span class="ccc-badge possible">REVISAR</span>',
+    'diff': '<span class="ccc-badge diff">DIFERENCIA</span>',
+    'orphan_pdf': '<span class="ccc-badge missing">FALTA EN APP</span>',
+    'orphan_app': '<span class="ccc-badge extra">FALTA EN PDF</span>',
+    'bank_fee': '<span class="ccc-badge fee">IMPUESTO</span>',
+    'excluded': '<span class="ccc-badge excluded">EXCLUIDO</span>'
   };
   return map[status] || status;
 }

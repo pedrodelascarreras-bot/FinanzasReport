@@ -53,8 +53,11 @@ function setTendChartMode(mode){
 }
 
 function renderTendencia(){
+  // Default to 'tc' (Credit Cards) if it's the default or first time
+  if(!state.tendMode || state.tendMode === 'week') state.tendMode = 'tc';
+
   const keys=getTendPeriodKeys();
-  if(keys.length<2){document.getElementById('tendencia-empty').style.display='block';document.getElementById('tendencia-content').style.display='none';return;}
+  if(keys.length<1){document.getElementById('tendencia-empty').style.display='block';document.getElementById('tendencia-content').style.display='none';return;}
   document.getElementById('tendencia-empty').style.display='none';document.getElementById('tendencia-content').style.display='flex';
 
   // ─ Populate period selector
@@ -66,7 +69,13 @@ function renderTendencia(){
     pSel.innerHTML=opts;
   }
 
-  const selectedPeriod=pSel?.value||'';
+  let selectedPeriod=pSel?.value||'';
+  // Default to latest key if nothing is selected or if we just switched mode
+  if(!selectedPeriod && keys.length) {
+    selectedPeriod = keys[keys.length-1];
+    if(pSel) pSel.value = selectedPeriod;
+  }
+  
   const activeKeys=selectedPeriod?[selectedPeriod]:keys;
   const labels=activeKeys.map(k=>getTendPeriodLabel(k));
 
