@@ -373,8 +373,8 @@
 <div id="page-credit-cards" class="page">
   <div class="page-header fade-up">
     <div><div class="page-title">Tarjeta de Crédito</div><div class="page-subtitle" id="cc-page-subtitle">Seguimiento de ciclos y gastos</div></div>
-    <div class="header-actions">
-      <button class="btn btn-primary btn-sm" onclick="ccOpenNewCycleModal()">+ Nuevo ciclo</button>
+    <div class="header-actions" id="cc-page-actions">
+      <!-- Selector de ciclo se insertará aquí via JS -->
     </div>
   </div>
 
@@ -386,7 +386,7 @@
     <div id="cc-empty-state" style="display:none;text-align:center;padding:48px 24px;color:var(--text3);">
       <div style="font-size:32px;margin-bottom:12px;">💳</div>
       <div style="font-size:15px;font-weight:600;margin-bottom:6px;">Sin ciclos cargados</div>
-      <div style="font-size:13px;">Hacé clic en "Nuevo ciclo" para empezar</div>
+      <div style="font-size:13px;">Configurá tus ciclos en la sección de abajo para empezar</div>
     </div>
     <div id="cc-active-cycle" style="display:none;"></div>
   </div>
@@ -423,30 +423,7 @@
   </div>
 </div>
 
-<!-- Modal: Nuevo ciclo -->
-<div class="modal-overlay" id="modal-cc-cycle">
-  <div class="modal-box" style="max-width:420px;">
-    <div class="modal-header"><div class="modal-title" id="modal-cc-cycle-title">Nuevo ciclo</div><button class="modal-close" onclick="closeModal('modal-cc-cycle')">✕</button></div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
-      <div>
-        <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Fecha de apertura</label>
-        <input type="date" id="cc-cycle-open" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-family:var(--font);">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Fecha de cierre</label>
-        <input type="date" id="cc-cycle-close" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-family:var(--font);">
-      </div>
-      <div>
-        <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Fecha de vencimiento</label>
-        <input type="date" id="cc-cycle-due" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-family:var(--font);">
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modal-cc-cycle')">Cancelar</button>
-      <button class="btn btn-primary" onclick="ccSaveCycle()">Guardar ciclo</button>
-    </div>
-  </div>
-</div>
+
 
 <!-- Modal: Gasto manual en ciclo CC -->
 <div class="modal-overlay" id="modal-cc-expense">

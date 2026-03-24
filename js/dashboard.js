@@ -465,32 +465,36 @@ function renderDashboard(){
     if(pLabel)pLabel.textContent=pct+'% usado del ingreso · meta: '+state.alertThreshold+'%';
   } else if(pFill){pFill.style.width='0%';}
 
-  // ── KPI: Tarjeta — split VISA / AMEX using ccCycles (always current cycle) ──
+  // ── KPI: Tarjeta — split VISA / AMEX usando el tcCycle que contiene HOY (siempre período actual) ──
   ccInit();
   const _ccCards=state.ccCards||[];
-  const _ccCycles=state.ccCycles||[];
+  const _allTcCyc=getTcCycles();
   const _todayStr=dateToYMD(new Date());
+  // Encontrar el ciclo TC que contiene hoy (independiente de la vista seleccionada)
+  let _currentTcCyc=null;
+  if(_allTcCyc.length){
+    _currentTcCyc=_allTcCyc.find((c,i)=>{
+      const op=getTcCycleOpen(_allTcCyc,i);
+      return op&&_todayStr>=op&&_todayStr<=c.closeDate;
+    })||_allTcCyc[0];
+  }
   _ccCards.forEach(card=>{
-    const cardCycles=[..._ccCycles].filter(c=>c.cardId===card.id).sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
-    // Find the cycle whose range includes TODAY
-    let activeCycle=null;
-    for(const cy of cardCycles){
-      const open=cy.openDate||null;
-      const close=cy.closeDate;
-      if(open && _todayStr>=open && _todayStr<=close){activeCycle=cy;break;}
-      if(!open && _todayStr<=close){activeCycle=cy;break;}
-    }
-    // Fallback: most recent pending, then most recent overall
-    if(!activeCycle){
-      const pending=cardCycles.filter(c=>c.status==='pending');
-      activeCycle=pending.length?pending[0]:cardCycles[0];
-    }
     let cardArs=0,cardUsd=0;
-    if(activeCycle){
-      const expenses=ccGetCycleExpenses(activeCycle);
-      const totals=ccGetTotals(expenses);
-      cardArs=totals.ars;
-      cardUsd=totals.usd;
+    if(_currentTcCyc){
+      const _idx=_allTcCyc.findIndex(c=>c.id===_currentTcCyc.id);
+      const _openDate=getTcCycleOpen(_allTcCyc,_idx);
+      const pmKey=card.payMethodKey||null;
+      const ccState=(state.ccCycles||[]).find(c=>c.cardId===card.id&&c.tcCycleId===_currentTcCyc.id);
+      const excluded=new Set(ccState?.excludedIds||[]);
+      const expenses=(state.transactions||[]).filter(t=>{
+        if(excluded.has(t.id))return false;
+        if(pmKey&&t.payMethod!==pmKey)return false;
+        const d=dateToYMD(t.date);
+        return d>=_openDate&&d<=_currentTcCyc.closeDate;
+      });
+      cardArs=expenses.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+      cardUsd=expenses.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+      (ccState?.manualExpenses||[]).forEach(e=>{cardArs+=e.amountARS||0;cardUsd+=e.amountUSD||0;});
     }
     const prefix=card.payMethodKey==='visa'?'visa':'amex';
     const arsEl=document.getElementById('kpi-'+prefix+'-ars');

@@ -222,7 +222,26 @@ function renderTransactions(){
   // ── Contar estados para badges ──
   const allPeriodTxns = (() => {
     let base=[...state.transactions];
-    if(mode==='mes'&&!state._dupFilterOn){const mfv=mf?.value||activeMesKey;if(mfv)base=base.filter(t=>(t.month||getMonthKey(t.date))===mfv);}
+    if(!state._dupFilterOn){
+      if(mode==='mes'){
+        const mfv=mf?.value||activeMesKey;
+        if(mfv)base=base.filter(t=>(t.month||getMonthKey(t.date))===mfv);
+      } else if(mode==='tc'){
+        // Aplicar el mismo filtro de ciclo TC para que los badges sean del período actual
+        const _selId=tcf?.value||'';
+        const _allCyc=getTcCycles();
+        let _actCyc=_selId?_allCyc.find(c=>c.id===_selId):null;
+        if(!_actCyc&&_allCyc.length){
+          const _todayS=dateToYMD(new Date());
+          _actCyc=_allCyc.find(c=>{const _i=_allCyc.findIndex(x=>x.id===c.id);const _op=getTcCycleOpen(_allCyc,_i);return _todayS>=_op&&_todayS<=c.closeDate;})||_allCyc[0];
+        }
+        if(_actCyc){
+          const _i2=_allCyc.findIndex(c=>c.id===_actCyc.id);
+          const _op2=getTcCycleOpen(_allCyc,_i2);
+          base=base.filter(t=>{const d=dateToYMD(t.date);return d>=_op2&&d<=_actCyc.closeDate;});
+        }
+      }
+    }
     return base;
   })();
   const _dupKeysForCount = getDuplicateAmountKeys();

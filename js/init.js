@@ -743,8 +743,14 @@ function parseSantanderEmail(email) {
     let cuotaGroupId = null;
     if (cuotaTotal && cuotaTotal >= 2) {
       amount = Math.round(totalAmount / cuotaTotal);
-      cuotaNum = 1;
-      cuotaGroupId = 'cg_' + emailId;
+      // ID estable basado en comercio + monto por cuota + total (no en el emailId)
+      // Así todos los emails del mismo plan de cuotas quedan en el mismo grupo
+      const _cgSlug = comercio.toLowerCase().replace(/[^a-z0-9]/g,'').substring(0,15);
+      cuotaGroupId = 'cg_' + _cgSlug + '_' + amount + '_' + cuotaTotal;
+      // Determinar qué número de cuota es: contamos los reales ya existentes en el grupo
+      const _prevReal = (state.transactions||[]).filter(t => t.cuotaGroupId === cuotaGroupId && !t.isPendingCuota);
+      cuotaNum = _prevReal.length + 1;
+      if(cuotaNum > cuotaTotal) cuotaNum = cuotaTotal;
     }
 
     const baseDesc = comercio;

@@ -225,27 +225,33 @@ function cancelImportReview(){
 }
 function autoCreateGmailCuotas(txns){
   // For each imported Gmail cuota transaction, generate projected installment transactions
-  const cuotaTxns=txns.filter(t=>t.cuotaGroupId&&t.cuotaTotal>=2);
+  const cuotaTxns=txns.filter(t=>t.cuotaGroupId&&t.cuotaTotal>=2&&!t.isPendingCuota);
   if(!cuotaTxns.length) return;
-  const existingIds=new Set(state.transactions.map(t=>t.id));
   const toAdd=[];
   for(const t of cuotaTxns){
-    for(let n=2;n<=t.cuotaTotal;n++){
-      const projId='proj_'+t.id+'_c'+n;
-      if(existingIds.has(projId)) continue; // already generated
+    // Eliminar cualquier cuota proyectada para la misma posición (este pago real la reemplaza)
+    state.transactions=state.transactions.filter(x=>
+      !(x.isPendingCuota&&x.cuotaGroupId===t.cuotaGroupId&&x.cuotaNum===t.cuotaNum)
+    );
+    // Generar proyecciones para las cuotas restantes (a partir de la siguiente)
+    for(let n=t.cuotaNum+1;n<=t.cuotaTotal;n++){
+      const projId='proj_'+t.cuotaGroupId+'_c'+n;
+      // Saltar si ya existe una proyección para esta posición (cualquier formato de ID)
+      const alreadyExists=state.transactions.some(x=>x.isPendingCuota&&x.cuotaGroupId===t.cuotaGroupId&&x.cuotaNum===n)
+        ||toAdd.some(x=>x.cuotaGroupId===t.cuotaGroupId&&x.cuotaNum===n);
+      if(alreadyExists) continue;
       const origDate=t.date instanceof Date?t.date:new Date(t.date);
-      // Add (n-1) months to the original purchase date
-      const projDate=new Date(origDate.getFullYear(),origDate.getMonth()+(n-1),origDate.getDate());
-      // Clamp day to valid range for that month
+      // Fecha = fecha de este pago + (n - cuotaNum) meses
+      const projDate=new Date(origDate.getFullYear(),origDate.getMonth()+(n-t.cuotaNum),origDate.getDate());
+      // Ajustar día si el mes destino tiene menos días
       const maxDay=new Date(projDate.getFullYear(),projDate.getMonth()+1,0).getDate();
       if(projDate.getDate()>maxDay) projDate.setDate(maxDay);
       const base=t._baseDesc||(t.description.replace(/\s*\(Cuota\s*\d+\/\d+\)\s*$/i,'').replace(/\s*\d{2}:\d{2}\s*$/,'').trim());
-      const projDesc=base+' (Cuota '+n+'/'+t.cuotaTotal+')';
       toAdd.push({
         id:projId,
         gmailId:null,
         date:projDate,
-        description:projDesc,
+        description:base+' (Cuota '+n+'/'+t.cuotaTotal+')',
         _baseDesc:base,
         amount:t.amount,
         currency:t.currency,
@@ -264,7 +270,6 @@ function autoCreateGmailCuotas(txns){
         cat_source:'cuota',
         estado_revision:'detectado_automaticamente'
       });
-      existingIds.add(projId);
     }
   }
   if(toAdd.length) state.transactions=[...state.transactions,...toAdd];

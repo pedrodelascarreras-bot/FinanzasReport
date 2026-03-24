@@ -43,32 +43,29 @@ function ccCountdown(dueDateStr){
 }
 
 // ── Obtener gastos del ciclo (movimientos + manuales) ──
-function ccGetCycleExpenses(cycle){
-  const card=state.ccCards.find(c=>c.id===cycle.cardId);
+function ccGetCycleExpenses(cardId, tcCycleId){
+  const card=state.ccCards.find(c=>c.id===cardId);
   const pmKey=card?.payMethodKey||null;
+  const tcCycles=getTcCycles();
+  const idx=tcCycles.findIndex(c=>c.id===tcCycleId);
+  if(idx<0)return[];
+  const openDate=getTcCycleOpen(tcCycles, idx);
+  const cycle=tcCycles[idx];
 
-  // Rango: openDate → 1 día antes del cierre (d >= openDate && d < closeDate)
-  const from=cycle.openDate||null;
-  const to=cycle.closeDate; // exclusivo: d < to
-
-  const excluded=new Set(cycle.excludedIds||[]);
+  const ccState=state.ccCycles.find(c=>c.cardId===cardId && c.tcCycleId===tcCycleId) || {excludedIds:[], manualExpenses:[]};
+  const excluded=new Set(ccState.excludedIds||[]);
+  
   const txnExpenses=(state.transactions||[]).filter(t=>{
     if(excluded.has(t.id))return false;
-    // Filtrar por tag de tarjeta si está definido
     if(pmKey && t.payMethod!==pmKey)return false;
-    const d=t.date instanceof Date?t.date.toISOString().slice(0,10):String(t.date).slice(0,10);
-    return(!from||d>=from)&&d<to;
+    const d=dateToYMD(t.date);
+    return d>=openDate && d<=cycle.closeDate;
   }).map(t=>({
-    id:t.id,
-    date:t.date instanceof Date?t.date.toISOString().slice(0,10):String(t.date).slice(0,10),
-    description:t.description,
-    category:t.category||'Sin categoría',
-    amountARS:t.currency==='ARS'?t.amount:0,
-    amountUSD:t.currency==='USD'?t.amount:0,
-    source:'txn'
+    id:t.id, date:dateToYMD(t.date), description:t.description, category:t.category||'Sin categoría',
+    amountARS:t.currency==='ARS'?t.amount:0, amountUSD:t.currency==='USD'?t.amount:0, source:'txn'
   }));
 
-  const manualExpenses=(cycle.manualExpenses||[]).map(e=>({...e,source:'manual'}));
+  const manualExpenses=(ccState.manualExpenses||[]).map(e=>({...e,source:'manual'}));
   return [...txnExpenses,...manualExpenses].sort((a,b)=>b.date.localeCompare(a.date));
 }
 
@@ -117,7 +114,6 @@ function renderCreditCards(){
   ccInit();
   renderCcCardTabs();
   renderCcActiveCycle();
-  renderCcHistory();
   renderCcTcConfig();
 }
 
@@ -141,83 +137,85 @@ function ccSelectCard(cardId){
   window._ccViewCycle[cardId]=null; // reset viewed cycle for this card
   renderCcCardTabs();
   renderCcActiveCycle();
-  renderCcHistory();
 }
 
 function ccSelectViewCycle(cycleId){
   const cardId=state.ccActiveCard||state.ccCards[0]?.id;
   window._ccViewCycle[cardId]=cycleId;
-  renderCcActiveCycle();
+  renderCreditCards();
 }
 
 function renderCcActiveCycle(){
   ccInit();
   const emptyEl=document.getElementById('cc-empty-state');
   const activeEl=document.getElementById('cc-active-cycle');
+  const actionsEl=document.getElementById('cc-page-actions');
   if(!emptyEl||!activeEl)return;
 
   const cardId=state.ccActiveCard||state.ccCards[0]?.id;
   const card=state.ccCards.find(c=>c.id===cardId);
-  const cardCycles=[...state.ccCycles]
-    .filter(c=>c.cardId===cardId)
-    .sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
+  const tcCycles=getTcCycles(); 
 
-  if(!cardCycles.length){
-    emptyEl.style.display='block';activeEl.style.display='none';return;
+  if(!tcCycles.length){
+    emptyEl.style.display='block';activeEl.style.display='none';
+    if(actionsEl)actionsEl.innerHTML='';
+    return;
   }
   emptyEl.style.display='none';activeEl.style.display='block';
 
-  // Ciclo visible: el que seleccionó el usuario, o el pending más reciente, o el más reciente
+  // Ciclo visible: el que seleccionó el usuario, o el más reciente
   const viewingId=window._ccViewCycle[cardId];
-  const pending=cardCycles.filter(c=>c.status==='pending');
-  const defaultCycle=pending.length?pending[0]:cardCycles[0];
-  const activeCycle=viewingId?cardCycles.find(c=>c.id===viewingId)||defaultCycle:defaultCycle;
+  const activeTcCycle=viewingId ? (tcCycles.find(c=>c.id===viewingId)||tcCycles[0]) : tcCycles[0];
+  
+  // Buscar o crear estado en ccCycles para este par {cardId, tcCycleId}
+  let ccState=state.ccCycles.find(c=>c.cardId===cardId && c.tcCycleId===activeTcCycle.id);
+  if(!ccState){
+    ccState={id:activeTcCycle.id+'_'+cardId, cardId, tcCycleId:activeTcCycle.id, status:'pending', manualExpenses:[], excludedIds:[]};
+    // No lo pusheamos al state real a menos que se modifique algo (pago, gasto manual, etc) para evitar engrosar el state innecesariamente
+  }
 
-  const expenses=ccGetCycleExpenses(activeCycle);
+  // Rango del ciclo
+  const idx=tcCycles.findIndex(c=>c.id===activeTcCycle.id);
+  const openDate=getTcCycleOpen(tcCycles, idx);
+  
+  // Gastos
+  const pmKey=card?.payMethodKey||null;
+  const excluded=new Set(ccState.excludedIds||[]);
+  const txnExpenses=(state.transactions||[]).filter(t=>{
+    if(excluded.has(t.id))return false;
+    if(pmKey && t.payMethod!==pmKey)return false;
+    const d=dateToYMD(t.date);
+    return d>=openDate && d<=activeTcCycle.closeDate;
+  }).map(t=>({
+    id:t.id, date:dateToYMD(t.date), description:t.description, category:t.category||'Sin categoría',
+    amountARS:t.currency==='ARS'?t.amount:0, amountUSD:t.currency==='USD'?t.amount:0, source:'txn'
+  }));
+
+  const manualExpenses=(ccState.manualExpenses||[]).map(e=>({...e,source:'manual'}));
+  const expenses = [...txnExpenses,...manualExpenses].sort((a,b)=>b.date.localeCompare(a.date));
   const totals=ccGetTotals(expenses);
   const catSummary=ccGetCatSummary(expenses);
-  const cd=ccCountdown(activeCycle.dueDate);
-  const isPaid=activeCycle.status==='paid';
+  const isPaid=ccState.status==='paid';
 
   const statusBadge=isPaid
-    ?'<span style="background:#00c853;color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.04em;">✓ PAGADO</span>'
-    :'<span style="background:#ff9500;color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.04em;">⏳ PENDIENTE</span>';
+    ?'<span style="background:var(--green-sys);color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.04em;">✓ PAGADO</span>'
+    :'<span style="background:var(--orange);color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.04em;">⏳ PENDIENTE</span>';
 
-  const countdownStyle=cd.overdue?'color:var(--danger);font-weight:700;':cd.urgent?'color:var(--accent3);font-weight:700;':'color:var(--text3);';
-
-  // Pre-compute strings that can't be safely inline in template literals
-  const dueDateHtml=activeCycle.dueDate
-    ?'<span>Vencimiento: <strong style="color:var(--text);">'+ccFmtDate(activeCycle.dueDate)+'</strong></span>'
-    :'';
-  // Always compute apertura: use openDate if available, otherwise closeDate - 30 days
-  const computedOpenDate=activeCycle.openDate||(()=>{
-    const d=new Date(activeCycle.closeDate+'T12:00:00');
-    d.setDate(d.getDate()-30);
-    return d.toISOString().slice(0,10);
-  })();
-  const openDateHtml='<span>Apertura: <strong style="color:var(--text);">'+ccFmtDate(computedOpenDate)+'</strong></span>';
-  const rangeLabelHtml=computedOpenDate
-    ?'<div style="margin-top:4px;font-size:11px;color:var(--text3);">Gastos: '+ccFmtDate(computedOpenDate)+' al '+ccFmtDate(new Date(new Date(activeCycle.closeDate+'T12:00:00').getTime()-86400000).toISOString().slice(0,10))+'</div>'
-    :'';
-  const countdownHtml=activeCycle.dueDate&&!isPaid
-    ?'<div style="margin-top:4px;font-size:12px;'+countdownStyle+'">'+cd.text+'</div>'
-    :'';
-  const noGastosTip=(!activeCycle.openDate&&activeCycle.closeDate)
-    ?'<br><span style="font-size:11px;">Tip: agregá una fecha de apertura al ciclo para filtrar correctamente</span>'
-    :'';
-  const noGastosHtml='<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">Sin gastos en este ciclo'+noGastosTip+'</div>';
-
-  // Selector de ciclo
-  const cycleSelector=cardCycles.length>1
-    ?'<div style="margin-top:8px;">'
-      +'<select onchange="ccSelectViewCycle(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px;font-family:var(--font);cursor:pointer;">'
-      +cardCycles.map(c=>'<option value="'+c.id+'"'+(c.id===activeCycle.id?' selected':'')+'>'+
-        (c.status==='paid'?'✓ ':'⏳ ')+
-        'Cierre '+ccFmtDate(c.closeDate)+(c.openDate?' (desde '+ccFmtDate(c.openDate)+')':'')
-      +'</option>').join('')
-      +'</select>'
-      +'</div>'
-    :'';
+  // Selector de ciclo en la cabecera
+  if(actionsEl){
+    actionsEl.innerHTML=`
+      <div style="display:flex;align-items:center;gap:10px;background:var(--surface2);padding:4px 12px;border-radius:10px;border:1px solid var(--border);">
+        <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;">Período</span>
+        <select onchange="ccSelectViewCycle(this.value)" style="background:none;border:none;color:var(--text);font-size:13px;font-weight:700;font-family:var(--font);cursor:pointer;outline:none;">
+          ${tcCycles.map(c=>{
+            const s=state.ccCycles.find(x=>x.cardId===cardId && x.tcCycleId===c.id);
+            const paid=s && s.status==='paid';
+            return `<option value="${c.id}" ${c.id===activeTcCycle.id?'selected':''}>${paid?'✓ ':'⏳ '}${esc(c.label)}</option>`;
+          }).join('')}
+        </select>
+      </div>
+    `;
+  }
 
   const catRows=catSummary.map(r=>'<tr>'
     +'<td style="padding:6px 8px;font-size:12px;color:var(--text);">'+esc(r.cat)+'</td>'
@@ -228,8 +226,8 @@ function renderCcActiveCycle(){
 
   const expRows=expenses.map(e=>{
     const removeBtn=e.source==='txn'
-      ?'<button data-cid="'+activeCycle.id+'" data-tid="'+e.id+'" onclick="ccExcludeTxn(this.dataset.cid,this.dataset.tid)" title="Excluir de este ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 6px;border-radius:4px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'">✕</button>'
-      :'<button data-cid="'+activeCycle.id+'" data-eid="'+e.id+'" onclick="ccDeleteManualExpense(this.dataset.cid,this.dataset.eid)" title="Eliminar gasto manual" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 6px;border-radius:4px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'">✕</button>';
+      ?'<button onclick="ccExcludeTxn(\''+activeTcCycle.id+'\',\''+e.id+'\')" title="Excluir de este ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 6px;border-radius:4px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'">✕</button>'
+      :'<button onclick="ccDeleteManualExpense(\''+activeTcCycle.id+'\',\''+e.id+'\')" title="Eliminar gasto manual" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 6px;border-radius:4px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'">✕</button>';
     return '<tr style="border-bottom:1px solid var(--border);">'
       +'<td style="padding:8px;font-size:12px;color:var(--text3);white-space:nowrap;font-family:var(--font);">'+ccFmtDate(e.date)+'</td>'
       +'<td style="padding:8px;font-size:13px;color:var(--text);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(e.description)+'</td>'
@@ -240,12 +238,12 @@ function renderCcActiveCycle(){
     +'</tr>';
   }).join('');
 
-  // Botón PAGADO: grande y verde, o acciones si pendiente
+  // Botón PAGADO
   const actionBtns=isPaid
     ?''
     :'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
-      +'<button class="btn btn-ghost btn-sm" data-cid="'+activeCycle.id+'" onclick="ccOpenManualExpenseModal(this.dataset.cid)">+ Agregar gasto</button>'
-      +'<button data-cid="'+activeCycle.id+'" onclick="ccMarkPaid(this.dataset.cid)" style="'
+      +'<button class="btn btn-ghost btn-sm" onclick="ccOpenManualExpenseModal(\''+activeTcCycle.id+'\')">+ Agregar gasto</button>'
+      +'<button onclick="ccMarkPaid(\''+activeTcCycle.id+'\')" style="'
         +'padding:12px 28px;border-radius:12px;border:none;cursor:pointer;'
         +'background:linear-gradient(135deg,#00c853,#00e676);color:#fff;'
         +'font-size:15px;font-weight:800;letter-spacing:.06em;'
@@ -257,9 +255,10 @@ function renderCcActiveCycle(){
       +'>✓ PAGADO</button>'
     +'</div>';
 
+  const noGastosHtml='<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">Sin gastos en este ciclo</div>';
+
   activeEl.innerHTML=`
     <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;">
-      <!-- Header del ciclo -->
       <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
         <div style="flex:1;min-width:0;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
@@ -267,13 +266,9 @@ function renderCcActiveCycle(){
             ${card?'<span style="font-size:11px;font-weight:700;color:'+card.color+';background:'+card.color+'15;padding:2px 8px;border-radius:6px;">'+esc(card.name)+'</span>':''}
           </div>
           <div style="margin-top:8px;font-size:13px;color:var(--text3);display:flex;flex-wrap:wrap;gap:12px;">
-            ${openDateHtml}
-            <span>Cierre: <strong style="color:var(--text);">${ccFmtDate(activeCycle.closeDate)}</strong></span>
-            ${dueDateHtml}
+            <span>Apertura: <strong style="color:var(--text);">${ccFmtDate(openDate)}</strong></span>
+            <span>Cierre: <strong style="color:var(--text);">${ccFmtDate(activeTcCycle.closeDate)}</strong></span>
           </div>
-          ${rangeLabelHtml}
-          ${countdownHtml}
-          ${cycleSelector}
         </div>
         ${actionBtns}
       </div>
@@ -337,168 +332,44 @@ function renderCcActiveCycle(){
   `;
 }
 
-function renderCcHistory(){
-  ccInit();
-  const cardId=state.ccActiveCard||state.ccCards[0]?.id;
-  const histSection=document.getElementById('cc-history-section');
-  const histList=document.getElementById('cc-history-list');
-  if(!histSection||!histList)return;
 
-  const cardCycles=[...state.ccCycles]
-    .filter(c=>c.cardId===cardId)
-    .sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
 
-  // Historial = todos los PAGADOS
-  const history=cardCycles.filter(c=>c.status==='paid');
 
-  if(!history.length){histSection.style.display='none';return;}
-  histSection.style.display='block';
 
-  histList.innerHTML=history.map(cycle=>{
-    const expenses=ccGetCycleExpenses(cycle);
-    const totals=ccGetTotals(expenses);
-    const detailId='cc-hist-detail-'+cycle.id;
-    return '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:8px;">'
-      +'<div style="display:flex;align-items:center;gap:12px;padding:13px 16px;cursor:pointer;">'
-        +'<span style="color:#00c853;font-weight:700;" onclick="ccToggleHistory(\''+detailId+'\')">'+'✓</span>'
-        +'<div style="flex:1;min-width:0;cursor:pointer;" onclick="ccToggleHistory(\''+detailId+'\')">'
-          +'<div style="font-size:13px;font-weight:600;color:var(--text);">Cierre '+ccFmtDate(cycle.closeDate)+'</div>'
-          +'<div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:1px;">'
-            +(cycle.openDate?'Apertura '+ccFmtDate(cycle.openDate)+' · ':'')
-            +(cycle.dueDate?'Vence '+ccFmtDate(cycle.dueDate)+' · ':'')
-            +totals.count+' gastos'
-          +'</div>'
-        +'</div>'
-        +'<div style="text-align:right;cursor:pointer;" onclick="ccToggleHistory(\''+detailId+'\')">'
-          +'<div style="font-size:14px;font-weight:700;color:var(--accent);font-family:var(--font);">$'+fmtN(Math.round(totals.ars))+'</div>'
-          +(totals.usd>0?'<div style="font-size:11px;color:var(--accent2);font-family:var(--font);">U$D '+fmtN(totals.usd)+'</div>':'')
-        +'</div>'
-        +'<div style="display:flex;gap:4px;align-items:center;flex-shrink:0;">'
-          +'<button onclick="ccEditHistCycle(\''+cycle.id+'\')" title="Editar ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:4px 6px;border-radius:6px;transition:all .15s;" onmouseover="this.style.color=\'var(--accent)\';this.style.background=\'var(--surface2)\'" onmouseout="this.style.color=\'var(--text3)\';this.style.background=\'none\'">✎</button>'
-          +'<button onclick="ccDeleteHistCycle(\''+cycle.id+'\')" title="Eliminar ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:14px;padding:4px 6px;border-radius:6px;transition:all .15s;" onmouseover="this.style.color=\'var(--danger)\';this.style.background=\'var(--surface2)\'" onmouseout="this.style.color=\'var(--text3)\';this.style.background=\'none\'">🗑</button>'
-          +'<span style="color:var(--text3);font-size:12px;cursor:pointer;" onclick="ccToggleHistory(\''+detailId+'\')">' + '▸</span>'
-        +'</div>'
-      +'</div>'
-      +'<div id="'+detailId+'" style="display:none;border-top:1px solid var(--border);padding:12px 16px;">'
-        +'<table style="width:100%;border-collapse:collapse;">'
-        +'<tbody>'
-        +expenses.map(e=>'<tr style="border-bottom:1px solid var(--border);">'
-          +'<td style="padding:6px 8px;font-size:11px;color:var(--text3);white-space:nowrap;font-family:var(--font);">'+ccFmtDate(e.date)+'</td>'
-          +'<td style="padding:6px 8px;font-size:12px;color:var(--text);">'+esc(e.description)+'</td>'
-          +'<td style="padding:6px 8px;font-size:11px;color:var(--text3);">'+esc(e.category)+'</td>'
-          +'<td style="padding:6px 8px;font-size:12px;font-family:var(--font);text-align:right;color:var(--accent);">'+(e.amountARS>0?'$'+fmtN(Math.round(e.amountARS)):'—')+'</td>'
-          +'<td style="padding:6px 8px;font-size:12px;font-family:var(--font);text-align:right;color:var(--accent2);">'+(e.amountUSD>0?'U$D '+fmtN(e.amountUSD):'—')+'</td>'
-          +'</tr>'
-        ).join('')
-        +'</tbody></table>'
-      +'</div>'
-    +'</div>';
-  }).join('');
-}
-
-function ccToggleHistory(detailId){
-  const el=document.getElementById(detailId);if(!el)return;
-  el.style.display=el.style.display==='none'?'block':'none';
-}
-
-function ccToggleExpenses(){
-  const body=document.getElementById('cc-expenses-toggle-body');
-  const arrow=document.getElementById('cc-expenses-toggle-arrow');
-  if(!body)return;
-  const open=body.style.display!=='none';
-  body.style.display=open?'none':'block';
-  if(arrow)arrow.textContent=open?'▸':'▾';
-}
-
-// ── Nuevo ciclo ──
-function ccOpenNewCycleModal(){
-  ccInit();
-  window._ccEditingCycleId=null;
-  document.getElementById('modal-cc-cycle-title').textContent='Nuevo ciclo';
-  document.getElementById('cc-cycle-open').value='';
-  document.getElementById('cc-cycle-close').value='';
-  document.getElementById('cc-cycle-due').value='';
-  openModal('modal-cc-cycle');
-}
-
-// ── Editar ciclo del historial ──
-function ccEditHistCycle(cycleId){
-  ccInit();
-  const cycle=state.ccCycles.find(c=>c.id===cycleId);if(!cycle)return;
-  window._ccEditingCycleId=cycleId;
-  document.getElementById('modal-cc-cycle-title').textContent='Editar ciclo';
-  document.getElementById('cc-cycle-open').value=cycle.openDate||'';
-  document.getElementById('cc-cycle-close').value=cycle.closeDate||'';
-  document.getElementById('cc-cycle-due').value=cycle.dueDate||'';
-  openModal('modal-cc-cycle');
-}
-
-// ── Eliminar ciclo del historial ──
-function ccDeleteHistCycle(cycleId){
-  if(!confirm('¿Eliminar este ciclo del historial? Se perderán los gastos manuales asociados.'))return;
-  state.ccCycles=state.ccCycles.filter(c=>c.id!==cycleId);
-  saveState();
-  renderCreditCards();
-  showToast('Ciclo eliminado','info');
-}
-
-function ccSaveCycle(){
-  ccInit();
-  const openDate=document.getElementById('cc-cycle-open').value;
-  const closeDate=document.getElementById('cc-cycle-close').value;
-  const dueDate=document.getElementById('cc-cycle-due').value;
-  if(!closeDate){showToast('⚠️ Ingresá la fecha de cierre','error');return;}
-  const editId=window._ccEditingCycleId;
-  if(editId){
-    // Editing existing cycle
-    const cycle=state.ccCycles.find(c=>c.id===editId);
-    if(!cycle){showToast('⚠️ Ciclo no encontrado','error');return;}
-    cycle.openDate=openDate||null;
-    cycle.closeDate=closeDate;
-    cycle.dueDate=dueDate||null;
-    window._ccEditingCycleId=null;
-    saveState();
-    closeModal('modal-cc-cycle');
-    renderCreditCards();
-    showToast('✓ Ciclo actualizado','success');
-  } else {
-    // Creating new cycle
-    const cardId=state.ccActiveCard||state.ccCards[0]?.id;
-    const id='cc_'+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
-    state.ccCycles.push({id,cardId,openDate:openDate||null,closeDate,dueDate:dueDate||null,status:'pending',manualExpenses:[],excludedIds:[]});
-    window._ccViewCycle[cardId]=id; // auto-select new cycle
-    saveState();
-    closeModal('modal-cc-cycle');
-    renderCreditCards();
-    showToast('✓ Ciclo agregado','success');
-  }
-}
 
 // ── Marcar pagado ──
-function ccMarkPaid(cycleId){
+function ccMarkPaid(tcCycleId){
   if(!confirm('¿Marcar este ciclo como pagado?'))return;
-  const cycle=state.ccCycles.find(c=>c.id===cycleId);
-  if(!cycle)return;
-  cycle.status='paid';
   const cardId=state.ccActiveCard||state.ccCards[0]?.id;
-  window._ccViewCycle[cardId]=null; // volver al ciclo activo
+  let ccState=state.ccCycles.find(c=>c.cardId===cardId && c.tcCycleId===tcCycleId);
+  if(!ccState){
+    ccState={id:tcCycleId+'_'+cardId, cardId, tcCycleId, status:'paid', manualExpenses:[], excludedIds:[]};
+    state.ccCycles.push(ccState);
+  } else {
+    ccState.status='paid';
+  }
   saveState();
   renderCreditCards();
   showToast('✓ ¡Ciclo marcado como pagado!','success');
 }
 
 // ── Excluir transacción de movimientos ──
-function ccExcludeTxn(cycleId, txnId){
-  const cycle=state.ccCycles.find(c=>c.id===cycleId);if(!cycle)return;
-  if(!cycle.excludedIds)cycle.excludedIds=[];
-  if(!cycle.excludedIds.includes(txnId)) cycle.excludedIds.push(txnId);
+function ccExcludeTxn(tcCycleId, txnId){
+  const cardId=state.ccActiveCard||state.ccCards[0]?.id;
+  let ccState=state.ccCycles.find(c=>c.cardId===cardId && c.tcCycleId===tcCycleId);
+  if(!ccState){
+    ccState={id:tcCycleId+'_'+cardId, cardId, tcCycleId, status:'pending', manualExpenses:[], excludedIds:[]};
+    state.ccCycles.push(ccState);
+  }
+  if(!ccState.excludedIds)ccState.excludedIds=[];
+  if(!ccState.excludedIds.includes(txnId)) ccState.excludedIds.push(txnId);
   saveState();
   renderCcActiveCycle();
 }
 
 // ── Gasto manual ──
-function ccOpenManualExpenseModal(cycleId){
-  window._ccEditingCycleId=cycleId;
+function ccOpenManualExpenseModal(tcCycleId){
+  window._ccCurrentTcCycleId=tcCycleId;
   const today=new Date().toISOString().slice(0,10);
   document.getElementById('cc-exp-date').value=today;
   document.getElementById('cc-exp-desc').value='';
@@ -520,8 +391,13 @@ function ccOpenManualExpenseModal(cycleId){
 }
 
 function ccSaveManualExpense(){
-  const cycleId=window._ccEditingCycleId;
-  const cycle=state.ccCycles.find(c=>c.id===cycleId);if(!cycle)return;
+  const tcCycleId=window._ccCurrentTcCycleId;
+  const cardId=state.ccActiveCard||state.ccCards[0]?.id;
+  let ccState=state.ccCycles.find(c=>c.cardId===cardId && c.tcCycleId===tcCycleId);
+  if(!ccState){
+    ccState={id:tcCycleId+'_'+cardId, cardId, tcCycleId, status:'pending', manualExpenses:[], excludedIds:[]};
+    state.ccCycles.push(ccState);
+  }
   const date=document.getElementById('cc-exp-date').value;
   const desc=(document.getElementById('cc-exp-desc').value||'').trim();
   const cat=document.getElementById('cc-exp-cat').value||'Sin categoría';
@@ -529,8 +405,8 @@ function ccSaveManualExpense(){
   const usd=parseFloat(document.getElementById('cc-exp-usd').value)||0;
   if(!desc){showToast('⚠️ Ingresá una descripción','error');return;}
   if(!ars&&!usd){showToast('⚠️ Ingresá al menos un monto','error');return;}
-  if(!cycle.manualExpenses)cycle.manualExpenses=[];
-  cycle.manualExpenses.push({
+  if(!ccState.manualExpenses)ccState.manualExpenses=[];
+  ccState.manualExpenses.push({
     id:'mce_'+Date.now().toString(36),
     date,description:desc,category:cat,amountARS:ars,amountUSD:usd
   });
@@ -540,9 +416,11 @@ function ccSaveManualExpense(){
   showToast('✓ Gasto agregado','success');
 }
 
-function ccDeleteManualExpense(cycleId, expId){
-  const cycle=state.ccCycles.find(c=>c.id===cycleId);if(!cycle)return;
-  cycle.manualExpenses=(cycle.manualExpenses||[]).filter(e=>e.id!==expId);
+function ccDeleteManualExpense(tcCycleId, expId){
+  const cardId=state.ccActiveCard||state.ccCards[0]?.id;
+  const ccState=state.ccCycles.find(c=>c.cardId===cardId && c.tcCycleId===tcCycleId);
+  if(!ccState)return;
+  ccState.manualExpenses=(ccState.manualExpenses||[]).filter(e=>e.id!==expId);
   saveState();
   renderCcActiveCycle();
 }
