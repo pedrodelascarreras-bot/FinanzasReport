@@ -577,4 +577,5 @@ function dismissNotif(id) {
   state.dismissedNotifs.push(id);
   saveState();
   renderNotifications();
+  if(typeof renderDashNotifications === 'function') renderDashNotifications();
 }
