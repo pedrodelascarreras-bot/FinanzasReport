@@ -116,7 +116,7 @@ function buildReportHTML(txns,sections,periodLabel){
   const top10=[...txns].filter(t=>t.currency==='ARS').sort((a,b)=>b.amount-a.amount).slice(0,10);
 
   // Cuotas activas
-  const autoGroups=detectAutoCuotas?detectAutoCuotas():[];
+  const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
   const cuotasActivas=[
     ...autoGroups.filter(g=>{const cfg=state.autoCuotaConfig[g.key]||{};const maxP=Math.max(...g.transactions.map(t=>t.cuotaNum||1));const paid=cfg.paid!==undefined?cfg.paid:maxP;const total=cfg.total||g.transactions[0]?.cuotaTotal||maxP;return paid<total;}),
     ...state.cuotas.filter(c=>c.paid<c.total)

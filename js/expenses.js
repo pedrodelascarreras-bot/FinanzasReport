@@ -214,7 +214,7 @@ function deleteFixed(){
 function renderCompromisosSummary(){
   const toMonthly=s=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
   // ARS: cuotas + subs ARS + fijos ARS
-  const autoGroups=detectAutoCuotas?detectAutoCuotas():[];
+  const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
   const cuotasARS=[
     ...autoGroups.map(g=>{const cfg=state.autoCuotaConfig[g.key]||{};const actualT=g.transactions.filter(t=>!t.isPendingCuota);const maxP=actualT.sort((a,b)=>b.cuotaNum-a.cuotaNum)[0]?.cuotaNum||1;const paid=cfg.paid!==undefined?cfg.paid:maxP;const total=cfg.total||g.transactions[0]?.cuotaTotal||maxP;if(paid>=total)return 0;const acc=actualT.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);return actualT.length>0?acc/actualT.length:g.amount;}),
     ...state.cuotas.filter(c=>c.paid<c.total).map(c=>c.amount)

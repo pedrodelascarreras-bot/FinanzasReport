@@ -72,34 +72,39 @@ function getTcCycleTxns(cycle, cyclesArg){
 function addTcCycle(){
   const label=document.getElementById('tc-cycle-label').value.trim();
   const closeDate=document.getElementById('tc-cycle-close').value;
+  const dueDate=document.getElementById('tc-cycle-due')?document.getElementById('tc-cycle-due').value:'';
   if(!label||!closeDate){showToast('⚠️ Completá nombre y fecha de cierre','error');return;}
   if(!state.tcCycles)state.tcCycles=[];
   // Check for duplicate closeDate
   if(state.tcCycles.find(c=>c.closeDate===closeDate)){showToast('⚠️ Ya existe un ciclo con esa fecha de cierre','error');return;}
   const id='tc_'+Date.now().toString(36);
-  state.tcCycles.push({id,label,closeDate});
+  state.tcCycles.push({id,label,closeDate,dueDate});
   saveState();
   renderTcCycleList();
   showToast('✓ Ciclo agregado: '+label,'success');
   document.getElementById('tc-cycle-label').value='';
   document.getElementById('tc-cycle-close').value='';
+  if(document.getElementById('tc-cycle-due'))document.getElementById('tc-cycle-due').value='';
 }
 // Removed duplicate function
 function addTcCycleFromCC(){
   const labelEl=document.getElementById('tc-cycle-label-cc');
   const closeEl=document.getElementById('tc-cycle-close-cc');
+  const dueEl=document.getElementById('tc-cycle-due-cc');
   const label=(labelEl?labelEl.value:'').trim();
   const closeDate=(closeEl?closeEl.value:'');
+  const dueDate=(dueEl?dueEl.value:'');
   if(!label||!closeDate){showToast('⚠️ Completá nombre y fecha de cierre','error');return;}
   if(!state.tcCycles)state.tcCycles=[];
   if(state.tcCycles.find(c=>c.closeDate===closeDate)){showToast('⚠️ Ya existe un ciclo con esa fecha de cierre','error');return;}
   const id='tc_'+Date.now().toString(36);
-  state.tcCycles.push({id,label,closeDate});
+  state.tcCycles.push({id,label,closeDate,dueDate});
   saveState();
   renderCcTcConfig();
   showToast('✓ Ciclo agregado: '+label,'success');
   if(labelEl)labelEl.value='';
   if(closeEl)closeEl.value='';
+  if(dueEl)dueEl.value='';
 }
 
 function deleteTcCycle(id){
@@ -124,12 +129,13 @@ function renderTcCycleList(){
     const openD=new Date(open+'T12:00:00');
     const closeD=new Date(c.closeDate+'T12:00:00');
     const fmtD=d=>d.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+    const dueDStr=c.dueDate?' · Vence: '+fmtD(new Date(c.dueDate+'T12:00:00')):'';
     const txns=getTcCycleTxns(c, cycles);
     const total=txns.reduce((s,t)=>s+(t.currency==='USD'?t.amount*USD_TO_ARS:t.amount),0);
     return '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">'+
       '<div style="flex:1;min-width:0;">'+
         '<div style="font-size:13px;font-weight:700;color:var(--text);">'+esc(c.label)+'</div>'+
-        '<div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;">'+fmtD(openD)+' → '+fmtD(closeD)+'</div>'+
+        '<div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;">'+fmtD(openD)+' → '+fmtD(closeD)+dueDStr+'</div>'+
       '</div>'+
       '<div style="font-size:13px;font-weight:700;color:var(--accent);font-family:var(--font);">'+(total>0?'$'+fmtN(total):'sin gastos')+'</div>'+
       '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteTcCycle(\''+c.id+'\')" title="Eliminar">🗑</button>'+

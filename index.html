@@ -441,9 +441,13 @@
           <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Nombre del ciclo</label>
           <input class="input-field" id="tc-cycle-label-cc" placeholder="Ej: Marzo 2026" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font);">
         </div>
-        <div style="width:150px;">
-          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Fecha de cierre</label>
+        <div style="width:130px;">
+          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Cierre</label>
           <input type="date" id="tc-cycle-close-cc" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font);">
+        </div>
+        <div style="width:130px;">
+          <label style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Vencimiento</label>
+          <input type="date" id="tc-cycle-due-cc" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;font-family:var(--font);">
         </div>
         <button class="btn btn-primary btn-sm" style="flex-shrink:0;height:36px;" onclick="addTcCycleFromCC()">+ Agregar</button>
       </div>
@@ -2045,9 +2049,13 @@
         <label class="input-label">Nombre del ciclo (ej: Marzo 2026)</label>
         <input class="input-field" id="tc-cycle-label" placeholder="Marzo 2026">
       </div>
-      <div class="input-group" style="width:150px;margin:0;">
-        <label class="input-label">Fecha de cierre</label>
+      <div class="input-group" style="width:130px;margin:0;">
+        <label class="input-label">Cierre</label>
         <input type="date" class="input-field" id="tc-cycle-close">
+      </div>
+      <div class="input-group" style="width:130px;margin:0;">
+        <label class="input-label">Vencimiento</label>
+        <input type="date" class="input-field" id="tc-cycle-due">
       </div>
       <button class="btn btn-primary btn-sm" style="flex-shrink:0;height:38px;" onclick="addTcCycle()">+ Agregar</button>
     </div>

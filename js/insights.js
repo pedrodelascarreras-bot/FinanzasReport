@@ -57,14 +57,24 @@ function _computeInsightsData() {
   const maxDayAmt=Math.max(...dayTotals);
   const topDay=maxDayAmt>0?dayTotals.indexOf(maxDayAmt):-1;
 
-  // Income — ARS + USD converted, from incomeSources or legacy income object
-  const incomeARS = (state.incomeSources||[]).length
-    ? (state.incomeSources||[]).reduce((s,src)=>{
+  // Income — ARS + USD converted, from incomeSources or incomeMonths or legacy income object
+  let incomeARS = 0;
+  if(state.incomeMonths && state.incomeMonths.length) {
+    // Use incomeMonths for the current month if available
+    const _activeInc = state.incomeMonths.find(m => m.month === currentMonth) || [...state.incomeMonths].sort((a,b) => b.month.localeCompare(a.month))[0];
+    if(_activeInc) {
+      incomeARS = (typeof getMonthTotalARS === 'function' ? getMonthTotalARS(_activeInc) : 0) + (typeof getMonthTotalUSD === 'function' ? getMonthTotalUSD(_activeInc) : 0) * (USD_TO_ARS||1500);
+    }
+  } else if((state.incomeSources||[]).length) {
+    incomeARS = (state.incomeSources||[]).reduce((s,src)=>{
         if(src.active===false) return s;
         const monthly = src.freq==='annual' ? (src.amount/12) : src.amount;
         return s + (src.currency==='USD' ? monthly*(USD_TO_ARS||1500) : monthly);
-      }, 0)
-    : ((state.income?.ars||0) + (state.income?.usd||0)*(USD_TO_ARS||1500));
+      }, 0);
+  } else {
+    // Legacy: include BOTH ARS and USD income
+    incomeARS = ((state.income?.ars||0) + (state.income?.varArs||0)) + ((state.income?.usd||0) + (state.income?.varUsd||0))*(USD_TO_ARS||1500);
+  }
 
   const spendPct=incomeARS>0?Math.round(arsThis/incomeARS*100):null;
 
@@ -97,7 +107,7 @@ function _computeInsightsData() {
   // Upcoming cuota payments
   const upcomingPayments=[];
   try {
-    const autoGroups=detectAutoCuotas?detectAutoCuotas():[];
+    const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
     autoGroups.forEach(g=>{
       const cfg=(state.autoCuotaConfig||{})[g.key]||{};
       if(!cfg.day)return;
@@ -353,7 +363,7 @@ function _buildCards(data,tab) {
   if(tab==='ahorro'){
     if(data.projectedMonth>0){
       const vsI=data.incomeARS>0
-        ?(data.projectedMonth>data.incomeARS?`⚠️ <strong style="color:var(--danger)">Supera tu ingreso</strong> de ${fmtM(data.incomeARS)}`:`Margen restante: <strong style="color:var(--accent2)">${fmtM(data.incomeARS-data.projectedMonth)}</strong>`)
+        ?(data.projectedMonth>data.incomeARS?`⚠️ <strong style="color:var(--danger)">Supera tu ingreso total</strong> de ${fmtM(data.incomeARS)} (ARS+USD)`:`Margen restante: <strong style="color:var(--accent2)">${fmtM(data.incomeARS-data.projectedMonth)}</strong>`)
         :'';
       cards.push({type:data.incomeARS>0&&data.projectedMonth>data.incomeARS?'alert':'info',emoji:'🔮',tag:'PROYECCIÓN AL CIERRE',
         headline:`Cerrarás ${mesActual} en ~${fmtM(data.projectedMonth)}`,

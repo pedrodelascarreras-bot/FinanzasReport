@@ -163,9 +163,18 @@ function renderCcActiveCycle(){
   }
   emptyEl.style.display='none';activeEl.style.display='block';
 
-  // Ciclo visible: el que seleccionó el usuario, o el más reciente
+  // Ciclo visible: el que seleccionó el usuario, o el más reciente PENDIENTE
   const viewingId=window._ccViewCycle[cardId];
-  const activeTcCycle=viewingId ? (tcCycles.find(c=>c.id===viewingId)||tcCycles[0]) : tcCycles[0];
+  let activeTcCycle=null;
+  if (viewingId) {
+    activeTcCycle = tcCycles.find(c=>c.id===viewingId) || tcCycles[0];
+  } else {
+    // Buscar el más reciente no pagado
+    activeTcCycle = tcCycles.find(c=>{
+      const s = state.ccCycles.find(x => x.cardId === cardId && x.tcCycleId === c.id);
+      return !s || s.status !== 'paid';
+    }) || tcCycles[0];
+  }
   
   // Buscar o crear estado en ccCycles para este par {cardId, tcCycleId}
   let ccState=state.ccCycles.find(c=>c.cardId===cardId && c.tcCycleId===activeTcCycle.id);
@@ -275,10 +284,14 @@ function renderCcActiveCycle(){
           <div style="margin-top:8px;font-size:13px;color:var(--text3);display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
             <span>Apertura: <strong style="color:var(--text);">${ccFmtDate(openDate)}</strong></span>
             <span>Cierre: <strong style="color:var(--text);">${ccFmtDate(activeTcCycle.closeDate)}</strong></span>
-            ${ccState.dueDate
-              ? `<span>Vencimiento: <strong style="color:${countdown.overdue?'var(--red)':countdown.urgent?'var(--orange)':'var(--text)'}">${ccFmtDate(ccState.dueDate)}</strong>&nbsp;<span style="font-size:10px;font-weight:600;color:${countdown.overdue?'var(--red)':countdown.urgent?'var(--orange)':'var(--text3)'};">(${countdown.text})</span></span>`
-              : `<button onclick="ccSetDueDate('${activeTcCycle.id}')" style="background:none;border:1px dashed var(--border);border-radius:6px;padding:3px 9px;cursor:pointer;color:var(--text3);font-size:11px;font-family:var(--font);transition:border-color .12s,color .12s;" onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--text3)'" onmouseout="this.style.color='var(--text3)';this.style.borderColor='var(--border)'">📅 + Vencimiento</button>`
-            }
+            ${(() => {
+              const d = ccState.dueDate || activeTcCycle.dueDate;
+              if (d) {
+                const c = ccCountdown(d);
+                return `<span>Vencimiento: <strong style="color:${c.overdue?'var(--red)':c.urgent?'var(--orange)':'var(--text)'}">${ccFmtDate(d)}</strong>&nbsp;<span style="font-size:10px;font-weight:600;color:${c.overdue?'var(--red)':c.urgent?'var(--orange)':'var(--text3)'};">(${c.text})</span></span>`;
+              }
+              return `<button onclick="ccSetDueDate('${activeTcCycle.id}')" style="background:none;border:1px dashed var(--border);border-radius:6px;padding:3px 9px;cursor:pointer;color:var(--text3);font-size:11px;font-family:var(--font);transition:border-color .12s,color .12s;" onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--text3)'" onmouseout="this.style.color='var(--text3)';this.style.borderColor='var(--border)'">📅 + Vencimiento</button>`;
+            })()}
           </div>
         </div>
         ${actionBtns}
@@ -514,12 +527,13 @@ function renderCcTcConfig(){
     const openD=new Date(open+'T12:00:00');
     const closeD=new Date(c.closeDate+'T12:00:00');
     const fmtD=d=>d.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+    const dueDStr=c.dueDate?' · Vence: '+fmtD(new Date(c.dueDate+'T12:00:00')):'';
     const txns=getTcCycleTxns(c, cycles);
     const total=txns.reduce((s,t)=>s+(t.currency==='USD'?t.amount*USD_TO_ARS:t.amount),0);
     return '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">'+
       '<div style="flex:1;min-width:0;">'+
         '<div style="font-size:13px;font-weight:700;color:var(--text);">'+esc(c.label)+'</div>'+
-        '<div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;">'+fmtD(openD)+' → '+fmtD(closeD)+'</div>'+
+        '<div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;">'+fmtD(openD)+' → '+fmtD(closeD)+dueDStr+'</div>'+
       '</div>'+
       '<div style="font-size:13px;font-weight:700;color:var(--accent);font-family:var(--font);">'+(total>0?'$'+fmtN(total):'sin gastos')+'</div>'+
       '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteTcCycle(\''+c.id+'\')" title="Eliminar">🗑</button>'+

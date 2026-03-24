@@ -238,10 +238,19 @@ function renderTendencia(){
   sparksEl.innerHTML=activeParents.map(([parent])=>{
     const grp=CATEGORY_GROUPS.find(g=>g.group===parent);
     const c=grp?grp.color:'#888';const emoji=grp?grp.emoji:'';
-    // Use activeKeys so sparklines reflect the selected period(s) only
-    const vals=activeKeys.map(k=>getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&grp?.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0));
-    const totalVal=vals.reduce((s,v)=>s+v,0);
-    const lastVal=vals[vals.length-1]||0,prevVal=vals[vals.length-2]||0;
+    // Use full 'keys' array so the sparkline always shows history, but get stats for selected period
+    const allVals=keys.map(k=>getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&grp?.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0));
+    const activeVals=activeKeys.map(k=>getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&grp?.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0));
+    
+    // Total for the selected period(s)
+    const totalVal=activeVals.reduce((s,v)=>s+v,0);
+    
+    // Delta should always compare the most recent selected period to the one immediately before it in the FULL history
+    const lastActiveKey = activeKeys[activeKeys.length-1];
+    const lastKeyIdx = keys.indexOf(lastActiveKey);
+    const lastVal = allVals[lastKeyIdx] || 0;
+    const prevVal = lastKeyIdx > 0 ? allVals[lastKeyIdx-1] : 0;
+    
     const delta=prevVal>0?((lastVal-prevVal)/prevVal*100).toFixed(0):null;
     const deltaClass=delta===null?'neutral':+delta>0?'up':'down';
     const deltaText=delta===null?'\u2014':(+delta>0?'+':'')+delta+'%';
@@ -249,10 +258,10 @@ function renderTendencia(){
     const singlePeriod=activeKeys.length===1;
     setTimeout(()=>{
       const ctx=document.getElementById(sparkId);if(!ctx)return;
-      const ch=new Chart(ctx,{type:'line',data:{labels:activeKeys.map(k=>getTendPeriodLabel(k)),datasets:[{data:vals,borderColor:c,backgroundColor:c+'18',borderWidth:1.5,fill:true,tension:0.4,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
+      const ch=new Chart(ctx,{type:'line',data:{labels:keys.map(k=>getTendPeriodLabel(k)),datasets:[{data:allVals,borderColor:c,backgroundColor:c+'18',borderWidth:1.5,fill:true,tension:0.4,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{display:false},y:{display:false}}}});
       state.charts._sparklines.push(ch);
     },50);
-    const subText=singlePeriod?'período seleccionado':'total \u00b7 prom $'+fmtN(totalVal/Math.max(vals.length,1))+'/per\u00edodo';
+    const subText=singlePeriod?'período seleccionado':'total \u00b7 prom $'+fmtN(totalVal/Math.max(activeVals.length,1))+'/per\u00edodo';
     return '<div class="tend-sparkline-card"><div class="tend-spark-header"><div class="tend-spark-cat" style="color:'+c+';">'+emoji+' '+parent+'</div><div class="tend-spark-delta '+deltaClass+'">'+deltaText+'</div></div><div class="tend-spark-amount" style="color:'+c+';">$'+fmtN(totalVal)+'</div><div class="tend-spark-sub">'+subText+'</div><div class="sparkline-wrap"><canvas id="'+sparkId+'"></canvas></div></div>';
   }).join('');
 
