@@ -252,6 +252,9 @@ async function loadFromDrive(){
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
     state.txnCardFilter=s.txnCardFilter||'';
     state.transactions.forEach(t=>{if(!t.week)t.week=getWeekKey(t.date);if(!t.month)t.month=getMonthKey(t.date);});
+    // Migración retroactiva de payMethod con valores legacy del formulario manual
+    const _pmMig={'Efectivo':'ef','Débito':'deb','Tarjeta de Crédito':'tc','USD':'ef'};
+    state.transactions.forEach(t=>{if(t.payMethod&&_pmMig[t.payMethod])t.payMethod=_pmMig[t.payMethod];});
     // Also persist to localStorage
     try{localStorage.setItem('fin_state',JSON.stringify(s));}catch(e){}
     return true;
@@ -290,6 +293,9 @@ function loadState(){
     state.txnCardFilter=s.txnCardFilter||'';
     state.apiKey=localStorage.getItem('fin_apikey')||'';
     state.transactions.forEach(t=>{if(!t.week)t.week=getWeekKey(t.date);if(!t.month)t.month=getMonthKey(t.date);});
+    // Migración retroactiva de payMethod con valores legacy del formulario manual
+    const _pmMigMap={'Efectivo':'ef','Débito':'deb','Tarjeta de Crédito':'tc','USD':'ef'};
+    state.transactions.forEach(t=>{if(t.payMethod&&_pmMigMap[t.payMethod])t.payMethod=_pmMigMap[t.payMethod];});
     // Enrichment retroactivo (sin sobreescribir confirmados)
     state.transactions.forEach(t=>enrichTransaction(t, t.origen_del_movimiento||'importado_desde_resumen'));
     // populate legacy hidden fields for dashboard compat

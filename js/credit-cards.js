@@ -56,9 +56,15 @@ function ccGetCycleExpenses(cardId, tcCycleId){
   const ccState=state.ccCycles.find(c=>c.cardId===cardId && c.tcCycleId===tcCycleId) || {excludedIds:[], manualExpenses:[]};
   const excluded=new Set(ccState.excludedIds||[]);
   
+  // TC payMethod values that count as a credit card charge for this cycle
+  const _tcGeneric=['tc','Tarjeta de Crédito','tarjeta_credito'];
   const txnExpenses=(state.transactions||[]).filter(t=>{
     if(excluded.has(t.id))return false;
-    if(pmKey && t.payMethod!==pmKey)return false;
+    if(pmKey){
+      // Accept: exact card match (visa/amex), OR generic TC ('tc','Tarjeta de Crédito')
+      const _match=t.payMethod===pmKey||_tcGeneric.includes(t.payMethod);
+      if(!_match)return false;
+    }
     const d=dateToYMD(t.date);
     return d>=openDate && d<=cycle.closeDate;
   }).map(t=>({

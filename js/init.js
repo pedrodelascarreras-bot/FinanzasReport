@@ -250,11 +250,14 @@ function saveManualExpense(){
   if(!desc){showToast('⚠️ Ingresá una descripción','error');return;}
   if(!dateVal){showToast('⚠️ Ingresá una fecha','error');return;}
   if(!amountVal||amountVal<=0){showToast('⚠️ Ingresá un monto válido','error');return;}
-  const currency=method==='USD'?'USD':'ARS';
+  const currency=method==='usd'?'USD':'ARS';
   const date=new Date(dateVal+'T12:00:00');
   const id=Math.random().toString(36).substr(2,9);
+  // payMethod: 'usd' → 'ef' (efectivo en dólares), rest kept as-is
+  const payMethodKey=method==='usd'?'ef':method;
   const txn={id,date,description:desc,amount:amountVal,currency,category:cat,
-    payMethod:method,week:getWeekKey(date),month:getMonthKey(date),manual:true};
+    payMethod:payMethodKey,week:getWeekKey(date),month:getMonthKey(date),manual:true,
+    origen_del_movimiento:'pegado_manualmente'};
   state.transactions.push(txn);
   // Add to a "manual" import entry or create one
   let manualImp=state.imports.find(i=>i.id==='manual');
