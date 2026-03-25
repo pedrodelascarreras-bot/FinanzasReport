@@ -1,5 +1,12 @@
 // ══ CUOTAS ══
+function dismissAutoCuota(key){
+  if(!state.dismissedAutoCuotas) state.dismissedAutoCuotas=[];
+  if(!state.dismissedAutoCuotas.includes(key)) state.dismissedAutoCuotas.push(key);
+  saveState();renderCuotas();showToast('Cuota removida','info');
+}
+
 function detectAutoCuotas(){
+  if(!state.dismissedAutoCuotas) state.dismissedAutoCuotas=[];
   // Group transactions that look like installments (have cuotaNum/cuotaTotal)
   const groups={};
   state.transactions.filter(t=>t.cuotaNum&&t.cuotaTotal).forEach(t=>{
@@ -9,7 +16,7 @@ function detectAutoCuotas(){
     if(!groups[key])groups[key]={key,name:baseName,transactions:[],amount:t.amount,currency:t.currency};
     groups[key].transactions.push(t);
   });
-  return Object.values(groups);
+  return Object.values(groups).filter(g=>!state.dismissedAutoCuotas.includes(g.key));
 }
 function getDaysUntilNext(day){
   if(!day)return null;
@@ -76,7 +83,11 @@ function renderCuotas(){
 function buildCuotaCard(key,name,emoji,amount,currency,paid,total,rem,pct,daysUntil,day,remainingTotal,isManual,customColor){
   const c=customColor||(pct<50?'#ff3b30':pct<80?'#ff9500':'#007aff');
   const nextBadge=daysUntil!==null?'<span class="cuota-next-badge">próxima en '+daysUntil+'d (día '+day+')</span>':'<button class="btn btn-ghost btn-sm" onclick="'+(isManual?'editCuota(\''+key+'\')':'openAutoCuotaModal(\''+key+'\')')+'">⚙ Config</button>';
-  return'<div class="cuota-card"><div class="cuota-card-top"><div class="cuota-icon-wrap" style="background:'+c+'22;">'+emoji+'</div><div class="cuota-info"><div class="cuota-name">'+esc(name)+'</div><div class="cuota-desc">Cuota '+paid+'/'+total+' · resta $'+fmtN(remainingTotal)+'</div></div><div><div class="cuota-amount">$'+fmtN(amount)+'</div><div class="cuota-amount-sub">por cuota</div></div></div><div class="cuota-progress-area"><div class="cuota-prog-labels"><span>Pagado '+pct+'%</span><span>'+rem+' cuota'+(rem!==1?'s':'')+' restante'+(rem!==1?'s':'')+'</span></div><div class="cuota-prog-bar"><div class="cuota-prog-fill" style="width:'+pct+'%;background:'+c+'"></div></div></div><div class="cuota-actions">'+nextBadge+(isManual?'<button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="editCuota(\''+key+'\')">✎</button>':'<button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="openAutoCuotaModal(\''+key+'\')">✎</button>')+'</div></div>';
+  const deleteBtn=isManual
+    ?'<button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="editCuota(\''+key+'\')">✎</button>'
+    :'<button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="openAutoCuotaModal(\''+key+'\')">✎</button>'
+     +'<button class="btn btn-ghost btn-sm btn-icon" style="color:var(--danger);" title="Eliminar cuota" onclick="if(confirm(\'¿Eliminar esta cuota de la lista? Los movimientos existentes no se borran.\')){dismissAutoCuota(\''+key+'\');}">✕</button>';
+  return'<div class="cuota-card"><div class="cuota-card-top"><div class="cuota-icon-wrap" style="background:'+c+'22;">'+emoji+'</div><div class="cuota-info"><div class="cuota-name">'+esc(name)+'</div><div class="cuota-desc">Cuota '+paid+'/'+total+' · resta $'+fmtN(remainingTotal)+'</div></div><div><div class="cuota-amount">$'+fmtN(amount)+'</div><div class="cuota-amount-sub">por cuota</div></div></div><div class="cuota-progress-area"><div class="cuota-prog-labels"><span>Pagado '+pct+'%</span><span>'+rem+' cuota'+(rem!==1?'s':'')+' restante'+(rem!==1?'s':'')+'</span></div><div class="cuota-prog-bar"><div class="cuota-prog-fill" style="width:'+pct+'%;background:'+c+'"></div></div></div><div class="cuota-actions">'+nextBadge+deleteBtn+'</div></div>';
 }
 function openNewCuotaModal(){
   document.getElementById('modal-cuota-title').textContent='Agregar cuota manual';

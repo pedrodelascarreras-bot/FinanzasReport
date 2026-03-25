@@ -145,7 +145,7 @@
         <span style="font-size:18px;">🔔</span>
         <span id="notif-badge" style="position:absolute;top:2px;right:2px;width:10px;height:10px;background:var(--danger);border:2px solid var(--surface);border-radius:50%;display:none;"></span>
       </div>
-      <div><div class="page-title" id="dash-page-title">📊 Finanzas · Pedro</div><div class="page-subtitle" id="dash-date">—</div></div>
+      <div><div class="page-title" id="dash-page-title">Finanzas · Pedro</div><div class="page-subtitle" id="dash-date">—</div></div>
     </div>
     
     <!-- Notification Panel Popover -->
@@ -207,10 +207,7 @@
           <div id="dhc-margin-section" style="grid-column:1/-1;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:none;cursor:pointer;" onclick="nav('income')" title="Ver ingresos y configuración">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
               <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text3);">MARGEN DISPONIBLE</span>
-              <div style="display:flex;align-items:center;gap:8px;">
-                <button id="dhc-margin-sync-btn" onclick="event.stopPropagation();syncCurrentMonthIncome()" title="Sincronizar ingreso del mes actual con las fuentes" style="display:none;font-size:10px;font-weight:700;font-family:var(--font);padding:3px 10px;border-radius:6px;border:1px solid rgba(255,159,10,0.35);background:rgba(255,159,10,0.10);color:#e88c00;cursor:pointer;letter-spacing:0;">🔄 Actualizar</button>
-                <span id="dhc-margin-val" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;color:var(--text);"></span>
-              </div>
+              <span id="dhc-margin-val" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;color:var(--text);"></span>
             </div>
             <div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;">
               <div id="dhc-margin-fill" style="height:100%;border-radius:3px;transition:width 0.8s ease;"></div>

@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "FinanzasApp",
-      "runtimeExecutable": "/usr/bin/ruby",
-      "runtimeArgs": ["-run", "-e", "httpd", "/Users/pedrodelascarreras/Desktop/FinanzasApp", "-p", "3000"],
+      "runtimeExecutable": "/usr/bin/python3",
+      "runtimeArgs": ["/Users/pedrodelascarreras/Desktop/FinanzasApp/.claude/serve.py"],
       "port": 3000
     }
   ]

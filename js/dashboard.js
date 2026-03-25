@@ -383,10 +383,14 @@ function renderDashboard(){
   }
 
   // ── Gastos ──
-  const arsMonth=monthTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const usdMonth=monthTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-  const cntMonth=monthTxns.length;
-  const arsCnt=monthTxns.filter(t=>t.currency==='ARS').length;
+  // En modo TC: excluir débito/efectivo (payMethod=deb/ef) ya que el resumen de TC solo incluye cargos de tarjeta
+  const _tcModeActive=isTcView&&activeTcCycle;
+  const _isNonCC=(t)=>t.payMethod==='deb'||t.payMethod==='ef';
+  const billableTxns=_tcModeActive?monthTxns.filter(t=>!_isNonCC(t)):monthTxns;
+  const arsMonth=billableTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  const usdMonth=billableTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+  const cntMonth=billableTxns.length;
+  const arsCnt=billableTxns.filter(t=>t.currency==='ARS').length;
 
   // TC del mes
   const tcMonth=monthTxns.filter(t=>t.currency==='ARS'&&t.payMethod==='tc').reduce((s,t)=>s+t.amount,0);
@@ -427,9 +431,7 @@ function renderDashboard(){
     const _last=[...state.incomeMonths].sort((a,b)=>b.month.localeCompare(a.month))[0];
     if(_last){incARS=getMonthTotalARS(_last);incUSD=getMonthTotalUSD(_last);}
   }
-  // Show/hide "Sincronizar" button on margin widget
-  const _syncBtn=document.getElementById('dhc-margin-sync-btn');
-  if(_syncBtn) _syncBtn.style.display=_exactIncMonth?'none':'inline-flex';
+  // (Sync button removed from margin widget)
   const incTotalARS=incARS+(incUSD*USD_TO_ARS);
   const totalGastoARS=arsMonth+(usdMonth*USD_TO_ARS);
   const pct=incTotalARS>0?Math.round((totalGastoARS/incTotalARS)*100):null;

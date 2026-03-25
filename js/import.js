@@ -541,7 +541,8 @@ function ruleBasedCategory(desc){
 
 // Enriquecer transacción con campos nuevos si no los tiene
 function enrichTransaction(t, origen){
-  if(!t.origen_del_movimiento) t.origen_del_movimiento = origen||'importado_desde_resumen';
+  // Gmail-sourced transactions always get importado_desde_gmail regardless of caller
+  if(!t.origen_del_movimiento) t.origen_del_movimiento = (t.source==='gmail'?'importado_desde_gmail':origen||'importado_desde_resumen');
   if(!t.comercio_detectado) t.comercio_detectado = detectComercio(t.description)||null;
   if(!t.cat_sugerida || !t.cat_motivo){
     const sug = suggestCategory(t.description);

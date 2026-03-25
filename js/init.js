@@ -609,18 +609,25 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
       for (const an of annulments) {
         state.gmailAnulados.push(an.gmailId);
         stateChanged = true;
-        
+
+        // Helper: match flexible — mismo monto/moneda + descripción similar o sin comercio detectado
+        const _anBase = (an._baseDesc||'').toLowerCase();
+        const _matchesTxn = (t) => {
+          if (t.amount !== an.amount || t.currency !== an.currency) return false;
+          const tBase = (t._baseDesc||t.description||'').toLowerCase();
+          // Exact base match OR annulment has generic 'santander' (comercio not extracted)
+          return tBase === _anBase || _anBase === 'santander' || tBase.startsWith(_anBase) || _anBase.startsWith(tBase.split(' ')[0]);
+        };
+
         // Buscar en la lista de nuevos (por si llegaron ambos juntos)
-        let matchIdx = txns.findIndex(t => 
-            t.amount === an.amount && t.currency === an.currency && t._baseDesc === an._baseDesc
-        );
+        let matchIdx = txns.findIndex(t => _matchesTxn(t));
         if (matchIdx !== -1) {
             txns.splice(matchIdx, 1);
         } else {
-            // Buscar en transacciones existentes
-            let stateIdx = state.transactions.findIndex(t => 
-                t.amount === an.amount && t.currency === an.currency && t._baseDesc === an._baseDesc &&
-                Math.abs(new Date(t.date) - an.date) < 86400000 * 5 // tolerancia de 5 días
+            // Buscar en transacciones existentes (tolerancia 5 días)
+            let stateIdx = state.transactions.findIndex(t =>
+                _matchesTxn(t) &&
+                Math.abs(new Date(t.date) - an.date) < 86400000 * 5
             );
             if (stateIdx !== -1) {
                 state.transactions.splice(stateIdx, 1);
@@ -700,9 +707,21 @@ function parseSantanderEmail(email, currentBatch) {
     const dateHeader = headers.find(h => h.name === 'Date')?.value || '';
 
     const isAnulacion = /anulado/i.test(subject);
-    
+
     // Parse email body early to extract amount if necessary
     const body = getEmailBody(email.payload);
+
+    // Auto-detect card type from email body (VISA termina en 3177, AMEX termina en 7262)
+    let payMethod = null;
+    if (/terminada en 3177|tarjeta santander visa|visa cr[eé]dito/i.test(body)) payMethod = 'visa';
+    else if (/terminada en 7262|american express|amex/i.test(body)) payMethod = 'amex';
+    // Also check state.ccCards for card name matching (fallback)
+    if (!payMethod && state.ccCards?.length) {
+      const _visaCard = state.ccCards.find(c => /visa/i.test(c.name||''));
+      const _amexCard = state.ccCards.find(c => /amex|american express/i.test(c.name||''));
+      if (_amexCard && /american express|amex/i.test(body)) payMethod = 'amex';
+      else if (_visaCard && /visa/i.test(body)) payMethod = 'visa';
+    }
 
     let txnCurrency = 'ARS';
     let amount = 0;
@@ -806,6 +825,7 @@ function parseSantanderEmail(email, currentBatch) {
       week: getWeekKey(txnDate),
       month: getMonthKey(txnDate),
       source: 'gmail',
+      ...(payMethod ? { payMethod } : {}),
       ...(cuotaTotal && cuotaTotal >= 2 ? {
         cuotaNum,
         cuotaTotal,
@@ -819,15 +839,24 @@ function parseSantanderEmail(email, currentBatch) {
   }
 }
 
-// Find possible duplicates: same day + same amount vs existing transactions
+// Find possible duplicates: same day + same amount, OR same comercio + same amount within 2 days
 function findPossibleDuplicates(newTxns) {
   const conflicts = [];
   const clean = [];
   for (const t of newTxns) {
     const tDate = dateToYMD(t.date);
+    const tBase = (t._baseDesc||t.description||'').toLowerCase().split(' ')[0]; // first word of merchant
     const existing = state.transactions.filter(e => {
       const eDate = dateToYMD(e.date);
-      return eDate === tDate && e.amount === t.amount && e.currency === t.currency;
+      const sameDay = eDate === tDate;
+      const samePeriod = Math.abs(new Date(eDate) - new Date(tDate)) <= 86400000 * 2; // 2-day window
+      const sameAmt = e.amount === t.amount && e.currency === t.currency;
+      const eBase = (e._baseDesc||e.description||'').toLowerCase().split(' ')[0];
+      // Case 1: same day + same amount (exact duplicate check)
+      if (sameDay && sameAmt) return true;
+      // Case 2: same merchant (first word match) + same amount within 2 days (different hora)
+      if (samePeriod && sameAmt && tBase.length > 3 && eBase === tBase) return true;
+      return false;
     });
     if (existing.length > 0) {
       conflicts.push({ incoming: t, existing });
