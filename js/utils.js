@@ -51,6 +51,70 @@ function loadSidebar(){
   }
 }
 
+// ══ COLOR THEMES ══
+const COLOR_THEMES = [
+  { id:'blue',    label:'Azul',    color:'#2997ff', colorLight:'#0071e3' },
+  { id:'purple',  label:'Violeta', color:'#bf5af2', colorLight:'#7d3aec' },
+  { id:'emerald', label:'Verde',   color:'#30d158', colorLight:'#1c8c3b' },
+  { id:'rose',    label:'Rosa',    color:'#ff375f', colorLight:'#c9193b' },
+  { id:'amber',   label:'Ámbar',   color:'#ff9f0a', colorLight:'#c96a00' },
+  { id:'indigo',  label:'Índigo',  color:'#5e5ce6', colorLight:'#3634a3' },
+];
+
+function applyColorTheme(themeId) {
+  // Remove all theme classes
+  COLOR_THEMES.forEach(t => document.body.classList.remove('theme-' + t.id));
+  if(themeId && themeId !== 'blue') document.body.classList.add('theme-' + themeId);
+  localStorage.setItem('fin_color_theme', themeId || 'blue');
+  // Update dot color in button
+  const isLight = document.body.classList.contains('light-mode');
+  const theme = COLOR_THEMES.find(t => t.id === themeId) || COLOR_THEMES[0];
+  const dot = document.getElementById('color-theme-dot');
+  if(dot) dot.style.background = isLight ? theme.colorLight : theme.color;
+  // Refresh active swatches if panel is open
+  document.querySelectorAll('.ctp-swatch').forEach(s => {
+    s.classList.toggle('active', s.dataset.theme === themeId);
+  });
+}
+
+function loadColorTheme() {
+  const saved = localStorage.getItem('fin_color_theme') || 'blue';
+  applyColorTheme(saved);
+}
+
+function toggleColorThemePanel() {
+  const existing = document.getElementById('color-theme-panel');
+  if(existing) { existing.remove(); return; }
+
+  const currentTheme = localStorage.getItem('fin_color_theme') || 'blue';
+  const isLight = document.body.classList.contains('light-mode');
+
+  const panel = document.createElement('div');
+  panel.id = 'color-theme-panel';
+  panel.innerHTML = `
+    <div class="ctp-title">Color de la app</div>
+    <div class="ctp-grid">
+      ${COLOR_THEMES.map(t => `
+        <div class="ctp-swatch ${t.id === currentTheme ? 'active' : ''}" data-theme="${t.id}" onclick="applyColorTheme('${t.id}')">
+          <div class="ctp-swatch-dot" style="background:${isLight ? t.colorLight : t.color};"></div>
+          <span>${t.label}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  document.body.appendChild(panel);
+
+  // Close on outside click
+  setTimeout(() => {
+    document.addEventListener('click', function closePicker(e) {
+      if(!panel.contains(e.target) && e.target.id !== 'color-theme-btn') {
+        panel.remove();
+        document.removeEventListener('click', closePicker);
+      }
+    });
+  }, 50);
+}
+
 // ══ THEME TOGGLE ══
 function toggleTheme(){
   const isLight=document.body.classList.toggle('light-mode');

@@ -101,6 +101,7 @@ function addTcCycleFromCC(){
   state.tcCycles.push({id,label,closeDate,dueDate});
   saveState();
   renderCcTcConfig();
+  if(typeof renderCcConfigPanel==='function') renderCcConfigPanel();
   showToast('✓ Ciclo agregado: '+label,'success');
   if(labelEl)labelEl.value='';
   if(closeEl)closeEl.value='';
@@ -113,6 +114,7 @@ function deleteTcCycle(id){
   saveState();
   renderTcCycleList();
   renderCcTcConfig();
+  if(typeof renderCcConfigPanel==='function') renderCcConfigPanel();
   if(state.dashView==='tc')renderDashboard();
   showToast('Ciclo eliminado','info');
 }
@@ -210,6 +212,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   // One-time cleanup: remove any "Cuota X de Y" standalone entries from old imports
   if(state.transactions.length) deduplicateTransactions();
   loadTheme();
+  loadColorTheme();
   loadSidebar();
   updateUsdRateUI();
   setChartMode(state.chartMode||'week');

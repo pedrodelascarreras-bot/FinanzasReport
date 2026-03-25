@@ -111,6 +111,11 @@ async function processPdf(file) {
     }
     
     parseSantanderText(fullText);
+    // Extract the real SALDO ACTUAL from the PDF (last page)
+    cccState.pdfSaldoActual = extractSaldoActual(fullText);
+    if(cccState.pdfSaldoActual) {
+      console.log(`✓ SALDO ACTUAL extraído: ARS ${cccState.pdfSaldoActual.ars} | USD ${cccState.pdfSaldoActual.usd}`);
+    }
     runMatchingAlgorithm();
     cccSmartMatch(false); // Silent smart match on first load
     renderCccResults();
@@ -147,14 +152,14 @@ function parseSantanderText(text) {
   const MONTHS = {
     ene:1, enero:1, jan:1, feb:2, febrero:2, mar:3, marzo:3,
     abr:4, abril:4, apr:4, may:5, mayo:5, jun:6, junio:6,
-    jul:7, julio:7, ago:8, agosto:8, aug:8, sep:9, septiembre:9,
+    jul:7, julio:7, ago:8, agosto:8, aug:8, sep:9, septiembre:9, set:9,
     oct:10, octubre:10, nov:11, noviembre:11, dic:12, diciembre:12
   };
 
+  // Handles Argentine format: 1.234.567,89 or 1934.112,80 — dots=thousands, comma=decimal, optional trailing dash
   const parseAmt = (s) => {
     if(!s || s==='-') return 0;
-    // Remove dots (thousands), change comma to dot (decimal)
-    let clean = s.replace(/\./g,'').replace(',','.');
+    let clean = s.replace(/\./g,'').replace(',','.').replace(/-$/,'');
     return parseFloat(clean) || 0;
   };
 
@@ -164,37 +169,74 @@ function parseSantanderText(text) {
     /mantenimiento/i.test(l) || /percepc/i.test(l);
 
   const isPaymentLine = (l) =>
-    /su pago en pesos/i.test(l) || /su pago en d[oó]lares/i.test(l);
+    /su pago en pesos/i.test(l) || /su pago en d[oó]lares/i.test(l) ||
+    /cancel\.deuda c\/saldo/i.test(l) || /^anulacion de pago/i.test(l);
 
-  // Patterns
-  // 1. YY MON DD comprobante K/ DESCRIPTION amt [usd]
-  const TXN_RE1 = /^(\d{2})\s+([a-z]{3})[a-z]*\s+(\d{1,2})\s+\d{4,12}\s+[Kk]\/?[*]?\s*(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
-  // 2. DD MON DESCRIPTION amt [usd] (Newer format)
-  const TXN_RE2 = /^(\d{1,2})\s+([a-z]{3})[a-z]*\s+(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
-  // 3. DD/MM DESCRIPTION amt [usd]
-  const TXN_RE3 = /^(\d{1,2})\/(\d{1,2})\s+(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
-  // 4. YY MON DD DESCRIPTION amt [usd]
-  const TXN_RE4 = /^(\d{2})\s+([a-z]{3})[a-z]*\s+(\d{1,2})\s+(.*?)\s+([\d\.]+,\d{2})(?:\s+([\d\.]+,\d{2}))?$/i;
+  const isSkipLine = (l) =>
+    /^[-_=]{5,}/.test(l) ||
+    /tarjeta \d{4} total consumos/i.test(l) ||
+    /^saldo actual/i.test(l) ||
+    /^pago minimo/i.test(l) ||
+    /^\(.*\)$/.test(l) ||
+    /el presente es copia/i.test(l) ||
+    /debitaremos de su/i.test(l) ||
+    /plan v:/i.test(l) ||
+    /cuotas de \$/i.test(l) ||
+    /^cuotas a vencer/i.test(l) ||
+    /^resumen de cuenta/i.test(l) ||
+    /^santander/i.test(l) ||
+    /^le recordamos/i.test(l) ||
+    /^grupo:/i.test(l) ||
+    /^cuenta:/i.test(l) ||
+    /^sucursal:/i.test(l) ||
+    /^limites:/i.test(l) ||
+    /^fecha\s+comprobante/i.test(l) ||
+    /^tna\s+\d/i.test(l) ||
+    /^prox\.(cierre|vto)/i.test(l) ||
+    /^cierre ant\./i.test(l);
+
+  // AMT pattern: Argentine format with optional trailing dash (e.g.: 83.990,00 or 1934.112,80-)
+  const A = '([\\d\\.]+,\\d{2}-?)';
+
+  // RE1: YY MONTH DD  COMPROBANTE  [K/*]  DESCRIPTION  ARS  [USD]
+  // "26 Enero 29 077079 * MEGATLON MARTINEZ C.02/12 83.990,00"
+  const TXN_RE1 = new RegExp(`^(\\d{2})\\s+([a-záéíóúñ]+)\\s+(\\d{1,2})\\s+\\d{4,12}\\s+[Kk*]\\s*(.*?)\\s+${A}(?:\\s+${A})?$`, 'i');
+
+  // RE4: YY MONTH DD  DESCRIPTION  ARS  [USD]  (no comprobante — bank fees already handled, this is for misc)
+  const TXN_RE4 = new RegExp(`^(\\d{2})\\s+([a-záéíóúñ]+)\\s+(\\d{1,2})\\s+(.*?)\\s+${A}(?:\\s+${A})?$`, 'i');
+
+  // RE5 (NEW): DD  COMPROBANTE  [K/*]  DESCRIPTION  ARS  [USD]  — continuation line, no year/month prefix
+  // "19 700751 K MERPAGO*MARCELOMATIASSCHE 32.097,00"
+  const TXN_RE5 = new RegExp(`^(\\d{1,2})\\s+\\d{4,12}\\s+[Kk*]\\s+(.*?)\\s+${A}(?:\\s+${A})?$`, 'i');
+
+  // RE2: DD MONTH DESCRIPTION ARS [USD]
+  const TXN_RE2 = new RegExp(`^(\\d{1,2})\\s+([a-záéíóúñ]{3}[a-záéíóúñ]*)\\s+(.*?)\\s+${A}(?:\\s+${A})?$`, 'i');
+
+  // RE3: DD/MM DESCRIPTION ARS [USD]
+  const TXN_RE3 = new RegExp(`^(\\d{1,2})\\/(\\d{1,2})\\s+(.*?)\\s+${A}(?:\\s+${A})?$`, 'i');
 
   let currentHolder = 'Titular';
-  const currentYear = new Date().getFullYear();
+  // Track running year/month from year+month header lines (for continuation lines)
+  let curYear = new Date().getFullYear();
+  let curMonth = 1;
 
   for(let rawLine of lines) {
     const line = rawLine.trim().replace(/\s{2,}/g,' ');
-    if(!line) continue;
+    if(!line || isSkipLine(line)) continue;
 
     // Holder detection
     const holderM = line.match(/^(TITULAR|ADICIONAL):\s*(.*)/i);
     if(holderM) { currentHolder = holderM[2].trim(); continue; }
 
-    // Bank fees
+    // Bank fees — capture and skip rest of matching
     if(isBankFeeLine(line)) {
-      const amtM = line.match(/([\d\.]+,\d{2})$/);
+      const amtM = line.match(new RegExp(A + '$'));
       if(amtM) {
+        const rawDesc = line.replace(new RegExp(A+'$'),'').trim().replace(/\$\s*$/,'').trim();
         txns.push({
           id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
           rawDate: null, isoDate: null,
-          rawDesc: line.replace(/([\d\.]+,\d{2})$/, '').trim(),
+          rawDesc,
           amountARS: parseAmt(amtM[1]), amountUSD: 0,
           cuotas: null, isBankFee: true, isPayment: false
         });
@@ -204,41 +246,59 @@ function parseSantanderText(text) {
 
     // Payments
     if(isPaymentLine(line)) {
-       const amtM = line.match(/-?([\d\.]+,\d{2})$/);
-       if(amtM) {
-         const isUSD = /d[oó]lares/i.test(line);
-         txns.push({
-           id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
-           rawDate: null, isoDate: null,
-           rawDesc: line.replace(/-?([\d\.]+,\d{2})$/, '').trim(),
-           amountARS: isUSD ? 0 : parseAmt(amtM[1]),
-           amountUSD: isUSD ? parseAmt(amtM[1]) : 0,
-           cuotas: null, isBankFee: false, isPayment: true
-         });
-       }
-       continue;
+      const amtM = line.match(new RegExp(A + '$'));
+      if(amtM) {
+        const isUSD = /d[oó]lares|DLS/i.test(line);
+        txns.push({
+          id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
+          rawDate: null, isoDate: null,
+          rawDesc: line.replace(new RegExp(A+'$'),'').trim(),
+          amountARS: isUSD ? 0 : parseAmt(amtM[1]),
+          amountUSD: isUSD ? parseAmt(amtM[1]) : 0,
+          cuotas: null, isBankFee: false, isPayment: true
+        });
+      }
+      continue;
     }
 
-    let m = line.match(TXN_RE1);
+    let m;
     let day, month, year, desc, arsStr, usdStr;
 
-    if(m) {
-      year = 2000 + parseInt(m[1]); month = MONTHS[m[2].toLowerCase().slice(0,3)]; day = parseInt(m[3]);
+    if((m = line.match(TXN_RE1))) {
+      // Full line WITH comprobante and year+month
+      const monKey = m[2].toLowerCase().slice(0,3);
+      if(!MONTHS[monKey]) { console.warn(`Unmatched month "${m[2]}" in: ${line}`); continue; }
+      year = 2000 + parseInt(m[1]); month = MONTHS[monKey]; day = parseInt(m[3]);
+      curYear = year; curMonth = month;
       desc = m[4]; arsStr = m[5]; usdStr = m[6];
+    } else if((m = line.match(TXN_RE5))) {
+      // Continuation line WITH comprobante, NO year+month — uses last seen year/month
+      year = curYear; month = curMonth; day = parseInt(m[1]);
+      desc = m[2]; arsStr = m[3]; usdStr = m[4];
     } else if((m = line.match(TXN_RE4))) {
-      year = 2000 + parseInt(m[1]); month = MONTHS[m[2].toLowerCase().slice(0,3)]; day = parseInt(m[3]);
+      // Full line WITHOUT comprobante, WITH year+month
+      const monKey = m[2].toLowerCase().slice(0,3);
+      if(!MONTHS[monKey]) { console.warn(`Unmatched month "${m[2]}" in: ${line}`); continue; }
+      year = 2000 + parseInt(m[1]); month = MONTHS[monKey]; day = parseInt(m[3]);
+      curYear = year; curMonth = month;
       desc = m[4]; arsStr = m[5]; usdStr = m[6];
     } else if((m = line.match(TXN_RE2))) {
-      year = currentYear; month = MONTHS[m[2].toLowerCase().slice(0,3)]; day = parseInt(m[1]);
-      desc = m[3]; arsStr = m[4]; usdStr = m[5];
+      const monKey = m[2].toLowerCase().slice(0,3);
+      if(MONTHS[monKey]) {
+        year = curYear; month = MONTHS[monKey]; day = parseInt(m[1]);
+        desc = m[3]; arsStr = m[4]; usdStr = m[5];
+      } else { console.warn(`Unmatched line (RE2): ${line}`); continue; }
     } else if((m = line.match(TXN_RE3))) {
-      year = currentYear; day = parseInt(m[1]); month = parseInt(m[2]);
+      year = curYear; day = parseInt(m[1]); month = parseInt(m[2]);
       desc = m[3]; arsStr = m[4]; usdStr = m[5];
+    } else {
+      console.warn(`Unmatched line: ${line}`);
+      continue;
     }
 
     if(day && month && desc && arsStr) {
       const isoDate = `${year}-${String(month).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      desc = desc.trim();
+      desc = desc.trim().replace(/\$\s*$/,'').trim();
 
       // Extract cuota notation C.N/T from end of description
       let cuotas = null;
@@ -248,16 +308,28 @@ function parseSantanderText(text) {
         desc = desc.replace(/\s+C\.\d+\/\d+$/i,'').trim();
       }
 
+      // If description ends with "USD XX,XX" strip it out — it's the USD note in the merchant name
+      // and the ARS column is actually 0 (the arsStr value IS the USD value in disguise)
+      let amountARS = parseAmt(arsStr);
+      let amountUSD = usdStr ? parseAmt(usdStr) : 0;
+      const usdInDesc = desc.match(/\s+USD\s+([\d\.]+,\d{2})$/i);
+      if(usdInDesc && !usdStr) {
+        // ARS column was empty; arsStr holds the USD amount, description had "USD XX,XX"
+        amountUSD = parseAmt(usdInDesc[1]);
+        amountARS = 0;
+        desc = desc.replace(/\s+USD\s+[\d\.]+,\d{2}$/i,'').trim();
+      }
+
       txns.push({
         id: 'pdf_'+Date.now()+Math.random().toString(36).substr(2,5),
         rawDate: `${day} ${month}`, isoDate,
         rawDesc: desc,
-        amountARS: parseAmt(arsStr),
-        amountUSD: usdStr ? parseAmt(usdStr) : 0,
+        amountARS,
+        amountUSD,
         cuotas, isBankFee: false, isPayment: false,
         holder: currentHolder
       });
-      console.log(`Matched: ${isoDate} | ${desc} | ARS ${arsStr}`);
+      console.log(`✓ Parsed: ${isoDate} | ${desc} | ARS ${arsStr}${usdStr?' | USD '+usdStr:''}`);
     } else {
       console.warn(`Unmatched line: ${line}`);
     }
@@ -268,6 +340,29 @@ function parseSantanderText(text) {
   if(txns.length === 0) {
     throw new Error('No se detectaron transacciones en el formato esperado. Verificá que sea un resumen de Santander.');
   }
+}
+
+// ── Extract real SALDO ACTUAL from Santander PDF text ──
+function extractSaldoActual(text) {
+  const parseArgAmt = (s) => {
+    if(!s) return 0;
+    return parseFloat(s.replace(/\./g,'').replace(',','.').replace(/-$/,'')) || 0;
+  };
+
+  // Last page format: "SALDO ACTUAL $1928.358,40 U $ S 391,18"
+  // Also: "SALDO ACTUAL $1928.358,40 U$S 391,18"
+  let m = text.match(/SALDO ACTUAL\s*\$?\s*([\d\.]+,\d{2})\s*U[\s\$]*S\s*([\d\.]+,\d{2})/i);
+  if(m) return { ars: parseArgAmt(m[1]), usd: parseArgAmt(m[2]) };
+
+  // Only ARS: "SALDO ACTUAL $1928.358,40"
+  m = text.match(/SALDO ACTUAL\s*\$?\s*([\d\.]+,\d{2})/i);
+  if(m) return { ars: parseArgAmt(m[1]), usd: 0 };
+
+  // DEBITAREMOS format (page 11): "LA SUMA DE $ 1928358,40 + U$S 391,18"
+  m = text.match(/LA SUMA DE\s*\$\s*([\d\.]+,\d{2})\s*\+\s*U\$S\s*([\d\.]+,\d{2})/i);
+  if(m) return { ars: parseArgAmt(m[1]), usd: parseArgAmt(m[2]) };
+
+  return null;
 }
 
 // ── Matching Algorithm ──
@@ -424,7 +519,11 @@ function renderCccResults() {
     }
   });
 
-  const diffARS = totalPdfARS - totalAppARS;
+  // Use real SALDO ACTUAL from PDF if available; fallback to sum of parsed transactions
+  const heroARS = cccState.pdfSaldoActual ? cccState.pdfSaldoActual.ars : totalPdfARS;
+  const heroUSD = cccState.pdfSaldoActual ? cccState.pdfSaldoActual.usd : totalPdfUSD;
+  const diffARS = heroARS - totalAppARS;
+
   const groups = {
     pending: cccState.matches.filter(m => ['orphan_pdf','orphan_app','diff','posible'].includes(m.status)),
     conciliated: cccState.matches.filter(m => ['conc','bank_fee'].includes(m.status)),
@@ -435,8 +534,9 @@ function renderCccResults() {
     <!-- Summary Hero -->
     <div class="ccc-summary-hero fade-up">
       <div class="ccc-stat-item">
-        <div class="ccc-stat-label">Total Resumen (PDF)</div>
-        <div class="ccc-stat-val">$${fmtN(Math.round(totalPdfARS))}</div>
+        <div class="ccc-stat-label">Saldo Actual (PDF)</div>
+        <div class="ccc-stat-val">$${fmtN(Math.round(heroARS))}</div>
+        ${heroUSD > 0 ? `<div style="font-size:12px;font-weight:600;color:var(--accent2);margin-top:2px;">+ U$S ${fmtN(heroUSD)}</div>` : ''}
       </div>
       <div class="ccc-stat-item">
         <div class="ccc-stat-label">Registrado en App</div>
@@ -602,11 +702,24 @@ function cccEditAppTxn(matchId) {
 function cccImportAllFees() {
   const fees = cccState.matches.filter(m => m.status === 'bank_fee' && !m.appTxn);
   if (!fees.length) { showToast('No hay impuestos pendientes de importar','info'); return; }
-  
+
   if (!confirm(`¿Importar ${fees.length} cargos impositivos del PDF a la App?`)) return;
-  
-  const cycle = state.ccCycles.find(c => c.id === cccState.selectedCycle);
-  if(!cycle) return;
+
+  // BUG FIX: find by tcCycleId and create entry if missing
+  if(!state.ccCycles) state.ccCycles = [];
+  let cycle = state.ccCycles.find(c => c.tcCycleId === cccState.selectedCycle);
+  if(!cycle) {
+    const tcCycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
+    const tcCycle = tcCycles.find(c => c.id === cccState.selectedCycle);
+    if(!tcCycle) { showToast('Ciclo no encontrado','error'); return; }
+    const cardId = state.ccActiveCard || state.ccCards?.[0]?.id || '';
+    cycle = {
+      id: tcCycle.id + '_' + cardId,
+      cardId, tcCycleId: tcCycle.id,
+      status: 'pending', manualExpenses: [], excludedIds: []
+    };
+    state.ccCycles.push(cycle);
+  }
   if(!cycle.manualExpenses) cycle.manualExpenses = [];
   
   fees.forEach(f => {
@@ -702,17 +815,11 @@ function cccDoLinkApp(orphanAppId) {
 function cccAddMissing(matchId) {
    const m = cccState.matches.find(x => x.id === matchId);
    if(!m || !m.pdfTxn) return;
-   
+
    window._cccAddingMatchId = matchId;
-   
-   // Pre-fill modal
-   const yyyy = cccState.selectedCycle ? state.ccCycles.find(c=>c.id===cccState.selectedCycle)?.closeDate.split('-')[0] : new Date().getFullYear();
-   const mm = m.pdfTxn.rawDate.split('/')[1];
-   const dd = m.pdfTxn.rawDate.split('/')[0];
-   let finalY = yyyy;
-   if(mm==='12' && cccState.selectedCycle && state.ccCycles.find(c=>c.id===cccState.selectedCycle)?.closeDate.split('-')[1]==='01') finalY = String(Number(yyyy)-1);
-   
-   document.getElementById('ccc-add-date').value = `${finalY}-${mm}-${dd}`;
+
+   // BUG FIX: use isoDate directly (rawDate is "day monthNum", not "DD/MM")
+   document.getElementById('ccc-add-date').value = m.pdfTxn.isoDate || '';
    document.getElementById('ccc-add-desc').value = m.pdfTxn.rawDesc;
    
    // Populate categories
@@ -729,19 +836,31 @@ function cccSaveMissingExpense() {
    const matchId = window._cccAddingMatchId;
    const m = cccState.matches.find(x => x.id === matchId);
    if(!m) return;
-   
+
    const date = document.getElementById('ccc-add-date').value;
    const desc = document.getElementById('ccc-add-desc').value.trim();
    const catId = document.getElementById('ccc-add-cat').value;
    const cat = state.categories.find(c=>c.id===catId)?.name || 'Sin clasificar';
    const ars = parseFloat(document.getElementById('ccc-add-ars').value) || 0;
    const usd = parseFloat(document.getElementById('ccc-add-usd').value) || 0;
-   
-   if(!desc || !date) { showToast('⚠️ Faltan datos', 'error'); return; }
-   
-   // Inject to ccCycles
-   const cycle = state.ccCycles.find(c => c.id === cccState.selectedCycle);
-   if(!cycle) return;
+
+   if(!desc || !date) { showToast('⚠️ Faltan datos obligatorios', 'error'); return; }
+
+   // BUG FIX: find cycle by tcCycleId (not id), and create entry if missing
+   if(!state.ccCycles) state.ccCycles = [];
+   let cycle = state.ccCycles.find(c => c.tcCycleId === cccState.selectedCycle);
+   if(!cycle) {
+     const tcCycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
+     const tcCycle = tcCycles.find(c => c.id === cccState.selectedCycle);
+     if(!tcCycle) { showToast('Ciclo no encontrado. Seleccioná un ciclo primero.', 'error'); return; }
+     const cardId = state.ccActiveCard || state.ccCards?.[0]?.id || '';
+     cycle = {
+       id: tcCycle.id + '_' + cardId,
+       cardId, tcCycleId: tcCycle.id,
+       status: 'pending', manualExpenses: [], excludedIds: []
+     };
+     state.ccCycles.push(cycle);
+   }
    
    if(!cycle.manualExpenses) cycle.manualExpenses = [];
    const newExp = {

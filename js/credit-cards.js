@@ -109,12 +109,36 @@ function checkCreditCardAlerts(){
   });
 }
 
+// ── Tab de página: Resumen | Configuración ──
+function ccSelectPageTab(tab){
+  if(!tab) tab='resumen';
+  state.ccPageTab=tab;
+  document.getElementById('cpt-resumen')?.classList.toggle('active',tab==='resumen');
+  document.getElementById('cpt-config')?.classList.toggle('active',tab==='config');
+  const pr=document.getElementById('cc-panel-resumen');
+  const pc=document.getElementById('cc-panel-config');
+  if(pr) pr.style.display=tab==='resumen'?'':'none';
+  if(pc) pc.style.display=tab==='config'?'':'none';
+  if(tab==='config') renderCcConfigPanel();
+}
+
 // ── Renderizar página completa ──
 function renderCreditCards(){
   ccInit();
   renderCcCardTabs();
-  renderCcActiveCycle();
-  renderCcTcConfig();
+  const tab=state.ccPageTab||'resumen';
+  // Apply tab visibility
+  document.getElementById('cpt-resumen')?.classList.toggle('active',tab==='resumen');
+  document.getElementById('cpt-config')?.classList.toggle('active',tab==='config');
+  const pr=document.getElementById('cc-panel-resumen');
+  const pc=document.getElementById('cc-panel-config');
+  if(pr) pr.style.display=tab==='resumen'?'':'none';
+  if(pc) pc.style.display=tab==='config'?'':'none';
+  if(tab==='resumen'){
+    renderCcActiveCycle();
+  } else {
+    renderCcConfigPanel();
+  }
 }
 
 function renderCcCardTabs(){
@@ -524,6 +548,87 @@ function ccDeleteManualExpense(tcCycleId, expId){
   ccState.manualExpenses=(ccState.manualExpenses||[]).filter(e=>e.id!==expId);
   saveState();
   renderCcActiveCycle();
+}
+
+// ── Render Apple-style Configuración panel ──
+function renderCcConfigPanel(){
+  const el=document.getElementById('cc-config-panel-body');if(!el)return;
+  const cycles=getTcCycles();
+  const cards=state.ccCards||[];
+
+  // ── Cards section ──
+  const cardsHtml=cards.map((card,ci)=>`
+    <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;${ci>0?'border-top:1px solid var(--border)':''};">
+      <div style="width:40px;height:40px;border-radius:12px;background:${card.color}22;display:flex;align-items:center;justify-content:center;font-size:20px;">💳</div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:14px;font-weight:700;color:var(--text);">${esc(card.name)}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;">Tag: <strong style="color:${card.color};">${card.payMethodKey?.toUpperCase()||'—'}</strong></div>
+      </div>
+      <div style="width:12px;height:12px;border-radius:50%;background:${card.color};flex-shrink:0;"></div>
+    </div>`).join('');
+
+  // ── Cycles section ──
+  const cyclesListHtml=cycles.length
+    ? cycles.map((c,idx)=>{
+        const open=getTcCycleOpen(cycles,idx);
+        const fmtD=s=>new Date(s+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+        const exp=ccGetCycleExpenses(state.ccActiveCard||cards[0]?.id, c.id);
+        const tot=ccGetTotals(exp);
+        const statusEntry=state.ccCycles.find(x=>x.tcCycleId===c.id&&x.cardId===(state.ccActiveCard||cards[0]?.id));
+        const isPaid=statusEntry?.status==='paid';
+        return `<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;${idx>0?'border-top:1px solid var(--border)':''};">
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              ${isPaid?'<span style="background:rgba(52,199,89,0.15);color:var(--green-sys);font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.04em;">✓ PAGADO</span>':'<span style="background:rgba(255,149,0,0.12);color:var(--orange);font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.04em;">⏳ PENDIENTE</span>'}
+              <span style="font-size:13px;font-weight:700;color:var(--text);">${esc(c.label)}</span>
+            </div>
+            <div style="font-size:11px;color:var(--text3);">${fmtD(open)} → ${fmtD(c.closeDate)}${c.dueDate?' · Vto: <strong>'+fmtD(c.dueDate)+'</strong>':''}</div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;">
+            ${tot.ars>0?`<div style="font-size:13px;font-weight:700;color:var(--accent);font-family:var(--font);">$${fmtN(Math.round(tot.ars))}</div>`:''}
+            ${tot.usd>0?`<div style="font-size:11px;color:var(--accent2);font-family:var(--font);">U$D ${fmtN(tot.usd)}</div>`:''}
+            ${!tot.ars&&!tot.usd?'<div style="font-size:11px;color:var(--text3);">sin gastos</div>':''}
+          </div>
+          <button onclick="deleteTcCycle('${c.id}')" title="Eliminar ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:4px 6px;border-radius:6px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color='var(--danger)'" onmouseout="this.style.opacity=.5;this.style.color='var(--text3)'">🗑</button>
+        </div>`;
+      }).join('')
+    : '<div style="text-align:center;padding:28px 20px;color:var(--text3);font-size:13px;">Sin ciclos registrados.<br><span style="font-size:11px;">Agregá el primero con el formulario de arriba.</span></div>';
+
+  el.innerHTML=`
+    <!-- ── Tarjetas configuradas ── -->
+    <div style="margin-bottom:28px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Tarjetas</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;">${cardsHtml}</div>
+    </div>
+
+    <!-- ── Agregar ciclo ── -->
+    <div style="margin-bottom:20px;">
+      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Nuevo ciclo</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;">
+        <div style="display:grid;grid-template-columns:1fr 140px 140px;gap:12px;margin-bottom:14px;align-items:end;">
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Nombre del ciclo</div>
+            <input class="cc-cfg-input" id="tc-cycle-label-cc" placeholder="Ej: Marzo 2026" autocomplete="off">
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Fecha de cierre</div>
+            <input type="date" class="cc-cfg-input" id="tc-cycle-close-cc">
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Vencimiento pago</div>
+            <input type="date" class="cc-cfg-input" id="tc-cycle-due-cc">
+          </div>
+        </div>
+        <button onclick="addTcCycleFromCC()" style="width:100%;padding:12px;border-radius:12px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-size:14px;font-weight:700;font-family:var(--font);letter-spacing:.02em;transition:opacity .13s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">+ Agregar ciclo</button>
+      </div>
+    </div>
+
+    <!-- ── Historial de ciclos ── -->
+    <div>
+      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Ciclos registrados</div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;">${cyclesListHtml}</div>
+    </div>
+  `;
 }
 
 // ── Render TC Config section inline dentro de la página de Tarjeta de Crédito ──

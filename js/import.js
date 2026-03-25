@@ -27,6 +27,12 @@ function parsePasteTextWithReview(text){
   const mmap={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,octubre:10,noviembre:11,diciembre:12};
   let lastDate=null, latestDateSeen=null, i=0;
 
+  // Auto-detect card type from Gmail email body (Santander)
+  // Matches "Tarjeta Santander Visa Crédito terminada en 3177" or "American Express terminada en 7262"
+  let detectedPayMethod = null;
+  if (/tarjeta santander visa|terminada en 3177/i.test(text)) detectedPayMethod = 'visa';
+  else if (/american express|amex|terminada en 7262/i.test(text)) detectedPayMethod = 'amex';
+
   // Helper: parse amount string "25.918,34" → 25918.34
   const parseAmt = s => parseFloat(s.replace(/[^\d.,]/g,'').replace(/\./g,'').replace(',','.')) || 0;
 
@@ -103,7 +109,9 @@ function parsePasteTextWithReview(text){
           const cat=ruleBasedCategory(line);
           // Check if the NEXT line (after skipping blanks) is a cuota line
           // We peek ahead: if so, we'll handle cuota metadata in next iteration
-          txns.push({id,date:new Date(lastDate),description:line,_baseDesc:line,amount,currency,category:cat,week:getWeekKey(lastDate),month:getMonthKey(lastDate),_autocat:cat!=='Otros'});
+          const _t={id,date:new Date(lastDate),description:line,_baseDesc:line,amount,currency,category:cat,week:getWeekKey(lastDate),month:getMonthKey(lastDate),_autocat:cat!=='Otros'};
+          if(detectedPayMethod) _t.payMethod=detectedPayMethod;
+          txns.push(_t);
         }
         continue;
       } else if(!found&&line.length>1&&lastDate){
@@ -268,7 +276,8 @@ function autoCreateGmailCuotas(txns){
         cat_sugerida:t.cat_sugerida||null,
         cat_motivo:'Cuota proyectada automáticamente',
         cat_source:'cuota',
-        estado_revision:'detectado_automaticamente'
+        estado_revision:'detectado_automaticamente',
+        payMethod:t.payMethod||null
       });
     }
   }

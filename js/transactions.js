@@ -12,6 +12,16 @@ function clearSearch(){
   renderTransactions();
 }
 
+// Card filter for transactions
+if(state.txnCardFilter===undefined) state.txnCardFilter='';
+function setCardFilter(key){
+  state.txnCardFilter=key||'';
+  document.getElementById('tcf-all')?.classList.toggle('active',!key);
+  document.getElementById('tcf-visa')?.classList.toggle('active',key==='visa');
+  document.getElementById('tcf-amex')?.classList.toggle('active',key==='amex');
+  renderTransactions();
+}
+
 // Toggle modo filtro: 'mes' | 'tc'
 function setTxnFilterMode(mode){
   state.txnFilterMode=mode||'mes';
@@ -179,6 +189,12 @@ function renderTransactions(){
 
   if(cfv)txns=txns.filter(t=>t.category===cfv);
   if(cufv)txns=txns.filter(t=>t.currency===cufv);
+  const cardFv=state.txnCardFilter||'';
+  if(cardFv)txns=txns.filter(t=>t.payMethod===cardFv);
+  // Sync card filter button states
+  document.getElementById('tcf-all')?.classList.toggle('active',!cardFv);
+  document.getElementById('tcf-visa')?.classList.toggle('active',cardFv==='visa');
+  document.getElementById('tcf-amex')?.classList.toggle('active',cardFv==='amex');
   if(searchVal){
     const sv=searchVal.replace(/^\$/,'').trim(); // strip leading $ for amount search
     txns=txns.filter(t=>{
@@ -300,7 +316,9 @@ function renderTransactions(){
   };
   function cuotaProjectedChip(t){
     if(!t.isPendingCuota) return '';
-    return '<span class="origen-chip" style="background:rgba(255,149,0,0.12);color:var(--accent3);border:1px solid rgba(255,149,0,0.3);">📋 Cuota '+t.cuotaNum+'/'+t.cuotaTotal+'</span>';
+    const _crd=t.payMethod==='visa'?'<span style="background:rgba(230,57,70,0.12);color:#e63946;border:1px solid rgba(230,57,70,0.25);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700;letter-spacing:.03em;margin-left:3px;vertical-align:middle;">VISA</span>'
+      :t.payMethod==='amex'?'<span style="background:rgba(69,123,157,0.12);color:#457b9d;border:1px solid rgba(69,123,157,0.25);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700;letter-spacing:.03em;margin-left:3px;vertical-align:middle;">AMEX</span>':'';
+    return '<span class="origen-chip" style="background:rgba(255,149,0,0.12);color:var(--accent3);border:1px solid rgba(255,149,0,0.3);">📋 Cuota '+t.cuotaNum+'/'+t.cuotaTotal+_crd+'</span>';
   }
 
   function estadoBadge(t){

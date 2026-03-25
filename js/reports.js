@@ -1,6 +1,91 @@
 // ══ REPORTES ══
 const MNAMES_R=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
+// ── Email Report ──────────────────────────────────────────────────────────────
+// URL del servidor local (report/server.js corriendo en puerto 3001)
+// Si lo tenés en Google Cloud Run, reemplazá por tu URL de Cloud Run
+const REPORT_SERVER_URL = 'http://localhost:3001';
+
+function openSendReportModal() {
+  openModal('modal-send-report');
+  // Reset status
+  const status = document.getElementById('sre-status');
+  if(status) { status.style.display='none'; status.textContent=''; }
+  // Wire up period option cards
+  document.querySelectorAll('input[name="sre-period"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.getElementById('sre-period-week')?.classList.toggle('active', radio.value==='week' && radio.checked);
+      document.getElementById('sre-period-month')?.classList.toggle('active', radio.value==='month' && radio.checked);
+    });
+  });
+  document.querySelectorAll('.sre-option-card').forEach(card => {
+    card.addEventListener('click', () => {
+      document.querySelectorAll('.sre-option-card').forEach(c=>c.classList.remove('active'));
+      card.classList.add('active');
+      card.querySelector('input[type="radio"]').checked = true;
+    });
+  });
+}
+
+async function sendReportNow() {
+  const btn = document.getElementById('sre-send-btn');
+  const statusEl = document.getElementById('sre-status');
+
+  const period = document.querySelector('input[name="sre-period"]:checked')?.value || 'week';
+  const options = {
+    period,
+    include: {
+      summary:  document.getElementById('sre-inc-summary')?.checked ?? true,
+      cats:     document.getElementById('sre-inc-cats')?.checked ?? true,
+      ai:       document.getElementById('sre-inc-ai')?.checked ?? true,
+      txns:     document.getElementById('sre-inc-txns')?.checked ?? false,
+      alerts:   document.getElementById('sre-inc-alerts')?.checked ?? false,
+    }
+  };
+
+  // UI: loading state
+  if(btn) { btn.disabled=true; btn.innerHTML='<span style="opacity:.7">Enviando…</span>'; }
+  if(statusEl) { statusEl.style.display='block'; statusEl.style.background='var(--blue-light)'; statusEl.style.color='var(--accent)'; statusEl.textContent='⏳ Generando PDF y enviando email…'; }
+
+  try {
+    const res = await fetch(`${REPORT_SERVER_URL}/send-report`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(options),
+      signal: AbortSignal.timeout(90000) // 90s timeout (PDF generation can take a while)
+    });
+
+    if(res.ok) {
+      const data = await res.json();
+      if(statusEl) { statusEl.style.background='rgba(48,209,88,0.15)'; statusEl.style.color='var(--green-sys)'; statusEl.textContent='✓ Reporte enviado a ' + (data.to || 'tu casilla'); }
+      showToast('✓ Reporte enviado por email', 'success');
+      setTimeout(() => closeModal('modal-send-report'), 2500);
+    } else {
+      const err = await res.json().catch(()=>({error:'Error del servidor'}));
+      throw new Error(err.error || `Error ${res.status}`);
+    }
+  } catch(err) {
+    let msg;
+    if(err.name === 'AbortError' || err.message?.includes('fetch')) {
+      msg = '⚠️ No se pudo conectar con el servidor local. ¿Está corriendo report/server.js?\n\nCorré en Terminal: node report/server.js';
+    } else {
+      msg = '✕ ' + (err.message || 'Error desconocido');
+    }
+    if(statusEl) {
+      statusEl.style.background='var(--red-light)';
+      statusEl.style.color='var(--danger)';
+      statusEl.style.whiteSpace='pre-wrap';
+      statusEl.textContent = msg;
+    }
+    showToast('Error enviando el reporte', 'error');
+  } finally {
+    if(btn) {
+      btn.disabled=false;
+      btn.innerHTML=`<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M1 8L15 1M15 1L8 15M15 1L1 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Enviar ahora`;
+    }
+  }
+}
+
 function renderReportesPage(){
   setRepMode(state.repMode||'mes');
 }

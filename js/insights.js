@@ -16,6 +16,7 @@ function generateInsights() {
 
   const data = _computeInsightsData();
   _renderScoreCard(data);
+  _renderChallenges(data);
   _renderInsightsChart(data);
   _renderAllInsightSections(data);
   showToast('✓ Insights actualizados','success');
@@ -184,6 +185,183 @@ function _computeInsightsData() {
     largestTxn,
     nextCuotasTotal,nextMonthCuotas:nextMonthCuotas.length
   };
+}
+
+// ── Desafíos Financieros ──────────────────────────────────
+// Auto-genera challenges basados en los datos reales del usuario y los evalúa automáticamente
+
+function _renderChallenges(data) {
+  const el = document.getElementById('ins-challenges-section');
+  if(!el) return;
+
+  const challenges = _buildChallenges(data);
+  if(!challenges.length) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+
+  // Persist completed challenge IDs so dismissed ones survive re-render
+  if(!state._challengesCompleted) state._challengesCompleted = {};
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+      <div>
+        <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:2px;">DESAFÍOS ACTIVOS</div>
+        <div style="font-size:13px;color:var(--text2);">Objetivos calculados automáticamente con tus datos</div>
+      </div>
+      <div style="font-size:11px;font-weight:600;color:var(--accent);background:var(--blue-light);padding:4px 10px;border-radius:20px;">
+        ${challenges.filter(c=>c.status==='done').length}/${challenges.length} completados
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">
+      ${challenges.map(c => _renderChallenge(c)).join('')}
+    </div>
+  `;
+}
+
+function _buildChallenges(data) {
+  const txns = (state.transactions||[]).filter(t => !t.isPendingCuota);
+  const today = new Date();
+  const todayStr = today.toISOString().slice(0,10);
+
+  // Week start (Monday)
+  const weekStart = new Date(today);
+  weekStart.setDate(today.getDate() - ((today.getDay()+6)%7));
+  const weekStartStr = weekStart.toISOString().slice(0,10);
+
+  const challenges = [];
+
+  // ── Challenge 1: Presupuesto diario ──
+  if(data.dayAvg > 0) {
+    const dailyBudget = Math.round(data.dayAvg * 1.15);
+    const todayARS = txns
+      .filter(t => t.currency==='ARS' && (dateToYMD?dateToYMD(t.date):t.date?.slice(0,10)) === todayStr)
+      .reduce((s,t)=>s+t.amount, 0);
+    const pct = dailyBudget > 0 ? Math.min(100, Math.round(todayARS/dailyBudget*100)) : 0;
+    const status = todayARS === 0 ? 'pristine'
+      : pct <= 80 ? 'done'
+      : pct <= 100 ? 'warning'
+      : 'fail';
+    challenges.push({
+      id: 'daily', icon: '🎯',
+      title: 'Presupuesto del día',
+      desc: `Gastá menos de $${fmtN(dailyBudget)} hoy`,
+      detail: todayARS === 0 ? '¡Todavía no gastaste nada hoy!' : `$${fmtN(Math.round(todayARS))} de $${fmtN(dailyBudget)}`,
+      pct, status, period: 'Hoy'
+    });
+  }
+
+  // ── Challenge 2: Semana vs. promedio mensual pasado ──
+  if(data.arsPrev > 0) {
+    const weeklyTarget = Math.round(data.arsPrev / 4.3);
+    const weekARS = txns
+      .filter(t => t.currency==='ARS' && (t.date?.slice?.(0,10)||'') >= weekStartStr)
+      .reduce((s,t)=>s+t.amount, 0);
+    const pct = weeklyTarget > 0 ? Math.min(100, Math.round(weekARS/weeklyTarget*100)) : 0;
+    const status = pct <= 80 ? 'done' : pct <= 100 ? 'warning' : 'fail';
+    challenges.push({
+      id: 'weekly', icon: '📊',
+      title: 'Semana bajo control',
+      desc: `Gastá menos que tu promedio semanal del mes pasado`,
+      detail: `$${fmtN(Math.round(weekARS))} de $${fmtN(weeklyTarget)}`,
+      pct, status, period: 'Esta semana'
+    });
+  }
+
+  // ── Challenge 3: Controlá la categoría más creciente ──
+  if(data.growingCats.length > 0 && data.growingCats[0].pctChange > 20) {
+    const cat = data.growingCats[0];
+    const target = Math.round(cat.prev * 1.05);
+    const pct = target > 0 ? Math.min(100, Math.round(cat.current/target*100)) : 0;
+    const status = pct <= 80 ? 'done' : pct <= 100 ? 'warning' : 'fail';
+    challenges.push({
+      id: 'cat_' + cat.cat, icon: '⚡',
+      title: `Controlá ${cat.cat}`,
+      desc: `Subió ${cat.pctChange}% vs. el mes pasado. Mantente en control`,
+      detail: `$${fmtN(Math.round(cat.current))} de $${fmtN(target)}`,
+      pct, status, period: 'Este mes'
+    });
+  }
+
+  // ── Challenge 4: Días sin gastar (racha) ──
+  {
+    const target = 5;
+    const streak = data.daysWithout || 0;
+    const pct = Math.min(100, Math.round(streak/target*100));
+    const status = streak >= target ? 'done' : streak >= 2 ? 'warning' : 'pristine';
+    const flame = streak >= target ? '🔥' : streak >= 2 ? '✨' : '💤';
+    challenges.push({
+      id: 'streak', icon: flame,
+      title: 'Racha sin gastar',
+      desc: `Acumulá ${target} días sin registrar gastos este mes`,
+      detail: `${streak} de ${target} días`,
+      pct, status, period: 'Este mes', isStreak: true
+    });
+  }
+
+  // ── Challenge 5: Proyección del mes ──
+  if(data.projectedMonth > 0 && data.incomeARS > 0) {
+    const target = Math.round(data.incomeARS * 0.85);
+    const pct = target > 0 ? Math.min(100, Math.round(data.projectedMonth/target*100)) : 0;
+    const status = pct <= 80 ? 'done' : pct <= 100 ? 'warning' : 'fail';
+    challenges.push({
+      id: 'projection', icon: '📈',
+      title: 'Proyección del mes',
+      desc: `Tu ritmo proyecta $${fmtN(data.projectedMonth)} — objetivo ≤ $${fmtN(target)}`,
+      detail: `${pct}% del objetivo (${data.daysLeft}d restantes)`,
+      pct, status, period: 'Este mes'
+    });
+  }
+
+  return challenges;
+}
+
+function _renderChallenge(c) {
+  const statusColor = {
+    done: 'var(--green-sys)',
+    warning: 'var(--orange)',
+    fail: 'var(--danger)',
+    pristine: 'var(--accent)'
+  }[c.status] || 'var(--accent)';
+
+  const statusLabel = {
+    done: '✓ Cumplido',
+    warning: '⚠ En zona límite',
+    fail: '✕ Superado',
+    pristine: '→ En progreso'
+  }[c.status] || '→ En progreso';
+
+  const barBg = c.status === 'fail'
+    ? 'linear-gradient(90deg,var(--danger),rgba(255,59,48,.5))'
+    : c.status === 'warning'
+    ? 'linear-gradient(90deg,var(--orange),rgba(255,159,10,.5))'
+    : c.status === 'done'
+    ? 'linear-gradient(90deg,var(--green-sys),rgba(48,209,88,.5))'
+    : 'linear-gradient(90deg,var(--accent),var(--blue-mid))';
+
+  return `
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;">
+      <!-- Top accent bar -->
+      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${barBg};opacity:${c.status==='done'?1:.6};border-radius:16px 16px 0 0;"></div>
+      <!-- Header -->
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:20px;line-height:1;">${c.icon}</span>
+          <div>
+            <div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.2;">${c.title}</div>
+            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;">${c.period}</div>
+          </div>
+        </div>
+        <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;color:${statusColor};background:${statusColor}18;">${statusLabel}</span>
+      </div>
+      <!-- Description -->
+      <div style="font-size:12px;color:var(--text2);line-height:1.45;">${c.desc}</div>
+      <!-- Progress bar -->
+      <div style="background:var(--surface2);border-radius:99px;height:6px;overflow:hidden;">
+        <div style="height:100%;width:${c.pct}%;background:${barBg};border-radius:99px;transition:width .8s cubic-bezier(.4,0,.2,1);"></div>
+      </div>
+      <!-- Detail -->
+      <div style="font-size:11px;font-weight:600;color:var(--text3);">${c.detail}</div>
+    </div>
+  `;
 }
 
 // ── Monthly Evolution Chart ───────────────────────────────
