@@ -154,6 +154,23 @@ function renderIncomePage(){
       +'</div>';
   }).join(''):'<div class="empty-state" style="padding:40px;"><div class="empty-icon">◎</div><div class="empty-title">Sin meses registrados</div><div class="empty-sub">Hacé click en "+ Registrar mes"</div></div>';
   document.getElementById('inc-total-badge').textContent=months.length+' mes'+(months.length!==1?'es':'')+' · prom $'+fmtN(avgCombined)+' combinado';
+
+  // ── Sync banner: warn if current month has no logged entry ──
+  const _syncBanner=document.getElementById('inc-sync-banner');
+  if(_syncBanner){
+    const _hasCurEntry=!!state.incomeMonths.find(m=>m.month===curMonthKey);
+    const _hasSources=(state.incomeSources||[]).some(s=>s.base>0);
+    if(!_hasCurEntry&&_hasSources){
+      const _srcTotal=(state.incomeSources||[]).filter(s=>s.currency==='ARS').reduce((a,s)=>a+(s.base||0),0);
+      _syncBanner.style.display='flex';
+      _syncBanner.innerHTML='<span style="font-size:13px;">⚠️ No hay ingreso registrado para el mes actual.</span>'
+        +'<span style="font-size:12px;color:var(--text3);">Las fuentes tienen un base de <strong>$'+fmtN(_srcTotal)+'</strong> configurado.</span>'
+        +'<button class="btn btn-primary" style="padding:7px 16px;font-size:12px;" onclick="syncCurrentMonthIncome()">🔄 Aplicar al mes actual</button>';
+    } else {
+      _syncBanner.style.display='none';
+    }
+  }
+
   // Sources panel
   renderIncSourcesPanel();
   renderIncomeChart();
@@ -280,7 +297,38 @@ function saveIncSource(){
   const obj={id:document.getElementById('modal-inc-src-editing').value||Date.now().toString(36),name,type:document.getElementById('inc-src-type').value,currency:document.getElementById('inc-src-currency').value,base:parseFloat(document.getElementById('inc-src-base').value)||0,color};
   const idx=state.incomeSources.findIndex(s=>s.id===obj.id);
   if(idx>=0)state.incomeSources[idx]=obj;else state.incomeSources.push(obj);
+  // Auto-sync: if current month already has an entry, update this source's amount in it
+  if(obj.base>0){
+    const _mk=getMonthKey(new Date());
+    const _cur=state.incomeMonths.find(m=>m.month===_mk);
+    if(_cur){
+      if(!_cur.sources)_cur.sources={};
+      _cur.sources[obj.id]=obj.base;
+      state.income.ars=getMonthTotalARS(_cur);
+    }
+  }
   saveState();closeModal('modal-inc-source');renderIncomePage();refreshAll();showToast('✓ Fuente guardada','success');
+}
+
+// ── Sync current month with source bases ──────────────────────────────────────
+function syncCurrentMonthIncome(){
+  if(!(state.incomeSources||[]).some(s=>s.base>0)){
+    showToast('⚠️ Configurá un monto base en las fuentes primero','error');return;
+  }
+  const mk=getMonthKey(new Date());
+  const sources={};
+  state.incomeSources.forEach(s=>{if(s.base>0)sources[s.id]=s.base;});
+  let entry=state.incomeMonths.find(m=>m.month===mk);
+  if(entry){
+    // Merge: update each source amount but preserve extra and notes
+    entry.sources=Object.assign({},entry.sources,sources);
+  } else {
+    entry={id:Date.now().toString(36),month:mk,sources,extraArs:0,extraUsd:0,note:'Auto-sincronizado'};
+    state.incomeMonths.push(entry);
+  }
+  state.income.ars=getMonthTotalARS(entry);
+  saveState();renderIncomePage();refreshAll();
+  showToast('✓ Ingreso del mes sincronizado con las fuentes configuradas','success');
 }
 function deleteIncSource(){
   const id=document.getElementById('modal-inc-src-editing').value;

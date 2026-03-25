@@ -205,9 +205,12 @@
           </div>
           <!-- Margen card (spans 2 cols) -->
           <div id="dhc-margin-section" style="grid-column:1/-1;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:none;cursor:pointer;" onclick="nav('income')" title="Ver ingresos y configuración">
-            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
               <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text3);">MARGEN DISPONIBLE</span>
-              <span id="dhc-margin-val" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;color:var(--text);"></span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <button id="dhc-margin-sync-btn" onclick="event.stopPropagation();syncCurrentMonthIncome()" title="Sincronizar ingreso del mes actual con las fuentes" style="display:none;font-size:10px;font-weight:700;font-family:var(--font);padding:3px 10px;border-radius:6px;border:1px solid rgba(255,159,10,0.35);background:rgba(255,159,10,0.10);color:#e88c00;cursor:pointer;letter-spacing:0;">🔄 Actualizar</button>
+                <span id="dhc-margin-val" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;color:var(--text);"></span>
+              </div>
             </div>
             <div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;">
               <div id="dhc-margin-fill" style="height:100%;border-radius:3px;transition:width 0.8s ease;"></div>
@@ -1148,9 +1151,13 @@
     <div><div class="page-title">Ingresos</div><div class="page-subtitle">Historial mensual · fuentes · evolución</div></div>
     <div class="header-actions">
       <button class="btn btn-ghost" onclick="openIncomeSourceModal()">⚙ Fuentes</button>
+      <button class="btn btn-ghost" id="btn-sync-income-month" onclick="syncCurrentMonthIncome()" title="Aplicar montos base de las fuentes al mes actual">🔄 Sincronizar</button>
       <button class="btn btn-primary" onclick="openLogIncomeModal()">+ Registrar mes</button>
     </div>
   </div>
+
+  <!-- Sync banner — shown when no entry exists for current month -->
+  <div id="inc-sync-banner" style="display:none;align-items:center;gap:12px;background:rgba(255,159,10,0.09);border:1px solid rgba(255,159,10,0.25);border-radius:14px;padding:12px 18px;margin-bottom:16px;flex-wrap:wrap;"></div>
 
   <!-- Hero KPIs — rediseñado con tarjetas tipo imagen referencia -->
   <div class="fade-up d1">

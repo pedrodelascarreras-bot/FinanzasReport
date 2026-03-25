@@ -44,6 +44,7 @@ function ccCountdown(dueDateStr){
 
 // ── Obtener gastos del ciclo (movimientos + manuales) ──
 function ccGetCycleExpenses(cardId, tcCycleId){
+  if(!state.ccCards) state.ccCards=[];
   const card=state.ccCards.find(c=>c.id===cardId);
   const pmKey=card?.payMethodKey||null;
   const tcCycles=getTcCycles();

@@ -410,9 +410,11 @@ function extractPeriodDates(text) {
 
 // ── Matching Algorithm ──
 function runMatchingAlgorithm() {
-  cccState.selectedCycle = cccEls.cycleFilter.value;
-  
-  const cycles = typeof getTcCycles === 'function' ? getTcCycles() : state.tcCycles;
+  // Defensive: re-bind filter in case DOMContentLoaded ran before element existed
+  if(!cccEls.cycleFilter) cccEls.cycleFilter = document.getElementById('ccc-cycle-filter');
+  cccState.selectedCycle = cccEls.cycleFilter ? cccEls.cycleFilter.value : '';
+
+  const cycles = typeof getTcCycles === 'function' ? getTcCycles() : (state.tcCycles||[]);
   const cycle = cycles.find(c => c.id === cccState.selectedCycle);
   if(!cycle) return;
   
@@ -936,38 +938,86 @@ function cccLinkApp(matchId) {
   window._cccLinkingMatchId = matchId;
   const m = cccState.matches.find(x => x.id === matchId);
   if(!m) return;
-  
-  // Build orphan apps list
-  const orphans = cccState.matches.filter(x => x.status === 'orphan_app');
-  if(!orphans.length) { showToast('No hay transacciones registradas sueltas', 'info'); return; }
-  
-  cccEls.linkList.innerHTML = orphans.map(o => {
-    return `
-      <div style="padding:12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;cursor:pointer;"
-           onclick="cccDoLinkApp('${o.id}')">
-        <div>
-           <div style="font-size:11px;color:var(--text3)">${o.appTxn.date}</div>
-           <div style="font-weight:600">${esc(o.appTxn.descripcion || o.appTxn.description)}</div>
-        </div>
-        <div style="font-weight:700;color:var(--accent)">
-           $${fmtN(o.appTxn.amountARS || o.appTxn.amount || 0)}
-        </div>
+
+  // Show ALL cycle transactions (not just orphan_app ones)
+  const cycles = typeof getTcCycles === 'function' ? getTcCycles() : (state.tcCycles||[]);
+  const cycle  = cycles.find(c => c.id === cccState.selectedCycle);
+  const cardId = state.ccActiveCard || state.ccCards?.[0]?.id || '';
+  const allTxns = (cycle && typeof ccGetCycleExpenses === 'function')
+    ? ccGetCycleExpenses(cardId, cycle.id)
+    : [];
+
+  if(!allTxns.length) {
+    showToast('No hay transacciones registradas en este ciclo para vincular', 'info');
+    return;
+  }
+
+  // Store for cccDoLinkByIndex
+  window._cccLinkCycleTxns = allTxns;
+
+  // Already-linked txn IDs (excluding current match)
+  const usedIds = new Set(
+    cccState.matches.filter(x => x.id !== matchId && x.appTxn).map(x => x.appTxn.id)
+  );
+
+  const el = cccEls.linkList || document.getElementById('ccc-link-list');
+  if(!el) return;
+
+  el.innerHTML = allTxns.map((t, i) => {
+    const amtStr = t.amountUSD > 0 && !t.amountARS
+      ? 'U$S ' + fmtN(t.amountUSD)
+      : '$' + fmtN(Math.round(t.amountARS || 0));
+    const alreadyLinked = usedIds.has(t.id);
+    return `<div style="padding:12px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;cursor:pointer;opacity:${alreadyLinked?0.55:1};"
+         onclick="cccDoLinkByIndex(${i})">
+      <div style="min-width:0;flex:1;">
+        <div style="font-size:10px;color:var(--text3);margin-bottom:2px;">${t.date}${alreadyLinked?' · <span style="color:var(--accent3);">ya vinculado</span>':''}</div>
+        <div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(t.description||'—')}</div>
+        <div style="font-size:10px;color:var(--text3);margin-top:1px;">${t.category||''}</div>
       </div>
-    `;
+      <div style="font-size:14px;font-weight:700;color:var(--accent);margin-left:12px;flex-shrink:0;">${amtStr}</div>
+    </div>`;
   }).join('');
+
   openModal('modal-ccc-link');
 }
 
+function cccDoLinkByIndex(idx) {
+  const txn  = (window._cccLinkCycleTxns || [])[idx];
+  const mPdf = cccState.matches.find(x => x.id === window._cccLinkingMatchId);
+  if(!txn || !mPdf) return;
+
+  // If this txn was linked to another match, unlink it first
+  const prev = cccState.matches.find(x => x.id !== mPdf.id && x.appTxn?.id === txn.id);
+  if(prev) {
+    prev.appTxn = null;
+    prev.status = prev.pdfTxn ? 'orphan_pdf' : 'orphan_app';
+    prev.diffARS = prev.pdfTxn ? prev.pdfTxn.amountARS : 0;
+    prev.diffUSD = prev.pdfTxn ? prev.pdfTxn.amountUSD : 0;
+  }
+  // Remove any standalone orphan_app entry for this txn
+  cccState.matches = cccState.matches.filter(x => !(x.status === 'orphan_app' && x.appTxn?.id === txn.id));
+
+  mPdf.appTxn = txn;
+  mPdf.status = 'conc';
+  mPdf.diffARS = 0;
+  mPdf.diffUSD = 0;
+
+  closeModal('modal-ccc-link');
+  renderCccResults();
+  cccUpdateHero();
+  showToast('✓ Vinculado correctamente', 'success');
+}
+
+// Keep legacy cccDoLinkApp for backwards compat (session restores)
 function cccDoLinkApp(orphanAppId) {
   const mPdf = cccState.matches.find(x => x.id === window._cccLinkingMatchId);
   const mApp = cccState.matches.find(x => x.id === orphanAppId);
   if(!mPdf || !mApp) return;
-  
   mPdf.appTxn = mApp.appTxn;
   mPdf.status = 'conc';
-  mPdf.diffARS = 0; // Simplified
+  mPdf.diffARS = 0;
   mPdf.diffUSD = 0;
-  
   cccState.matches = cccState.matches.filter(x => x.id !== orphanAppId);
   closeModal('modal-ccc-link');
   renderCccResults();
@@ -1007,22 +1057,31 @@ function cccSaveMissingExpense() {
 
    if(!desc || !date) { showToast('⚠️ Faltan datos obligatorios', 'error'); return; }
 
-   // BUG FIX: find cycle by tcCycleId (not id), and create entry if missing
+   // If no cycle selected, try to resolve from PDF period or fall back to first available
+   if(!cccState.selectedCycle) {
+     const allCycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
+     const pdfClose = cccState.pdfPeriod?.close;
+     const best = (pdfClose && allCycles.find(c => c.closeDate === pdfClose)) || allCycles[0];
+     if(best) {
+       cccState.selectedCycle = best.id;
+       if(cccEls.cycleFilter) cccEls.cycleFilter.value = best.id;
+     } else {
+       showToast('⚠️ No hay ciclos configurados. Creá uno en Tarjetas de Crédito primero.', 'error');
+       return;
+     }
+   }
+
    if(!state.ccCycles) state.ccCycles = [];
    let cycle = state.ccCycles.find(c => c.tcCycleId === cccState.selectedCycle);
    if(!cycle) {
      const tcCycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
      const tcCycle = tcCycles.find(c => c.id === cccState.selectedCycle);
-     if(!tcCycle) { showToast('Ciclo no encontrado. Seleccioná un ciclo primero.', 'error'); return; }
+     if(!tcCycle) { showToast('Ciclo no encontrado. Seleccioná un ciclo en el filtro.', 'error'); return; }
      const cardId = state.ccActiveCard || state.ccCards?.[0]?.id || '';
-     cycle = {
-       id: tcCycle.id + '_' + cardId,
-       cardId, tcCycleId: tcCycle.id,
-       status: 'pending', manualExpenses: [], excludedIds: []
-     };
+     cycle = { id: tcCycle.id+'_'+cardId, cardId, tcCycleId: tcCycle.id, status:'pending', manualExpenses:[], excludedIds:[] };
      state.ccCycles.push(cycle);
    }
-   
+
    if(!cycle.manualExpenses) cycle.manualExpenses = [];
    const newExp = {
      id: 'mce_' + Date.now().toString(36),
@@ -1030,23 +1089,7 @@ function cccSaveMissingExpense() {
    };
    cycle.manualExpenses.push(newExp);
 
-   // ALSO add to state.transactions so it appears in Movimientos
-   const card = state.ccCards?.find(c => c.id === (state.ccActiveCard || state.ccCards?.[0]?.id));
-   const txn = {
-     id: newExp.id,
-     date: new Date(date+'T12:00:00'),
-     description: desc,
-     amount: ars || usd || 0,
-     currency: usd > 0 && !ars ? 'USD' : 'ARS',
-     category: cat,
-     week: getWeekKey(date),
-     month: getMonthKey(date),
-     payMethod: card?.payMethodKey || null,
-     origen_del_movimiento: 'importado_desde_resumen',
-     source: 'cc_compare'
-   };
-   state.transactions.push(txn);
-
+   // NOTE: expense is stored only in ccCycles.manualExpenses (not in state.transactions)
    saveState();
 
    // Link it in the match
@@ -1058,9 +1101,7 @@ function cccSaveMissingExpense() {
    closeModal('modal-ccc-add-missing');
    renderCccResults();
    cccUpdateHero();
-   if(typeof renderDashboard === 'function') renderDashboard();
-   if(typeof renderTransactions === 'function') renderTransactions();
-   showToast('✓ Gasto agregado a la App y conciliado', 'success');
+   showToast('✓ Gasto agregado a la conciliación', 'success');
 }
 
 function cccSaveSession() {
@@ -1100,6 +1141,15 @@ function cccAddBankFee(matchId) {
   const m = cccState.matches.find(x => x.id === matchId);
   if(!m || !m.pdfTxn) return;
 
+  // Same fallback cycle resolution as cccSaveMissingExpense
+  if(!cccState.selectedCycle) {
+    const allCycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
+    const pdfClose = cccState.pdfPeriod?.close;
+    const best = (pdfClose && allCycles.find(c => c.closeDate === pdfClose)) || allCycles[0];
+    if(best) { cccState.selectedCycle = best.id; if(cccEls.cycleFilter) cccEls.cycleFilter.value = best.id; }
+    else { showToast('⚠️ No hay ciclos configurados.', 'error'); return; }
+  }
+
   if(!state.ccCycles) state.ccCycles = [];
   let cycle = state.ccCycles.find(c => c.tcCycleId === cccState.selectedCycle);
   if(!cycle) {
@@ -1112,7 +1162,7 @@ function cccAddBankFee(matchId) {
   }
   if(!cycle.manualExpenses) cycle.manualExpenses = [];
 
-  const closeDate = cccState.pdfPeriod?.close || cycle.closeDate || new Date().toISOString().slice(0,10);
+  const closeDate = cccState.pdfPeriod?.close || new Date().toISOString().slice(0,10);
   const newExp = {
     id: 'mce_' + Date.now().toString(36) + Math.random().toString(36).substr(2,3),
     date: closeDate,
@@ -1123,30 +1173,13 @@ function cccAddBankFee(matchId) {
   };
   cycle.manualExpenses.push(newExp);
 
-  // Also add to state.transactions for visibility in Movimientos
-  const card = state.ccCards?.find(c => c.id === (state.ccActiveCard || state.ccCards?.[0]?.id));
-  const txn = {
-    id: newExp.id,
-    date: new Date(closeDate+'T12:00:00'),
-    description: m.pdfTxn.rawDesc,
-    amount: m.pdfTxn.amountARS || m.pdfTxn.amountUSD || 0,
-    currency: m.pdfTxn.amountUSD > 0 && !m.pdfTxn.amountARS ? 'USD' : 'ARS',
-    category: 'Impuestos y Comisiones',
-    week: getWeekKey(closeDate),
-    month: getMonthKey(closeDate),
-    payMethod: card?.payMethodKey || null,
-    origen_del_movimiento: 'importado_desde_resumen',
-    source: 'cc_compare'
-  };
-  state.transactions.push(txn);
-
+  // NOTE: stored only in ccCycles.manualExpenses (not in state.transactions)
   m.appTxn = newExp;
   m.status = 'bank_fee'; // keep as bank_fee but now has appTxn
   saveState();
   renderCccResults();
   cccUpdateHero();
-  if(typeof renderDashboard==='function') renderDashboard();
-  showToast('✓ Cargo agregado a la App', 'success');
+  showToast('✓ Cargo bancario agregado a la conciliación', 'success');
 }
 
 // ── Mark cycle as reviewed/paid and close ──

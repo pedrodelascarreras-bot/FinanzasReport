@@ -1735,6 +1735,14 @@ select.input-field { cursor: pointer; }
 .inc-hero-delta.down    { background: var(--red-light);   color: var(--red); }
 .inc-hero-delta.neutral { background: rgba(128,128,128,0.1);  color: var(--text3); }
 .inc-kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+/* Income sync banner */
+#inc-sync-banner strong { font-weight: 700; }
+#inc-sync-banner .btn { flex-shrink: 0; }
+body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-color: rgba(255,159,10,0.22); }
+
+/* Dashboard margin sync button */
+#dhc-margin-sync-btn:hover { background: rgba(255,159,10,0.18) !important; }
+
 .inc-month-row { display: flex; align-items: center; gap: 0; padding: 14px 22px; border-bottom: 1px solid var(--border); transition: background 0.15s; cursor: pointer; }
 .inc-month-row:last-child { border-bottom: none; }
 .inc-month-row:hover { background: rgba(0,0,0,0.018); }
