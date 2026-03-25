@@ -25,10 +25,15 @@ let state={
   catRules:[],           // [{id, keyword, category, active, priority}]
   catHistory:{},         // {comercio_normalized: {cat: count}} — aprendizaje local
   txnEstadoFilter:'all', // 'all'|'pendiente_de_revision'|'duplicado_sospechoso'|'confirmado_por_usuario'|'detectado_automaticamente'
+  txnCardFilter:'',      // ''|'visa'|'amex' — card filter in transactions view
   lastGmailSync: null,
   userName: 'Pedro',
   lastVisit: null,
-  dismissedNotifs: [], // IDs of notifications the user dismissed
+  dismissedNotifs: [],   // IDs of notifications the user dismissed
+  dismissedAutoCuotas:[], // keys of auto-cuotas permanently dismissed
+  ccCards: [],           // [{id,name,type,color,...}]
+  ccCycles: [],          // [{id,cardId,tcCycleId,status,manualExpenses,excludedIds,...}]
+  ccActiveCard: null,    // currently selected card ID for CC compare
 };
 
 // ══ PERSIST ══

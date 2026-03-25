@@ -24,6 +24,24 @@ function getDaysUntilNext(day){
   if(next<=today)next.setMonth(next.getMonth()+1);
   return Math.round((next-today)/(1000*60*60*24));
 }
+function getNextCuotaDate(day){
+  if(!day)return null;
+  const today=new Date();
+  const next=new Date(today.getFullYear(),today.getMonth(),day);
+  if(next<=today)next.setMonth(next.getMonth()+1);
+  return next;
+}
+function fmtCuotaNextDate(d){
+  if(!d)return null;
+  const today=new Date();
+  const diff=Math.round((d-today)/86400000);
+  const MN=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const label=d.getDate()+' '+MN[d.getMonth()];
+  if(diff===0)return'<span style="color:var(--danger);font-weight:700;">hoy</span>';
+  if(diff===1)return'<span style="color:var(--accent3);font-weight:700;">mañana</span>';
+  if(diff<=7)return'<span style="color:var(--accent3);font-weight:700;">en '+diff+'d ('+label+')</span>';
+  return'<span style="color:var(--text2);">'+label+'</span>';
+}
 function renderCuotas(){
   const autoGroups=detectAutoCuotas();
   const hasCuotas=autoGroups.length>0||state.cuotas.length>0;
@@ -55,14 +73,28 @@ function renderCuotas(){
     const acc=actualTxns.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);
     const amtPerCuota=actualTxns.length>0?acc/actualTxns.length:g.amount;
     const remainingTotal=rem*amtPerCuota;
-    return buildCuotaCard(g.key,g.name,'🛒',amtPerCuota,g.currency||'ARS',paid,total,rem,pct,daysUntil,day,remainingTotal,false);
+    // Derive next payment date: configured day > transaction day > projected cuota date
+    let nextPayDate=null;
+    if(rem>0){
+      if(cfg.day){nextPayDate=getNextCuotaDate(cfg.day);}
+      else if(actualTxns.length>0){
+        const _latest=[...actualTxns].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
+        nextPayDate=getNextCuotaDate(new Date(_latest.date).getDate());
+      } else {
+        // Check projected cuotas matching this group
+        const _projected=state.transactions.filter(t=>t.isPendingCuota&&t.cuotaGroupId&&g.transactions[0]?.cuotaGroupId&&t.cuotaGroupId===g.transactions[0].cuotaGroupId&&new Date(t.date)>new Date());
+        if(_projected.length>0){const _np=_projected.sort((a,b)=>new Date(a.date)-new Date(b.date))[0];nextPayDate=new Date(_np.date);}
+      }
+    }
+    return buildCuotaCard(g.key,g.name,'🛒',amtPerCuota,g.currency||'ARS',paid,total,rem,pct,daysUntil,day,remainingTotal,false,null,nextPayDate);
   }).join('');
   document.getElementById('cuotas-grid').innerHTML=autoCards||'<div style="color:var(--text3);font-size:13px;font-family:var(--font);">Las cuotas se detectan automáticamente al importar tu CSV.</div>';
   // Manual cuotas
   const manualCards=state.cuotas.map(c=>{
     const rem=c.total-c.paid;const pct=Math.round(c.paid/c.total*100);
     const daysUntil=getDaysUntilNext(c.day);const remainingTotal=rem*c.amount;
-    return buildCuotaCard(c.id,c.name,c.emoji||'🛒',c.amount,'ARS',c.paid,c.total,rem,pct,daysUntil,c.day,remainingTotal,true,c.color||null);
+    const manNextDate=rem>0?getNextCuotaDate(c.day):null;
+    return buildCuotaCard(c.id,c.name,c.emoji||'🛒',c.amount,'ARS',c.paid,c.total,rem,pct,daysUntil,c.day,remainingTotal,true,c.color||null,manNextDate);
   }).join('');
   const manualSection=document.getElementById('cuotas-manual-section');
   if(state.cuotas.length>0){manualSection.style.display='flex';document.getElementById('cuotas-manual-grid').innerHTML=manualCards;}
@@ -80,9 +112,18 @@ function renderCuotas(){
   const totalCount=autoGroups.length+state.cuotas.length;
   document.getElementById('cuotas-summary-bar').innerHTML='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:18px;"><div><div style="font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">CUOTAS ACTIVAS</div><div style="font-size:26px;font-weight:700;letter-spacing:-0.03em;font-family:var(--font);">'+totalCount+'</div></div><div><div style="font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">PRÓXIMO MES</div><div style="font-size:26px;font-weight:700;letter-spacing:-0.03em;font-family:var(--font);color:var(--accent3);">$'+fmtN(nextMonth)+'</div></div><div><div style="font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">TOTAL RESTANTE</div><div style="font-size:26px;font-weight:700;letter-spacing:-0.03em;font-family:var(--font);color:var(--danger);">$'+fmtN(totalRem)+'</div></div></div>';
 }
-function buildCuotaCard(key,name,emoji,amount,currency,paid,total,rem,pct,daysUntil,day,remainingTotal,isManual,customColor){
+function buildCuotaCard(key,name,emoji,amount,currency,paid,total,rem,pct,daysUntil,day,remainingTotal,isManual,customColor,nextPayDate){
   const c=customColor||(pct<50?'#ff3b30':pct<80?'#ff9500':'#007aff');
-  const nextBadge=daysUntil!==null?'<span class="cuota-next-badge">próxima en '+daysUntil+'d (día '+day+')</span>':'<button class="btn btn-ghost btn-sm" onclick="'+(isManual?'editCuota(\''+key+'\')':'openAutoCuotaModal(\''+key+'\')')+'">⚙ Config</button>';
+  // Next payment badge: show formatted date if available, otherwise config button
+  let nextBadge;
+  if(rem<=0){
+    nextBadge='<span style="background:rgba(52,199,89,0.12);color:#34c759;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;">✓ Pagada</span>';
+  } else if(nextPayDate){
+    const _dFmt=fmtCuotaNextDate(nextPayDate);
+    nextBadge='<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;background:var(--surface3);border-radius:6px;padding:4px 10px;border:1px solid var(--border2);">📅 Próximo pago '+_dFmt+'</span>';
+  } else {
+    nextBadge='<button class="btn btn-ghost btn-sm" onclick="'+(isManual?'editCuota(\''+key+'\')':'openAutoCuotaModal(\''+key+'\')')+'">⚙ Config fecha</button>';
+  }
   const deleteBtn=isManual
     ?'<button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="editCuota(\''+key+'\')">✎</button>'
     :'<button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="openAutoCuotaModal(\''+key+'\')">✎</button>'

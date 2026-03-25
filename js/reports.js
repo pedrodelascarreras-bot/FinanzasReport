@@ -113,8 +113,10 @@ function renderReportesPage(){
 
 function setRepMode(mode){
   state.repMode=mode;
+  // HTML button id "rep-mode-all" maps to mode value "todo"
   ['mes','tc','rango','all'].forEach(m=>{
-    document.getElementById('rep-mode-'+m)?.classList.toggle('active',m===mode);
+    const modeKey = m==='all' ? 'todo' : m;
+    document.getElementById('rep-mode-'+m)?.classList.toggle('active', modeKey===mode);
   });
   const sel=document.getElementById('rep-period-select');
   const rangeWrap=document.getElementById('rep-range-wrap');

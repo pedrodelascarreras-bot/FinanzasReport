@@ -176,12 +176,17 @@ async function generateDashInsights(){
   const arsT=monthTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   const usdT=monthTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
   const catD=getCatData(monthTxns);
-  const incArs=state.income.ars+state.income.varArs;
+  // Resolve income for this month using the new income system (same logic as renderDashboard)
+  let incArs=state.income.ars+state.income.varArs;
+  const _iEntry=(state.incomeMonths||[]).find(m=>m.month===activeMk);
+  if(_iEntry && typeof getMonthTotalARS==='function'){incArs=getMonthTotalARS(_iEntry)+getMonthTotalUSD(_iEntry)*(USD_TO_ARS||1420);}
+  else if((state.incomeSources||[]).some(s=>s.base>0)){incArs=(state.incomeSources||[]).filter(s=>s.currency==='ARS').reduce((a,s)=>a+(s.base||0),0)+((state.incomeSources||[]).filter(s=>s.currency==='USD').reduce((a,s)=>a+(s.base||0),0))*(USD_TO_ARS||1420);}
+  else if(state.incomeMonths?.length && typeof getMonthTotalARS==='function'){const _l=[...state.incomeMonths].sort((a,b)=>b.month.localeCompare(a.month))[0];if(_l)incArs=getMonthTotalARS(_l)+getMonthTotalUSD(_l)*(USD_TO_ARS||1420);}
   const summary={mes:MNAMES[iM-1]+' '+iY,total_ars:arsT,total_usd:usdT,income_ars:incArs,spending_pct:incArs>0?Math.round(arsT/incArs*100):null,categories:catD.labels.map((l,i)=>({name:l,amount:catD.values[i],pct:Math.round(catD.values[i]/arsT*100)})).slice(0,8),txn_count:monthTxns.length,alert_threshold:state.alertThreshold};
   let items=[];const apiKey=getApiKey();
   if(apiKey){
     try{
-      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,messages:[{role:'user',content:'Sos asesor financiero experto en finanzas personales argentinas. Analizá estos datos del mes de '+summary.mes+' y generá exactamente 5 insights accionables en español rioplatense informal. Usá los números reales.\n\nDatos: '+JSON.stringify(summary)+'\n\nResponde SOLO este JSON (sin backticks):\n[{"emoji":"X","type":"good|warn|info|bad","label":"TITULO","headline":"Una oración directa con el dato","body":"2-3 oraciones de contexto y qué hacer"}]'}]})});
+      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-opus-4-5',max_tokens:1500,messages:[{role:'user',content:'Sos asesor financiero experto en finanzas personales argentinas. Analizá estos datos del mes de '+summary.mes+' y generá exactamente 5 insights accionables en español rioplatense informal. Usá los números reales.\n\nDatos: '+JSON.stringify(summary)+'\n\nResponde SOLO este JSON (sin backticks):\n[{"emoji":"X","type":"good|warn|info|bad","label":"TITULO","headline":"Una oración directa con el dato","body":"2-3 oraciones de contexto y qué hacer"}]'}]})});
       const d=await r.json();items=JSON.parse((d.content?.[0]?.text||'[]').replace(/```json|```/g,'').trim());
     }catch(e){items=fallbackInsights(summary);}
   }else items=fallbackInsights(summary);
@@ -200,7 +205,7 @@ function renderDashNotifications() {
   // 1. Credit Card Deadlines
   const cycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
   cycles.forEach(cyc => {
-    const card = (state.creditCards||[]).find(c => c.id === cyc.cardId);
+    const card = (state.ccCards||[]).find(c => c.id === cyc.cardId);
     const closeDate = new Date(cyc.closeDate + 'T12:00:00');
     const dueDate = cyc.dueDate ? new Date(cyc.dueDate + 'T12:00:00') : null;
 
@@ -320,7 +325,7 @@ function renderDashboard(){
   // Fix: Ensure we use the current year/month (April 2026) as default if state is empty or older
   let activeMk = getActiveDashMonth();
   if(!activeMk || activeMk === '2024-03') {
-    activeMk = '2026-04';
+    activeMk = getMonthKey(new Date());
   }
   // ── TC vs Mes mode (declared here, used throughout the function) ──
   const isTcView=state.dashView==='tc';

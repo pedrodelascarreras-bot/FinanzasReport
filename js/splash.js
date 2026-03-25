@@ -121,7 +121,7 @@
       const op = typeof getTcCycleOpen === 'function' ? getTcCycleOpen(allCyc, i) : null;
       if(!op) return;
       if(todayStr >= op && todayStr <= cyc.closeDate){
-        const card  = (state.creditCards||[]).find(c=>c.id===cyc.cardId);
+        const card  = (state.ccCards||[]).find(c=>c.id===cyc.cardId);
         const close = new Date(cyc.closeDate+'T12:00:00');
         const days  = Math.round((close - today) / 86400000);
         ccAlerts.push({ name: card?.name || cyc.label || 'Tarjeta', days });

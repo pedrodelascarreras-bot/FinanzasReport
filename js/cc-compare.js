@@ -879,6 +879,7 @@ function cccImportAllFees() {
     cycle = {
       id: tcCycle.id + '_' + cardId,
       cardId, tcCycleId: tcCycle.id,
+      closeDate: tcCycle.closeDate || null,
       status: 'pending', manualExpenses: [], excludedIds: []
     };
     state.ccCycles.push(cycle);
@@ -888,9 +889,9 @@ function cccImportAllFees() {
   fees.forEach(f => {
     const newExp = {
       id: 'mce_' + Date.now().toString(36) + Math.random().toString(36).substr(2,3),
-      date: cycle.closeDate, // Default to close date of cycle
+      date: cycle.closeDate || new Date().toISOString().slice(0,10),
       description: f.pdfTxn.rawDesc,
-      category: 'Impuestos y Comisiones',
+      category: 'Comisiones bancarias',
       amountARS: f.pdfTxn.amountARS,
       amountUSD: f.pdfTxn.amountUSD
     };
