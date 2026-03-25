@@ -25,6 +25,27 @@ function openSendReportModal() {
       card.querySelector('input[type="radio"]').checked = true;
     });
   });
+  // Check server availability
+  _checkReportServerStatus();
+}
+
+async function _checkReportServerStatus() {
+  const indEl = document.getElementById('sre-server-indicator');
+  const sendBtn = document.getElementById('sre-send-btn');
+  if(!indEl) return;
+  indEl.innerHTML = '<span style="opacity:.5">⏳ Verificando servidor…</span>';
+  try {
+    const res = await fetch(`${REPORT_SERVER_URL}/health`, { signal: AbortSignal.timeout(3000) });
+    if(res.ok) {
+      indEl.innerHTML = '<span style="color:var(--green-sys);">🟢 Servidor activo — listo para enviar</span>';
+      if(sendBtn) sendBtn.disabled = false;
+    } else {
+      throw new Error('not ok');
+    }
+  } catch(e) {
+    indEl.innerHTML = '<span style="color:var(--danger);">🔴 Servidor no disponible</span> <span style="color:var(--text3);font-size:10px;">Corré <code style="background:var(--surface3);padding:1px 5px;border-radius:4px;">node report/server.js</code> en Terminal</span>';
+    if(sendBtn) sendBtn.disabled = true;
+  }
 }
 
 async function sendReportNow() {

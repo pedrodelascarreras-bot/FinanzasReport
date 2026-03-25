@@ -176,7 +176,7 @@ function refreshAll(){
   // Siempre actualizar dashboard y sidebar (aunque no haya transacciones aún)
   updateSidebarStats();
   updateQrBadge();
-  if(state.transactions.length) renderDashboard();
+  renderDashboard(); // Always refresh — income changes affect widgets even without transactions
 
   // Siempre actualizar lista de categorías (afecta colores y nombres en toda la app)
   renderCategoryManage();

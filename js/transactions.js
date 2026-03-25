@@ -327,7 +327,7 @@ function renderTransactions(){
     return '<span class="estado-badge '+m.cls+'">'+m.label+'</span>';
   }
   function origenChip(t){
-    const origen = t.origen_del_movimiento||'importado_desde_resumen';
+    const origen = t.origen_del_movimiento||(t.source==='gmail'?'importado_desde_gmail':'importado_desde_resumen');
     const m = ORIGEN_MAP[origen]||{cls:'origen-resumen',label:origen};
     return '<span class="origen-chip '+m.cls+'">'+m.label+'</span>';
   }

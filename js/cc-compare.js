@@ -4,9 +4,12 @@
 // State
 let cccState = {
   pdfTxns: [],
-  matches: [], // { pdfTxn, appTxn, status: 'conc', 'diff', 'orphan_pdf', 'orphan_app', 'bank_fee', notes:'' }
+  matches: [],
   selectedCard: '',
-  selectedCycle: ''
+  selectedCycle: '',
+  pdfSaldoActual: null,
+  pdfPeriod: null,    // { open: 'YYYY-MM-DD', close: 'YYYY-MM-DD', vencimiento: 'YYYY-MM-DD' }
+  dismissedIds: []    // match IDs dismissed permanently
 };
 
 // DOM Elements
@@ -113,11 +116,23 @@ async function processPdf(file) {
     parseSantanderText(fullText);
     // Extract the real SALDO ACTUAL from the PDF (last page)
     cccState.pdfSaldoActual = extractSaldoActual(fullText);
-    if(cccState.pdfSaldoActual) {
-      console.log(`✓ SALDO ACTUAL extraído: ARS ${cccState.pdfSaldoActual.ars} | USD ${cccState.pdfSaldoActual.usd}`);
+    // Extract period dates (open/close/vencimiento)
+    cccState.pdfPeriod = extractPeriodDates(fullText);
+    if(cccState.pdfPeriod) {
+      console.log(`✓ Período PDF: ${cccState.pdfPeriod.open} → ${cccState.pdfPeriod.close}`);
+      // Auto-select the cycle whose closeDate matches the PDF close date
+      const cycles = typeof getTcCycles === 'function' ? getTcCycles() : (state.tcCycles||[]);
+      const el = document.getElementById('ccc-cycle-filter');
+      if(el && cycles.length) {
+        const matched = cycles.find(c => c.closeDate === cccState.pdfPeriod.close);
+        if(matched) {
+          el.value = matched.id;
+          console.log(`✓ Ciclo auto-seleccionado: ${matched.label}`);
+        }
+      }
     }
     runMatchingAlgorithm();
-    cccSmartMatch(false); // Silent smart match on first load
+    cccSmartMatch(false);
     renderCccResults();
     
     cccEls.loading.style.display = 'none';
@@ -365,6 +380,34 @@ function extractSaldoActual(text) {
   return null;
 }
 
+// ── Extract statement period dates from Santander PDF ──
+function extractPeriodDates(text) {
+  const MESES = {
+    ene:1,enero:1, feb:2,febrero:2, mar:3,marzo:3, abr:4,abril:4,
+    may:5,mayo:5, jun:6,junio:6, jul:7,julio:7, ago:8,agosto:8,
+    sep:9,septiembre:9,set:9, oct:10,octubre:10, nov:11,noviembre:11,
+    dic:12,diciembre:12
+  };
+  const parseDate = (d,m,y) => {
+    const mon = MESES[m.toLowerCase().slice(0,3)];
+    if(!mon) return null;
+    const yr = y.length===2 ? 2000+parseInt(y) : parseInt(y);
+    return `${yr}-${String(mon).padStart(2,'0')}-${String(parseInt(d)).padStart(2,'0')}`;
+  };
+  // "CIERRE  19 Mar 26  VENCIMIENTO 06 Abr 26"
+  const closeM = text.match(/CIERRE\s+(\d{1,2})\s+([A-Za-záéíóúñ]+)\s+(\d{2,4})/i);
+  const vtoM   = text.match(/VENCIMIENTO\s+(\d{1,2})\s+([A-Za-záéíóúñ]+)\s+(\d{2,4})/i);
+  // "Cierre Ant.: 19 Feb 26"
+  const prevM  = text.match(/Cierre\s+Ant\.\s*:\s*(\d{1,2})\s+([A-Za-záéíóúñ]+)\s+(\d{2,4})/i);
+
+  const close = closeM ? parseDate(closeM[1], closeM[2], closeM[3]) : null;
+  const vto   = vtoM   ? parseDate(vtoM[1],   vtoM[2],   vtoM[3])   : null;
+  const open  = prevM  ? parseDate(prevM[1],  prevM[2],  prevM[3])  : null;
+
+  if(!close) return null;
+  return { open, close, vencimiento: vto };
+}
+
 // ── Matching Algorithm ──
 function runMatchingAlgorithm() {
   cccState.selectedCycle = cccEls.cycleFilter.value;
@@ -373,10 +416,22 @@ function runMatchingAlgorithm() {
   const cycle = cycles.find(c => c.id === cccState.selectedCycle);
   if(!cycle) return;
   
-  // Get all app transactions belonging to this cycle
-  // Fix: ccGetCycleExpenses expects (cardId, tcCycleId)
-  const appTxns = typeof ccGetCycleExpenses === 'function' ? ccGetCycleExpenses(cycle.cardId, cycle.id) : [];
-  let availableAppTxns = [...appTxns];
+  // Use the active card (VISA or AMEX) so we only compare expenses from that card
+  const activeCardId = state.ccActiveCard || state.ccCards?.[0]?.id || cycle.cardId;
+  // Get app transactions for this cycle, filtered by PDF period if available
+  const allAppTxns = typeof ccGetCycleExpenses === 'function' ? ccGetCycleExpenses(activeCardId, cycle.id) : [];
+  // If we have PDF period dates, only match txns within that period
+  let availableAppTxns;
+  if(cccState.pdfPeriod && cccState.pdfPeriod.open && cccState.pdfPeriod.close) {
+    const pOpen = cccState.pdfPeriod.open;
+    const pClose = cccState.pdfPeriod.close;
+    availableAppTxns = allAppTxns.filter(t => {
+      const d = t.date ? t.date.slice(0,10) : '';
+      return d >= pOpen && d <= pClose;
+    });
+  } else {
+    availableAppTxns = [...allAppTxns];
+  }
   
   cccState.matches = [];
   
@@ -498,41 +553,55 @@ function runMatchingAlgorithm() {
 }
 
 function renderCccResults() {
-  let conc = 0, diff = 0, orphanPdf = 0, orphanApp = 0;
-  let totalPdfARS = 0, totalAppARS = 0;
-  let totalPdfUSD = 0, totalAppUSD = 0;
+  // Separate bank fees from regular transactions
+  const bankFees = cccState.matches.filter(m => m.status === 'bank_fee' || m.pdfTxn?.isBankFee);
+  const regular  = cccState.matches.filter(m => m.status !== 'bank_fee' && !m.pdfTxn?.isBankFee);
 
-  cccState.matches.forEach(m => {
-    if(m.status === 'conc' || m.status === 'bank_fee') conc++;
-    else if(m.status === 'orphan_pdf') orphanPdf++;
-    else if(m.status === 'orphan_app') orphanApp++;
-    else if(m.status === 'diff' || m.status === 'posible') diff++;
+  let totalAppARS = 0, totalAppUSD = 0;
+  let pendCount = 0, concCount = 0;
 
-    // Totals for the hero
-    if(m.pdfTxn) {
-      totalPdfARS += m.pdfTxn.amountARS || 0;
-      totalPdfUSD += m.pdfTxn.amountUSD || 0;
-    }
+  regular.forEach(m => {
+    if(['orphan_pdf','orphan_app','diff','posible'].includes(m.status)) pendCount++;
+    else if(m.status === 'conc') concCount++;
     if(m.appTxn) {
-      totalAppARS += m.appTxn.amountARS || m.appTxn.amount || 0;
+      totalAppARS += m.appTxn.amountARS || (m.appTxn.currency==='ARS'?m.appTxn.amount:0) || 0;
       totalAppUSD += m.appTxn.amountUSD || (m.appTxn.currency==='USD'?m.appTxn.amount:0) || 0;
     }
   });
 
-  // Use real SALDO ACTUAL from PDF if available; fallback to sum of parsed transactions
-  const heroARS = cccState.pdfSaldoActual ? cccState.pdfSaldoActual.ars : totalPdfARS;
-  const heroUSD = cccState.pdfSaldoActual ? cccState.pdfSaldoActual.usd : totalPdfUSD;
+  const heroARS = cccState.pdfSaldoActual ? cccState.pdfSaldoActual.ars : 0;
+  const heroUSD = cccState.pdfSaldoActual ? cccState.pdfSaldoActual.usd : 0;
   const diffARS = heroARS - totalAppARS;
+  const diffUSD = heroUSD - totalAppUSD;
+  const isBalanced = Math.abs(diffARS) < 1 && Math.abs(diffUSD) < 0.01;
 
+  // Period info bar
+  let periodHtml = '';
+  if(cccState.pdfPeriod) {
+    const fmtPD = s => s ? new Date(s+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}) : '—';
+    periodHtml = `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(var(--accent-rgb,52,199,89),0.07);border:1px solid rgba(52,199,89,0.2);border-radius:12px;margin-bottom:20px;flex-wrap:wrap;">
+      <span style="font-size:20px;">📄</span>
+      <div>
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);">Período del resumen</div>
+        <div style="font-size:13px;font-weight:700;color:var(--text);">${fmtPD(cccState.pdfPeriod.open)} → ${fmtPD(cccState.pdfPeriod.close)}</div>
+      </div>
+      ${cccState.pdfPeriod.vencimiento ? `<div style="margin-left:auto;text-align:right;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);">Vencimiento</div><div style="font-size:13px;font-weight:700;color:var(--orange);">${fmtPD(cccState.pdfPeriod.vencimiento)}</div></div>` : ''}
+    </div>`;
+  }
+
+  // Groups
   const groups = {
-    pending: cccState.matches.filter(m => ['orphan_pdf','orphan_app','diff','posible'].includes(m.status)),
-    conciliated: cccState.matches.filter(m => ['conc','bank_fee'].includes(m.status)),
-    excluded: cccState.matches.filter(m => m.status === 'excluded')
+    pending: regular.filter(m => ['orphan_pdf','orphan_app','diff','posible'].includes(m.status)),
+    conc:    regular.filter(m => m.status === 'conc'),
+    excl:    regular.filter(m => m.status === 'excluded')
   };
 
+  const allResolved = groups.pending.length === 0;
+
   cccEls.resultsArea.innerHTML = `
-    <!-- Summary Hero -->
-    <div class="ccc-summary-hero fade-up">
+    ${periodHtml}
+    <!-- Hero -->
+    <div class="ccc-summary-hero fade-up" id="ccc-hero-widget">
       <div class="ccc-stat-item">
         <div class="ccc-stat-label">Saldo Actual (PDF)</div>
         <div class="ccc-stat-val">$${fmtN(Math.round(heroARS))}</div>
@@ -541,104 +610,196 @@ function renderCccResults() {
       <div class="ccc-stat-item">
         <div class="ccc-stat-label">Registrado en App</div>
         <div class="ccc-stat-val">$${fmtN(Math.round(totalAppARS))}</div>
+        ${totalAppUSD > 0 ? `<div style="font-size:12px;font-weight:600;color:var(--accent2);margin-top:2px;">U$S ${fmtN(totalAppUSD)}</div>` : ''}
       </div>
       <div class="ccc-stat-item">
-        <div class="ccc-stat-label">Diferencia / Gap</div>
-        <div class="ccc-stat-val ${Math.abs(diffARS) > 1 ? 'diff' : 'match'}">
-          ${diffARS > 0 ? '+' : ''}$${fmtN(Math.round(diffARS))}
-        </div>
+        <div class="ccc-stat-label">Gap ARS</div>
+        <div class="ccc-stat-val ${Math.abs(diffARS) > 1 ? 'diff' : 'match'}">${diffARS > 0 ? '+' : ''}$${fmtN(Math.round(diffARS))}</div>
       </div>
+      ${Math.abs(diffUSD) > 0.01 ? `<div class="ccc-stat-item">
+        <div class="ccc-stat-label">Gap USD</div>
+        <div class="ccc-stat-val diff">${diffUSD > 0 ? '+' : ''}U$S ${fmtN(Math.abs(diffUSD))}</div>
+      </div>` : ''}
     </div>
 
+    <!-- Controls -->
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:12px;flex-wrap:wrap;">
-       <div style="font-size:14px;font-weight:700;color:var(--text2);">Detalle de conciliación</div>
-       <div style="display:flex;gap:8px;">
-         <button class="btn btn-sm btn-accent" onclick="cccSmartMatch()"><span style="margin-right:4px;">✨</span> Smart Match</button>
-         <button class="btn btn-sm" onclick="cccImportAllFees()">Importar Impuestos</button>
-         <button class="btn btn-sm btn-secondary" onclick="cccSaveSession()">Guardar</button>
-       </div>
+      <div style="font-size:14px;font-weight:700;color:var(--text2);">Conciliación · <span style="color:var(--text3);font-weight:500;font-size:12px;">${concCount} OK · ${pendCount} pendientes · ${bankFees.length} cargos bancarios</span></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-sm btn-accent" onclick="cccSmartMatch()"><span style="margin-right:4px;">✨</span>Auto-match</button>
+        <button class="btn btn-sm btn-secondary" onclick="cccSaveSession()">💾 Guardar</button>
+        ${allResolved ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#00c853,#00e676);color:#fff;font-weight:700;border:none;" onclick="cccMarkReviewed()">✓ Marcar pagado y cerrar</button>` : ''}
+      </div>
     </div>
 
     <div id="ccc-matching-container">
-      ${renderGroup('Pendientes', groups.pending, '¡Excelente! No hay diferencias pendientes.')}
-      ${renderGroup('Conciliados', groups.conciliated, 'Nada conciliado aún.')}
+      ${renderGroup('Pendientes', groups.pending, '¡Todo conciliado! No hay diferencias pendientes.')}
+      ${renderBankFeeGroup(bankFees)}
+      ${renderGroup('Conciliados', groups.conc, 'Nada conciliado aún.')}
+      ${groups.excl.length ? renderGroup('Descartados', groups.excl, '') : ''}
     </div>
   `;
 }
 
+function cccUpdateHero() {
+  // Partial re-render of just the hero widget (called after adds/changes)
+  const regular = cccState.matches.filter(m => m.status !== 'bank_fee' && !m.pdfTxn?.isBankFee);
+  let totalAppARS = 0, totalAppUSD = 0;
+  regular.forEach(m => {
+    if(m.appTxn) {
+      totalAppARS += m.appTxn.amountARS || (m.appTxn.currency==='ARS'?m.appTxn.amount:0) || 0;
+      totalAppUSD += m.appTxn.amountUSD || (m.appTxn.currency==='USD'?m.appTxn.amount:0) || 0;
+    }
+  });
+  const heroARS = cccState.pdfSaldoActual ? cccState.pdfSaldoActual.ars : 0;
+  const heroUSD = cccState.pdfSaldoActual ? cccState.pdfSaldoActual.usd : 0;
+  const diffARS = heroARS - totalAppARS;
+  const diffUSD = heroUSD - totalAppUSD;
+  const el = document.getElementById('ccc-hero-widget');
+  if(!el) return;
+  el.innerHTML = `
+    <div class="ccc-stat-item">
+      <div class="ccc-stat-label">Saldo Actual (PDF)</div>
+      <div class="ccc-stat-val">$${fmtN(Math.round(heroARS))}</div>
+      ${heroUSD > 0 ? `<div style="font-size:12px;font-weight:600;color:var(--accent2);margin-top:2px;">+ U$S ${fmtN(heroUSD)}</div>` : ''}
+    </div>
+    <div class="ccc-stat-item">
+      <div class="ccc-stat-label">Registrado en App</div>
+      <div class="ccc-stat-val">$${fmtN(Math.round(totalAppARS))}</div>
+      ${totalAppUSD > 0 ? `<div style="font-size:12px;font-weight:600;color:var(--accent2);margin-top:2px;">U$S ${fmtN(totalAppUSD)}</div>` : ''}
+    </div>
+    <div class="ccc-stat-item">
+      <div class="ccc-stat-label">Gap ARS</div>
+      <div class="ccc-stat-val ${Math.abs(diffARS) > 1 ? 'diff' : 'match'}">${diffARS > 0 ? '+' : ''}$${fmtN(Math.round(diffARS))}</div>
+    </div>
+    ${Math.abs(diffUSD) > 0.01 ? `<div class="ccc-stat-item"><div class="ccc-stat-label">Gap USD</div><div class="ccc-stat-val diff">${diffUSD > 0 ? '+' : ''}U$S ${fmtN(Math.abs(diffUSD))}</div></div>` : ''}
+  `;
+}
+
 function renderGroup(title, list, emptyMsg) {
-  const iconMap = { 'Pendientes': '⏳', 'Conciliados': '✅', 'Excluidos': '🚫' };
+  const iconMap = { 'Pendientes': '⏳', 'Conciliados': '✅', 'Descartados': '🚫' };
+  const collapsible = title !== 'Pendientes';
+  const bodyId = 'ccc-grp-' + title.toLowerCase().replace(/\s/g,'_');
   return `
-    <div class="ccc-group-title">${iconMap[title] || ''} ${title} (${list.length})</div>
-    <div class="ccc-row-list">
+    <div class="ccc-group-header" ${collapsible ? `onclick="this.nextElementSibling.classList.toggle('collapsed')"` : ''} style="${collapsible?'cursor:pointer;':''}" >
+      <span class="ccc-group-title">${iconMap[title] || ''} ${title} <span class="ccc-group-count">${list.length}</span></span>
+      ${collapsible ? '<span style="font-size:12px;color:var(--text3);margin-left:auto;">▾</span>' : ''}
+    </div>
+    <div class="ccc-row-list ${collapsible&&list.length?'':''}">
       ${list.length ? list.map(m => renderCccRow(m)).join('') : `<div class="ccc-empty-notice">${emptyMsg}</div>`}
     </div>
   `;
 }
 
+function renderBankFeeGroup(fees) {
+  if(!fees.length) return '';
+  const pendingFees = fees.filter(m => !m.appTxn);
+  const addedFees   = fees.filter(m =>  m.appTxn);
+  return `
+    <div class="ccc-group-header" onclick="this.nextElementSibling.classList.toggle('collapsed')" style="cursor:pointer;">
+      <span class="ccc-group-title">🏦 Cargos del Banco <span class="ccc-group-count">${fees.length}</span></span>
+      ${pendingFees.length ? `<span style="font-size:10px;font-weight:700;color:var(--orange);background:rgba(255,149,0,0.12);padding:2px 7px;border-radius:20px;margin-left:6px;">${pendingFees.length} sin agregar</span>` : ''}
+      <span style="font-size:12px;color:var(--text3);margin-left:auto;">▾</span>
+    </div>
+    <div class="ccc-row-list">
+      ${fees.map(m => renderBankFeeRow(m)).join('')}
+    </div>
+  `;
+}
+
+function renderBankFeeRow(m) {
+  const added = !!m.appTxn;
+  return `<div class="ccc-row fee ${added?'match':''}" id="${m.id}" style="opacity:${added?0.6:1};">
+    <div class="ccc-row-side" style="flex:1;">
+      <div class="ccc-row-label">Cargo bancario</div>
+      <div class="ccc-row-desc">${esc(m.pdfTxn.rawDesc)}</div>
+    </div>
+    <div style="text-align:right;min-width:90px;">
+      <div class="ccc-row-amt ars">$${fmtN(Math.round(m.pdfTxn.amountARS||0))}</div>
+      ${m.pdfTxn.amountUSD ? `<div class="ccc-row-amt usd">U$D ${fmtN(m.pdfTxn.amountUSD)}</div>` : ''}
+    </div>
+    <div class="ccc-row-actions">
+      ${added
+        ? `<span style="font-size:11px;font-weight:600;color:var(--green-sys);">✓ Agregado</span>`
+        : `<button class="ccc-row-btn primary" onclick="cccAddBankFee('${m.id}')">+ Agregar a App</button>
+           <button class="ccc-row-btn" style="color:var(--text3);" onclick="cccDismissPending('${m.id}')" title="Descartar">✕</button>`
+      }
+    </div>
+  </div>`;
+}
+
 function renderCccRow(m) {
-  const isMatch = m.status === 'conc' || m.status === 'bank_fee';
-  const isMissing = m.status === 'orphan_pdf';
-  const isExtra = m.status === 'orphan_app';
-  const isDiff = m.status === 'diff' || m.status === 'posible';
+  const isMatch  = m.status === 'conc';
+  const isMissing= m.status === 'orphan_pdf';
+  const isExtra  = m.status === 'orphan_app';
+  const isDiff   = m.status === 'diff';
+  const isPosible= m.status === 'posible';
+  const isExcluded = m.status === 'excluded';
 
   let rowClass = 'match';
-  if(isMissing) rowClass = 'missing';
-  if(isExtra) rowClass = 'extra';
-  if(isDiff) rowClass = 'diff';
-  if(m.status === 'bank_fee') rowClass = 'fee';
+  if(isMissing)  rowClass = 'missing';
+  if(isExtra)    rowClass = 'extra';
+  if(isDiff)     rowClass = 'diff';
+  if(isPosible)  rowClass = 'diff';
+  if(isExcluded) rowClass = 'excluded';
+
+  // Format ISO date nicely
+  const fmtISO = s => s ? new Date(s+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short'}) : '—';
 
   const actions = [];
-  if (isMissing) {
-     actions.push(`<button class="ccc-row-btn primary" onclick="cccAddMissing('${m.id}')">Agregar a App</button>`);
-     actions.push(`<button class="ccc-row-btn" onclick="cccLinkApp('${m.id}')">Vincular</button>`);
-  } else if (isDiff) {
-     actions.push(`<button class="ccc-row-btn primary" onclick="cccEditAppTxn('${m.id}')">Ajustar</button>`);
-     actions.push(`<button class="ccc-row-btn danger" onclick="cccUnlink('${m.id}')">Separar</button>`);
-  } else if (isMatch) {
-     actions.push(`<button class="ccc-row-btn danger" title="Desvincular" onclick="cccUnlink('${m.id}')">✖</button>`);
+  if(isMissing) {
+    actions.push(`<button class="ccc-row-btn primary" onclick="cccAddMissing('${m.id}')">+ Agregar</button>`);
+    actions.push(`<button class="ccc-row-btn" onclick="cccLinkApp('${m.id}')">Vincular</button>`);
+    actions.push(`<button class="ccc-row-btn dismiss" onclick="cccDismissPending('${m.id}')" title="Descartar permanentemente">✕</button>`);
+  } else if(isExtra) {
+    actions.push(`<button class="ccc-row-btn dismiss" onclick="cccDismissPending('${m.id}')" title="Descartar">✕</button>`);
+  } else if(isPosible) {
+    actions.push(`<button class="ccc-row-btn success" onclick="cccConfirmPosible('${m.id}')">✓ Confirmar</button>`);
+    actions.push(`<button class="ccc-row-btn danger" onclick="cccUnlink('${m.id}')">Separar</button>`);
+  } else if(isDiff) {
+    actions.push(`<button class="ccc-row-btn primary" onclick="cccEditAppTxn('${m.id}')">Ajustar</button>`);
+    actions.push(`<button class="ccc-row-btn danger" onclick="cccUnlink('${m.id}')">Separar</button>`);
+  } else if(isMatch) {
+    actions.push(`<button class="ccc-row-btn dismiss" title="Desvincular" onclick="cccUnlink('${m.id}')">✕</button>`);
   }
+
+  const middleIcon = isMatch ? '🔗' : isPosible ? '❓' : isDiff ? '⚠️' : isExcluded ? '🚫' : '—';
 
   return `
     <div class="ccc-row ${rowClass} fade-up" id="${m.id}">
       <!-- PDF SIDE -->
       <div class="ccc-row-side">
-        <div class="ccc-row-label">Resumen PDF</div>
+        <div class="ccc-row-label">PDF</div>
         ${m.pdfTxn ? `
           <div class="ccc-row-desc">${esc(m.pdfTxn.rawDesc)}</div>
-          <div class="ccc-row-date">${m.pdfTxn.rawDate} ${m.pdfTxn.holder ? '· '+esc(m.pdfTxn.holder) : ''}</div>
-        ` : '<div class="ccc-row-desc" style="color:var(--text3); font-style:italic;">— No presente —</div>'}
+          <div class="ccc-row-date">${fmtISO(m.pdfTxn.isoDate)}${m.pdfTxn.cuotas ? ' · <span style="color:var(--accent3);font-weight:700;">C.'+m.pdfTxn.cuotas+'</span>' : ''}</div>
+        ` : '<div class="ccc-row-desc" style="color:var(--text3);font-style:italic;">— No presente —</div>'}
       </div>
 
-      <!-- MIDDLE ICON -->
-      <div class="ccc-row-middle">
-        ${isMatch ? '🔗' : isDiff ? '⚠️' : '❓'}
-      </div>
+      <!-- MIDDLE -->
+      <div class="ccc-row-middle">${middleIcon}</div>
 
       <!-- APP SIDE -->
       <div class="ccc-row-side">
-        <div class="ccc-row-label">Registrado en App</div>
+        <div class="ccc-row-label">App</div>
         ${m.appTxn ? `
-          <div class="ccc-row-desc">${esc(m.appTxn.descripcion || m.appTxn.description)}</div>
+          <div class="ccc-row-desc">${esc(m.appTxn.descripcion || m.appTxn.description || '—')}</div>
           <div class="ccc-row-date">${ccFmtDate(m.appTxn.date)}</div>
-        ` : '<div class="ccc-row-desc" style="color:var(--text3); font-style:italic;">— Pendiente —</div>'}
+        ` : '<div class="ccc-row-desc" style="color:var(--text3);font-style:italic;">— Pendiente —</div>'}
       </div>
 
       <!-- AMOUNT -->
-      <div style="text-align:right; min-width:100px;">
-        <div class="ccc-row-label">Monto</div>
+      <div style="text-align:right;min-width:90px;">
         ${m.pdfTxn ? `
-          <div class="ccc-row-amt ars">$${fmtN(Math.round(m.pdfTxn.amountARS || 0))}</div>
-          ${m.pdfTxn.amountUSD ? `<div class="ccc-row-amt usd">U$D ${fmtN(m.pdfTxn.amountUSD)}</div>` : ''}
+          <div class="ccc-row-amt ars">${m.pdfTxn.amountARS > 0 ? '$'+fmtN(Math.round(m.pdfTxn.amountARS)) : ''}</div>
+          ${m.pdfTxn.amountUSD > 0 ? `<div class="ccc-row-amt usd">U$S ${fmtN(m.pdfTxn.amountUSD)}</div>` : ''}
         ` : `
-          <div class="ccc-row-amt ars">$${fmtN(Math.round(m.appTxn.amountARS || m.appTxn.amount || 0))}</div>
+          <div class="ccc-row-amt ars">$${fmtN(Math.round(m.appTxn?.amountARS || m.appTxn?.amount || 0))}</div>
         `}
       </div>
 
       <!-- ACTIONS -->
-      <div class="ccc-row-actions">
-        ${actions.join('')}
-      </div>
+      <div class="ccc-row-actions">${actions.join('')}</div>
     </div>
   `;
 }
@@ -868,21 +1029,154 @@ function cccSaveMissingExpense() {
      date, description: desc, category: cat, amountARS: ars, amountUSD: usd
    };
    cycle.manualExpenses.push(newExp);
+
+   // ALSO add to state.transactions so it appears in Movimientos
+   const card = state.ccCards?.find(c => c.id === (state.ccActiveCard || state.ccCards?.[0]?.id));
+   const txn = {
+     id: newExp.id,
+     date: new Date(date+'T12:00:00'),
+     description: desc,
+     amount: ars || usd || 0,
+     currency: usd > 0 && !ars ? 'USD' : 'ARS',
+     category: cat,
+     week: getWeekKey(date),
+     month: getMonthKey(date),
+     payMethod: card?.payMethodKey || null,
+     origen_del_movimiento: 'importado_desde_resumen',
+     source: 'cc_compare'
+   };
+   state.transactions.push(txn);
+
    saveState();
-   
-   // Automatically link it
+
+   // Link it in the match
    m.appTxn = newExp;
    m.status = 'conc';
    m.diffARS = 0;
    m.diffUSD = 0;
-   
+
    closeModal('modal-ccc-add-missing');
    renderCccResults();
-   showToast('Gasto agregado y conciliado', 'success');
+   cccUpdateHero();
+   if(typeof renderDashboard === 'function') renderDashboard();
+   if(typeof renderTransactions === 'function') renderTransactions();
+   showToast('✓ Gasto agregado a la App y conciliado', 'success');
 }
 
 function cccSaveSession() {
   const cccKey = 'cc_conc_' + cccState.selectedCycle;
   localStorage.setItem(cccKey, JSON.stringify(cccState));
   showToast('Progreso de conciliación guardado', 'success');
+}
+
+// ── Dismiss a pending item permanently ──
+function cccDismissPending(matchId) {
+  const m = cccState.matches.find(x => x.id === matchId);
+  if(!m) return;
+  m.status = 'excluded';
+  m.diffARS = 0;
+  m.diffUSD = 0;
+  if(!cccState.dismissedIds) cccState.dismissedIds = [];
+  cccState.dismissedIds.push(matchId);
+  cccSaveSession();
+  renderCccResults();
+  cccUpdateHero();
+}
+
+// ── Confirm a "posible" match as conciliated ──
+function cccConfirmPosible(matchId) {
+  const m = cccState.matches.find(x => x.id === matchId);
+  if(!m) return;
+  m.status = 'conc';
+  m.diffARS = 0;
+  m.diffUSD = 0;
+  renderCccResults();
+  cccUpdateHero();
+  showToast('✓ Coincidencia confirmada', 'success');
+}
+
+// ── Add individual bank fee to App ──
+function cccAddBankFee(matchId) {
+  const m = cccState.matches.find(x => x.id === matchId);
+  if(!m || !m.pdfTxn) return;
+
+  if(!state.ccCycles) state.ccCycles = [];
+  let cycle = state.ccCycles.find(c => c.tcCycleId === cccState.selectedCycle);
+  if(!cycle) {
+    const tcCycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
+    const tcCycle = tcCycles.find(c => c.id === cccState.selectedCycle);
+    if(!tcCycle) { showToast('Ciclo no encontrado', 'error'); return; }
+    const cardId = state.ccActiveCard || state.ccCards?.[0]?.id || '';
+    cycle = { id: tcCycle.id+'_'+cardId, cardId, tcCycleId: tcCycle.id, status:'pending', manualExpenses:[], excludedIds:[] };
+    state.ccCycles.push(cycle);
+  }
+  if(!cycle.manualExpenses) cycle.manualExpenses = [];
+
+  const closeDate = cccState.pdfPeriod?.close || cycle.closeDate || new Date().toISOString().slice(0,10);
+  const newExp = {
+    id: 'mce_' + Date.now().toString(36) + Math.random().toString(36).substr(2,3),
+    date: closeDate,
+    description: m.pdfTxn.rawDesc,
+    category: 'Impuestos y Comisiones',
+    amountARS: m.pdfTxn.amountARS || 0,
+    amountUSD: m.pdfTxn.amountUSD || 0
+  };
+  cycle.manualExpenses.push(newExp);
+
+  // Also add to state.transactions for visibility in Movimientos
+  const card = state.ccCards?.find(c => c.id === (state.ccActiveCard || state.ccCards?.[0]?.id));
+  const txn = {
+    id: newExp.id,
+    date: new Date(closeDate+'T12:00:00'),
+    description: m.pdfTxn.rawDesc,
+    amount: m.pdfTxn.amountARS || m.pdfTxn.amountUSD || 0,
+    currency: m.pdfTxn.amountUSD > 0 && !m.pdfTxn.amountARS ? 'USD' : 'ARS',
+    category: 'Impuestos y Comisiones',
+    week: getWeekKey(closeDate),
+    month: getMonthKey(closeDate),
+    payMethod: card?.payMethodKey || null,
+    origen_del_movimiento: 'importado_desde_resumen',
+    source: 'cc_compare'
+  };
+  state.transactions.push(txn);
+
+  m.appTxn = newExp;
+  m.status = 'bank_fee'; // keep as bank_fee but now has appTxn
+  saveState();
+  renderCccResults();
+  cccUpdateHero();
+  if(typeof renderDashboard==='function') renderDashboard();
+  showToast('✓ Cargo agregado a la App', 'success');
+}
+
+// ── Mark cycle as reviewed/paid and close ──
+function cccMarkReviewed() {
+  if(!cccState.selectedCycle) { showToast('Seleccioná un ciclo primero', 'error'); return; }
+  const pendingCount = cccState.matches.filter(m => ['orphan_pdf','orphan_app','diff','posible'].includes(m.status)).length;
+  if(pendingCount > 0) {
+    if(!confirm(`Todavía hay ${pendingCount} item(s) pendiente(s). ¿Marcarlo igual como pagado?`)) return;
+  } else {
+    if(!confirm('¿Marcar este resumen como revisado y el ciclo como pagado?')) return;
+  }
+
+  if(!state.ccCycles) state.ccCycles = [];
+  const cardId = state.ccActiveCard || state.ccCards?.[0]?.id || '';
+  let cycle = state.ccCycles.find(c => c.tcCycleId === cccState.selectedCycle);
+  if(!cycle) {
+    const tcCycle = (getTcCycles()||[]).find(c => c.id === cccState.selectedCycle);
+    if(!tcCycle) { showToast('Ciclo no encontrado', 'error'); return; }
+    cycle = { id: tcCycle.id+'_'+cardId, cardId, tcCycleId: tcCycle.id, status:'pending', manualExpenses:[], excludedIds:[] };
+    state.ccCycles.push(cycle);
+  }
+  cycle.status = 'paid';
+  // Update vencimiento from PDF if not set
+  if(!cycle.dueDate && cccState.pdfPeriod?.vencimiento) {
+    cycle.dueDate = cccState.pdfPeriod.vencimiento;
+  }
+  saveState();
+  cccSaveSession();
+  showToast('✓ Ciclo marcado como pagado', 'success');
+  // Navigate back to credit cards
+  if(typeof nav === 'function') setTimeout(() => nav('credit-cards'), 800);
+  if(typeof renderCreditCards === 'function') setTimeout(() => renderCreditCards(), 900);
 }

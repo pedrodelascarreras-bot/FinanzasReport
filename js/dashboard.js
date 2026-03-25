@@ -409,13 +409,27 @@ function renderDashboard(){
   const debWidgetAmt=_tcWidgetTxns.filter(t=>t.currency==='ARS'&&t.payMethod==='deb').reduce((s,t)=>s+t.amount,0);
   const hasPayTagsWidget=_tcWidgetTxns.some(t=>t.payMethod);
 
-  // ── Ingresos ── (usa incomeMonths del mes activo si existe, fallback a legacy)
+  // ── Ingresos ──
+  // Priority: 1) exact incomeMonths entry for active month  2) source bases  3) most recent logged  4) legacy
   let incARS=state.income.ars+state.income.varArs;
   let incUSD=state.income.usd+state.income.varUsd;
-  if(state.incomeMonths&&state.incomeMonths.length){
-    const _activeInc=state.incomeMonths.find(m=>m.month===activeMk)||[...state.incomeMonths].sort((a,b)=>b.month.localeCompare(a.month))[0];
-    if(_activeInc){incARS=getMonthTotalARS(_activeInc);incUSD=getMonthTotalUSD(_activeInc);}
+  const _exactIncMonth=(state.incomeMonths||[]).find(m=>m.month===activeMk);
+  const _incFromSrcBases=(state.incomeSources||[]).some(s=>s.base>0);
+  if(_exactIncMonth){
+    incARS=getMonthTotalARS(_exactIncMonth);
+    incUSD=getMonthTotalUSD(_exactIncMonth);
+  } else if(_incFromSrcBases){
+    // No entry for this month yet — use configured source bases (always up-to-date)
+    incARS=(state.incomeSources||[]).filter(s=>s.currency==='ARS').reduce((a,s)=>a+(s.base||0),0);
+    incUSD=(state.incomeSources||[]).filter(s=>s.currency==='USD').reduce((a,s)=>a+(s.base||0),0);
+  } else if(state.incomeMonths?.length){
+    // Last resort: most recent logged entry
+    const _last=[...state.incomeMonths].sort((a,b)=>b.month.localeCompare(a.month))[0];
+    if(_last){incARS=getMonthTotalARS(_last);incUSD=getMonthTotalUSD(_last);}
   }
+  // Show/hide "Sincronizar" button on margin widget
+  const _syncBtn=document.getElementById('dhc-margin-sync-btn');
+  if(_syncBtn) _syncBtn.style.display=_exactIncMonth?'none':'inline-flex';
   const incTotalARS=incARS+(incUSD*USD_TO_ARS);
   const totalGastoARS=arsMonth+(usdMonth*USD_TO_ARS);
   const pct=incTotalARS>0?Math.round((totalGastoARS/incTotalARS)*100):null;
@@ -481,11 +495,12 @@ function renderDashboard(){
   // ── Selector y fecha ──
   updateMonthPicker();
   const MNAMES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const _spendLabel = totalGastoARS>0 ? ' · $'+fmtN(totalGastoARS)+' gastados' : '';
   document.getElementById('dash-date').textContent=isTcView
     ?tcPeriodLabel
     :(isCurrentMonth
-      ?today.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
-      :MNAMES[pM-1]+' '+pY+' · mes cerrado');
+      ?today.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+_spendLabel
+      :MNAMES[pM-1]+' '+pY+' · mes cerrado'+_spendLabel);
 
 
   // ── Hero ──
