@@ -620,7 +620,7 @@ function buildReportHTML(txns,sections,periodLabel){
         </div>
         <div style="font-size:10px;color:#aaa;display:flex;justify-content:space-between;">
           <span>${pctG}% completado</span>
-          <span>${pctG>=100?'Meta alcanzada':'Faltan ${prefix}'+fmtN(Math.round(remaining))}</span>
+          <span>${pctG>=100?'Meta alcanzada':'Faltan '+prefix+fmtN(Math.round(remaining))}</span>
         </div>
       </div>`;
     }).join('');})()}

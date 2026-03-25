@@ -940,16 +940,29 @@ function cccLinkApp(matchId) {
   const m = cccState.matches.find(x => x.id === matchId);
   if(!m) return;
 
-  // Show ALL cycle transactions (not just orphan_app ones)
+  // Show ALL cycle transactions regardless of payMethod (user picks manually)
   const cycles = typeof getTcCycles === 'function' ? getTcCycles() : (state.tcCycles||[]);
   const cycle  = cycles.find(c => c.id === cccState.selectedCycle);
-  const cardId = state.ccActiveCard || state.ccCards?.[0]?.id || '';
-  const allTxns = (cycle && typeof ccGetCycleExpenses === 'function')
-    ? ccGetCycleExpenses(cardId, cycle.id)
-    : [];
+  let allTxns = [];
+  if(cycle) {
+    const idx = cycles.findIndex(c => c.id === cycle.id);
+    const openDate = typeof getTcCycleOpen==='function' ? getTcCycleOpen(cycles, idx) : null;
+    if(openDate) {
+      // All real transactions in the cycle period (exclude projected cuotas)
+      allTxns = (state.transactions||[]).filter(t=>{
+        if(t.isPendingCuota) return false;
+        const d = typeof dateToYMD==='function' ? dateToYMD(t.date) : (t.date instanceof Date?t.date.toISOString().slice(0,10):t.date);
+        return d >= openDate && d <= cycle.closeDate;
+      }).map(t=>({
+        id:t.id, date: typeof dateToYMD==='function'?dateToYMD(t.date):(t.date instanceof Date?t.date.toISOString().slice(0,10):t.date),
+        description:t.description, category:t.category||'Sin categoría',
+        amountARS:t.currency==='ARS'?t.amount:0, amountUSD:t.currency==='USD'?t.amount:0, source:'txn'
+      }));
+    }
+  }
 
   if(!allTxns.length) {
-    showToast('No hay transacciones registradas en este ciclo para vincular', 'info');
+    showToast('No hay transacciones registradas en este ciclo para vincular. Importá primero los movimientos.', 'info');
     return;
   }
 
@@ -1030,17 +1043,27 @@ function cccAddMissing(matchId) {
 
    window._cccAddingMatchId = matchId;
 
-   // BUG FIX: use isoDate directly (rawDate is "day monthNum", not "DD/MM")
-   document.getElementById('ccc-add-date').value = m.pdfTxn.isoDate || '';
+   // Use isoDate if available; fallback to PDF period close or today
+   document.getElementById('ccc-add-date').value = m.pdfTxn.isoDate
+     || cccState.pdfPeriod?.close
+     || new Date().toISOString().slice(0,10);
    document.getElementById('ccc-add-desc').value = m.pdfTxn.rawDesc;
    
-   // Populate categories
+   // Populate categories (use name as value — categories don't always have id)
    const catSel = document.getElementById('ccc-add-cat');
-   if(catSel) catSel.innerHTML = state.categories.map(c => `<option value="${c.id}">${esc(c.name)}</option>`).join('');
-   
+   if(catSel){
+     let catOpts='';
+     (typeof CATEGORY_GROUPS!=='undefined'?CATEGORY_GROUPS:[]).forEach(g=>{
+       const subs=state.categories.filter(c=>c.group===g.group);
+       if(subs.length){catOpts+=`<optgroup label="${g.emoji} ${g.group}">`;subs.forEach(c=>{catOpts+=`<option value="${esc(c.name)}">${esc(c.name)}</option>`;});catOpts+='</optgroup>';}
+     });
+     if(!catOpts) catSel.innerHTML=state.categories.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('');
+     else catSel.innerHTML=catOpts;
+   }
+
    document.getElementById('ccc-add-ars').value = m.pdfTxn.amountARS || '';
    document.getElementById('ccc-add-usd').value = m.pdfTxn.amountUSD || '';
-   
+
    openModal('modal-ccc-add-missing');
 }
 
@@ -1049,14 +1072,17 @@ function cccSaveMissingExpense() {
    const m = cccState.matches.find(x => x.id === matchId);
    if(!m) return;
 
-   const date = document.getElementById('ccc-add-date').value;
+   const date = document.getElementById('ccc-add-date').value
+     || cccState.pdfPeriod?.close
+     || new Date().toISOString().slice(0,10);
    const desc = document.getElementById('ccc-add-desc').value.trim();
-   const catId = document.getElementById('ccc-add-cat').value;
-   const cat = state.categories.find(c=>c.id===catId)?.name || 'Sin clasificar';
+   // catSel value is now the category name directly
+   const cat = document.getElementById('ccc-add-cat').value || 'Sin clasificar';
    const ars = parseFloat(document.getElementById('ccc-add-ars').value) || 0;
    const usd = parseFloat(document.getElementById('ccc-add-usd').value) || 0;
 
-   if(!desc || !date) { showToast('⚠️ Faltan datos obligatorios', 'error'); return; }
+   if(!desc) { showToast('⚠️ La descripción es obligatoria', 'error'); return; }
+   if(!ars && !usd) { showToast('⚠️ Ingresá al menos un monto (ARS o USD)', 'error'); return; }
 
    // If no cycle selected, try to resolve from PDF period or fall back to first available
    if(!cccState.selectedCycle) {
@@ -1079,7 +1105,7 @@ function cccSaveMissingExpense() {
      const tcCycle = tcCycles.find(c => c.id === cccState.selectedCycle);
      if(!tcCycle) { showToast('Ciclo no encontrado. Seleccioná un ciclo en el filtro.', 'error'); return; }
      const cardId = state.ccActiveCard || state.ccCards?.[0]?.id || '';
-     cycle = { id: tcCycle.id+'_'+cardId, cardId, tcCycleId: tcCycle.id, status:'pending', manualExpenses:[], excludedIds:[] };
+     cycle = { id: tcCycle.id+'_'+cardId, cardId, tcCycleId: tcCycle.id, closeDate: tcCycle.closeDate||null, status:'pending', manualExpenses:[], excludedIds:[] };
      state.ccCycles.push(cycle);
    }
 
@@ -1158,7 +1184,7 @@ function cccAddBankFee(matchId) {
     const tcCycle = tcCycles.find(c => c.id === cccState.selectedCycle);
     if(!tcCycle) { showToast('Ciclo no encontrado', 'error'); return; }
     const cardId = state.ccActiveCard || state.ccCards?.[0]?.id || '';
-    cycle = { id: tcCycle.id+'_'+cardId, cardId, tcCycleId: tcCycle.id, status:'pending', manualExpenses:[], excludedIds:[] };
+    cycle = { id: tcCycle.id+'_'+cardId, cardId, tcCycleId: tcCycle.id, closeDate: tcCycle.closeDate||null, status:'pending', manualExpenses:[], excludedIds:[] };
     state.ccCycles.push(cycle);
   }
   if(!cycle.manualExpenses) cycle.manualExpenses = [];
@@ -1199,7 +1225,7 @@ function cccMarkReviewed() {
   if(!cycle) {
     const tcCycle = (getTcCycles()||[]).find(c => c.id === cccState.selectedCycle);
     if(!tcCycle) { showToast('Ciclo no encontrado', 'error'); return; }
-    cycle = { id: tcCycle.id+'_'+cardId, cardId, tcCycleId: tcCycle.id, status:'pending', manualExpenses:[], excludedIds:[] };
+    cycle = { id: tcCycle.id+'_'+cardId, cardId, tcCycleId: tcCycle.id, closeDate: tcCycle.closeDate||null, status:'pending', manualExpenses:[], excludedIds:[] };
     state.ccCycles.push(cycle);
   }
   cycle.status = 'paid';

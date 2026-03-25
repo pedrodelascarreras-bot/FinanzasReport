@@ -1,10 +1,10 @@
 // ══ UTILS ══
-function fmtN(n){
+function fmtN(n,dec){
   if(n==null||n===undefined||isNaN(n))return'—';
   const num=Number(n);
   if(isNaN(num))return'—';
-  // Coma decimal, punto de miles, 2 decimales exactos (es-AR)
-  return num.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const d=dec!==undefined?dec:2;
+  return num.toLocaleString('es-AR',{minimumFractionDigits:d,maximumFractionDigits:d});
 }
 function fmtDate(d){if(!d)return'—';return new Date(d).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});}
 function fmtWeekLabel(k){const d=new Date(k+'T12:00:00');return d.getDate()+'/'+(d.getMonth()+1);}

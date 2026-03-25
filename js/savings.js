@@ -13,7 +13,7 @@ function renderSavingsPage(){
   /* ─── Hero: mostrar el total acumulado en USD ─── */
   const totalEquivUSD = (totalARS / usdRate) + totalUSD; // todo convertido a USD
   const heroEl = document.getElementById('sav-hero-total');
-  heroEl.textContent = 'U$D '+fmtN(totalEquivUSD, 0);
+  if(heroEl) heroEl.textContent = 'U$D '+fmtN(totalEquivUSD, 0);
 
   document.getElementById('sav-total-ars').textContent = '$'+fmtN(totalARS);
   document.getElementById('sav-total-usd').textContent = 'U$D '+fmtN(totalUSD);

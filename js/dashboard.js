@@ -183,13 +183,8 @@ async function generateDashInsights(){
   else if((state.incomeSources||[]).some(s=>s.base>0)){incArs=(state.incomeSources||[]).filter(s=>s.currency==='ARS').reduce((a,s)=>a+(s.base||0),0)+((state.incomeSources||[]).filter(s=>s.currency==='USD').reduce((a,s)=>a+(s.base||0),0))*(USD_TO_ARS||1420);}
   else if(state.incomeMonths?.length && typeof getMonthTotalARS==='function'){const _l=[...state.incomeMonths].sort((a,b)=>b.month.localeCompare(a.month))[0];if(_l)incArs=getMonthTotalARS(_l)+getMonthTotalUSD(_l)*(USD_TO_ARS||1420);}
   const summary={mes:MNAMES[iM-1]+' '+iY,total_ars:arsT,total_usd:usdT,income_ars:incArs,spending_pct:incArs>0?Math.round(arsT/incArs*100):null,categories:catD.labels.map((l,i)=>({name:l,amount:catD.values[i],pct:Math.round(catD.values[i]/arsT*100)})).slice(0,8),txn_count:monthTxns.length,alert_threshold:state.alertThreshold};
-  let items=[];const apiKey=getApiKey();
-  if(apiKey){
-    try{
-      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-opus-4-5',max_tokens:1500,messages:[{role:'user',content:'Sos asesor financiero experto en finanzas personales argentinas. Analizá estos datos del mes de '+summary.mes+' y generá exactamente 5 insights accionables en español rioplatense informal. Usá los números reales.\n\nDatos: '+JSON.stringify(summary)+'\n\nResponde SOLO este JSON (sin backticks):\n[{"emoji":"X","type":"good|warn|info|bad","label":"TITULO","headline":"Una oración directa con el dato","body":"2-3 oraciones de contexto y qué hacer"}]'}]})});
-      const d=await r.json();items=JSON.parse((d.content?.[0]?.text||'[]').replace(/```json|```/g,'').trim());
-    }catch(e){items=fallbackInsights(summary);}
-  }else items=fallbackInsights(summary);
+  // Insights locales (sin llamada a API externa)
+  const items=fallbackInsights(summary);
   feedEl.innerHTML=items.map(item=>'<div class="insight-item '+(item.type||'info')+'-item"><div class="i-emoji">'+item.emoji+'</div><div class="i-content"><div class="i-label">'+esc(item.label)+'</div><div class="i-headline">'+esc(item.headline)+'</div><div class="i-body">'+item.body+'</div></div></div>').join('');
   loadEl.style.display='none';feedEl.style.display='flex';
 }
@@ -236,10 +231,21 @@ function renderDashNotifications() {
     }
   });
 
-  // 2. Spending vs Income
-  const monthTxns = getCurrentMonthTxns();
+  // 2. Spending vs Income (excluir cuotas proyectadas — son gastos futuros)
+  const monthTxns = getCurrentMonthTxns().filter(t=>!t.isPendingCuota);
   const arsT = monthTxns.filter(t => t.currency === 'ARS').reduce((s,t) => s + t.amount, 0);
-  const totalIncome = (state.income?.ars || 0) + (state.income?.varArs || 0);
+  // Use new income system (same priority logic as renderDashboard)
+  let totalIncome = (state.income?.ars||0)+(state.income?.varArs||0);
+  const _notifIncEntry=(state.incomeMonths||[]).find(m=>m.month===monthKey);
+  if(_notifIncEntry&&typeof getMonthTotalARS==='function'){
+    totalIncome=getMonthTotalARS(_notifIncEntry)+getMonthTotalUSD(_notifIncEntry)*(USD_TO_ARS||1420);
+  } else if((state.incomeSources||[]).some(s=>s.base>0)){
+    totalIncome=(state.incomeSources||[]).filter(s=>s.currency==='ARS').reduce((a,s)=>a+(s.base||0),0)+
+      (state.incomeSources||[]).filter(s=>s.currency==='USD').reduce((a,s)=>a+(s.base||0),0)*(USD_TO_ARS||1420);
+  } else if(state.incomeMonths?.length&&typeof getMonthTotalARS==='function'){
+    const _l=[...state.incomeMonths].sort((a,b)=>b.month.localeCompare(a.month))[0];
+    if(_l)totalIncome=getMonthTotalARS(_l)+getMonthTotalUSD(_l)*(USD_TO_ARS||1420);
+  }
   if(totalIncome > 0) {
     const pct = (arsT / totalIncome) * 100;
     if(pct >= 85) {
@@ -322,11 +328,9 @@ function renderDashNotifications() {
 function renderDashboard(){
   renderDashNotifications();
   const today=new Date();
-  // Fix: Ensure we use the current year/month (April 2026) as default if state is empty or older
+  // Always default to real current month if state is empty or has an old stale value
   let activeMk = getActiveDashMonth();
-  if(!activeMk || activeMk === '2024-03') {
-    activeMk = getMonthKey(new Date());
-  }
+  if(!activeMk) activeMk = getMonthKey(new Date());
   // ── TC vs Mes mode (declared here, used throughout the function) ──
   const isTcView=state.dashView==='tc';
   // ── Sync toggle buttons ──
@@ -389,9 +393,10 @@ function renderDashboard(){
 
   // ── Gastos ──
   // En modo TC: excluir débito/efectivo (payMethod=deb/ef) ya que el resumen de TC solo incluye cargos de tarjeta
+  // En ambos modos: excluir cuotas proyectadas (isPendingCuota) — son gastos futuros, no actuales
   const _tcModeActive=isTcView&&activeTcCycle;
   const _isNonCC=(t)=>t.payMethod==='deb'||t.payMethod==='ef';
-  const billableTxns=_tcModeActive?monthTxns.filter(t=>!_isNonCC(t)):monthTxns;
+  const billableTxns=monthTxns.filter(t=>!t.isPendingCuota&&(_tcModeActive?!_isNonCC(t):true));
   const arsMonth=billableTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   const usdMonth=billableTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
   const cntMonth=billableTxns.length;
@@ -414,7 +419,9 @@ function renderDashboard(){
     })||_tcCycles[0];
     _tcWidgetTxns=getTcCycleTxns(_activeTc,_tcCycles);
   }
-  const tcWidgetAmt=_tcWidgetTxns.filter(t=>t.currency==='ARS'&&t.payMethod==='tc').reduce((s,t)=>s+t.amount,0);
+  // TC widget: incluir VISA, AMEX, y 'tc' (todos son cargos de tarjeta de crédito)
+  const _isCCCharge=(t)=>t.payMethod==='tc'||t.payMethod==='visa'||t.payMethod==='amex'||(!t.payMethod&&!t.isPendingCuota);
+  const tcWidgetAmt=_tcWidgetTxns.filter(t=>t.currency==='ARS'&&_isCCCharge(t)&&!t.isPendingCuota).reduce((s,t)=>s+t.amount,0);
   const debWidgetAmt=_tcWidgetTxns.filter(t=>t.currency==='ARS'&&t.payMethod==='deb').reduce((s,t)=>s+t.amount,0);
   const hasPayTagsWidget=_tcWidgetTxns.some(t=>t.payMethod);
 
@@ -508,6 +515,16 @@ function renderDashboard(){
     :(isCurrentMonth
       ?today.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+_spendLabel
       :MNAMES[pM-1]+' '+pY+' · mes cerrado'+_spendLabel);
+
+  // ── Título dinámico del dashboard ──
+  const _titleEl=document.getElementById('dash-page-title');
+  if(_titleEl){
+    const _h=today.getHours();
+    const _greeting=_h<12?'Buenos días':_h<20?'Buenas tardes':'Buenas noches';
+    const _MNAMES_T=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+    const _periodLabel=isTcView?(activeTcCycle?.label||'TC'):(_MNAMES_T[today.getMonth()]+' '+today.getFullYear());
+    _titleEl.textContent=_greeting+', '+(state.userName||'Pedro')+' · '+_periodLabel;
+  }
 
 
   // ── Hero ──

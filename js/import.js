@@ -12,9 +12,11 @@ function processFile(file){
 function processPasteText(){
   const text=document.getElementById('paste-input').value.trim();
   if(!text){showToast('⚠️ Pegá texto primero','error');return;}
-  const{txns,issues}=parsePasteTextWithReview(text);
+  const{txns,issues,detectedPayMethod}=parsePasteTextWithReview(text);
   if(!txns.length&&!issues.length){showToast('⚠️ No se encontraron movimientos','error');return;}
-  // Store pending txns globally for after review
+  // Detect if this is a Gmail email (VISA or AMEX detected) → use correct origin
+  window._pendingIsGmail=!!detectedPayMethod;
+  window._detectedPayMethod=detectedPayMethod||null;
   window._pendingImportTxns=txns;
   window._pendingImportText=text;
   openImportReview(txns,issues);
@@ -72,11 +74,11 @@ function parsePasteTextWithReview(text){
           const daysInTarget=new Date(latestDateSeen.getFullYear(),latestDateSeen.getMonth()+1,0).getDate();
           const safeDay=Math.min(origDay,daysInTarget);
           const corrected=new Date(latestDateSeen.getFullYear(),latestDateSeen.getMonth(),safeDay);
+          prev._originalDate=new Date(prev.date); // guardamos fecha original ANTES de corregir
           prev.date=corrected;
           prev.week=getWeekKey(corrected);
           prev.month=getMonthKey(corrected);
           prev._dateCorrected=true;
-          prev._originalDate=new Date(prev.date); // guardamos fecha original para referencia
         }
       }
       i++;continue;
@@ -123,7 +125,7 @@ function parsePasteTextWithReview(text){
     }
     i++;
   }
-  return{txns,issues};
+  return{txns,issues,detectedPayMethod};
 }
 
 // _pendingReviewIssues stores issues being resolved
@@ -205,7 +207,10 @@ function resolveIssue(issId){
   }
   const cat=document.getElementById('iss-cat-'+issId).value;
   const id=Math.random().toString(36).substr(2,9);
-  window._pendingImportTxns.push({id,date:new Date(date),description:iss.desc,amount,currency,category:cat,week:getWeekKey(date),month:getMonthKey(date)});
+  const _rTxn={id,date:new Date(date),description:iss.desc,amount,currency,category:cat,week:getWeekKey(date),month:getMonthKey(date)};
+  // Propagate payMethod from Gmail detection context
+  if(window._pendingIsGmail && window._detectedPayMethod) _rTxn.payMethod=window._detectedPayMethod;
+  window._pendingImportTxns.push(_rTxn);
   iss.resolved=true;
   const row=document.getElementById('iss-row-'+issId);
   if(row){row.style.opacity='0.4';row.style.pointerEvents='none';row.querySelector('[onclick^="resolveIssue"]').textContent='✓ Agregado';}
@@ -223,8 +228,11 @@ function confirmImportReview(){
   if(!txns.length){showToast('⚠️ No hay movimientos para importar','error');return;}
   document.getElementById('paste-input').value='';
   closeModal('modal-import-review');
-  finishImport(txns,'Texto pegado','paste');
+  // Use 'importado_desde_gmail' when the text came from a Gmail email (VISA/AMEX detected)
+  const origenFinal=window._pendingIsGmail?'importado_desde_gmail':'importado_desde_resumen';
+  finishImport(txns,'Texto pegado',origenFinal);
   window._pendingImportTxns=[];
+  window._pendingIsGmail=false;
 }
 
 function cancelImportReview(){
@@ -541,8 +549,16 @@ function ruleBasedCategory(desc){
 
 // Enriquecer transacción con campos nuevos si no los tiene
 function enrichTransaction(t, origen){
-  // Gmail-sourced transactions always get importado_desde_gmail regardless of caller
-  if(!t.origen_del_movimiento) t.origen_del_movimiento = (t.source==='gmail'?'importado_desde_gmail':origen||'importado_desde_resumen');
+  // Gmail-sourced transactions: detect via source field OR payMethod (visa/amex = came from Gmail email)
+  const _isGmailSource=t.source==='gmail'||t.payMethod==='visa'||t.payMethod==='amex';
+  const _VALID_ORIGINS=['importado_desde_gmail','importado_desde_resumen','pegado_manualmente'];
+  if(!t.origen_del_movimiento || !_VALID_ORIGINS.includes(t.origen_del_movimiento)){
+    // Set for new txns OR migrate invalid values ('paste', etc.)
+    t.origen_del_movimiento=_isGmailSource?'importado_desde_gmail':(origen&&_VALID_ORIGINS.includes(origen)?origen:'importado_desde_resumen');
+  } else if(_isGmailSource && t.origen_del_movimiento!=='importado_desde_gmail'){
+    // Retroactively fix already-stored Gmail transactions with wrong origin
+    t.origen_del_movimiento='importado_desde_gmail';
+  }
   if(!t.comercio_detectado) t.comercio_detectado = detectComercio(t.description)||null;
   if(!t.cat_sugerida || !t.cat_motivo){
     const sug = suggestCategory(t.description);

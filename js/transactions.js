@@ -327,7 +327,9 @@ function renderTransactions(){
     return '<span class="estado-badge '+m.cls+'">'+m.label+'</span>';
   }
   function origenChip(t){
-    const origen = t.origen_del_movimiento||(t.source==='gmail'?'importado_desde_gmail':'importado_desde_resumen');
+    let origen = t.origen_del_movimiento||(t.source==='gmail'?'importado_desde_gmail':'importado_desde_resumen');
+    // Si tiene payMethod visa/amex pero origen está marcado como resumen → fue importado desde Gmail
+    if((t.payMethod==='visa'||t.payMethod==='amex')&&origen==='importado_desde_resumen') origen='importado_desde_gmail';
     const m = ORIGEN_MAP[origen]||{cls:'origen-resumen',label:origen};
     return '<span class="origen-chip '+m.cls+'">'+m.label+'</span>';
   }
