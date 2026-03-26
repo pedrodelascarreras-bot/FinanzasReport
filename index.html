@@ -140,10 +140,10 @@
 
 <!-- DASHBOARD -->
 <div id="page-dashboard" class="page active">
-    <div style="display:flex;align-items:center;gap:12px;">
-      <div id="notif-trigger" onclick="toggleNotifPanel()" style="position:relative;cursor:pointer;padding:8px;background:var(--surface-vibrant);border-radius:12px;display:flex;align-items:center;justify-content:center;transition:all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);">
-        <span style="font-size:18px;">🔔</span>
-        <span id="notif-badge" style="position:absolute;top:2px;right:2px;width:10px;height:10px;background:var(--danger);border:2px solid var(--surface);border-radius:50%;display:none;"></span>
+    <div class="dashboard-header">
+      <div id="notif-trigger" class="notif-trigger" onclick="toggleNotifPanel()">
+        <span class="notif-icon">🔔</span>
+        <span id="notif-badge" class="notif-badge"></span>
       </div>
       <div><div class="page-title" id="dash-page-title">Finanzas · Pedro</div><div class="page-subtitle" id="dash-date">—</div></div>
     </div>
@@ -151,7 +151,7 @@
     <!-- Notification Panel Popover -->
     <div id="notif-panel" class="notif-panel fade-up" style="display:none;">
       <div class="notif-panel-header">
-        <div style="font-weight:700;">Notificaciones</div>
+        <div class="panel-heading">Centro de actividad</div>
         <button class="notif-close" onclick="toggleNotifPanel()">✕</button>
       </div>
       <div id="notif-list" class="notif-list">
@@ -160,23 +160,23 @@
     </div>
     <div class="header-actions">
       <!-- Mes / TC toggle -->
-      <div style="display:flex;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:3px;gap:2px;">
-        <button id="dash-toggle-mes" onclick="setDashView('mes')" style="font-size:12px;font-family:var(--font);font-weight:700;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;transition:all 0.15s;background:var(--accent);color:#fff;">Mes</button>
-        <button id="dash-toggle-tc" onclick="setDashView('tc')" style="font-size:12px;font-family:var(--font);font-weight:700;padding:5px 12px;border-radius:6px;border:none;cursor:pointer;transition:all 0.15s;background:transparent;color:var(--text3);">💳 Ciclo TC</button>
+      <div class="surface-toggle">
+        <button id="dash-toggle-mes" class="surface-toggle-btn active" onclick="setDashView('mes')">Mes</button>
+        <button id="dash-toggle-tc" class="surface-toggle-btn" onclick="setDashView('tc')">Ciclo TC</button>
       </div>
       <!-- Period selector (changes based on toggle) -->
-      <select id="dash-month-select" class="txn-select" onchange="setDashMonthFromSelect(this.value)" style="font-family:var(--font);font-weight:700;font-size:13px;">
+      <select id="dash-month-select" class="txn-select" onchange="setDashMonthFromSelect(this.value)">
         <option value="">Mes actual</option>
       </select>
       <button class="edit-layout-btn" id="edit-btn-dashboard" onclick="toggleEditMode('dashboard')">✦ Editar vista</button>
     </div>
-  <div id="dash-empty" class="upload-zone fade-up d1" onclick="nav('import')" style="cursor:pointer;">
+  <div id="dash-empty" class="upload-zone fade-up d1" onclick="nav('import')">
     <div class="upload-icon">📊</div>
-    <div class="upload-title">Importá tus movimientos</div>
-    <div class="upload-sub">CSV de Santander, pegá texto o conectá Gmail</div>
+    <div class="upload-title">Traé tus movimientos al panel</div>
+    <div class="upload-sub">Importá CSV, pegá texto bancario o sincronizá Gmail para empezar con una vista completa.</div>
     <div class="upload-tags"><span class="tag green">Santander</span><span class="tag">CSV</span><span class="tag">ARS + USD</span><span class="tag">IA Auto</span></div>
   </div>
-  <div id="dash-content" style="display:none;flex-direction:column;gap:20px;">
+  <div id="dash-content" class="content-stack">
     <!-- Smart Notifications -->
     <div id="dash-notifications" class="dash-notif-container fade-up" style="display:none;"></div>
 
@@ -185,45 +185,45 @@
     <div class="dash-row-hero fade-up d1">
 
       <!-- Card principal: gasto del mes -->
-      <div class="dash-hero-card" style="cursor:pointer;" onclick="nav('transactions')" title="Ver detalle de gastos">
+      <div class="dash-hero-card dash-hero-clickable" onclick="nav('transactions')" title="Ver detalle de gastos">
         <div class="dhc-eyebrow">GASTO TOTAL · <span id="dhc-month-label">—</span></div>
         <div class="dhc-main">
           <div class="dhc-amount" id="kpi-ars">—</div>
-          <span id="dhc-pct-inline" style="font-size:13px;font-weight:600;color:var(--text3);margin-bottom:6px;white-space:nowrap;"></span>
+          <span id="dhc-pct-inline" class="metric-inline"></span>
         </div>
         <!-- 3 inner cards: ARS · USD · Margen -->
-        <div id="dhc-inner-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px;">
+        <div id="dhc-inner-grid" class="hero-inner-grid">
           <!-- ARS card -->
-          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
-            <div style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">GASTO ARS</div>
-            <div style="font-size:26px;font-weight:700;letter-spacing:-0.03em;color:var(--text);line-height:1;" id="dhc-ars-line">—</div>
+          <div class="hero-mini-card">
+            <div class="hero-mini-card-title">GASTO ARS</div>
+            <div class="hero-mini-card-value" id="dhc-ars-line">—</div>
           </div>
           <!-- USD card -->
-          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
-            <div style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">GASTO USD</div>
-            <div style="font-size:26px;font-weight:700;letter-spacing:-0.03em;color:var(--accent2);line-height:1;" id="dhc-usd-line">—</div>
+          <div class="hero-mini-card">
+            <div class="hero-mini-card-title">GASTO USD</div>
+            <div class="hero-mini-card-value accent" id="dhc-usd-line">—</div>
           </div>
           <!-- Margen card (spans 2 cols) -->
-          <div id="dhc-margin-section" style="grid-column:1/-1;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:none;cursor:pointer;" onclick="nav('income')" title="Ver ingresos y configuración">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-              <span style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text3);">MARGEN DISPONIBLE</span>
-              <span id="dhc-margin-val" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;color:var(--text);"></span>
+          <div id="dhc-margin-section" class="hero-wide-card clickable" style="display:none;" onclick="nav('income')" title="Ver ingresos y configuración">
+            <div class="hero-wide-card-header">
+              <span class="hero-wide-card-title">MARGEN DISPONIBLE</span>
+              <span id="dhc-margin-val" class="hero-wide-card-value"></span>
             </div>
-            <div style="height:6px;background:var(--surface3);border-radius:3px;overflow:hidden;">
-              <div id="dhc-margin-fill" style="height:100%;border-radius:3px;transition:width 0.8s ease;"></div>
+            <div class="hero-progress">
+              <div id="dhc-margin-fill" class="hero-progress-fill"></div>
             </div>
-            <div style="display:flex;justify-content:space-between;margin-top:6px;">
-              <span id="dhc-margin-sub" style="font-size:10px;color:var(--text3);font-weight:400;"></span>
-              <span id="dhc-margin-ingreso" style="font-size:10px;color:var(--text3);font-weight:400;"></span>
+            <div class="hero-wide-card-footer table-subtle">
+              <span id="dhc-margin-sub"></span>
+              <span id="dhc-margin-ingreso"></span>
             </div>
           </div>
           <!-- Payment method breakdown (spans 2 cols) -->
-          <div id="dhc-pay-method-section" style="grid-column:1/-1;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;display:none;">
-            <div style="font-size:10px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">MEDIOS DE PAGO</div>
+          <div id="dhc-pay-method-section" class="hero-wide-card" style="display:none;">
+            <div class="hero-wide-card-title">MEDIOS DE PAGO</div>
             <!-- Stacked bar -->
-            <div style="height:8px;background:var(--surface3);border-radius:4px;overflow:hidden;display:flex;" id="dhc-pay-bar"></div>
+            <div class="hero-pay-bar" id="dhc-pay-bar"></div>
             <!-- Labels -->
-            <div id="dhc-pay-labels" style="display:flex;flex-wrap:wrap;gap:10px;margin-top:8px;"></div>
+            <div id="dhc-pay-labels" class="hero-pay-labels"></div>
           </div>
         </div>
       </div>
@@ -248,44 +248,44 @@
 
       <!-- 3 KPI cards secundarias -->
       <div class="dash-kpis-col">
-        <div class="dkpi" style="flex-direction:column;align-items:stretch;gap:8px;cursor:pointer;" onclick="nav('credit-cards')" title="Ver detalle de tarjetas">
-          <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="dkpi kpi-card-compact kpi-card-clickable" onclick="nav('credit-cards')" title="Ver detalle de tarjetas">
+          <div class="kpi-card-header-grid">
             <div class="dkpi-label">CICLO TARJETAS</div>
-            <div class="dkpi-icon" style="opacity:0.35;font-size:18px;">💳</div>
+            <div class="dkpi-icon">💳</div>
           </div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div class="kpi-grid-mini">
             <!-- VISA -->
-            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
-              <div style="font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#e63946;margin-bottom:4px;">VISA</div>
-              <div id="kpi-visa-ars" style="font-size:18px;font-weight:700;letter-spacing:-0.03em;color:var(--text);line-height:1;">—</div>
-              <div id="kpi-visa-usd" style="font-size:10px;color:var(--accent2);font-family:var(--font);margin-top:2px;"></div>
+            <div class="kpi-mini-card">
+              <div class="kpi-mini-card-title brand-visa">VISA</div>
+              <div id="kpi-visa-ars" class="kpi-mini-card-value">—</div>
+              <div id="kpi-visa-usd" class="kpi-mini-card-sub"></div>
             </div>
             <!-- AMEX -->
-            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
-              <div style="font-size:9px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;color:#457b9d;margin-bottom:4px;">AMEX</div>
-              <div id="kpi-amex-ars" style="font-size:18px;font-weight:700;letter-spacing:-0.03em;color:var(--text);line-height:1;">—</div>
-              <div id="kpi-amex-usd" style="font-size:10px;color:var(--accent2);font-family:var(--font);margin-top:2px;"></div>
+            <div class="kpi-mini-card">
+              <div class="kpi-mini-card-title brand-amex">AMEX</div>
+              <div id="kpi-amex-ars" class="kpi-mini-card-value">—</div>
+              <div id="kpi-amex-usd" class="kpi-mini-card-sub"></div>
             </div>
           </div>
           <!-- hidden compat -->
           <div id="kpi-tc" style="display:none;">—</div>
         </div>
-        <div class="dkpi" style="flex-direction:column;align-items:stretch;gap:10px;">
-          <div style="display:flex;align-items:center;justify-content:space-between;">
+        <div class="dkpi kpi-card-projection">
+          <div class="kpi-card-header-grid">
             <div class="dkpi-label" id="kpi-proj-title">Proyección al cierre</div>
-            <div class="dkpi-icon" style="opacity:0.35;font-size:18px;">📈</div>
+            <div class="dkpi-icon">📈</div>
           </div>
-          <div class="dkpi-value" id="kpi-proj" style="font-size:28px;">—</div>
+          <div class="dkpi-value" id="kpi-proj">—</div>
           <div class="dkpi-sub" id="kpi-proj-d"></div>
           <!-- Two inner cards: projected + daily -->
-          <div id="kpi-proj-inner-cards" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:2px;">
-            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
-              <div style="font-size:9px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">PROMEDIO / DÍA</div>
-              <div id="kpi-proj-daily" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;color:var(--text);line-height:1;">—</div>
+          <div id="kpi-proj-inner-cards" class="kpi-grid-mini">
+            <div class="kpi-mini-card">
+              <div class="kpi-mini-card-title">PROMEDIO / DÍA</div>
+              <div id="kpi-proj-daily" class="kpi-mini-card-value">—</div>
             </div>
-            <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
-              <div id="kpi-proj-days-label" style="font-size:9px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">DÍAS AL CIERRE</div>
-              <div id="kpi-proj-days" style="font-size:20px;font-weight:700;letter-spacing:-0.03em;color:var(--text);line-height:1;">—</div>
+            <div class="kpi-mini-card">
+              <div id="kpi-proj-days-label" class="kpi-mini-card-title">DÍAS AL CIERRE</div>
+              <div id="kpi-proj-days" class="kpi-mini-card-value">—</div>
             </div>
           </div>
         </div>
@@ -296,12 +296,12 @@
             <div class="dkpi-sub" id="kpi-compromisos-d"></div>
           </div>
           <!-- Mini donut: compromisos vs ingreso -->
-          <div id="comp-donut-wrap" style="position:relative;width:52px;height:52px;flex-shrink:0;">
-            <svg width="52" height="52" viewBox="0 0 52 52" style="transform:rotate(-90deg);">
+          <div id="comp-donut-wrap" class="donut-wrap">
+            <svg width="52" height="52" viewBox="0 0 52 52" class="donut-svg">
               <circle cx="26" cy="26" r="20" fill="none" stroke="var(--surface3)" stroke-width="5"/>
               <circle id="comp-donut-fill" cx="26" cy="26" r="20" fill="none" stroke="var(--accent3)" stroke-width="5" stroke-linecap="round" stroke-dasharray="125.66" stroke-dashoffset="125.66" style="transition:stroke-dashoffset 0.8s ease;"/>
             </svg>
-            <div id="comp-donut-label" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;font-family:var(--font);color:var(--text3);">—</div>
+            <div id="comp-donut-label" class="donut-label">—</div>
           </div>
         </div>
       </div>
@@ -309,14 +309,14 @@
     </div><!-- /layout-section -->
 
     <div class="layout-section" data-page="dashboard" data-key="usd"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('dashboard','usd',this)">● Tipo de cambio</button></div>
-    <div class="fade-up d2" id="usd-rate-card" style="display:flex;align-items:center;gap:12px;padding:10px 18px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r2);flex-wrap:wrap;">
-      <span style="font-size:15px;">💵</span>
-      <span style="font-size:15px;font-weight:700;letter-spacing:-0.02em;">U$D 1 = <span id="usd-rate-display">$1.420</span></span>
-      <span id="usd-rate-source-badge" style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:14px;background:rgba(96,200,240,0.1);color:var(--accent2);border:1px solid rgba(96,200,240,0.2);">blue</span>
-      <span id="usd-rate-status" style="font-size:10px;color:var(--text3);"></span>
-      <span id="usd-rate-updated" style="font-size:10px;color:var(--text3);margin-left:auto;"></span>
-      <button class="btn btn-ghost btn-sm" onclick="fetchUsdRate(true)" id="btn-refresh-usd" style="padding:3px 8px;font-size:10px;">↻</button>
-      <button class="btn btn-ghost btn-sm" onclick="openUsdRateModal()" style="padding:3px 8px;font-size:10px;">✎</button>
+    <div class="fade-up d2 usd-rate-card" id="usd-rate-card">
+      <span class="usd-rate-icon">💵</span>
+      <span class="usd-rate-main">U$D 1 = <span id="usd-rate-display">$1.420</span></span>
+      <span id="usd-rate-source-badge" class="usd-rate-source">blue</span>
+      <span id="usd-rate-status" class="usd-rate-meta"></span>
+      <span id="usd-rate-updated" class="usd-rate-meta usd-rate-updated"></span>
+      <button class="btn btn-ghost btn-sm btn-xs" onclick="fetchUsdRate(true)" id="btn-refresh-usd">↻</button>
+      <button class="btn btn-ghost btn-sm btn-xs" onclick="openUsdRateModal()">✎</button>
     </div>
     </div><!-- /layout-section -->
 
@@ -329,7 +329,7 @@
             <div class="chart-card-title" id="dash-chart-title">Evolución del gasto</div>
             <div class="chart-card-sub" id="weekly-chart-sub">ARS acumulado</div>
           </div>
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <div class="chart-toolbar">
             <div id="weekly-chart-legend"></div>
             <div class="chart-mini-toggle">
               <button class="cmt-btn active" id="cmt-bars" onclick="setChartMode('bars')">▊ Barras</button>
@@ -338,10 +338,10 @@
             </div>
           </div>
         </div>
-        <div class="chart-wrap" style="height:200px"><canvas id="chart-weekly"></canvas></div>
+        <div class="chart-wrap chart-wrap-sm"><canvas id="chart-weekly"></canvas></div>
       </div>
-      <div class="chart-card" style="cursor:pointer;" onclick="nav('tendencia')" title="Ver tendencias por categoría">
-        <div class="chart-card-title" style="margin-bottom:14px;">Categorías del mes</div>
+      <div class="chart-card chart-card-clickable" onclick="nav('tendencia')" title="Ver tendencias por categoría">
+        <div class="chart-card-title chart-card-title-spaced">Categorías del mes</div>
         <div id="cat-bars" class="cat-list"></div>
       </div>
     </div>
@@ -352,7 +352,7 @@
     <div class="dash-widgets-row fade-up d3">
 
       <!-- Widget 1: Margen disponible -->
-      <div class="dw-card dw-margin" style="cursor:pointer;" onclick="nav('income')" title="Ver ingresos y configuración">
+      <div class="dw-card dw-margin dw-card-clickable" onclick="nav('income')" title="Ver ingresos y configuración">
         <div class="dw-label">MARGEN DISPONIBLE</div>
         <div class="dw-value" id="dw-margen-val">—</div>
         <div class="dw-sub" id="dw-margen-sub">hasta fin de mes</div>
@@ -361,24 +361,24 @@
       </div>
 
       <!-- Widget 2: Categoría que más creció vs mes anterior -->
-      <div class="dw-card dw-trend" onclick="nav('compare')" style="cursor:pointer;" title="Ver comparación">
+      <div class="dw-card dw-trend dw-card-clickable" onclick="nav('compare')" title="Ver comparación">
         <div class="dw-label">CATEGORÍA EN ALZA</div>
-        <div class="dw-value" id="dw-trend-val" style="font-size:18px;letter-spacing:0;color:var(--text);">—</div>
+        <div class="dw-value widget-value-tight" id="dw-trend-val">—</div>
         <div class="dw-sub" id="dw-trend-sub">vs mes anterior</div>
-        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
+        <div class="widget-inline-row">
           <span class="dw-badge" id="dw-trend-badge"></span>
-          <span style="font-size:10px;font-family:var(--font);font-weight:500;color:var(--text3);" id="dw-trend-amounts"></span>
+          <span class="widget-microcopy" id="dw-trend-amounts"></span>
         </div>
-        <div class="dw-footer" id="dw-trend-footer" style="margin-top:8px;">Ver comparación →</div>
+        <div class="dw-footer widget-footer-tight" id="dw-trend-footer">Ver comparación →</div>
       </div>
 
       <!-- Widget 3: Meta de ahorro más cercana -->
-      <div class="dw-card dw-goal" onclick="nav('savings')" style="cursor:pointer;" title="Ver ahorros">
+      <div class="dw-card dw-goal dw-card-clickable" onclick="nav('savings')" title="Ver ahorros">
         <div class="dw-label">META MÁS CERCANA</div>
-        <div class="dw-value" id="dw-goal-val" style="font-size:18px;letter-spacing:0;color:var(--text);">—</div>
+        <div class="dw-value widget-value-tight" id="dw-goal-val">—</div>
         <div class="dw-sub" id="dw-goal-sub">Sin metas configuradas</div>
         <div class="dw-bar-track"><div class="dw-bar-fill" id="dw-goal-bar" style="background:var(--accent3);width:0%;"></div></div>
-        <div class="dw-footer" id="dw-goal-footer" style="margin-top:8px;">Ver ahorros →</div>
+        <div class="dw-footer widget-footer-tight" id="dw-goal-footer">Ver ahorros →</div>
       </div>
 
     </div>
@@ -387,12 +387,12 @@
     <div class="layout-section" data-page="dashboard" data-key="top5"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('dashboard','top5',this)">● Top gastos</button></div>
     <!-- FILA 4: Top 5 gastos del mes -->
     <div class="chart-card fade-up d3">
-      <div class="chart-card-header" style="margin-bottom:14px;">
+      <div class="chart-card-header chart-card-title-spaced">
         <div>
           <div class="chart-card-title">Top gastos del mes</div>
           <div class="chart-card-sub" id="top5-sub">Movimientos ARS más altos</div>
         </div>
-        <a onclick="nav('transactions')" style="font-size:11px;color:var(--text3);cursor:pointer;font-family:var(--font);font-weight:500;transition:color 0.15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text3)'">Ver todos →</a>
+        <a class="link-inline-action" onclick="nav('transactions')">Ver todos →</a>
       </div>
       <div id="top5-list" class="top5-inline-grid"></div>
     </div>
@@ -401,19 +401,19 @@
   </div>
 
   <!-- Panel Insights inline (oculto por defecto) -->
-  <div id="dash-insights-panel" style="display:none;flex-direction:column;gap:14px;" class="fade-up">
+  <div id="dash-insights-panel" class="fade-up hidden-stack">
     <div class="table-card">
-      <div class="table-header" style="padding:16px 20px 0;display:flex;justify-content:space-between;align-items:center;">
+      <div class="table-header table-header-tight table-header-inline">
         <div>
           <div class="table-title">Insights</div>
-          <div id="insights-month-label" style="font-size:11px;color:var(--text3);font-family:var(--font);font-weight:400;margin-top:2px;">—</div>
+          <div id="insights-month-label" class="table-subtle">—</div>
         </div>
-        <button class="btn btn-ghost" style="font-size:12px;" onclick="generateDashInsights()">⚡ Regenerar</button>
+        <button class="btn btn-ghost" onclick="generateDashInsights()">Actualizar análisis</button>
       </div>
-      <div id="dash-insights-loading" style="display:none;padding:32px;align-items:center;justify-content:center;gap:12px;">
-        <div class="spinner"></div><span style="color:var(--text3);font-size:13px;">Analizando el mes...</span>
+      <div id="dash-insights-loading" class="loading-inline">
+        <div class="spinner"></div><span class="loading-inline-text">Preparando señales del período...</span>
       </div>
-      <div id="dash-insight-feed" style="padding:12px 20px 16px;display:flex;flex-direction:column;gap:10px;"></div>
+      <div id="dash-insight-feed" class="insight-feed-inline"></div>
     </div>
   </div>
 
@@ -427,29 +427,29 @@
   </div>
 
   <!-- Selector de tarjeta -->
-  <div id="cc-card-tabs" style="display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;"></div>
+  <div id="cc-card-tabs" class="cc-tabs-row"></div>
 
   <!-- Tabs de sección: Resumen | Configuración -->
-  <div class="cc-section-tabs" style="margin-bottom:24px;">
-    <button class="cc-stab active" id="cpt-resumen" onclick="ccSelectPageTab('resumen')">📊 Resumen</button>
-    <button class="cc-stab" id="cpt-config" onclick="ccSelectPageTab('config')">⚙ Configuración</button>
+  <div class="cc-section-tabs">
+    <button class="cc-stab active" id="cpt-resumen" onclick="ccSelectPageTab('resumen')">Resumen</button>
+    <button class="cc-stab" id="cpt-config" onclick="ccSelectPageTab('config')">Configuración</button>
   </div>
 
   <!-- Panel: Resumen -->
   <div id="cc-panel-resumen">
     <!-- Ciclo activo -->
     <div id="cc-active-cycle-section">
-      <div id="cc-empty-state" style="display:none;text-align:center;padding:48px 24px;color:var(--text3);">
-        <div style="font-size:32px;margin-bottom:12px;">💳</div>
-        <div style="font-size:15px;font-weight:600;margin-bottom:6px;">Sin ciclos cargados</div>
-        <div style="font-size:13px;">Configurá tus ciclos en Configuración para empezar</div>
+      <div id="cc-empty-state" class="cc-empty-state" style="display:none;">
+        <div class="cc-empty-icon">◫</div>
+        <div class="cc-empty-title">Sin ciclos configurados</div>
+        <div class="cc-empty-sub">Definí tus cierres y vencimientos para habilitar el seguimiento del resumen.</div>
       </div>
       <div id="cc-active-cycle" style="display:none;"></div>
     </div>
 
     <!-- Historial -->
     <div id="cc-history-section" style="margin-top:28px;display:none;">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text3);margin-bottom:12px;">Historial de ciclos pagados</div>
+      <div class="section-kicker-inline">Historial de ciclos liquidados</div>
       <div id="cc-history-list"></div>
     </div>
   </div>
@@ -471,29 +471,29 @@
 
 <!-- Modal: Gasto manual en ciclo CC -->
 <div class="modal-overlay" id="modal-cc-expense">
-  <div class="modal-box" style="max-width:440px;">
+  <div class="modal modal-box">
     <div class="modal-header"><div class="modal-title">Agregar gasto manual</div><button class="modal-close" onclick="closeModal('modal-cc-expense')">✕</button></div>
-    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+    <div class="modal-body modal-stack">
       <div>
-        <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Fecha</label>
-        <input type="date" id="cc-exp-date" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-family:var(--font);">
+        <label class="field-label-premium">Fecha</label>
+        <input type="date" id="cc-exp-date" class="field-control-premium">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Descripción</label>
-        <input type="text" id="cc-exp-desc" placeholder="Ej: Netflix, Nafta..." style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-family:var(--font);">
+        <label class="field-label-premium">Descripción</label>
+        <input type="text" id="cc-exp-desc" class="field-control-premium" placeholder="Ej: streaming, combustible, supermercado">
       </div>
       <div>
-        <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Categoría</label>
-        <select id="cc-exp-cat" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-family:var(--font);"></select>
+        <label class="field-label-premium">Categoría</label>
+        <select id="cc-exp-cat" class="field-control-premium"></select>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+      <div class="field-grid-2">
         <div>
-          <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Monto ARS</label>
-          <input type="number" id="cc-exp-ars" placeholder="0" min="0" step="0.01" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-family:var(--font);">
+          <label class="field-label-premium">Monto ARS</label>
+          <input type="number" id="cc-exp-ars" class="field-control-premium" placeholder="0" min="0" step="0.01">
         </div>
         <div>
-          <label style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:5px;">Monto USD</label>
-          <input type="number" id="cc-exp-usd" placeholder="0" min="0" step="0.01" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:14px;font-family:var(--font);">
+          <label class="field-label-premium">Monto USD</label>
+          <input type="number" id="cc-exp-usd" class="field-control-premium" placeholder="0" min="0" step="0.01">
         </div>
       </div>
     </div>
@@ -507,7 +507,7 @@
 <!-- REPORTES -->
 <div id="page-reportes" class="page">
   <div class="page-header fade-up">
-    <div><div class="page-title">Reportes</div><div class="page-subtitle">Generá y exportá tu resumen financiero</div></div>
+    <div><div class="page-title">Reportes</div><div class="page-subtitle">Prepará un informe ejecutivo listo para compartir</div></div>
   </div>
 
   <div class="rep-layout fade-up d1">
@@ -518,28 +518,28 @@
       <!-- Período -->
       <div class="rep-config-card">
         <div class="rep-section-title">Período</div>
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
-            <button class="tft-btn active" id="rep-mode-mes" onclick="setRepMode('mes')" style="border:1px solid var(--border);border-radius:8px;font-size:11px;padding:8px 4px;">📅 Mes</button>
-            <button class="tft-btn" id="rep-mode-tc" onclick="setRepMode('tc')" style="border:1px solid var(--border);border-radius:8px;font-size:11px;padding:8px 4px;">💳 Ciclo TC</button>
-            <button class="tft-btn" id="rep-mode-rango" onclick="setRepMode('rango')" style="border:1px solid var(--border);border-radius:8px;font-size:11px;padding:8px 4px;">📆 Rango</button>
-            <button class="tft-btn" id="rep-mode-all" onclick="setRepMode('todo')" style="border:1px solid var(--border);border-radius:8px;font-size:11px;padding:8px 4px;">📊 Todo</button>
+        <div class="rep-stack">
+          <div class="rep-mode-grid">
+            <button class="tft-btn rep-mode-btn active" id="rep-mode-mes" onclick="setRepMode('mes')">Mes</button>
+            <button class="tft-btn rep-mode-btn" id="rep-mode-tc" onclick="setRepMode('tc')">Ciclo TC</button>
+            <button class="tft-btn rep-mode-btn" id="rep-mode-rango" onclick="setRepMode('rango')">Rango</button>
+            <button class="tft-btn rep-mode-btn" id="rep-mode-all" onclick="setRepMode('todo')">Histórico</button>
           </div>
           <!-- Month / TC selector -->
           <select id="rep-period-select" class="rep-select" onchange="updateRepPreview()">
-            <option value="">Seleccioná un período</option>
+            <option value="">Elegí un período</option>
           </select>
           <!-- Date range (hidden by default) -->
-          <div id="rep-range-wrap" style="display:none;flex-direction:column;gap:6px;">
-            <div style="display:flex;gap:8px;align-items:center;">
-              <div style="flex:1;">
-                <div style="font-size:9px;color:var(--text3);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:3px;">Desde</div>
-                <input type="date" id="rep-range-from" class="rep-select" style="width:100%;" onchange="updateRepPreview()">
+          <div id="rep-range-wrap" class="rep-range-wrap">
+            <div class="rep-range-row">
+              <div class="rep-range-field">
+                <div class="rep-range-label">Desde</div>
+                <input type="date" id="rep-range-from" class="rep-select" onchange="updateRepPreview()">
               </div>
-              <span style="color:var(--text3);font-size:12px;margin-top:14px;">→</span>
-              <div style="flex:1;">
-                <div style="font-size:9px;color:var(--text3);font-weight:600;letter-spacing:.04em;text-transform:uppercase;margin-bottom:3px;">Hasta</div>
-                <input type="date" id="rep-range-to" class="rep-select" style="width:100%;" onchange="updateRepPreview()">
+              <span class="rep-range-arrow">→</span>
+              <div class="rep-range-field">
+                <div class="rep-range-label">Hasta</div>
+                <input type="date" id="rep-range-to" class="rep-select" onchange="updateRepPreview()">
               </div>
             </div>
           </div>
@@ -547,40 +547,40 @@
       </div>
 
       <!-- ✉️ Enviar reporte por email -->
-      <div class="rep-config-card" style="background:linear-gradient(135deg,rgba(37,99,235,0.08),rgba(37,99,235,0.03));border:1.5px solid var(--blue-mid);border-radius:14px;">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
-          <div style="width:32px;height:32px;border-radius:10px;background:var(--blue-light);display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;">✉️</div>
+      <div class="rep-config-card rep-callout-card">
+        <div class="rep-callout">
+          <div class="rep-callout-icon">✉️</div>
           <div>
-            <div style="font-size:13px;font-weight:700;color:var(--text);">Enviar por email</div>
-            <div style="font-size:10px;color:var(--text3);">PDF + análisis IA a tu casilla</div>
+            <div class="rep-callout-title">Entregar por email</div>
+            <div class="rep-callout-sub">PDF y análisis listos para compartir</div>
           </div>
         </div>
-        <button class="btn btn-primary" onclick="openSendReportModal()" style="width:100%;justify-content:center;font-size:13px;padding:11px;">
-          📤 Enviar reporte ahora
+        <button class="btn btn-primary rep-export-primary" onclick="openSendReportModal()">
+          Enviar informe
         </button>
       </div>
 
       <!-- Exportar PDF — always visible -->
-      <div class="rep-config-card" style="background:var(--surface2);border:1.5px solid var(--accent);border-radius:12px;">
-        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-primary" onclick="exportRepPDF()" style="justify-content:center;flex:1;min-width:120px;font-size:13px;padding:10px 16px;">
-            📄 Guardar PDF
+      <div class="rep-config-card rep-export-card">
+        <div class="rep-export-actions">
+          <button class="btn btn-primary rep-export-primary" onclick="exportRepPDF()">
+            Exportar PDF
           </button>
-          <button class="btn btn-ghost" onclick="printReport()" style="justify-content:center;min-width:90px;font-size:12px;padding:10px 14px;">
-            🖨️ Imprimir
+          <button class="btn btn-ghost rep-export-secondary" onclick="printReport()">
+            Abrir impresión
           </button>
-          <div style="display:flex;gap:4px;width:100%;margin-top:4px;">
-            <button class="tft-btn active" id="rep-design-exec" onclick="setRepDesign('executive')" style="flex:1;border:1px solid var(--border);border-radius:6px;font-size:9px;padding:6px 4px;">🏢 Ejecutivo</button>
-            <button class="tft-btn" id="rep-design-detail" onclick="setRepDesign('detailed')" style="flex:1;border:1px solid var(--border);border-radius:6px;font-size:9px;padding:6px 4px;">📋 Detallado</button>
-            <button class="tft-btn" id="rep-design-minimal" onclick="setRepDesign('minimal')" style="flex:1;border:1px solid var(--border);border-radius:6px;font-size:9px;padding:6px 4px;">◻ Minimal</button>
+          <div class="rep-design-grid">
+            <button class="tft-btn rep-design-btn active" id="rep-design-exec" onclick="setRepDesign('executive')">Ejecutivo</button>
+            <button class="tft-btn rep-design-btn" id="rep-design-detail" onclick="setRepDesign('detailed')">Detallado</button>
+            <button class="tft-btn rep-design-btn" id="rep-design-minimal" onclick="setRepDesign('minimal')">Minimal</button>
           </div>
         </div>
-        <div style="font-size:9px;color:var(--text3);margin-top:6px;">Seleccioná el diseño y hacé click para abrir el diálogo de impresión → "Guardar como PDF"</div>
+        <div class="rep-hint">Elegí el formato del informe y luego exportalo o abrí la vista de impresión para guardarlo como PDF.</div>
       </div>
 
       <!-- Secciones -->
       <div class="rep-config-card">
-        <div class="rep-section-title">Incluir en el reporte</div>
+        <div class="rep-section-title">Contenido del informe</div>
         <div class="rep-check-list" id="rep-sections">
           <label class="rep-check-item checked">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="resumen"> 
@@ -669,10 +669,10 @@
     <div class="rep-preview">
       <div class="rep-preview-header">
         <div class="rep-preview-title">Vista previa</div>
-        <div id="rep-preview-meta" style="font-size:11px;color:var(--text3);font-family:var(--font);">—</div>
+        <div id="rep-preview-meta" class="rep-preview-meta">—</div>
       </div>
       <div class="rep-preview-body">
-        <div id="rep-preview-content" style="padding:0;"></div>
+        <div id="rep-preview-content" class="rep-preview-content"></div>
       </div>
     </div>
 
@@ -685,14 +685,14 @@
   <div class="page-header fade-up">
     <div><div class="page-title">Movimientos</div></div>
     <div class="header-actions">
-      <div class="search-wrap" style="max-width:400px;flex:1;">
+      <div class="search-wrap search-wrap-wide">
         <span class="search-icon">🔍</span>
-        <input id="f-search" class="search-input" style="font-size:12px;padding:8px 34px 8px 32px;letter-spacing:.01em;" type="text" placeholder="Buscar en todos los meses: descripción, monto, categoría..." oninput="onSearchInput(this)">
+        <input id="f-search" class="search-input search-input-compact" type="text" placeholder="Buscar descripción, monto o categoría..." oninput="onSearchInput(this)">
         <button class="search-clear" id="search-clear-btn" onclick="clearSearch()">✕</button>
       </div>
-      <button class="btn btn-ghost" onclick="openRulesPanel()" style="flex-shrink:0;font-size:12px;">⚡ Reglas</button>
-      <button class="btn btn-ghost" onclick="openNewExpenseModal()" style="flex-shrink:0;font-size:12px;">+ Nuevo gasto</button>
-      <button class="btn btn-primary" id="btn-quick-cat" onclick="openCatReview()" style="position:relative;flex-shrink:0;font-size:12px;">✦ Revisar <span id="qr-badge" style="display:none;position:absolute;top:-6px;right:-6px;background:var(--danger);color:#fff;font-size:9px;font-weight:700;font-family:var(--font);border-radius:9px;min-width:18px;height:18px;line-height:18px;text-align:center;padding:0 4px;">0</span></button>
+      <button class="btn btn-ghost" onclick="openRulesPanel()">Reglas</button>
+      <button class="btn btn-ghost" onclick="openNewExpenseModal()">Registrar gasto</button>
+      <button class="btn btn-primary quick-review-btn" id="btn-quick-cat" onclick="openCatReview()">Revisar categorías <span id="qr-badge" class="quick-review-badge">0</span></button>
     </div>
   </div>
 
@@ -737,32 +737,32 @@
       </select>
 
       <!-- Filtro por tarjeta -->
-      <div class="txn-filter-toggle" style="gap:4px;" title="Filtrar por tarjeta">
+      <div class="txn-filter-toggle" title="Filtrar por tarjeta">
         <button class="tft-btn active" id="tcf-all" onclick="setCardFilter('')">Todas</button>
-        <button class="tft-btn" id="tcf-visa" onclick="setCardFilter('visa')">💳 VISA</button>
-        <button class="tft-btn" id="tcf-amex" onclick="setCardFilter('amex')">💳 AMEX</button>
+        <button class="tft-btn" id="tcf-visa" onclick="setCardFilter('visa')">VISA</button>
+        <button class="tft-btn" id="tcf-amex" onclick="setCardFilter('amex')">AMEX</button>
       </div>
 
     </div><!-- /txn-filters -->
 
     <!-- Resumen del filtro activo -->
     <div class="txn-summary" id="txn-summary">
-      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;width:100%;">
-        <div style="display:flex;gap:6px;flex:1;flex-wrap:wrap;">
-          <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 14px;display:flex;flex-direction:column;gap:1px;min-width:88px;">
-            <span style="font-size:9px;color:var(--text3);font-family:var(--font);font-weight:600;letter-spacing:.08em;text-transform:uppercase;">ARS</span>
-            <span style="font-size:14px;font-weight:700;color:var(--text);font-family:var(--font);letter-spacing:-0.02em;" id="txns-total-ars">—</span>
+      <div class="txn-summary-row">
+        <div class="txn-summary-grid">
+          <div class="summary-stat-card">
+            <span class="summary-stat-label">ARS</span>
+            <span class="summary-stat-value" id="txns-total-ars">—</span>
           </div>
-          <div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 14px;display:flex;flex-direction:column;gap:1px;min-width:88px;">
-            <span style="font-size:9px;color:var(--text3);font-family:var(--font);font-weight:600;letter-spacing:.08em;text-transform:uppercase;">USD</span>
-            <span style="font-size:14px;font-weight:700;color:var(--accent2);font-family:var(--font);letter-spacing:-0.02em;" id="txns-total-usd">—</span>
+          <div class="summary-stat-card">
+            <span class="summary-stat-label">USD</span>
+            <span class="summary-stat-value accent" id="txns-total-usd">—</span>
           </div>
-          <div style="background:var(--bg);border:1px solid rgba(200,240,96,0.2);border-radius:6px;padding:7px 14px;display:flex;flex-direction:column;gap:1px;min-width:88px;">
-            <span style="font-size:9px;color:var(--text3);font-family:var(--font);font-weight:600;letter-spacing:.08em;text-transform:uppercase;">Total</span>
-            <span style="font-size:14px;font-weight:700;color:var(--accent);font-family:var(--font);letter-spacing:-0.02em;" id="txns-main">—</span>
+          <div class="summary-stat-card total">
+            <span class="summary-stat-label">Total</span>
+            <span class="summary-stat-value primary" id="txns-main">—</span>
           </div>
         </div>
-        <div class="txns-detail" id="txns-detail" style="font-size:11px;color:var(--text3);font-family:var(--font);font-weight:400;"></div>
+        <div class="txns-detail txn-summary-detail" id="txns-detail"></div>
       </div>
     </div>
 
@@ -773,7 +773,7 @@
   <div id="pendientes-banner" class="fade-up" style="margin-bottom:0;"></div>
 
   <!-- Estado tabs -->
-  <div style="margin-bottom:8px;" class="fade-up d1">
+  <div class="fade-up d1 section-gap-xs">
     <div id="estado-filter-tabs" class="estado-filter-tabs"></div>
   </div>
 
@@ -798,9 +798,9 @@
 <!-- CATEGORÍAS -->
 <div id="page-tendencia" class="page">
   <div class="page-header fade-up">
-    <div><div class="page-title">Tendencias</div><div class="page-subtitle" id="tend-sub-title">Análisis de gasto por categoría</div></div>
-    <div class="header-actions" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      <select id="tend-period-select" class="txn-select" style="font-size:11px;min-width:160px;" onchange="renderTendencia()">
+    <div><div class="page-title">Tendencias</div><div class="page-subtitle" id="tend-sub-title">Cambios, señales y evolución por categoría</div></div>
+    <div class="header-actions header-actions-premium">
+      <select id="tend-period-select" class="txn-select" onchange="renderTendencia()">
         <option value="">Todos los períodos</option>
       </select>
       <div class="view-toggle">
@@ -820,27 +820,27 @@
   <div id="tendencia-content" style="display:none;flex-direction:column;gap:20px;">
 
     <!-- 1. RESUMEN EJECUTIVO -->
-    <div id="tend-exec-summary" class="fade-up d1" style="background:var(--surface2);border-radius:14px;padding:18px 20px;"></div>
+    <div id="tend-exec-summary" class="fade-up d1 tend-summary-banner"></div>
 
     <!-- 2. GRÁFICO PRINCIPAL con 4 vistas -->
     <div class="tend-main-chart-card fade-up d1">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div class="table-header-inline">
         <div><div class="tend-main-title" id="tend-chart-title">Gasto por categoría</div><div class="tend-main-sub" id="tend-chart-sub"></div></div>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <div class="rep-design-grid">
           <button class="tend-view-btn active" id="tv-bar" onclick="setTendChartMode('bar')">▊ Ranking</button>
           <button class="tend-view-btn" id="tv-line" onclick="setTendChartMode('line')">∿ Evolución</button>
           <button class="tend-view-btn" id="tv-compare" onclick="setTendChartMode('compare')">⇄ vs Anterior</button>
           <button class="tend-view-btn" id="tv-treemap" onclick="setTendChartMode('treemap')">◫ Composición</button>
         </div>
       </div>
-      <div class="chart-wrap" style="height:280px;margin-top:14px;"><canvas id="chart-tend-main"></canvas></div>
+      <div class="chart-wrap chart-wrap-lg"><canvas id="chart-tend-main"></canvas></div>
       <!-- Fallback for non-chart views -->
       <div id="tend-chart-custom" style="display:none;margin-top:14px;"></div>
     </div>
 
     <!-- 3. SPARKLINES (solo categorías con gasto) -->
     <div id="tend-spark-section" class="fade-up d2">
-      <div style="font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--text3);padding:0 2px;margin-bottom:10px;">EVOLUCIÓN POR CATEGORÍA</div>
+      <div class="section-kicker">EVOLUCIÓN POR CATEGORÍA</div>
       <div id="tend-sparklines" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;"></div>
     </div>
 
@@ -850,7 +850,7 @@
     <div class="table-card fade-up d3">
       <div class="table-header" style="padding:16px 20px 8px;">
         <div class="table-title">Desglose por categoría y subcategoría</div>
-        <div class="table-sub" id="tend-breakdown-sub" style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;"></div>
+        <div class="table-sub table-subtle" id="tend-breakdown-sub"></div>
       </div>
       <div id="tend-breakdown" style="padding:0 20px 16px;"></div>
     </div>
@@ -1407,39 +1407,39 @@
 
 <!-- IMPORT -->
 <div id="page-import" class="page">
-  <div class="page-header fade-up" style="display:flex;justify-content:space-between;align-items:flex-start;">
+  <div class="page-header fade-up">
     <div>
       <div class="page-title">Importar datos</div>
-      <div class="page-subtitle">Importar · agregar gastos · backup</div>
+      <div class="page-subtitle import-page-subtitle">Ingreso de movimientos, carga manual y resguardo del historial</div>
     </div>
   </div>
 
   <!-- Paste zone -->
   <div class="section-card fade-up d1">
-    <div class="section-card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <div class="section-card-header import-header-card">
       <div>
-        <div style="font-size:14px;font-weight:700;">📋 Pegar resumen bancario</div>
-        <div style="font-size:11px;color:var(--text2);font-family:var(--font);font-weight:400;margin-top:3px;">Copiá y pegá el texto de la app Santander</div>
+        <div class="import-title">Pegar resumen bancario</div>
+        <div class="import-subtitle">Copiá y pegá el texto del banco para convertirlo en movimientos listos para revisar.</div>
       </div>
-      <button class="btn btn-primary" onclick="processPasteText()">▶ Procesar</button>
+      <button class="btn btn-primary" onclick="processPasteText()">Procesar texto</button>
     </div>
     <div class="section-card-body">
-      <textarea id="paste-input" placeholder="* 04 de marzo&#10;   * Rappi&#10;$&#10;10.920,00" style="width:100%;height:180px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r2);padding:14px;font-family:var(--mono);font-size:12px;color:var(--text);outline:none;resize:vertical;line-height:1.6;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+      <textarea id="paste-input" class="textarea-premium" placeholder="* 04 de marzo&#10;   * Rappi&#10;$&#10;10.920,00"></textarea>
     </div>
   </div>
 
 
   <!-- Manual expense -->
   <div class="section-card fade-up d2">
-    <div class="section-card-header" style="display:flex;justify-content:space-between;align-items:center;">
+    <div class="section-card-header import-header-card">
       <div>
-        <div style="font-size:14px;font-weight:700;">✏️ Agregar gasto manual</div>
-        <div style="font-size:11px;color:var(--text2);font-family:var(--font);margin-top:3px;">Efectivo, débito, tarjeta o USD</div>
+        <div class="import-title">Registrar gasto manual</div>
+        <div class="import-subtitle">Ideal para efectivo, movimientos aislados o consumos fuera del extracto.</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="toggleManualForm()" id="manual-form-toggle">+ Nuevo gasto</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleManualForm()" id="manual-form-toggle">Nuevo registro</button>
     </div>
     <div id="manual-form-body" style="display:none;padding-top:4px;">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div class="import-grid-2">
         <div class="input-group">
           <label class="input-label">Descripción</label>
           <input id="mf-desc" type="text" class="input-field" placeholder="Ej: Almuerzo, Farmacia...">
@@ -1449,7 +1449,7 @@
           <input id="mf-date" type="date" class="input-field">
         </div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:12px;">
+      <div class="import-grid-3">
         <div class="input-group">
           <label class="input-label">Monto</label>
           <input id="mf-amount" type="number" class="input-field" placeholder="0" min="0" step="0.01">
@@ -1470,9 +1470,9 @@
           <select id="mf-cat" class="input-field"></select>
         </div>
       </div>
-      <div style="display:flex;justify-content:flex-end;gap:8px;">
+      <div class="import-actions-row">
         <button class="btn btn-ghost btn-sm" onclick="toggleManualForm()">Cancelar</button>
-        <button class="btn btn-primary btn-sm" onclick="saveManualExpense()">Guardar gasto</button>
+        <button class="btn btn-primary btn-sm" onclick="saveManualExpense()">Guardar registro</button>
       </div>
     </div>
   </div>
@@ -1481,55 +1481,55 @@
   <!-- ══ SECCIÓN: GUARDADO Y SEGURIDAD ══ -->
   <div class="section-card fade-up d1">
     <div class="section-card-header">
-      <div style="font-size:14px;font-weight:700;">🔒 Guardado y seguridad de tus datos</div>
-      <div style="font-size:11px;color:var(--text3);font-family:var(--font);font-weight:400;margin-top:3px;">Todas las opciones para proteger y restaurar tu información</div>
+      <div class="import-title">Guardado y seguridad</div>
+      <div class="import-subtitle">Opciones para proteger, recuperar y exportar tu información financiera.</div>
     </div>
-    <div class="section-card-body" style="display:flex;flex-direction:column;gap:16px;">
+    <div class="section-card-body modal-stack">
 
       <!-- Drive status banner -->
-      <div id="drive-status-banner" style="border-radius:8px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;"></div>
+      <div id="drive-status-banner" class="import-banner"></div>
 
       <!-- Grid de acciones -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">
+      <div class="safety-grid">
 
         <!-- Backup JSON -->
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
-          <div style="font-size:13px;font-weight:700;margin-bottom:4px;">💾 Backup manual</div>
-          <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:12px;">Descarga un archivo <code style="background:var(--surface);padding:1px 5px;border-radius:3px;">.json</code> con <strong>todos tus datos</strong>: movimientos, categorías, reglas, ahorros y configuraciones. Guardalo en tu computadora o en la nube como seguro ante cualquier pérdida.</div>
-          <div style="font-size:10px;color:var(--text3);font-family:var(--font);font-weight:400;margin-bottom:8px;" id="last-backup-label">Cargando...</div>
-          <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;" onclick="confirmarAccion('backup')">💾 Descargar backup</button>
+        <div class="safety-card">
+          <div class="safety-card-title">Backup manual</div>
+          <div class="safety-card-body">Descargá un archivo <code>.json</code> con todos tus datos: movimientos, categorías, reglas, ahorros y configuraciones.</div>
+          <div class="safety-card-note" id="last-backup-label">Cargando...</div>
+          <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;" onclick="confirmarAccion('backup')">Descargar backup</button>
         </div>
 
         <!-- Restaurar JSON -->
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
-          <div style="font-size:13px;font-weight:700;margin-bottom:4px;">📂 Restaurar backup</div>
-          <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:12px;">Carga un archivo <code style="background:var(--surface);padding:1px 5px;border-radius:3px;">.json</code> generado por esta app y <strong>reemplaza todos los datos actuales</strong> con los del backup. Usá esto para recuperar datos borrados o migrar desde otro dispositivo.</div>
-          <div style="font-size:11px;color:var(--accent3);font-family:var(--font);font-weight:500;margin-bottom:8px;">⚠️ Reemplaza datos actuales</div>
-          <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;" onclick="confirmarAccion('restaurar')">📂 Restaurar desde archivo</button>
+        <div class="safety-card">
+          <div class="safety-card-title">Restaurar backup</div>
+          <div class="safety-card-body">Cargá un archivo <code>.json</code> generado por esta app para reemplazar los datos actuales y recuperar una versión previa.</div>
+          <div class="safety-card-note">Reemplaza la información activa</div>
+          <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;" onclick="confirmarAccion('restaurar')">Restaurar desde archivo</button>
           <input type="file" id="restore-json-input" accept=".json" style="display:none" onchange="importBackupJSON(event)">
         </div>
 
         <!-- Exportar CSV -->
-        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
-          <div style="font-size:13px;font-weight:700;margin-bottom:4px;">📊 Exportar a CSV</div>
-          <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:12px;">Descarga todos tus movimientos en formato <code style="background:var(--surface);padding:1px 5px;border-radius:3px;">.csv</code>, compatible con Excel, Google Sheets y cualquier planilla de cálculo. Útil para análisis externos o compartir datos.</div>
-          <div style="font-size:10px;color:var(--text3);font-family:var(--font);font-weight:400;margin-bottom:8px;" id="csv-export-count">— movimientos</div>
-          <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;" onclick="confirmarAccion('csv')">📊 Descargar CSV</button>
+        <div class="safety-card">
+          <div class="safety-card-title">Exportar a CSV</div>
+          <div class="safety-card-body">Descargá todos tus movimientos en formato <code>.csv</code> para abrirlos en Excel, Google Sheets u otras herramientas.</div>
+          <div class="safety-card-note" id="csv-export-count">— movimientos</div>
+          <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;" onclick="confirmarAccion('csv')">Descargar CSV</button>
         </div>
 
         <!-- Borrar todo -->
-        <div style="background:rgba(240,96,96,0.05);border:1px solid rgba(240,96,96,0.2);border-radius:12px;padding:14px 16px;">
-          <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--danger);">🗑 Borrar todos los datos</div>
-          <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:12px;">Elimina <strong>permanentemente</strong> todos tus movimientos, categorías, reglas y configuraciones del navegador. Esta acción <strong>no se puede deshacer</strong>. Se recomienda hacer un backup antes.</div>
-          <div style="font-size:11px;color:var(--danger);font-family:var(--font);font-weight:500;margin-bottom:8px;">⚠️ Acción irreversible</div>
-          <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;color:var(--danger);border-color:rgba(240,96,96,0.3);" onclick="confirmarAccion('borrar')">🗑 Borrar todo</button>
+        <div class="safety-card danger">
+          <div class="safety-card-title">Borrar todos los datos</div>
+          <div class="safety-card-body">Eliminá de forma permanente movimientos, categorías, reglas y configuraciones del navegador. No se puede deshacer.</div>
+          <div class="safety-card-note alert">Acción irreversible</div>
+          <button class="btn btn-ghost btn-sm" style="width:100%;justify-content:center;color:var(--danger);border-color:rgba(240,96,96,0.3);" onclick="confirmarAccion('borrar')">Borrar todo</button>
         </div>
 
       </div>
 
       <!-- Historial de backups -->
-      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;">
-        <div style="font-size:12px;font-weight:700;margin-bottom:10px;">📋 Historial de guardados recientes</div>
+      <div class="history-card">
+        <div class="history-card-title">Historial de guardados recientes</div>
         <div id="backup-history-list" style="font-size:11px;color:var(--text3);font-family:var(--font);font-weight:400;"></div>
       </div>
 
@@ -1538,8 +1538,8 @@
 
   <!-- Import history -->
   <div class="section-card fade-up d3">
-    <div class="section-card-header" style="display:flex;justify-content:space-between;align-items:center;">
-      <div style="font-size:14px;font-weight:700;">Historial de importaciones</div>
+    <div class="section-card-header import-header-card">
+      <div class="import-title">Historial de importaciones</div>
     </div>
     <div id="import-history-list"></div>
   </div>
@@ -1554,24 +1554,24 @@
     </div>
     <div class="header-actions">
       <!-- Ciclo filter -->
-      <select id="ccc-cycle-filter" class="txn-select" style="font-family:var(--font);font-weight:700;font-size:13px;"></select>
+      <select id="ccc-cycle-filter" class="txn-select"></select>
     </div>
   </div>
 
   <div id="cc-compare-content" class="fade-up d1">
-    <div class="card" style="padding:24px;">
+    <div class="cc-compare-card">
       <!-- Uploader Area -->
-      <div id="ccc-upload-area" style="border:2px dashed var(--border);border-radius:12px;padding:40px 20px;text-align:center;cursor:pointer;transition:all 0.2s ease;">
-        <div style="font-size:32px;margin-bottom:12px;">📄</div>
-        <div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:4px;">Subir resumen PDF</div>
-        <div style="font-size:13px;color:var(--text3);">Hacé clic o arrastrá tu resumen bancario de Santander aquí.</div>
+      <div id="ccc-upload-area" class="upload-dropzone">
+        <div class="upload-dropzone-icon">◫</div>
+        <div class="upload-dropzone-title">Subir resumen PDF</div>
+        <div class="upload-dropzone-sub">Arrastrá o seleccioná el extracto bancario para contrastarlo con tus registros.</div>
         <input type="file" id="ccc-file-input" accept="application/pdf" style="display:none;">
       </div>
 
       <!-- State: Loading -->
-      <div id="ccc-loading" style="display:none;text-align:center;padding:40px 20px;">
-        <div class="spinner" style="margin:0 auto 16px;"></div>
-        <div style="font-size:14px;color:var(--text3);">Analizando extracto inteligente...</div>
+      <div id="ccc-loading" class="loading-card">
+        <div class="spinner"></div>
+        <div class="loader-copy">Analizando el extracto y conciliando consumos...</div>
       </div>
 
       <!-- Results Area (Injected by JS) -->
