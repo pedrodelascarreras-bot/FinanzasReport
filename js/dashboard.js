@@ -239,18 +239,22 @@ function renderDecisionCenter(model){
     el.style.display='none';
     return;
   }
+  const collapsed=!!state.decisionCenterCollapsed;
   el.style.display='block';
   el.innerHTML=`
-    <div class="decision-center">
+    <div class="decision-center ${collapsed?'is-collapsed':''}">
       <div class="decision-center-head">
         <div>
           <div class="section-kicker">CENTRO DE DECISIONES</div>
           <div class="decision-center-title">Prioridades claras para ${esc(model.periodLabel)}</div>
           <div class="decision-center-sub">${model.summary}</div>
         </div>
-        <div class="decision-center-badge">${renderUiGlyph('ai')} Lectura asistida</div>
+        <div class="decision-center-actions">
+          <div class="decision-center-badge">${renderUiGlyph('ai')} Lectura asistida</div>
+          <button class="decision-center-toggle" type="button" onclick="event.stopPropagation();toggleDecisionCenter()">${collapsed?'Mostrar':'Minimizar'}</button>
+        </div>
       </div>
-      <div class="decision-card-grid">
+      <div class="decision-card-grid" style="display:${collapsed?'none':'grid'};">
         ${model.cards.map(card=>`
           <button class="decision-card ${card.tone||'neutral'}" onclick="nav('${card.link||'dashboard'}')">
             <div class="decision-card-top">
@@ -267,6 +271,11 @@ function renderDecisionCenter(model){
         `).join('')}
       </div>
     </div>`;
+}
+function toggleDecisionCenter(){
+  state.decisionCenterCollapsed=!state.decisionCenterCollapsed;
+  saveState();
+  renderDashboard();
 }
 function setDashView(mode){
   state.dashView=mode;
@@ -346,6 +355,7 @@ async function generateDashInsights(){
 
 function renderDashNotifications() {
   const notifEl = document.getElementById('dash-notifications');
+  const heroRow = document.querySelector('.dash-row-hero');
   if(!notifEl) return;
 
   const notifs = [];
@@ -462,10 +472,12 @@ function renderDashNotifications() {
 
   if(!active.length) {
     notifEl.style.display = 'none';
+    heroRow?.classList.remove('has-side-notifs');
     return;
   }
 
   notifEl.style.display = 'flex';
+  heroRow?.classList.add('has-side-notifs');
   notifEl.innerHTML = active.map(n => `
     <div class="notif-item notif-${n.type}" onclick="nav('${n.link}')">
       <div class="notif-icon">${renderUiGlyph(n.icon)}</div>
@@ -787,9 +799,7 @@ function renderDashboard(){
   if(_titleEl){
     const _h=today.getHours();
     const _greeting=_h<12?'Buenos días':_h<20?'Buenas tardes':'Buenas noches';
-    const _MNAMES_T=['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
-    const _periodLabel=isTcView?(activeTcCycle?.label||'TC'):(_MNAMES_T[today.getMonth()]+' '+today.getFullYear());
-    _titleEl.textContent=_greeting+', '+(state.userName||'Pedro')+' · '+_periodLabel;
+    _titleEl.textContent=_greeting+', '+(state.userName||'Pedro');
   }
 
 
@@ -954,6 +964,10 @@ function renderDashboard(){
     if(arsEl)arsEl.textContent=cardArs>0?'$'+fmtN(Math.round(cardArs)):'—';
     if(usdEl)usdEl.textContent=cardUsd>0?'U$D '+fmtN(cardUsd):'';
   });
+  const cycleCaption=document.getElementById('kpi-cycle-caption');
+  if(cycleCaption){
+    cycleCaption.textContent=_currentTcCyc?.label||'Sin ciclo activo';
+  }
   // Hidden compat element
   document.getElementById('kpi-tc').textContent=hasPayTagsWidget?'$'+fmtN(tcWidgetAmt+debWidgetAmt):'$'+fmtN(_tcWidgetTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0));
   // kpi-tc-d removed from HTML
@@ -967,13 +981,13 @@ function renderDashboard(){
       // TC mode: project to cycle close date
       if(daysLeft===0 && totalGastoARS===0){
         projEl.textContent='—'; projEl.style.color='var(--text3)';
-        if(projD)projD.textContent='Sin datos en este ciclo';
+        if(projD)projD.textContent='Sin datos cargados en este ciclo';
       } else {
         projEl.textContent='$'+fmtN(projected);
         const overBudget=incTotalARS>0&&projected>incTotalARS;
         projEl.style.color=overBudget?'var(--danger)':projected>incTotalARS*0.85?'var(--accent3)':'var(--text)';
         const closeLabel=projPeriodClose?projPeriodClose.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}):'cierre';
-        if(projD)projD.textContent='';
+        if(projD)projD.textContent=overBudget?'Exige ajuste antes del '+closeLabel:'Estimación activa hasta '+closeLabel;
         const _dailyEl=document.getElementById('kpi-proj-daily');
         if(_dailyEl)_dailyEl.textContent='$'+fmtN(Math.round(dailyRate));
         const _daysEl=document.getElementById('kpi-proj-days');
@@ -988,7 +1002,7 @@ function renderDashboard(){
         projEl.textContent='$'+fmtN(projected);
         const overBudget=incTotalARS>0&&projected>incTotalARS;
         projEl.style.color=overBudget?'var(--danger)':projected>incTotalARS*0.85?'var(--accent3)':'var(--text)';
-        if(projD)projD.textContent='';
+        if(projD)projD.textContent=overBudget?'Ritmo alto para este mes':'Ritmo estimado al cierre mensual';
         const _dailyEl2=document.getElementById('kpi-proj-daily');
         if(_dailyEl2)_dailyEl2.textContent='$'+fmtN(Math.round(dailyRate));
         const _daysEl2=document.getElementById('kpi-proj-days');
@@ -1035,12 +1049,12 @@ function renderDashboard(){
     const compDonutLabel=document.getElementById('comp-donut-label');
     if(compDonut&&incTotalARS>0){
       const compPct=Math.min(Math.round(compromisoTotal/incTotalARS*100),100);
-      const circ=125.66;
-      compDonut.style.strokeDashoffset=circ-(compPct/100*circ);
-      compDonut.style.stroke=compPct>50?'var(--danger)':compPct>30?'var(--accent3)':'var(--accent2)';
-      if(compDonutLabel){compDonutLabel.textContent=compPct+'%';compDonutLabel.style.color=compPct>50?'var(--danger)':compPct>30?'var(--accent3)':'var(--accent2)';}
+      const tone=compPct>50?'var(--danger)':compPct>30?'var(--accent3)':'var(--accent2)';
+      compDonut.style.width=compPct+'%';
+      compDonut.style.background=tone;
+      if(compDonutLabel){compDonutLabel.textContent=compPct+'%';compDonutLabel.style.color=tone;}
     } else if(compDonut){
-      compDonut.style.strokeDashoffset=125.66;
+      compDonut.style.width='0%';
       if(compDonutLabel)compDonutLabel.textContent='—';
     }
   }

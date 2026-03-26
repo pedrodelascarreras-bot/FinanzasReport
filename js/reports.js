@@ -199,6 +199,65 @@ function getRepPeriodLabel(){
   return sel.options[sel.selectedIndex]?.text||sel.value;
 }
 
+function getReportStyleSheet(s){
+  const cfg=s||{accent:'#1d1d1f',fontSz:'12px',pad:'32px',brand:'20px',headerBorder:'3px solid #1d1d1f',kpiBg:'#f7f7f7',sectionTitle:'11px'};
+  return '*{box-sizing:border-box;margin:0;padding:0;}'
+    +'body{background:#fff;font-family:-apple-system,"SF Pro Display","Helvetica Neue",sans-serif;}'
+    +'.rpt{color:'+cfg.accent+';padding:'+cfg.pad+';max-width:100%;font-size:'+cfg.fontSz+';background:linear-gradient(180deg,#ffffff,#fbfcff);border-radius:28px;box-shadow:0 18px 40px rgba(15,23,42,0.08);}'
+    +'.rpt-header{border-bottom:1px solid #e8edf5;padding-bottom:16px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end;}'
+    +'.rpt-brand{font-size:'+cfg.brand+';font-weight:700;letter-spacing:-0.02em;}'
+    +'.rpt-meta{text-align:right;font-size:10px;color:#667085;line-height:1.7;}'
+    +'.rpt-section{margin-bottom:22px;}'
+    +'.rpt-section-title{font-size:'+cfg.sectionTitle+';font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#64748b;border-bottom:1px solid #e9edf3;padding-bottom:6px;margin-bottom:12px;}'
+    +'.rpt-kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px;}'
+    +'.rpt-kpi{background:linear-gradient(180deg,#ffffff,#f8fafc);border-radius:12px;padding:12px 14px;border:1px solid #edf1f6;box-shadow:inset 0 1px 0 rgba(255,255,255,0.65);}'
+    +'.rpt-kpi-label{font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#94a3b8;margin-bottom:3px;}'
+    +'.rpt-kpi-val{font-size:17px;font-weight:700;letter-spacing:-0.02em;color:#0f172a;}'
+    +'.rpt-kpi-sub{font-size:9px;color:#94a3b8;margin-top:1px;}'
+    +'.rpt-table{width:100%;border-collapse:collapse;font-size:11px;}'
+    +'.rpt-table th{text-align:left;font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#94a3b8;padding:5px 8px;border-bottom:2px solid #e7ecf3;}'
+    +'.rpt-table td{padding:6px 8px;border-bottom:1px solid #eef2f7;color:#334155;}'
+    +'.td-r{text-align:right;font-family:"SF Mono",ui-monospace,monospace;font-weight:600;}'
+    +'.rpt-cat-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}'
+    +'.rpt-cat-name{font-size:11px;font-weight:600;min-width:110px;}'
+    +'.rpt-cat-bar-track{flex:1;height:7px;background:#edf2f7;border-radius:999px;overflow:hidden;}'
+    +'.rpt-cat-bar-fill{height:100%;border-radius:999px;}'
+    +'.rpt-cat-val{font-size:10px;font-family:"SF Mono",ui-monospace,monospace;color:#64748b;min-width:80px;text-align:right;}'
+    +'.rpt-footer{margin-top:24px;padding-top:10px;border-top:1px solid #e7ecf3;font-size:9px;color:#94a3b8;display:flex;justify-content:space-between;}'
+    +'.rpt-exec-hero{margin-bottom:28px;border-radius:30px;overflow:hidden;border:1px solid rgba(15,23,42,0.08);background:radial-gradient(circle at top right, rgba(214,232,255,0.32), transparent 30%),linear-gradient(135deg,#0f172a 0%,#18263d 48%,#243b53 100%);color:#f8fafc;box-shadow:0 22px 60px rgba(15,23,42,0.18);}'
+    +'.rpt-exec-inner{padding:30px 32px 26px;}'
+    +'.rpt-exec-top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin-bottom:20px;}'
+    +'.rpt-exec-kicker{font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(248,250,252,0.62);margin-bottom:8px;}'
+    +'.rpt-exec-title{max-width:560px;font-size:36px;line-height:1.02;letter-spacing:-0.06em;font-weight:760;}'
+    +'.rpt-exec-summary{margin-top:10px;max-width:560px;font-size:13px;line-height:1.6;color:rgba(248,250,252,0.74);}'
+    +'.rpt-exec-score{min-width:210px;border-radius:22px;padding:18px 20px;background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(16px);}'
+    +'.rpt-exec-score-label{font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:rgba(248,250,252,0.62);margin-bottom:8px;}'
+    +'.rpt-exec-score-value{font-size:48px;line-height:.95;letter-spacing:-0.06em;font-weight:760;color:#fff;}'
+    +'.rpt-exec-score-sub{margin-top:8px;font-size:12px;color:rgba(248,250,252,0.78);}'
+    +'.rpt-exec-metric-band{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px;}'
+    +'.rpt-exec-metric{border-radius:18px;padding:16px 18px;background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.1);}'
+    +'.rpt-exec-metric-label{font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:rgba(248,250,252,0.58);margin-bottom:6px;}'
+    +'.rpt-exec-metric-value{font-size:24px;font-weight:720;letter-spacing:-0.04em;color:#fff;}'
+    +'.rpt-exec-metric-sub{margin-top:5px;font-size:11px;color:rgba(248,250,252,0.72);}'
+    +'.rpt-exec-panel-grid{display:grid;grid-template-columns:1.18fr .82fr;gap:14px;}'
+    +'.rpt-exec-panel{border-radius:22px;padding:20px;border:1px solid rgba(255,255,255,0.1);}'
+    +'.rpt-exec-panel.light{background:rgba(248,250,252,0.98);color:#0f172a;}'
+    +'.rpt-exec-panel.dark{background:rgba(255,255,255,0.08);color:#f8fafc;}'
+    +'.rpt-exec-panel-title{font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;margin-bottom:12px;}'
+    +'.rpt-exec-panel.light .rpt-exec-panel-title{color:#64748b;}'
+    +'.rpt-exec-panel.dark .rpt-exec-panel-title{color:rgba(248,250,252,0.66);}'
+    +'.rpt-story-list,.rpt-action-list{display:flex;flex-direction:column;gap:10px;}'
+    +'.rpt-story-item,.rpt-action-item{display:flex;gap:10px;align-items:flex-start;}'
+    +'.rpt-story-bullet{width:8px;height:8px;border-radius:999px;background:#0f172a;margin-top:6px;flex-shrink:0;}'
+    +'.rpt-story-copy{font-size:13px;line-height:1.58;color:#1e293b;}'
+    +'.rpt-action-card{width:100%;padding:12px 13px;border-radius:16px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);}'
+    +'.rpt-action-kicker{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(248,250,252,0.62);margin-bottom:4px;}'
+    +'.rpt-action-title{font-size:14px;line-height:1.25;font-weight:660;color:#fff;}'
+    +'.rpt-action-copy{font-size:11px;line-height:1.5;color:rgba(248,250,252,0.72);margin-top:4px;}'
+    +'@page{margin:1.5cm;}'
+    +'@media print{.no-print{display:none !important;}.rpt{box-shadow:none;border-radius:0;padding:20px;}.rpt-exec-metric-band{grid-template-columns:repeat(2,1fr);}.rpt-exec-panel-grid{grid-template-columns:1fr 1fr;}}';
+}
+
 function buildReportHTML(txns,sections,periodLabel){
   const design=state.repDesign||'executive';
   const now=new Date().toLocaleDateString('es-AR',{day:'numeric',month:'long',year:'numeric'});
@@ -320,36 +379,37 @@ function buildReportHTML(txns,sections,periodLabel){
   </div>`;
 
   if(design==='executive'){
-    html+=`<div style="margin-bottom:26px;border-radius:26px;overflow:hidden;border:1px solid rgba(15,23,42,0.08);background:linear-gradient(135deg,#0f172a 0%,#18263d 46%,#243b53 100%);color:#f8fafc;box-shadow:0 20px 60px rgba(15,23,42,0.18);">
-      <div style="padding:28px 30px 24px;">
-        <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:20px;">
+    html+=`<div class="rpt-exec-hero">
+      <div class="rpt-exec-inner">
+        <div class="rpt-exec-top">
           <div>
-            <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.65;font-weight:700;margin-bottom:8px;">Reporte ejecutivo</div>
-            <div style="font-size:34px;line-height:1.05;font-weight:750;letter-spacing:-.05em;max-width:520px;">Una lectura clara del período, con foco en decisiones y próximos movimientos.</div>
+            <div class="rpt-exec-kicker">Reporte ejecutivo</div>
+            <div class="rpt-exec-title">Una lectura clara del período, con foco en decisiones y próximos movimientos.</div>
+            <div class="rpt-exec-summary">Pensado para entender rápido qué cambió, qué está bajo control y dónde conviene actuar primero.</div>
           </div>
-          <div style="min-width:190px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);backdrop-filter:blur(16px);border-radius:20px;padding:16px 18px;">
-            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;opacity:.62;margin-bottom:6px;">Score del período</div>
-            <div style="font-size:42px;font-weight:760;line-height:1;color:#fff;">${score}</div>
-            <div style="font-size:12px;margin-top:6px;color:rgba(255,255,255,.78);">${scoreLabel}</div>
+          <div class="rpt-exec-score">
+            <div class="rpt-exec-score-label">Score del período</div>
+            <div class="rpt-exec-score-value">${score}</div>
+            <div class="rpt-exec-score-sub">${scoreLabel}</div>
           </div>
         </div>
-        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px;">
-          <div style="border-radius:18px;padding:16px 18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;opacity:.58;margin-bottom:6px;">Gasto total</div><div style="font-size:24px;font-weight:720;letter-spacing:-.04em;">$${fmtN(Math.round(totalArs))}</div><div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:4px;">${txns.length} movimientos</div></div>
-          <div style="border-radius:18px;padding:16px 18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;opacity:.58;margin-bottom:6px;">Uso del ingreso</div><div style="font-size:24px;font-weight:720;letter-spacing:-.04em;">${pct!==null?pct+'%':'—'}</div><div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:4px;">${incTotal>0?'Ingreso estimado $'+fmtN(Math.round(incTotal)):'Sin ingreso configurado'}</div></div>
-          <div style="border-radius:18px;padding:16px 18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;opacity:.58;margin-bottom:6px;">Margen ejecutivo</div><div style="font-size:24px;font-weight:720;letter-spacing:-.04em;">${margen!==null?'$'+fmtN(Math.round(margen)):'—'}</div><div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:4px;">${margen!==null&&margen>0?'Todavía disponible':'Exige seguimiento'}</div></div>
-          <div style="border-radius:18px;padding:16px 18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;opacity:.58;margin-bottom:6px;">Categoría dominante</div><div style="font-size:24px;font-weight:720;letter-spacing:-.04em;">${esc(cats[0]?.[0]||'Sin datos')}</div><div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:4px;">${cats[0]&&arsT>0?Math.round(cats[0][1]/arsT*100)+'% del gasto':'Sin concentración relevante'}</div></div>
+        <div class="rpt-exec-metric-band">
+          <div class="rpt-exec-metric"><div class="rpt-exec-metric-label">Gasto total</div><div class="rpt-exec-metric-value">$${fmtN(Math.round(totalArs))}</div><div class="rpt-exec-metric-sub">${txns.length} movimientos</div></div>
+          <div class="rpt-exec-metric"><div class="rpt-exec-metric-label">Uso del ingreso</div><div class="rpt-exec-metric-value">${pct!==null?pct+'%':'—'}</div><div class="rpt-exec-metric-sub">${incTotal>0?'Ingreso estimado $'+fmtN(Math.round(incTotal)):'Sin ingreso configurado'}</div></div>
+          <div class="rpt-exec-metric"><div class="rpt-exec-metric-label">Margen ejecutivo</div><div class="rpt-exec-metric-value">${margen!==null?'$'+fmtN(Math.round(margen)):'—'}</div><div class="rpt-exec-metric-sub">${margen!==null&&margen>0?'Todavía disponible':'Exige seguimiento'}</div></div>
+          <div class="rpt-exec-metric"><div class="rpt-exec-metric-label">Categoría dominante</div><div class="rpt-exec-metric-value">${esc(cats[0]?.[0]||'Sin datos')}</div><div class="rpt-exec-metric-sub">${cats[0]&&arsT>0?Math.round(cats[0][1]/arsT*100)+'% del gasto':'Sin concentración relevante'}</div></div>
         </div>
-        <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:14px;">
-          <div style="border-radius:20px;padding:18px 20px;background:rgba(248,250,252,.98);color:#0f172a;">
-            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;margin-bottom:10px;font-weight:700;">Lectura asistida</div>
-            <div style="display:flex;flex-direction:column;gap:10px;">
-              ${aiBrief.slice(0,3).map(txt=>`<div style="display:flex;gap:10px;align-items:flex-start;"><span style="width:8px;height:8px;border-radius:999px;background:#0f172a;margin-top:6px;flex-shrink:0;"></span><span style="font-size:13px;line-height:1.55;color:#1e293b;">${esc(txt)}</span></div>`).join('')}
+        <div class="rpt-exec-panel-grid">
+          <div class="rpt-exec-panel light">
+            <div class="rpt-exec-panel-title">Lectura asistida</div>
+            <div class="rpt-story-list">
+              ${aiBrief.slice(0,3).map(txt=>`<div class="rpt-story-item"><span class="rpt-story-bullet"></span><span class="rpt-story-copy">${esc(txt)}</span></div>`).join('')}
             </div>
           </div>
-          <div style="border-radius:20px;padding:18px 20px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);">
-            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;opacity:.62;margin-bottom:10px;font-weight:700;">Próximas acciones</div>
-            <div style="display:flex;flex-direction:column;gap:10px;">
-              ${execActions.slice(0,3).map((item,idx)=>`<div style="padding:11px 12px;border-radius:16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);"><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:rgba(255,255,255,.72);margin-bottom:4px;">Acción ${idx+1}</div><div style="font-size:14px;font-weight:650;color:#fff;line-height:1.25;">${esc(item.label)}</div><div style="font-size:11px;color:rgba(255,255,255,.72);margin-top:4px;line-height:1.45;">${esc(item.body)}</div></div>`).join('')}
+          <div class="rpt-exec-panel dark">
+            <div class="rpt-exec-panel-title">Próximas acciones</div>
+            <div class="rpt-action-list">
+              ${execActions.slice(0,3).map((item,idx)=>`<div class="rpt-action-item"><div class="rpt-action-card"><div class="rpt-action-kicker">Acción ${idx+1}</div><div class="rpt-action-title">${esc(item.label)}</div><div class="rpt-action-copy">${esc(item.body)}</div></div></div>`).join('')}
             </div>
           </div>
         </div>
@@ -754,31 +814,7 @@ function exportRepPDF(){
   const reportBody=buildReportHTML(txns,sections,label);
 
   const html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Reporte Financiero — '+esc(label)+'</title><style>'
-    +'*{box-sizing:border-box;margin:0;padding:0;}'
-    +'body{background:#fff;font-family:-apple-system,"SF Pro Display","Helvetica Neue",sans-serif;}'
-    +'.rpt{color:'+s.accent+';padding:'+s.pad+';max-width:100%;font-size:'+s.fontSz+';}'
-    +'.rpt-header{border-bottom:'+s.headerBorder+';padding-bottom:14px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-end;}'
-    +'.rpt-brand{font-size:'+s.brand+';font-weight:700;letter-spacing:-0.02em;}'
-    +'.rpt-meta{text-align:right;font-size:10px;color:#666;line-height:1.7;}'
-    +'.rpt-section{margin-bottom:22px;}'
-    +'.rpt-section-title{font-size:'+s.sectionTitle+';font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#888;border-bottom:1px solid #eee;padding-bottom:5px;margin-bottom:12px;}'
-    +'.rpt-kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px;}'
-    +'.rpt-kpi{background:'+s.kpiBg+';border-radius:6px;padding:10px 12px;}'
-    +'.rpt-kpi-label{font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#999;margin-bottom:3px;}'
-    +'.rpt-kpi-val{font-size:17px;font-weight:700;letter-spacing:-0.02em;color:#1d1d1f;}'
-    +'.rpt-kpi-sub{font-size:9px;color:#aaa;margin-top:1px;}'
-    +'.rpt-table{width:100%;border-collapse:collapse;font-size:11px;}'
-    +'.rpt-table th{text-align:left;font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#aaa;padding:5px 8px;border-bottom:2px solid #eee;}'
-    +'.rpt-table td{padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#333;}'
-    +'.td-r{text-align:right;font-family:"SF Mono",ui-monospace,monospace;font-weight:600;}'
-    +'.rpt-cat-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}'
-    +'.rpt-cat-name{font-size:11px;font-weight:600;min-width:110px;}'
-    +'.rpt-cat-bar-track{flex:1;height:7px;background:#f0f0f0;border-radius:3px;overflow:hidden;}'
-    +'.rpt-cat-bar-fill{height:100%;border-radius:3px;}'
-    +'.rpt-cat-val{font-size:10px;font-family:"SF Mono",ui-monospace,monospace;color:#666;min-width:80px;text-align:right;}'
-    +'.rpt-footer{margin-top:24px;padding-top:10px;border-top:1px solid #eee;font-size:9px;color:#bbb;display:flex;justify-content:space-between;}'
-    +'@page{margin:1.5cm;}'
-    +'@media print{.no-print{display:none !important;}}'
+    +getReportStyleSheet(s)
     +'</style></head><body>'
     +reportBody
     +'<div class="no-print" style="position:fixed;bottom:20px;right:20px;display:flex;gap:8px;z-index:999;">'
@@ -796,29 +832,7 @@ function exportRepPDF(){
 
 function fallbackPrintPDF(reportBody,s,label){
   const html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Reporte — '+label+'</title><style>'
-    +'*{box-sizing:border-box;margin:0;padding:0;}'
-    +'body{background:#fff;font-family:-apple-system,"SF Pro Display","Helvetica Neue",sans-serif;}'
-    +'.rpt{color:'+(s?s.accent:'#1d1d1f')+';padding:'+(s?s.pad:'32px')+';max-width:100%;font-size:'+(s?s.fontSz:'12px')+';}'
-    +'.rpt-header{border-bottom:'+(s?s.headerBorder:'3px solid #1d1d1f')+';padding-bottom:14px;margin-bottom:22px;display:flex;justify-content:space-between;align-items:flex-end;}'
-    +'.rpt-brand{font-size:'+(s?s.brand:'20px')+';font-weight:700;letter-spacing:-0.02em;}'
-    +'.rpt-meta{text-align:right;font-size:10px;color:#666;line-height:1.7;}'
-    +'.rpt-section{margin-bottom:22px;}.rpt-section-title{font-size:'+(s?s.sectionTitle:'11px')+';font-weight:700;letter-spacing:0.07em;text-transform:uppercase;color:#888;border-bottom:1px solid #eee;padding-bottom:5px;margin-bottom:12px;}'
-    +'.rpt-kpi-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px;}'
-    +'.rpt-kpi{background:'+(s?s.kpiBg:'#f7f7f7')+';border-radius:6px;padding:10px 12px;}'
-    +'.rpt-kpi-label{font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:#999;margin-bottom:3px;}'
-    +'.rpt-kpi-val{font-size:17px;font-weight:700;letter-spacing:-0.02em;color:#1d1d1f;}'
-    +'.rpt-kpi-sub{font-size:9px;color:#aaa;margin-top:1px;}'
-    +'.rpt-table{width:100%;border-collapse:collapse;font-size:11px;}'
-    +'.rpt-table th{text-align:left;font-size:9px;font-weight:700;color:#aaa;padding:5px 8px;border-bottom:2px solid #eee;}'
-    +'.rpt-table td{padding:6px 8px;border-bottom:1px solid #f0f0f0;color:#333;}'
-    +'.td-r{text-align:right;font-weight:600;}'
-    +'.rpt-cat-bar-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}'
-    +'.rpt-cat-name{font-size:11px;font-weight:600;min-width:110px;}'
-    +'.rpt-cat-bar-track{flex:1;height:7px;background:#f0f0f0;border-radius:3px;overflow:hidden;}'
-    +'.rpt-cat-bar-fill{height:100%;border-radius:3px;}'
-    +'.rpt-cat-val{font-size:10px;color:#666;min-width:80px;text-align:right;}'
-    +'.rpt-footer{margin-top:24px;padding-top:10px;border-top:1px solid #eee;font-size:9px;color:#bbb;display:flex;justify-content:space-between;}'
-    +'@page{margin:1.5cm;}'
+    +getReportStyleSheet(s)
     +'</style></head><body>'+reportBody+'</body></html>';
   const win=window.open('','_blank');
   if(win){

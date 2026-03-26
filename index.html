@@ -178,12 +178,10 @@
   </div>
   <div id="dash-content" class="content-stack">
     <div id="dash-decision-center" class="dash-decision-shell fade-up" style="display:none;"></div>
-    <!-- Smart Notifications -->
-    <div id="dash-notifications" class="dash-notif-container fade-up" style="display:none;"></div>
-
     <div class="layout-section" data-page="dashboard" data-key="hero"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('dashboard','hero',this)">● Hero del mes</button></div>
     <!-- FILA 1: Hero del mes + 3 stats secundarios -->
     <div class="dash-row-hero fade-up d1">
+      <div id="dash-notifications" class="dash-notif-container dash-side-rail" style="display:none;"></div>
 
       <!-- Card principal: gasto del mes -->
       <div class="dash-hero-card dash-hero-clickable" onclick="nav('transactions')" title="Ver detalle de gastos">
@@ -249,12 +247,12 @@
 
       <!-- 3 KPI cards secundarias -->
       <div class="dash-kpis-col">
-        <div class="dkpi kpi-card-compact kpi-card-clickable" onclick="nav('credit-cards')" title="Ver detalle de tarjetas">
+        <div class="dkpi kpi-card-compact kpi-card-clickable kpi-card-credit" onclick="nav('credit-cards')" title="Ver detalle de tarjetas">
           <div class="kpi-card-header-grid">
             <div class="dkpi-label">CICLO TARJETAS</div>
             <div class="dkpi-icon">◎</div>
           </div>
-          <div class="kpi-grid-mini">
+          <div class="kpi-grid-mini kpi-credit-grid">
             <!-- VISA -->
             <div class="kpi-mini-card">
               <div class="kpi-mini-card-title brand-visa">VISA</div>
@@ -268,6 +266,7 @@
               <div id="kpi-amex-usd" class="kpi-mini-card-sub"></div>
             </div>
           </div>
+          <div id="kpi-cycle-caption" class="kpi-card-footer-note">Ciclo vigente</div>
           <!-- hidden compat -->
           <div id="kpi-tc" style="display:none;">—</div>
         </div>
@@ -276,10 +275,12 @@
             <div class="dkpi-label" id="kpi-proj-title">Proyección al cierre</div>
             <div class="dkpi-icon">◔</div>
           </div>
-          <div class="dkpi-value" id="kpi-proj">—</div>
-          <div class="dkpi-sub" id="kpi-proj-d"></div>
+          <div class="kpi-proj-main">
+            <div class="dkpi-value" id="kpi-proj">—</div>
+            <div class="dkpi-sub kpi-proj-status" id="kpi-proj-d"></div>
+          </div>
           <!-- Two inner cards: projected + daily -->
-          <div id="kpi-proj-inner-cards" class="kpi-grid-mini">
+          <div id="kpi-proj-inner-cards" class="kpi-grid-mini kpi-grid-proj">
             <div class="kpi-mini-card">
               <div class="kpi-mini-card-title">PROMEDIO / DÍA</div>
               <div id="kpi-proj-daily" class="kpi-mini-card-value">—</div>
@@ -290,19 +291,20 @@
             </div>
           </div>
         </div>
-        <div class="dkpi" style="cursor:pointer;" onclick="nav('cuotas')" title="Ver compromisos">
-          <div class="dkpi-left">
+        <div class="dkpi dkpi-commitments" style="cursor:pointer;" onclick="nav('cuotas')" title="Ver compromisos">
+          <div class="dkpi-left dkpi-left-commitments">
             <div class="dkpi-label">Compromisos próx. mes</div>
             <div class="dkpi-value" id="kpi-compromisos">—</div>
             <div class="dkpi-sub" id="kpi-compromisos-d"></div>
-          </div>
-          <!-- Mini donut: compromisos vs ingreso -->
-          <div id="comp-donut-wrap" class="donut-wrap">
-            <svg width="52" height="52" viewBox="0 0 52 52" class="donut-svg">
-              <circle cx="26" cy="26" r="20" fill="none" stroke="var(--surface3)" stroke-width="5"/>
-              <circle id="comp-donut-fill" cx="26" cy="26" r="20" fill="none" stroke="var(--accent3)" stroke-width="5" stroke-linecap="round" stroke-dasharray="125.66" stroke-dashoffset="125.66" style="transition:stroke-dashoffset 0.8s ease;"/>
-            </svg>
-            <div id="comp-donut-label" class="donut-label">—</div>
+            <div class="comp-progress-shell">
+              <div class="comp-progress-head">
+                <span class="comp-progress-label">Carga sobre ingreso</span>
+                <span id="comp-donut-label" class="comp-progress-value">—</span>
+              </div>
+              <div class="comp-progress-bar">
+                <div id="comp-donut-fill" class="comp-progress-fill"></div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -311,7 +313,7 @@
 
     <div class="layout-section" data-page="dashboard" data-key="usd"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('dashboard','usd',this)">● Tipo de cambio</button></div>
     <div class="fade-up d2 usd-rate-card" id="usd-rate-card">
-      <span class="usd-rate-icon">FX</span>
+      <span class="usd-rate-icon">💵</span>
       <span class="usd-rate-main">U$D 1 = <span id="usd-rate-display">$1.420</span></span>
       <span id="usd-rate-source-badge" class="usd-rate-source">blue</span>
       <span id="usd-rate-status" class="usd-rate-meta"></span>

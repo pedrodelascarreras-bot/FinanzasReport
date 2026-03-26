@@ -30,6 +30,7 @@ let state={
   userName: 'Pedro',
   lastVisit: null,
   dismissedNotifs: [],   // IDs of notifications the user dismissed
+  decisionCenterCollapsed:false,
   dismissedAutoCuotas:[], // keys of auto-cuotas permanently dismissed
   ccCards: [],           // [{id,name,type,color,...}]
   ccCycles: [],          // [{id,cardId,tcCycleId,status,manualExpenses,excludedIds,...}]
@@ -51,6 +52,7 @@ function getStateSnapshot(){
     userName:state.userName||'Pedro',
     lastVisit:state.lastVisit||null,
     dismissedNotifs:state.dismissedNotifs||[],
+    decisionCenterCollapsed:!!state.decisionCenterCollapsed,
     dismissedAutoCuotas:state.dismissedAutoCuotas||[],
     txnCardFilter:state.txnCardFilter||''
   };
@@ -249,6 +251,7 @@ async function loadFromDrive(){
     state.ccCycles=s.ccCycles||[];
     state.ccActiveCard=s.ccActiveCard||null;
     state.lastGmailSync=s.lastGmailSync||null;
+    state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
     state.txnCardFilter=s.txnCardFilter||'';
     state.transactions.forEach(t=>{if(!t.week)t.week=getWeekKey(t.date);if(!t.month)t.month=getMonthKey(t.date);});
@@ -289,6 +292,7 @@ function loadState(){
     state.ccCycles=s.ccCycles||[];
     state.ccActiveCard=s.ccActiveCard||null;
     state.lastGmailSync=s.lastGmailSync||null;
+    state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
     state.txnCardFilter=s.txnCardFilter||'';
     state.apiKey=localStorage.getItem('fin_apikey')||'';
@@ -307,4 +311,3 @@ function loadState(){
 
   }catch(e){console.warn('loadState error',e);}
 }
-
