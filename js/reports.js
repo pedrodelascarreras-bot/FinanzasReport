@@ -200,6 +200,7 @@ function getRepPeriodLabel(){
 }
 
 function buildReportHTML(txns,sections,periodLabel){
+  const design=state.repDesign||'executive';
   const now=new Date().toLocaleDateString('es-AR',{day:'numeric',month:'long',year:'numeric'});
   const today=new Date();
   const arsT=txns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
@@ -282,6 +283,24 @@ function buildReportHTML(txns,sections,periodLabel){
   if(top10.length&&top10[0].amount>arsT*0.2)alertas.push({tipo:'info',txt:'Un solo gasto (' +esc(top10[0].description)+') representa el '+Math.round(top10[0].amount/arsT*100)+'% del total del mes'});
   if(!alertas.length)alertas.push({tipo:'ok',txt:'Sin anomalías detectadas en este período. ¡Bien!'});
 
+  const aiBrief=[];
+  if(pct===null) aiBrief.push('Definí ingresos para convertir este reporte en una lectura completa de margen y ritmo.');
+  else if(pct>=100) aiBrief.push('El gasto del período ya supera el ingreso estimado y necesita una corrección inmediata.');
+  else if(pct>=85) aiBrief.push(`El gasto ya absorbió ${pct}% del ingreso disponible y conviene moderar consumo variable.`);
+  else aiBrief.push(`El período mantiene un uso de ${pct}% del ingreso estimado, dentro de una zona de control razonable.`);
+  if(diffPct!==null&&diffTotal>0) aiBrief.push(`El gasto subió ${Math.abs(diffPct)}% frente al período anterior.`);
+  if(diffPct!==null&&diffTotal<0) aiBrief.push(`El gasto bajó ${Math.abs(diffPct)}% frente al período anterior.`);
+  if(cats[0]&&arsT>0&&Math.round(cats[0][1]/arsT*100)>=35) aiBrief.push(`${cats[0][0]} concentra ${Math.round(cats[0][1]/arsT*100)}% del gasto y es la principal palanca de ajuste.`);
+  if(cuotasActivas.length) aiBrief.push(`Hay ${cuotasActivas.length} compromisos en cuotas todavía activos para el próximo cierre.`);
+
+  const projectedOverrun=Math.max(0,(projected||0)-(incTotal||0));
+  const execActions=[];
+  if(projectedOverrun>0) execActions.push({label:'Recortar gasto variable', body:`Necesitás absorber aproximadamente $${fmtN(Math.round(projectedOverrun))} para cerrar sin desvío.`});
+  if(cats[0]) execActions.push({label:'Auditar categoría líder', body:`${cats[0][0]} suma $${fmtN(Math.round(cats[0][1]))} y merece una revisión puntual.`});
+  if(state.subscriptions.length>=4) execActions.push({label:'Revisar suscripciones', body:`Tenés ${state.subscriptions.length} servicios activos que podrían optimizarse.`});
+  if(cuotasActivas.length) execActions.push({label:'Preparar próximo cierre', body:`El próximo período arranca con ${cuotasActivas.length} cuotas activas ya comprometidas.`});
+  if(!execActions.length) execActions.push({label:'Sostener disciplina', body:'No hay desvíos graves: el foco pasa por mantener consistencia y calidad de datos.'});
+
   // Metas de ahorro
   const savGoals=state.savGoals||[];
   const savDeposits=state.savDeposits||[];
@@ -299,6 +318,44 @@ function buildReportHTML(txns,sections,periodLabel){
       <div>${txns.length} movimientos · ${cats.length} categorías</div>
     </div>
   </div>`;
+
+  if(design==='executive'){
+    html+=`<div style="margin-bottom:26px;border-radius:26px;overflow:hidden;border:1px solid rgba(15,23,42,0.08);background:linear-gradient(135deg,#0f172a 0%,#18263d 46%,#243b53 100%);color:#f8fafc;box-shadow:0 20px 60px rgba(15,23,42,0.18);">
+      <div style="padding:28px 30px 24px;">
+        <div style="display:flex;justify-content:space-between;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-bottom:20px;">
+          <div>
+            <div style="font-size:11px;letter-spacing:.18em;text-transform:uppercase;opacity:.65;font-weight:700;margin-bottom:8px;">Reporte ejecutivo</div>
+            <div style="font-size:34px;line-height:1.05;font-weight:750;letter-spacing:-.05em;max-width:520px;">Una lectura clara del período, con foco en decisiones y próximos movimientos.</div>
+          </div>
+          <div style="min-width:190px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.08);backdrop-filter:blur(16px);border-radius:20px;padding:16px 18px;">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;opacity:.62;margin-bottom:6px;">Score del período</div>
+            <div style="font-size:42px;font-weight:760;line-height:1;color:#fff;">${score}</div>
+            <div style="font-size:12px;margin-top:6px;color:rgba(255,255,255,.78);">${scoreLabel}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px;">
+          <div style="border-radius:18px;padding:16px 18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;opacity:.58;margin-bottom:6px;">Gasto total</div><div style="font-size:24px;font-weight:720;letter-spacing:-.04em;">$${fmtN(Math.round(totalArs))}</div><div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:4px;">${txns.length} movimientos</div></div>
+          <div style="border-radius:18px;padding:16px 18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;opacity:.58;margin-bottom:6px;">Uso del ingreso</div><div style="font-size:24px;font-weight:720;letter-spacing:-.04em;">${pct!==null?pct+'%':'—'}</div><div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:4px;">${incTotal>0?'Ingreso estimado $'+fmtN(Math.round(incTotal)):'Sin ingreso configurado'}</div></div>
+          <div style="border-radius:18px;padding:16px 18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;opacity:.58;margin-bottom:6px;">Margen ejecutivo</div><div style="font-size:24px;font-weight:720;letter-spacing:-.04em;">${margen!==null?'$'+fmtN(Math.round(margen)):'—'}</div><div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:4px;">${margen!==null&&margen>0?'Todavía disponible':'Exige seguimiento'}</div></div>
+          <div style="border-radius:18px;padding:16px 18px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;opacity:.58;margin-bottom:6px;">Categoría dominante</div><div style="font-size:24px;font-weight:720;letter-spacing:-.04em;">${esc(cats[0]?.[0]||'Sin datos')}</div><div style="font-size:11px;color:rgba(255,255,255,.7);margin-top:4px;">${cats[0]&&arsT>0?Math.round(cats[0][1]/arsT*100)+'% del gasto':'Sin concentración relevante'}</div></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:14px;">
+          <div style="border-radius:20px;padding:18px 20px;background:rgba(248,250,252,.98);color:#0f172a;">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;color:#64748b;margin-bottom:10px;font-weight:700;">Lectura asistida</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              ${aiBrief.slice(0,3).map(txt=>`<div style="display:flex;gap:10px;align-items:flex-start;"><span style="width:8px;height:8px;border-radius:999px;background:#0f172a;margin-top:6px;flex-shrink:0;"></span><span style="font-size:13px;line-height:1.55;color:#1e293b;">${esc(txt)}</span></div>`).join('')}
+            </div>
+          </div>
+          <div style="border-radius:20px;padding:18px 20px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.14em;opacity:.62;margin-bottom:10px;font-weight:700;">Próximas acciones</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">
+              ${execActions.slice(0,3).map((item,idx)=>`<div style="padding:11px 12px;border-radius:16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);"><div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:rgba(255,255,255,.72);margin-bottom:4px;">Acción ${idx+1}</div><div style="font-size:14px;font-weight:650;color:#fff;line-height:1.25;">${esc(item.label)}</div><div style="font-size:11px;color:rgba(255,255,255,.72);margin-top:4px;line-height:1.45;">${esc(item.body)}</div></div>`).join('')}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
 
   // ── RESUMEN ──
   if(sections.includes('resumen')){
@@ -344,7 +401,7 @@ function buildReportHTML(txns,sections,periodLabel){
       <div class="rpt-kpi"><div class="rpt-kpi-label">Estimado a fin de mes</div><div class="rpt-kpi-val" style="color:${projColor};">$${fmtN(projected)}</div><div class="rpt-kpi-sub">${daysLeft} días restantes</div></div>
     </div>
     ${incTotal>0?`<div style="margin-top:12px;padding:10px 14px;border-radius:8px;background:${projected>incTotal?'#fef2f2':'#f0fdf4'};border:1px solid ${projected>incTotal?'#fecaca':'#bbf7d0'};font-size:12px;color:${projected>incTotal?'#991b1b':'#166534'};">
-      ${projected>incTotal?'⚠️ Al ritmo actual vas a <strong>superar tu ingreso</strong> en $'+fmtN(projected-incTotal)+' al cierre del mes.':'✅ Al ritmo actual vas a cerrar el mes con <strong>$'+fmtN(incTotal-projected)+'</strong> de margen disponible.'}
+      ${projected>incTotal?'Al ritmo actual vas a <strong>superar tu ingreso</strong> en $'+fmtN(projected-incTotal)+' al cierre del mes.':'Al ritmo actual vas a cerrar el mes con <strong>$'+fmtN(incTotal-projected)+'</strong> de margen disponible.'}
     </div>`:''}
   </div>`;
   }
@@ -372,7 +429,7 @@ function buildReportHTML(txns,sections,periodLabel){
   if(sections.includes('alertas')){
     const alertColors={warn:'#fffbeb',danger:'#fef2f2',info:'#eff6ff',ok:'#f0fdf4'};
     const alertBorders={warn:'#fde68a',danger:'#fecaca',info:'#bfdbfe',ok:'#bbf7d0'};
-    const alertIcons={warn:'⚠️',danger:'🚨',info:'💡',ok:'✅'};
+    const alertIcons={warn:'▲',danger:'●',info:'◇',ok:'✓'};
     html+=`<div class="rpt-section">
     <div class="rpt-section-title">Alertas y recomendaciones</div>
     <div style="display:flex;flex-direction:column;gap:8px;">
@@ -423,9 +480,9 @@ function buildReportHTML(txns,sections,periodLabel){
     html+=`<div class="rpt-section">
     <div class="rpt-section-title">Medios de pago</div>
     <div class="rpt-kpi-row">
-      <div class="rpt-kpi"><div class="rpt-kpi-label">💳 Tarjeta de crédito</div><div class="rpt-kpi-val">$${fmtN(medios.tc)}</div><div class="rpt-kpi-sub">${totalMed>0?Math.round(medios.tc/totalMed*100):0}%</div></div>
-      <div class="rpt-kpi"><div class="rpt-kpi-label">🏦 Débito / Transf.</div><div class="rpt-kpi-val">$${fmtN(medios.deb)}</div><div class="rpt-kpi-sub">${totalMed>0?Math.round(medios.deb/totalMed*100):0}%</div></div>
-      <div class="rpt-kpi"><div class="rpt-kpi-label">💵 Efectivo</div><div class="rpt-kpi-val">$${fmtN(medios.ef)}</div><div class="rpt-kpi-sub">${totalMed>0?Math.round(medios.ef/totalMed*100):0}%</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Tarjeta de crédito</div><div class="rpt-kpi-val">$${fmtN(medios.tc)}</div><div class="rpt-kpi-sub">${totalMed>0?Math.round(medios.tc/totalMed*100):0}%</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Débito / Transferencia</div><div class="rpt-kpi-val">$${fmtN(medios.deb)}</div><div class="rpt-kpi-sub">${totalMed>0?Math.round(medios.deb/totalMed*100):0}%</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Efectivo</div><div class="rpt-kpi-val">$${fmtN(medios.ef)}</div><div class="rpt-kpi-sub">${totalMed>0?Math.round(medios.ef/totalMed*100):0}%</div></div>
     </div></div>`;
   }
 
@@ -662,7 +719,7 @@ function updateRepPreview(){
   const label=getRepPeriodLabel();
   const content=document.getElementById('rep-preview-content');
   const meta=document.getElementById('rep-preview-meta');
-  if(meta)meta.textContent=txns.length+' movimientos · '+sections.length+' secciones';
+  if(meta)meta.textContent=txns.length+' movimientos · '+sections.length+' secciones · diseño '+(state.repDesign||'executive');
   if(!content)return;
   if(!txns.length){
     content.innerHTML='<div style="padding:40px;text-align:center;color:#aaa;font-family:var(--font);">Sin datos para el período seleccionado</div>';
@@ -962,4 +1019,3 @@ function exportarCSV() {
   a.click(); URL.revokeObjectURL(url);
   showToast('✓ CSV exportado (' + txns.length + ' movimientos)', 'success');
 }
-

@@ -113,6 +113,161 @@ function getAvailableMonths(){
   const set=new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)));
   return [...set].sort();
 }
+function renderUiGlyph(name){
+  const icons={
+    bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M15 17h5l-1.4-1.4a2 2 0 0 1-.6-1.4V11a6 6 0 1 0-12 0v3.2a2 2 0 0 1-.6 1.4L4 17h5"/><path d="M10 20a2 2 0 0 0 4 0"/></svg>',
+    card:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/></svg>',
+    alert:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.8 2.9 17a2 2 0 0 0 1.7 3h14.8a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0Z"/></svg>',
+    trend:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16 10 10l4 4 6-8"/><path d="M20 6v4h-4"/></svg>',
+    loop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1v6h-6"/><path d="M7 23v-6h6"/><path d="M20.5 9A9 9 0 0 0 6 5.3L3 8"/><path d="M3.5 15A9 9 0 0 0 18 18.7L21 16"/></svg>',
+    tag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m20 10-8 8-8-8V4h6z"/><path d="M7.5 7.5h.01"/></svg>',
+    spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/><path d="M5 3v3"/><path d="M19 18v3"/><path d="M3 5h3"/><path d="M18 19h3"/></svg>',
+    calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>',
+    focus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3H5a2 2 0 0 0-2 2v4"/><path d="M15 3h4a2 2 0 0 1 2 2v4"/><path d="M21 15v4a2 2 0 0 1-2 2h-4"/><path d="M3 15v4a2 2 0 0 0 2 2h4"/><circle cx="12" cy="12" r="3"/></svg>',
+    report:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M7 3h7l5 5v13a1 1 0 0 1-1 1H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h6M9 9h2"/></svg>',
+    safe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><path d="m9 12 2 2 4-4"/></svg>',
+    ai:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4"/><path d="M12 18v4"/><path d="M4.9 4.9 7.7 7.7"/><path d="m16.3 16.3 2.8 2.8"/><path d="M2 12h4"/><path d="M18 12h4"/><path d="m4.9 19.1 2.8-2.8"/><path d="m16.3 7.7 2.8-2.8"/><circle cx="12" cy="12" r="4"/></svg>'
+  };
+  return `<span class="ui-glyph" aria-hidden="true">${icons[name]||icons.spark}</span>`;
+}
+function stripHtml(text){
+  return String(text||'').replace(/<[^>]*>/g,'').trim();
+}
+function getIncomeSnapshot(monthKey){
+  let ars=(state.income?.ars||0)+(state.income?.varArs||0);
+  let usd=(state.income?.usd||0)+(state.income?.varUsd||0);
+  const exact=(state.incomeMonths||[]).find(m=>m.month===monthKey);
+  const hasBases=(state.incomeSources||[]).some(s=>(s.base||0)>0);
+  if(exact&&typeof getMonthTotalARS==='function'){
+    ars=getMonthTotalARS(exact);
+    usd=typeof getMonthTotalUSD==='function'?getMonthTotalUSD(exact):0;
+  } else if(hasBases){
+    ars=(state.incomeSources||[]).filter(s=>s.currency==='ARS').reduce((a,s)=>a+(s.base||0),0);
+    usd=(state.incomeSources||[]).filter(s=>s.currency==='USD').reduce((a,s)=>a+(s.base||0),0);
+  } else if(state.incomeMonths?.length&&typeof getMonthTotalARS==='function'){
+    const last=[...state.incomeMonths].sort((a,b)=>b.month.localeCompare(a.month))[0];
+    if(last){
+      ars=getMonthTotalARS(last);
+      usd=typeof getMonthTotalUSD==='function'?getMonthTotalUSD(last):0;
+    }
+  }
+  return {ars,usd,total:ars+(usd*(USD_TO_ARS||1420))};
+}
+function getUpcomingCardMilestone(baseDate=new Date()){
+  const today=new Date(baseDate);
+  const cycles=typeof getTcCycles==='function'?getTcCycles():[];
+  const events=[];
+  cycles.forEach(cyc=>{
+    const card=(state.ccCards||[]).find(c=>c.id===cyc.cardId);
+    const label=card?.name||cyc.label||'Tarjeta';
+    const close=new Date(cyc.closeDate+'T12:00:00');
+    const due=cyc.dueDate?new Date(cyc.dueDate+'T12:00:00'):null;
+    if(close>=today) events.push({type:'close',label,date:close,days:Math.round((close-today)/86400000)});
+    if(due&&due>=today) events.push({type:'due',label,date:due,days:Math.round((due-today)/86400000)});
+  });
+  events.sort((a,b)=>a.date-b.date);
+  return events[0]||null;
+}
+function fallbackInsights(summary){
+  const items=[];
+  const top=summary.categories?.[0];
+  if(summary.income_ars<=0){
+    items.push({
+      type:'info',
+      emoji:renderUiGlyph('focus'),
+      label:'Base financiera pendiente',
+      headline:'Definí el ingreso mensual para activar decisiones más precisas',
+      body:'Cuando cargás ingresos, el panel puede medir margen, ritmo de gasto y alertas accionables.'
+    });
+  } else if(summary.spending_pct>=100){
+    items.push({
+      type:'bad',
+      emoji:renderUiGlyph('alert'),
+      label:'Riesgo inmediato',
+      headline:`Tu gasto ya consume ${summary.spending_pct}% del ingreso`,
+      body:'Congelá gastos variables y priorizá sólo pagos comprometidos hasta recuperar margen.'
+    });
+  } else if(summary.spending_pct>=85){
+    items.push({
+      type:'warn',
+      emoji:renderUiGlyph('trend'),
+      label:'Zona de control',
+      headline:`Entraste en una franja exigente: ${summary.spending_pct}% del ingreso usado`,
+      body:'Todavía hay margen para cerrar bien el período si frenás compras tácticas y revisás categorías altas.'
+    });
+  } else {
+    items.push({
+      type:'good',
+      emoji:renderUiGlyph('safe'),
+      label:'Lectura general',
+      headline:'El ritmo del período está bajo control',
+      body:summary.spending_pct===null?'Todavía falta contexto para medir ingresos vs gasto.':'Tu gasto está por debajo del umbral de alerta y eso te deja capacidad para decidir con calma.'
+    });
+  }
+  if(top&&top.pct>=35){
+    items.push({
+      type:'warn',
+      emoji:renderUiGlyph('spark'),
+      label:'Concentración',
+      headline:`${top.name} domina el período con ${top.pct}% del gasto`,
+      body:`Esa categoría es hoy la palanca más grande para ajustar o explicarle a tu yo futuro qué pasó este mes.`
+    });
+  } else if(top){
+    items.push({
+      type:'info',
+      emoji:renderUiGlyph('report'),
+      label:'Categoría líder',
+      headline:`${top.name} encabeza el período`,
+      body:`Representa ${top.pct}% del gasto relevado y sirve como referencia para tu resumen ejecutivo.`
+    });
+  }
+  if(summary.txn_count>=45){
+    items.push({
+      type:'info',
+      emoji:renderUiGlyph('tag'),
+      label:'Volumen operativo',
+      headline:`Tuviste ${summary.txn_count} movimientos cargados`,
+      body:'Con este volumen, categorizar bien y mantener reglas activas mejora mucho la claridad del cierre.'
+    });
+  }
+  return items.slice(0,3);
+}
+function renderDecisionCenter(model){
+  const el=document.getElementById('dash-decision-center');
+  if(!el)return;
+  if(!model||!model.cards?.length){
+    el.style.display='none';
+    return;
+  }
+  el.style.display='block';
+  el.innerHTML=`
+    <div class="decision-center">
+      <div class="decision-center-head">
+        <div>
+          <div class="section-kicker">CENTRO DE DECISIONES</div>
+          <div class="decision-center-title">Prioridades claras para ${esc(model.periodLabel)}</div>
+          <div class="decision-center-sub">${model.summary}</div>
+        </div>
+        <div class="decision-center-badge">${renderUiGlyph('ai')} Lectura asistida</div>
+      </div>
+      <div class="decision-card-grid">
+        ${model.cards.map(card=>`
+          <button class="decision-card ${card.tone||'neutral'}" onclick="nav('${card.link||'dashboard'}')">
+            <div class="decision-card-top">
+              <div class="decision-card-icon">${renderUiGlyph(card.icon||'spark')}</div>
+              <div class="decision-card-chip">${esc(card.kicker||'Acción')}</div>
+            </div>
+            <div class="decision-card-title">${esc(card.title||'Siguiente paso')}</div>
+            <div class="decision-card-body">${card.body||''}</div>
+            <div class="decision-card-footer">
+              <span>${esc(card.cta||'Abrir')}</span>
+              <span class="decision-card-arrow">›</span>
+            </div>
+          </button>
+        `).join('')}
+      </div>
+    </div>`;
+}
 function setDashView(mode){
   state.dashView=mode;
   // Update toggle button styles
@@ -209,7 +364,7 @@ function renderDashNotifications() {
       notifs.push({
         id: `tc-close-${cyc.id}-${cyc.closeDate}`,
         type: 'warn',
-        icon: '💳',
+        icon: 'card',
         title: 'Cierre de Tarjeta',
         body: `Tu tarjeta <strong>${card?.name || 'TC'}</strong> cierra en ${daysToClose === 0 ? 'hoy' : daysToClose + ' días'}.`,
         link: 'credit-cards'
@@ -222,7 +377,7 @@ function renderDashNotifications() {
         notifs.push({
           id: `tc-due-${cyc.id}-${cyc.dueDate}`,
           type: 'alert',
-          icon: '💰',
+          icon: 'alert',
           title: 'Vencimiento de Tarjeta',
           body: `El pago de <strong>${card?.name || 'TC'}</strong> vence en ${daysToDue === 0 ? 'hoy' : daysToDue + ' días'}.`,
           link: 'credit-cards'
@@ -252,7 +407,7 @@ function renderDashNotifications() {
       notifs.push({
         id: `budget-85-${monthKey}`,
         type: 'alert',
-        icon: '⚠️',
+        icon: 'alert',
         title: 'Límite de Presupuesto',
         body: `Ya gastaste el <strong>${Math.round(pct)}%</strong> de tus ingresos este mes. Recomendamos moderar gastos.`,
         link: 'dashboard'
@@ -261,7 +416,7 @@ function renderDashNotifications() {
       notifs.push({
         id: `budget-70-${monthKey}`,
         type: 'warn',
-        icon: '📊',
+        icon: 'trend',
         title: 'Alerta de Gasto',
         body: `Has consumido el <strong>${Math.round(pct)}%</strong> de tu presupuesto mensual.`,
         link: 'dashboard'
@@ -279,7 +434,7 @@ function renderDashNotifications() {
         notifs.push({
           id: `cuota-${c.id}-${monthKey}`,
           type: 'info',
-          icon: '🔄',
+          icon: 'loop',
           title: 'Próximo Compromiso',
           body: `En ${dDiff === 0 ? 'hoy' : dDiff + ' días'} vence la cuota de: <strong>${c.descripcion || c.description}</strong>.`,
           link: 'cuotas'
@@ -294,7 +449,7 @@ function renderDashNotifications() {
     notifs.push({
       id: `uncat-${monthKey}`,
       type: 'info',
-      icon: '🏷️',
+      icon: 'tag',
       title: 'Mejorá tu Reporte',
       body: `Tenés <strong>${uncategorized.length}</strong> movimientos sin categoría. Clasificalos para mejores insights.`,
       link: 'transactions'
@@ -313,12 +468,12 @@ function renderDashNotifications() {
   notifEl.style.display = 'flex';
   notifEl.innerHTML = active.map(n => `
     <div class="notif-item notif-${n.type}" onclick="nav('${n.link}')">
-      <div class="notif-icon">${n.icon}</div>
+      <div class="notif-icon">${renderUiGlyph(n.icon)}</div>
       <div class="notif-content">
         <div class="notif-title">${n.title}</div>
         <div class="notif-body">${n.body}</div>
       </div>
-      <div class="notif-chevron">❯</div>
+      <div class="notif-chevron">›</div>
       <button class="notif-item-close" onclick="event.stopPropagation();dismissNotif('${n.id}')" title="Quitar">✕</button>
     </div>
   `).join('');
@@ -401,6 +556,12 @@ function renderDashboard(){
   const usdMonth=billableTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
   const cntMonth=billableTxns.length;
   const arsCnt=billableTxns.filter(t=>t.currency==='ARS').length;
+  const uncategorizedCount=billableTxns.filter(t=>!t.category||t.category==='Uncategorized'||t.category==='Procesando...').length;
+  const catTotals={};
+  billableTxns.filter(t=>t.currency==='ARS').forEach(t=>{catTotals[t.category||'Sin categoría']=(catTotals[t.category||'Sin categoría']||0)+t.amount;});
+  const topCategories=Object.entries(catTotals)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([name,amount])=>({name,amount,pct:arsMonth>0?Math.round(amount/arsMonth*100):0}));
 
   // TC del mes
   const tcMonth=monthTxns.filter(t=>t.currency==='ARS'&&t.payMethod==='tc').reduce((s,t)=>s+t.amount,0);
@@ -473,6 +634,111 @@ function renderDashboard(){
     dailyRate = dayOfMonth > 0 ? totalGastoARS / dayOfMonth : 0;
     projected = isCurrentMonth ? Math.round(dailyRate * daysInMonth) : totalGastoARS;
   }
+
+  const dashMonthNames=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const insightSummary={
+    mes:isTcView?(activeTcCycle?.label||'Ciclo actual'):(dashMonthNames[pM-1]+' '+pY),
+    total_ars:arsMonth,
+    total_usd:usdMonth,
+    income_ars:incTotalARS,
+    spending_pct:pct,
+    categories:topCategories.slice(0,8),
+    txn_count:cntMonth,
+    alert_threshold:state.alertThreshold
+  };
+  const aiItems=fallbackInsights(insightSummary);
+  const upcomingCard=getUpcomingCardMilestone(today);
+  const decisionCards=[];
+  if(incTotalARS<=0){
+    decisionCards.push({
+      icon:'focus',
+      tone:'warning',
+      kicker:'Configuración',
+      title:'Definí tu base de ingresos',
+      body:'Sumá ingresos fijos o del período para habilitar alertas de margen, proyección y decisiones de cierre.',
+      cta:'Abrir ingresos',
+      link:'income'
+    });
+  } else if(projected>incTotalARS){
+    decisionCards.push({
+      icon:'alert',
+      tone:'danger',
+      kicker:'Prioridad del día',
+      title:'El ritmo actual proyecta cierre en rojo',
+      body:`Si seguís así, el período puede cerrar con un desvío estimado de <strong>$${fmtN(Math.round(projected-incTotalARS))}</strong>.`,
+      cta:'Revisar movimientos',
+      link:'transactions'
+    });
+  } else if(pct!==null&&pct>=state.alertThreshold){
+    decisionCards.push({
+      icon:'trend',
+      tone:'warning',
+      kicker:'Control de ritmo',
+      title:`Ya consumiste ${pct}% del ingreso disponible`,
+      body:'Todavía podés sostener un cierre sano si frenás gasto variable y priorizás compromisos reales.',
+      cta:'Ver detalle',
+      link:'dashboard'
+    });
+  } else {
+    decisionCards.push({
+      icon:'safe',
+      tone:'success',
+      kicker:'Panorama',
+      title:'El período viene estable',
+      body:margen!==null?`Hoy te queda un margen estimado de <strong>$${fmtN(Math.round(margen))}</strong> sobre tu presupuesto disponible.`:'El ritmo del gasto está controlado y sin alertas críticas.',
+      cta:'Seguir monitoreando',
+      link:'dashboard'
+    });
+  }
+  if(aiItems[0]){
+    decisionCards.push({
+      icon:'ai',
+      tone:'info',
+      kicker:'Motor IA',
+      title:stripHtml(aiItems[0].headline),
+      body:aiItems[0].body,
+      cta:'Abrir insights',
+      link:'insights'
+    });
+  }
+  if(upcomingCard){
+    const labelDate=upcomingCard.date.toLocaleDateString('es-AR',{day:'2-digit',month:'short'});
+    decisionCards.push({
+      icon:upcomingCard.type==='due'?'alert':'calendar',
+      tone:upcomingCard.days<=2?'warning':'neutral',
+      kicker:'Próximo hito',
+      title:`${upcomingCard.label} · ${upcomingCard.type==='due'?'vence':'cierra'} ${upcomingCard.days===0?'hoy':'en '+upcomingCard.days+' días'}`,
+      body:`Próximo evento relevante el <strong>${labelDate}</strong>. Ideal para ordenar pagos y evitar sorpresas en el cierre.`,
+      cta:'Abrir tarjetas',
+      link:'credit-cards'
+    });
+  }
+  if(uncategorizedCount>0){
+    decisionCards.push({
+      icon:'tag',
+      tone:'neutral',
+      kicker:'Calidad de datos',
+      title:`${uncategorizedCount} movimientos piden clasificación`,
+      body:'Resolver categorías mejora reportes, tendencias y recomendaciones del motor de análisis.',
+      cta:'Ordenar movimientos',
+      link:'transactions'
+    });
+  } else if(topCategories[0]){
+    decisionCards.push({
+      icon:'spark',
+      tone:'neutral',
+      kicker:'Palanca principal',
+      title:`${topCategories[0].name} explica ${topCategories[0].pct}% del gasto`,
+      body:`Es la categoría con más impacto económico del período: <strong>$${fmtN(Math.round(topCategories[0].amount))}</strong>.`,
+      cta:'Ver tendencias',
+      link:'tendencia'
+    });
+  }
+  renderDecisionCenter({
+    periodLabel:isTcView?(activeTcCycle?.label||'este ciclo'):(dashMonthNames[pM-1]+' '+pY),
+    summary:aiItems[1]?stripHtml(aiItems[1].headline):'Tu tablero ahora destaca lo urgente, lo importante y la próxima mejor acción.',
+    cards:decisionCards.slice(0,4)
+  });
 
   // ── Compromisos (cuotas + subs + gastos fijos) ──
   const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];

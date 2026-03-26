@@ -142,7 +142,7 @@
 <div id="page-dashboard" class="page active">
     <div class="dashboard-header">
       <div id="notif-trigger" class="notif-trigger" onclick="toggleNotifPanel()">
-        <span class="notif-icon">🔔</span>
+        <span class="notif-icon glyph-mark">◎</span>
         <span id="notif-badge" class="notif-badge"></span>
       </div>
       <div><div class="page-title" id="dash-page-title">Finanzas · Pedro</div><div class="page-subtitle" id="dash-date">—</div></div>
@@ -168,15 +168,16 @@
       <select id="dash-month-select" class="txn-select" onchange="setDashMonthFromSelect(this.value)">
         <option value="">Mes actual</option>
       </select>
-      <button class="edit-layout-btn" id="edit-btn-dashboard" onclick="toggleEditMode('dashboard')">✦ Editar vista</button>
+      <button class="edit-layout-btn" id="edit-btn-dashboard" onclick="toggleEditMode('dashboard')">◫ Editar vista</button>
     </div>
   <div id="dash-empty" class="upload-zone fade-up d1" onclick="nav('import')">
-    <div class="upload-icon">📊</div>
+    <div class="upload-icon">◫</div>
     <div class="upload-title">Traé tus movimientos al panel</div>
     <div class="upload-sub">Importá CSV, pegá texto bancario o sincronizá Gmail para empezar con una vista completa.</div>
     <div class="upload-tags"><span class="tag green">Santander</span><span class="tag">CSV</span><span class="tag">ARS + USD</span><span class="tag">IA Auto</span></div>
   </div>
   <div id="dash-content" class="content-stack">
+    <div id="dash-decision-center" class="dash-decision-shell fade-up" style="display:none;"></div>
     <!-- Smart Notifications -->
     <div id="dash-notifications" class="dash-notif-container fade-up" style="display:none;"></div>
 
@@ -251,7 +252,7 @@
         <div class="dkpi kpi-card-compact kpi-card-clickable" onclick="nav('credit-cards')" title="Ver detalle de tarjetas">
           <div class="kpi-card-header-grid">
             <div class="dkpi-label">CICLO TARJETAS</div>
-            <div class="dkpi-icon">💳</div>
+            <div class="dkpi-icon">◎</div>
           </div>
           <div class="kpi-grid-mini">
             <!-- VISA -->
@@ -273,7 +274,7 @@
         <div class="dkpi kpi-card-projection">
           <div class="kpi-card-header-grid">
             <div class="dkpi-label" id="kpi-proj-title">Proyección al cierre</div>
-            <div class="dkpi-icon">📈</div>
+            <div class="dkpi-icon">◔</div>
           </div>
           <div class="dkpi-value" id="kpi-proj">—</div>
           <div class="dkpi-sub" id="kpi-proj-d"></div>
@@ -310,7 +311,7 @@
 
     <div class="layout-section" data-page="dashboard" data-key="usd"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('dashboard','usd',this)">● Tipo de cambio</button></div>
     <div class="fade-up d2 usd-rate-card" id="usd-rate-card">
-      <span class="usd-rate-icon">💵</span>
+      <span class="usd-rate-icon">FX</span>
       <span class="usd-rate-main">U$D 1 = <span id="usd-rate-display">$1.420</span></span>
       <span id="usd-rate-source-badge" class="usd-rate-source">blue</span>
       <span id="usd-rate-status" class="usd-rate-meta"></span>

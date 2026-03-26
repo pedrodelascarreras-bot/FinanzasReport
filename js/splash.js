@@ -136,8 +136,26 @@
       catTotals[g] = (catTotals[g]||0) + t.amount;
     });
     const topEntry = Object.entries(catTotals).sort((a,b)=>b[1]-a[1])[0];
-    const topGrp   = topEntry ? (CATEGORY_GROUPS||[]).find(g=>g.group===topEntry[0]) : null;
-    const topEmoji = topGrp?.emoji || '📊';
+    const incomeSnap = typeof getIncomeSnapshot==='function' ? getIncomeSnapshot(curMK) : {total:0};
+    const spendPct = incomeSnap.total>0 ? Math.round(curTotal/incomeSnap.total*100) : null;
+    const monthDays = new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
+    const projected = Math.round((curTotal/Math.max(today.getDate(),1))*monthDays);
+    const projectedGap = incomeSnap.total>0 ? projected-incomeSnap.total : null;
+    const topPct = topEntry && curTotal>0 ? Math.round(topEntry[1]/curTotal*100) : 0;
+    const milestone = typeof getUpcomingCardMilestone==='function' ? getUpcomingCardMilestone(today) : null;
+    const aiSummary = typeof fallbackInsights==='function'
+      ? fallbackInsights({
+          mes: hasCycles ? 'Ciclo actual' : curMK,
+          total_ars: curTotal,
+          total_usd: 0,
+          income_ars: incomeSnap.total||0,
+          spending_pct: spendPct,
+          categories: topEntry ? [{name:topEntry[0],amount:topEntry[1],pct:topPct}] : [],
+          txn_count: curTxns.length,
+          alert_threshold: state.alertThreshold
+        })
+      : [];
+    const aiLead = aiSummary[0] || null;
 
     // ── Strings ──
     const DAYS   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -167,7 +185,7 @@
         <div class="sp-pre-header fade-in">
           <div class="sp-pre-greeting">${greeting}, ${state.userName || 'Pedro'}</div>
           <div class="sp-pre-date">${dateStr}</div>
-          ${lastVisitStr ? `<div class="sp-pre-last-visit" style="font-size:10px;opacity:0.6;margin-top:4px;font-weight:500;">${lastVisitStr}</div>` : ''}
+          ${lastVisitStr ? `<div class="sp-pre-last-visit">${lastVisitStr}</div>` : ''}
         </div>
 
         <div class="sp-pre-main">
@@ -185,18 +203,52 @@
         <div class="sp-pre-grid fade-in d4">
           ${topEntry ? `
             <div class="sp-pre-item">
-              <div class="sp-pre-item-icon">${topEmoji}</div>
-              <div class="sp-pre-item-label">Top Categoría</div>
-              <div class="sp-pre-item-val">${topEntry[0]}</div>
+              <div class="sp-pre-item-icon">${typeof renderUiGlyph==='function'?renderUiGlyph('spark'):'◔'}</div>
+              <div class="sp-pre-item-label">Palanca principal</div>
+              <div class="sp-pre-item-val">${topEntry[0]} · ${topPct}% del gasto</div>
             </div>
           ` : ''}
-          ${ccAlerts.length > 0 ? `
+          ${milestone ? `
             <div class="sp-pre-item">
-              <div class="sp-pre-item-icon">💳</div>
-              <div class="sp-pre-item-label">Próximo Cierre</div>
-              <div class="sp-pre-item-val">${ccAlerts[0].name} (${ccAlerts[0].days}d)</div>
+              <div class="sp-pre-item-icon">${typeof renderUiGlyph==='function'?renderUiGlyph(milestone.type==='due'?'alert':'calendar'):'◎'}</div>
+              <div class="sp-pre-item-label">Próximo hito</div>
+              <div class="sp-pre-item-val">${milestone.label} · ${milestone.days===0?'hoy':'en '+milestone.days+' días'}</div>
             </div>
           ` : ''}
+        </div>
+
+        <div class="sp-brief-grid fade-in d4">
+          <div class="sp-brief-card">
+            <div class="sp-brief-head">
+              <span class="sp-brief-kicker">Prioridad del día</span>
+              <span class="sp-brief-icon">${typeof renderUiGlyph==='function'?renderUiGlyph('focus'):'◎'}</span>
+            </div>
+            <div class="sp-brief-title">${spendPct!==null&&spendPct>=state.alertThreshold?'Bajá el gasto discrecional':'Mantené el ritmo bajo control'}</div>
+            <div class="sp-brief-body">${spendPct===null?'Cargar ingresos te va a dar una lectura mucho más precisa del período.':spendPct>=state.alertThreshold?`Ya usaste ${spendPct}% del ingreso estimado. Cada compra variable pesa más en el cierre.`:`Vas usando ${spendPct}% del ingreso estimado. Seguís con margen para cerrar el período bien.`}</div>
+          </div>
+          <div class="sp-brief-card">
+            <div class="sp-brief-head">
+              <span class="sp-brief-kicker">Radar de riesgo</span>
+              <span class="sp-brief-icon">${typeof renderUiGlyph==='function'?renderUiGlyph(projectedGap!==null&&projectedGap>0?'alert':'safe'):'◔'}</span>
+            </div>
+            <div class="sp-brief-title">${projectedGap!==null&&projectedGap>0?'La proyección exige ajuste':'La proyección sigue razonable'}</div>
+            <div class="sp-brief-body">${projectedGap===null?'Con ingresos configurados, este radar te va a mostrar el desvío proyectado al cierre.':projectedGap>0?`Al ritmo actual, el período podría cerrar con un exceso estimado de $${fmtN(Math.round(projectedGap))}.`:`Si sostenés este ritmo, el cierre seguiría dentro del ingreso estimado.`}</div>
+          </div>
+          <div class="sp-brief-card">
+            <div class="sp-brief-head">
+              <span class="sp-brief-kicker">Lectura asistida</span>
+              <span class="sp-brief-icon">${typeof renderUiGlyph==='function'?renderUiGlyph('ai'):'◫'}</span>
+            </div>
+            <div class="sp-brief-title">${aiLead ? esc(aiLead.headline) : 'Tu briefing inteligente está listo'}</div>
+            <div class="sp-brief-body">${aiLead ? aiLead.body : 'A medida que cargues más contexto, esta portada va a priorizar señales, próximos hitos y acciones concretas.'}</div>
+          </div>
+        </div>
+
+        <div class="sp-chip-row fade-in d4">
+          <div class="sp-chip">${hasCycles ? 'Ciclo activo' : 'Mes calendario'}</div>
+          ${ccAlerts[0] ? `<div class="sp-chip">Cierre cercano: ${ccAlerts[0].name}</div>` : ''}
+          ${topEntry ? `<div class="sp-chip">Foco: ${topEntry[0]}</div>` : ''}
+          <div class="sp-chip">Motor IA visible</div>
         </div>
       </div>
     `;
