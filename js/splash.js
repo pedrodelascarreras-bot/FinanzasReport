@@ -166,6 +166,7 @@
     const reelSub = milestone ? `${milestone.label} ${milestone.days===0?'hoy':'en '+milestone.days+' días'}` : 'Sin hitos críticos';
     const usdRate = state.usdRate || (typeof USD_TO_ARS!=='undefined' ? USD_TO_ARS : 1420);
     const reelSeries = topThree.length ? topThree : [['Visión general', curTotal || 1], ['Proyección', Math.max(projected || 1, 1)], ['Compromisos', Math.max(commitmentPreview || 1, 1)]];
+    const reelHeadlineValue = projected > 0 ? projected : curTotal;
 
     // ── Strings ──
     const DAYS   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -237,7 +238,7 @@
                 <span class="sp-reel-period">${cycleLabel}</span>
               </div>
               <div class="sp-reel-headline">${reelTone}</div>
-              <div class="sp-reel-highlight">$${fmtN(curTotal)}</div>
+              <div class="sp-reel-highlight">$${fmtN(reelHeadlineValue)}</div>
               <div class="sp-reel-sub">${reelSub}</div>
               <div class="sp-reel-chart">
                 ${reelSeries.map(([name,amount],idx)=>{
