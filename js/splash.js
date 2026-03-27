@@ -77,9 +77,9 @@
     let prevTotal = 0;
     let hasCycles = false;
     let curTxns = [];
+    let activeCycles = [];
 
     if (allCyc.length > 0) {
-      const activeCycles = [];
       allCyc.forEach((cyc, idx) => {
         const op = typeof getTcCycleOpen === 'function' ? getTcCycleOpen(allCyc, idx) : null;
         if (op && todayStr >= op && todayStr <= cyc.closeDate) {
@@ -138,8 +138,20 @@
     const topEntry = Object.entries(catTotals).sort((a,b)=>b[1]-a[1])[0];
     const incomeSnap = typeof getIncomeSnapshot==='function' ? getIncomeSnapshot(curMK) : {total:0};
     const spendPct = incomeSnap.total>0 ? Math.round(curTotal/incomeSnap.total*100) : null;
-    const monthDays = new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
-    const projected = Math.round((curTotal/Math.max(today.getDate(),1))*monthDays);
+    let projected = curTotal;
+    if (hasCycles && activeCycles.length > 0) {
+      const primaryCycle = [...activeCycles].sort((a, b) => a.cyc.closeDate.localeCompare(b.cyc.closeDate))[0];
+      const openStr = typeof getTcCycleOpen === 'function' ? getTcCycleOpen(allCyc, primaryCycle.idx) : null;
+      const openDate = openStr ? new Date(openStr + 'T12:00:00') : today;
+      const closeDate = new Date(primaryCycle.cyc.closeDate + 'T12:00:00');
+      const totalDays = Math.max(1, Math.round((closeDate - openDate) / 86400000) + 1);
+      const daysElapsed = Math.max(1, Math.min(totalDays, Math.round((today - openDate) / 86400000) + 1));
+      const dailyRate = curTotal / daysElapsed;
+      projected = Math.round(dailyRate * totalDays);
+    } else {
+      const monthDays = new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
+      projected = Math.round((curTotal/Math.max(today.getDate(),1))*monthDays);
+    }
     const projectedGap = incomeSnap.total>0 ? projected-incomeSnap.total : null;
     const topPct = topEntry && curTotal>0 ? Math.round(topEntry[1]/curTotal*100) : 0;
     const milestone = typeof getUpcomingCardMilestone==='function' ? getUpcomingCardMilestone(today) : null;
