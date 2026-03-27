@@ -4954,7 +4954,7 @@ body.light-mode .insights-panel-shell {
   align-items: stretch;
 }
 .sp-content-shell {
-  padding: 38px 38px 34px;
+  padding: 34px 34px 30px;
   border-radius: 34px;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025)),
@@ -4979,7 +4979,7 @@ body.light-mode .insights-panel-shell {
   text-align: left;
 }
 .sp-pre-main {
-  margin-bottom: 28px;
+  margin-bottom: 24px;
   text-align: left;
 }
 .sp-pre-label,
@@ -4988,23 +4988,51 @@ body.light-mode .insights-panel-shell {
 }
 .sp-pre-amount-wrap {
   justify-content: flex-start;
-  gap: 10px;
+  gap: 12px;
+  align-items: flex-start;
+  flex-wrap: nowrap;
+  max-width: 100%;
+  overflow: hidden;
 }
 .sp-pre-sym {
-  margin-top: 10px;
+  margin-top: 8px;
+  font-size: 28px;
+  flex: 0 0 auto;
+}
+.sp-pre-amount {
+  font-size: clamp(54px, 7.2vw, 86px);
+  line-height: 0.9;
+  letter-spacing: -0.075em;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+.sp-pre-delta {
+  font-size: 15px;
+  margin-top: 2px;
 }
 .sp-pre-grid {
-  gap: 16px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
 }
 .sp-pre-item {
-  padding: 20px 22px;
-  border-radius: 22px;
+  min-height: 84px;
+  padding: 16px 18px;
+  border-radius: 20px;
   background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.028));
+}
+.sp-pre-item-icon {
+  margin-bottom: 6px;
+}
+.sp-pre-item-val {
+  font-size: 14px;
+  line-height: 1.35;
 }
 .sp-reel {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
   min-height: 100%;
 }
 .sp-reel-screen {
@@ -5012,7 +5040,7 @@ body.light-mode .insights-panel-shell {
   overflow: hidden;
   border-radius: 30px;
   padding: 22px 22px 18px;
-  min-height: 360px;
+  min-height: 314px;
   background:
     radial-gradient(circle at top right, rgba(93, 169, 255, 0.2), transparent 34%),
     linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.028)),
@@ -5086,17 +5114,17 @@ body.light-mode .insights-panel-shell {
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: rgba(241,245,249,0.58);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .sp-reel-highlight {
   position: relative;
   z-index: 1;
-  font-size: clamp(42px, 5vw, 58px);
-  line-height: 0.94;
+  font-size: clamp(38px, 4.2vw, 52px);
+  line-height: 0.96;
   letter-spacing: -0.06em;
   font-weight: 820;
   color: #f8fbff;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 .sp-reel-sub {
   position: relative;
@@ -5104,7 +5132,7 @@ body.light-mode .insights-panel-shell {
   font-size: 13px;
   color: rgba(241,245,249,0.68);
   line-height: 1.55;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
 }
 .sp-reel-chart {
   position: relative;
@@ -5112,21 +5140,21 @@ body.light-mode .insights-panel-shell {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: end;
-  gap: 14px;
-  min-height: 136px;
-  margin-bottom: 18px;
+  gap: 12px;
+  min-height: 108px;
+  margin-bottom: 14px;
 }
 .sp-reel-bar-col {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
   gap: 10px;
-  min-height: 136px;
+  min-height: 108px;
 }
 .sp-reel-bar {
   height: var(--bar-h, 36%);
-  min-height: 28px;
-  border-radius: 16px 16px 8px 8px;
+  min-height: 22px;
+  border-radius: 14px 14px 8px 8px;
   background:
     linear-gradient(180deg, rgba(110, 189, 255, 0.98), rgba(69, 132, 255, 0.84));
   box-shadow: 0 16px 28px rgba(34,96,188,0.26), inset 0 1px 0 rgba(255,255,255,0.26);
@@ -5142,7 +5170,7 @@ body.light-mode .insights-panel-shell {
   background: linear-gradient(180deg, rgba(255, 177, 96, 0.96), rgba(245, 115, 74, 0.82));
 }
 .sp-reel-bar-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: rgba(241,245,249,0.72);
   white-space: nowrap;
@@ -5153,7 +5181,7 @@ body.light-mode .insights-panel-shell {
   position: relative;
   z-index: 1;
   overflow: hidden;
-  height: 48px;
+  height: 44px;
   padding: 0 14px;
   border-radius: 16px;
   background: rgba(255,255,255,0.05);
@@ -5165,24 +5193,25 @@ body.light-mode .insights-panel-shell {
   animation: spTickerCycle 9s var(--ease-premium) infinite;
 }
 .sp-reel-ticker-item {
-  min-height: 48px;
+  min-height: 44px;
   display: flex;
   align-items: center;
-  font-size: 12.5px;
+  font-size: 11.5px;
   color: rgba(241,245,249,0.76);
   line-height: 1.45;
 }
 .sp-reel-sidecards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
 }
 .sp-reel-microcard {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  min-height: 118px;
-  padding: 18px 18px 16px;
+  justify-content: center;
+  gap: 6px;
+  min-height: 86px;
+  padding: 14px 16px;
   border-radius: 22px;
   background:
     linear-gradient(180deg, rgba(255,255,255,0.065), rgba(255,255,255,0.02)),
@@ -5192,33 +5221,53 @@ body.light-mode .insights-panel-shell {
 }
 .sp-reel-microcard-wide {
   grid-column: 1 / -1;
-  min-height: 112px;
+  min-height: 76px;
 }
 .sp-reel-micro-kicker {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 800;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: rgba(241,245,249,0.56);
 }
 .sp-reel-micro-value {
-  font-size: 30px;
-  line-height: 0.95;
+  font-size: 22px;
+  line-height: 0.98;
   font-weight: 780;
   letter-spacing: -0.05em;
   color: #f8fbff;
 }
 .sp-reel-micro-sub {
-  font-size: 12px;
+  font-size: 11px;
   color: rgba(241,245,249,0.68);
 }
 .sp-reel-micro-quote {
-  font-size: 13px;
-  line-height: 1.55;
+  font-size: 11.5px;
+  line-height: 1.45;
   color: rgba(241,245,249,0.76);
 }
 .sp-brief-grid {
-  margin-top: 0;
+  margin-top: 8px;
+  gap: 12px;
+}
+.sp-brief-card {
+  min-height: 98px;
+  padding: 16px 18px 14px;
+  border-radius: 20px;
+}
+.sp-brief-head {
+  margin-bottom: 8px;
+}
+.sp-brief-title {
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+.sp-brief-body {
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+.sp-footer {
+  margin-top: 8px;
 }
 
 @keyframes spLivePulse {
@@ -5232,8 +5281,8 @@ body.light-mode .insights-panel-shell {
 }
 @keyframes spTickerCycle {
   0%, 28% { transform: translateY(0); }
-  33%, 61% { transform: translateY(-48px); }
-  66%, 94% { transform: translateY(-96px); }
+  33%, 61% { transform: translateY(-44px); }
+  66%, 94% { transform: translateY(-88px); }
   100% { transform: translateY(0); }
 }
 @keyframes spReelSweep {
