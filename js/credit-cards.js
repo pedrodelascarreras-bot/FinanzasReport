@@ -238,15 +238,15 @@ function renderCcActiveCycle(){
   const isPaid=ccState.status==='paid';
 
   const statusBadge=isPaid
-    ?'<span style="background:var(--green-sys);color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.04em;">✓ PAGADO</span>'
-    :'<span style="background:var(--orange);color:#fff;font-size:10px;font-weight:700;padding:3px 10px;border-radius:20px;letter-spacing:.04em;">⏳ PENDIENTE</span>';
+    ?'<span class="cc-status-pill paid">✓ Pagado</span>'
+    :'<span class="cc-status-pill pending">⏳ Pendiente</span>';
 
   // Selector de ciclo en la cabecera
   if(actionsEl){
     actionsEl.innerHTML=`
-      <div style="display:flex;align-items:center;gap:10px;background:var(--surface2);padding:4px 12px;border-radius:10px;border:1px solid var(--border);">
-        <span style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;">Período</span>
-        <select onchange="ccSelectViewCycle(this.value)" style="background:none;border:none;color:var(--text);font-size:13px;font-weight:700;font-family:var(--font);cursor:pointer;outline:none;">
+      <div class="cc-period-picker">
+        <span class="cc-period-picker-label">Período</span>
+        <select class="cc-period-picker-select" onchange="ccSelectViewCycle(this.value)">
           ${tcCycles.map(c=>{
             const s=state.ccCycles.find(x=>x.cardId===cardId && x.tcCycleId===c.id);
             const paid=s && s.status==='paid';
@@ -281,21 +281,12 @@ function renderCcActiveCycle(){
   // Botón PAGADO
   const actionBtns=isPaid
     ?''
-    :'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">'
+    :'<div class="cc-hero-actions">'
       +'<button class="btn btn-ghost btn-sm" onclick="ccOpenManualExpenseModal(\''+activeTcCycle.id+'\')">+ Agregar gasto</button>'
-      +'<button onclick="ccMarkPaid(\''+activeTcCycle.id+'\')" style="'
-        +'padding:12px 28px;border-radius:12px;border:none;cursor:pointer;'
-        +'background:linear-gradient(135deg,#00c853,#00e676);color:#fff;'
-        +'font-size:15px;font-weight:800;letter-spacing:.06em;'
-        +'box-shadow:0 4px 16px rgba(0,200,83,0.35);'
-        +'transition:transform .12s,box-shadow .12s;'
-        +'font-family:var(--font);"'
-        +' onmouseover="this.style.transform=\'scale(1.04)\';this.style.boxShadow=\'0 6px 24px rgba(0,200,83,0.5)\'"'
-        +' onmouseout="this.style.transform=\'\';this.style.boxShadow=\'0 4px 16px rgba(0,200,83,0.35)\'"'
-      +'>✓ PAGADO</button>'
+      +'<button class="cc-primary-pay-btn" onclick="ccMarkPaid(\''+activeTcCycle.id+'\')">✓ Pagado</button>'
     +'</div>';
 
-  const noGastosHtml='<div style="color:var(--text3);font-size:13px;text-align:center;padding:20px;">Sin gastos en este ciclo</div>';
+  const noGastosHtml='<div class="cc-empty-inline">Sin gastos en este ciclo</div>';
 
   // Due date
   const countdown = ccCountdown(ccState?.dueDate);
@@ -305,23 +296,23 @@ function renderCcActiveCycle(){
   const paidHistoryHtml = paidCycles.length ? _ccBuildPaidHistoryHtml(cardId, paidCycles, tcCycles) : '';
 
   activeEl.innerHTML=`
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;">
-      <div style="padding:18px 20px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap;">
-        <div style="flex:1;min-width:0;">
-          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+    <div class="cc-cycle-shell">
+      <div class="cc-cycle-hero">
+        <div class="cc-cycle-copy">
+          <div class="cc-cycle-topline">
             ${statusBadge}
-            ${card?'<span style="font-size:11px;font-weight:700;color:'+card.color+';background:'+card.color+'15;padding:2px 8px;border-radius:6px;">'+esc(card.name)+'</span>':''}
+            ${card?'<span class="cc-card-chip" style="color:'+card.color+';background:'+card.color+'15;">'+esc(card.name)+'</span>':''}
           </div>
-          <div style="margin-top:8px;font-size:13px;color:var(--text3);display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
-            <span>Apertura: <strong style="color:var(--text);">${ccFmtDate(openDate)}</strong></span>
-            <span>Cierre: <strong style="color:var(--text);">${ccFmtDate(activeTcCycle.closeDate)}</strong></span>
+          <div class="cc-cycle-meta">
+            <span>Apertura: <strong class="cc-cycle-meta-strong">${ccFmtDate(openDate)}</strong></span>
+            <span>Cierre: <strong class="cc-cycle-meta-strong">${ccFmtDate(activeTcCycle.closeDate)}</strong></span>
             ${(() => {
               const d = ccState.dueDate || activeTcCycle.dueDate;
               if (d) {
                 const c = ccCountdown(d);
-                return `<span>Vencimiento: <strong style="color:${c.overdue?'var(--red)':c.urgent?'var(--orange)':'var(--text)'}">${ccFmtDate(d)}</strong>&nbsp;<span style="font-size:10px;font-weight:600;color:${c.overdue?'var(--red)':c.urgent?'var(--orange)':'var(--text3)'};">(${c.text})</span></span>`;
+                return `<span>Vencimiento: <strong style="color:${c.overdue?'var(--red)':c.urgent?'var(--orange)':'var(--text)'}">${ccFmtDate(d)}</strong>&nbsp;<span class="cc-cycle-deadline-note" style="color:${c.overdue?'var(--red)':c.urgent?'var(--orange)':'var(--text3)'};">(${c.text})</span></span>`;
               }
-              return `<button onclick="ccSetDueDate('${activeTcCycle.id}')" style="background:none;border:1px dashed var(--border);border-radius:6px;padding:3px 9px;cursor:pointer;color:var(--text3);font-size:11px;font-family:var(--font);transition:border-color .12s,color .12s;" onmouseover="this.style.color='var(--text)';this.style.borderColor='var(--text3)'" onmouseout="this.style.color='var(--text3)';this.style.borderColor='var(--border)'">📅 + Vencimiento</button>`;
+              return `<button onclick="ccSetDueDate('${activeTcCycle.id}')" class="cc-due-btn">📅 + Vencimiento</button>`;
             })()}
           </div>
         </div>
@@ -329,18 +320,18 @@ function renderCcActiveCycle(){
       </div>
 
       <!-- KPIs -->
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;background:var(--border);">
-        <div style="background:var(--surface);padding:16px 20px;">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">Total ARS</div>
-          <div style="font-size:22px;font-weight:700;font-family:var(--font);color:var(--accent);">$${fmtN(Math.round(totals.ars))}</div>
+      <div class="cc-kpi-grid">
+        <div class="cc-kpi-card">
+          <div class="cc-kpi-label">Total ARS</div>
+          <div class="cc-kpi-value ars">$${fmtN(Math.round(totals.ars))}</div>
         </div>
-        <div style="background:var(--surface);padding:16px 20px;">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">Total USD</div>
-          <div style="font-size:22px;font-weight:700;font-family:var(--font);color:var(--accent2);">${totals.usd>0?'U$D '+fmtN(totals.usd):'—'}</div>
+        <div class="cc-kpi-card">
+          <div class="cc-kpi-label">Total USD</div>
+          <div class="cc-kpi-value usd">${totals.usd>0?'U$D '+fmtN(totals.usd):'—'}</div>
         </div>
-        <div style="background:var(--surface);padding:16px 20px;">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">Items</div>
-          <div style="font-size:22px;font-weight:700;font-family:var(--font);">${totals.count}</div>
+        <div class="cc-kpi-card">
+          <div class="cc-kpi-label">Items</div>
+          <div class="cc-kpi-value">${totals.count}</div>
         </div>
       </div>
 

@@ -782,7 +782,7 @@ function updateRepPreview(){
   if(meta)meta.textContent=txns.length+' movimientos · '+sections.length+' secciones · diseño '+(state.repDesign||'executive');
   if(!content)return;
   if(!txns.length){
-    content.innerHTML='<div style="padding:40px;text-align:center;color:#aaa;font-family:var(--font);">Sin datos para el período seleccionado</div>';
+    content.innerHTML='<div class="rep-preview-empty">Sin datos para el período seleccionado</div>';
     return;
   }
   // Update check item styles
@@ -883,8 +883,8 @@ function renderImportHistory(){
   renderBackupHistory();
   updateCSVExportCount();
   const el=document.getElementById('import-history-list');if(!el)return;
-  if(!state.imports.length){el.innerHTML='<div class="empty-state" style="padding:32px;"><div class="empty-icon">📋</div><div class="empty-title" style="font-size:14px;">Sin importaciones aún</div></div>';return;}
-  el.innerHTML=state.imports.map(imp=>'<div class="import-row"><span class="import-badge">'+imp.count+' mov.</span><div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:600;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+imp.label+'</div><div class="import-meta">'+imp.date+' · Texto pegado</div></div><button class="btn btn-ghost btn-sm btn-icon" onclick="openRenameImport(\''+imp.id+'\');" title="Renombrar" style="font-size:12px;">✏️</button><button class="btn btn-danger btn-sm btn-icon" onclick="deleteImport(\''+imp.id+'\');" title="Eliminar">🗑</button></div>').join('');
+  if(!state.imports.length){el.innerHTML='<div class="empty-state import-history-empty"><div class="empty-icon">📋</div><div class="empty-title import-history-empty-title">Sin importaciones aún</div></div>';return;}
+  el.innerHTML=state.imports.map(imp=>'<div class="import-row"><span class="import-badge">'+imp.count+' mov.</span><div class="import-row-copy"><div class="import-row-title">'+imp.label+'</div><div class="import-meta">'+imp.date+' · Texto pegado</div></div><button class="btn btn-ghost btn-sm btn-icon import-row-btn" onclick="openRenameImport(\''+imp.id+'\');" title="Renombrar">✏️</button><button class="btn btn-danger btn-sm btn-icon" onclick="deleteImport(\''+imp.id+'\');" title="Eliminar">🗑</button></div>').join('');
 }
 
 function openRenameImport(id){

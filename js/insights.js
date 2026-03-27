@@ -202,16 +202,16 @@ function _renderChallenges(data) {
   if(!state._challengesCompleted) state._challengesCompleted = {};
 
   el.innerHTML = `
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+    <div class="insights-challenges-head">
       <div>
-        <div style="font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:2px;">DESAFÍOS ACTIVOS</div>
-        <div style="font-size:13px;color:var(--text2);">Objetivos calculados automáticamente con tus datos</div>
+        <div class="insights-panel-kicker">Desafíos activos</div>
+        <div class="insights-challenges-sub">Objetivos calculados automáticamente con tus datos</div>
       </div>
-      <div style="font-size:11px;font-weight:600;color:var(--accent);background:var(--blue-light);padding:4px 10px;border-radius:20px;">
+      <div class="insights-challenges-badge">
         ${challenges.filter(c=>c.status==='done').length}/${challenges.length} completados
       </div>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;">
+    <div class="insights-challenges-grid">
       ${challenges.map(c => _renderChallenge(c)).join('')}
     </div>
   `;
@@ -338,28 +338,28 @@ function _renderChallenge(c) {
     : 'linear-gradient(90deg,var(--accent),var(--blue-mid))';
 
   return `
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 18px;display:flex;flex-direction:column;gap:10px;position:relative;overflow:hidden;">
+    <div class="insight-challenge-card">
       <!-- Top accent bar -->
-      <div style="position:absolute;top:0;left:0;right:0;height:3px;background:${barBg};opacity:${c.status==='done'?1:.6};border-radius:16px 16px 0 0;"></div>
+      <div class="insight-challenge-accent" style="background:${barBg};opacity:${c.status==='done'?1:.6};"></div>
       <!-- Header -->
-      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;">
-        <div style="display:flex;align-items:center;gap:8px;">
-          <span style="font-size:20px;line-height:1;">${c.icon}</span>
+      <div class="insight-challenge-head">
+        <div class="insight-challenge-id">
+          <span class="insight-challenge-icon">${c.icon}</span>
           <div>
-            <div style="font-size:13px;font-weight:700;color:var(--text);line-height:1.2;">${c.title}</div>
-            <div style="font-size:10px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.04em;">${c.period}</div>
+            <div class="insight-challenge-title">${c.title}</div>
+            <div class="insight-challenge-period">${c.period}</div>
           </div>
         </div>
-        <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;white-space:nowrap;color:${statusColor};background:${statusColor}18;">${statusLabel}</span>
+        <span class="insight-challenge-state" style="color:${statusColor};background:${statusColor}18;">${statusLabel}</span>
       </div>
       <!-- Description -->
-      <div style="font-size:12px;color:var(--text2);line-height:1.45;">${c.desc}</div>
+      <div class="insight-challenge-desc">${c.desc}</div>
       <!-- Progress bar -->
-      <div style="background:var(--surface2);border-radius:99px;height:6px;overflow:hidden;">
-        <div style="height:100%;width:${c.pct}%;background:${barBg};border-radius:99px;transition:width .8s cubic-bezier(.4,0,.2,1);"></div>
+      <div class="insight-challenge-track">
+        <div class="insight-challenge-fill" style="width:${c.pct}%;background:${barBg};"></div>
       </div>
       <!-- Detail -->
-      <div style="font-size:11px;font-weight:600;color:var(--text3);">${c.detail}</div>
+      <div class="insight-challenge-detail">${c.detail}</div>
     </div>
   `;
 }

@@ -142,7 +142,7 @@
 <div id="page-dashboard" class="page active">
     <div class="dashboard-header">
       <div id="notif-trigger" class="notif-trigger" onclick="toggleNotifPanel()">
-        <span class="notif-icon glyph-mark">◎</span>
+        <span class="notif-icon">🔔</span>
         <span id="notif-badge" class="notif-badge"></span>
       </div>
       <div><div class="page-title" id="dash-page-title">Finanzas · Pedro</div><div class="page-subtitle" id="dash-date">—</div></div>
@@ -250,7 +250,6 @@
         <div class="dkpi kpi-card-compact kpi-card-clickable kpi-card-credit" onclick="nav('credit-cards')" title="Ver detalle de tarjetas">
           <div class="kpi-card-header-grid">
             <div class="dkpi-label">CICLO TARJETAS</div>
-            <div class="dkpi-icon">◎</div>
           </div>
           <div class="kpi-grid-mini kpi-credit-grid">
             <!-- VISA -->
@@ -273,7 +272,6 @@
         <div class="dkpi kpi-card-projection">
           <div class="kpi-card-header-grid">
             <div class="dkpi-label" id="kpi-proj-title">Proyección al cierre</div>
-            <div class="dkpi-icon">◔</div>
           </div>
           <div class="kpi-proj-main">
             <div class="dkpi-value" id="kpi-proj">—</div>
@@ -292,22 +290,25 @@
           </div>
         </div>
         <div class="dkpi dkpi-commitments" style="cursor:pointer;" onclick="nav('cuotas')" title="Ver compromisos">
-          <div class="dkpi-left dkpi-left-commitments">
-            <div class="dkpi-label">Compromisos próx. mes</div>
-            <div class="dkpi-value" id="kpi-compromisos">—</div>
-            <div class="dkpi-sub" id="kpi-compromisos-d"></div>
-            <div class="comp-progress-shell">
-              <div class="comp-progress-head">
-                <span class="comp-progress-label">Carga sobre ingreso</span>
-                <span id="comp-donut-label" class="comp-progress-value">—</span>
-              </div>
-              <div class="comp-progress-bar">
-                <div id="comp-donut-fill" class="comp-progress-fill"></div>
+          <div class="dkpi-commitments-shell">
+            <div class="dkpi-left dkpi-left-commitments">
+              <div class="dkpi-label">Compromisos próx. mes</div>
+              <div class="dkpi-value" id="kpi-compromisos">—</div>
+              <div class="dkpi-sub" id="kpi-compromisos-d"></div>
+              <div class="comp-donut-meta">Carga sobre ingreso estimado</div>
+            </div>
+            <div class="comp-donut-wrap" id="comp-donut-wrap">
+              <svg viewBox="0 0 100 100" class="comp-donut-svg" aria-hidden="true">
+                <circle cx="50" cy="50" r="38" class="comp-donut-track"></circle>
+                <circle id="comp-donut-fill" cx="50" cy="50" r="38" class="comp-donut-ring"></circle>
+              </svg>
+              <div class="comp-donut-center">
+                <span id="comp-donut-label" class="comp-donut-value">—</span>
+                <span class="comp-donut-caption">ocupado</span>
               </div>
             </div>
           </div>
         </div>
-      </div>
     </div>
     </div><!-- /layout-section -->
 
@@ -439,9 +440,9 @@
   </div>
 
   <!-- Panel: Resumen -->
-  <div id="cc-panel-resumen">
+  <div id="cc-panel-resumen" class="cc-page-section-stack">
     <!-- Ciclo activo -->
-    <div id="cc-active-cycle-section">
+    <div id="cc-active-cycle-section" class="cc-stage-card">
       <div id="cc-empty-state" class="cc-empty-state" style="display:none;">
         <div class="cc-empty-icon">◫</div>
         <div class="cc-empty-title">Sin ciclos configurados</div>
@@ -451,14 +452,14 @@
     </div>
 
     <!-- Historial -->
-    <div id="cc-history-section" style="margin-top:28px;display:none;">
-      <div class="section-kicker-inline">Historial de ciclos liquidados</div>
+    <div id="cc-history-section" class="cc-history-section" style="display:none;">
+      <div class="section-kicker-inline cc-section-kicker">Historial de ciclos liquidados</div>
       <div id="cc-history-list"></div>
     </div>
   </div>
 
   <!-- Panel: Configuración (Apple-style) -->
-  <div id="cc-panel-config" style="display:none;">
+  <div id="cc-panel-config" class="cc-page-section-stack" style="display:none;">
     <div id="cc-config-panel-body"></div>
   </div>
 
@@ -511,6 +512,19 @@
 <div id="page-reportes" class="page">
   <div class="page-header fade-up">
     <div><div class="page-title">Reportes</div><div class="page-subtitle">Prepará un informe ejecutivo listo para compartir</div></div>
+  </div>
+
+  <div class="rep-top-band fade-up d1">
+    <div class="rep-top-copy">
+      <div class="rep-top-kicker">Informe premium</div>
+      <div class="rep-top-title">Armá una pieza lista para presentar, exportar y compartir con más jerarquía visual.</div>
+      <div class="rep-top-sub">La vista previa ahora puede funcionar como espacio editorial: período, decisiones y formato en una sola experiencia más profesional.</div>
+    </div>
+    <div class="rep-top-chips">
+      <span class="rep-top-chip">📄 PDF listo</span>
+      <span class="rep-top-chip">🧠 Lectura asistida</span>
+      <span class="rep-top-chip">✉️ Envío por email</span>
+    </div>
   </div>
 
   <div class="rep-layout fade-up d1">
@@ -686,7 +700,7 @@
 <div id="page-transactions" class="page">
 
   <div class="page-header fade-up">
-    <div><div class="page-title">Movimientos</div></div>
+    <div><div class="page-title">Movimientos</div><div class="page-subtitle">Búsqueda, revisión y corrección con una vista más ordenada y operativa.</div></div>
     <div class="header-actions">
       <div class="search-wrap search-wrap-wide">
         <span class="search-icon">🔍</span>
@@ -788,8 +802,8 @@
     <button class="sb-btn" onclick="bulkTag()">🏷 Tag</button>
     <button class="sb-btn" onclick="bulkUncategorize()">↩ Descategorizar</button>
     <button class="sb-btn danger" onclick="bulkDelete()">✕ Eliminar</button>
-    <div style="margin-left:auto;">
-      <button class="sb-btn" onclick="clearSelection()" style="border:none;background:rgba(255,255,255,0.1);">✕ Deseleccionar</button>
+    <div class="txn-select-actions-end">
+      <button class="sb-btn sb-btn-subtle" onclick="clearSelection()">✕ Deseleccionar</button>
     </div>
   </div>
   <!-- Tabla -->
@@ -941,8 +955,8 @@
   <div id="insights-content" style="display:none;flex-direction:column;gap:24px;">
 
     <!-- ── Score Hero ── -->
-    <div class="fade-up d1" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:24px 28px;display:flex;align-items:center;gap:28px;flex-wrap:wrap;">
-      <div style="flex-shrink:0;">
+    <div class="fade-up d1 insights-score-shell">
+      <div class="insights-score-ring">
         <svg viewBox="0 0 100 100" width="96" height="96">
           <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" stroke-width="8"/>
           <circle id="score-arc" cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="8"
@@ -951,22 +965,22 @@
           <text x="50" y="56" text-anchor="middle" font-size="22" font-weight="700" fill="var(--text)" id="score-number" font-family="system-ui,sans-serif">—</text>
         </svg>
       </div>
-      <div style="flex:1;min-width:160px;">
-        <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">SALUD FINANCIERA</div>
-        <div id="score-label" style="font-size:20px;font-weight:800;color:var(--text);margin-bottom:6px;">—</div>
-        <div id="score-desc" style="font-size:12px;color:var(--text3);line-height:1.55;max-width:280px;">—</div>
+      <div class="insights-score-copy">
+        <div class="insights-score-kicker">Salud financiera</div>
+        <div id="score-label" class="insights-score-label">—</div>
+        <div id="score-desc" class="insights-score-desc">—</div>
       </div>
-      <div id="score-factors" style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:10px;"></div>
+      <div id="score-factors" class="insights-score-factors"></div>
     </div>
 
     <!-- ── Desafíos Financieros ── -->
-    <div id="ins-challenges-section" class="fade-up d2" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:20px 24px;display:none;"></div>
+    <div id="ins-challenges-section" class="fade-up d2 insights-panel-shell" style="display:none;"></div>
 
     <!-- ── Monthly Evolution Chart ── -->
-    <div class="fade-up d3" style="background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:20px 24px;">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:4px;">EVOLUCIÓN MENSUAL</div>
-      <div id="ins-chart-sub" style="font-size:12px;color:var(--text3);margin-bottom:16px;">Gasto total ARS por mes</div>
-      <div style="position:relative;height:180px;">
+    <div class="fade-up d3 insights-panel-shell insights-chart-shell">
+      <div class="insights-panel-kicker">Evolución mensual</div>
+      <div id="ins-chart-sub" class="insights-panel-sub">Gasto total ARS por mes</div>
+      <div class="insights-chart-wrap">
         <canvas id="ins-chart"></canvas>
       </div>
     </div>
@@ -1157,12 +1171,12 @@
   </div>
 
   <!-- Sync banner — shown when no entry exists for current month -->
-  <div id="inc-sync-banner" style="display:none;align-items:center;gap:12px;background:rgba(255,159,10,0.09);border:1px solid rgba(255,159,10,0.25);border-radius:14px;padding:12px 18px;margin-bottom:16px;flex-wrap:wrap;"></div>
+  <div id="inc-sync-banner" class="inc-sync-banner" style="display:none;"></div>
 
   <!-- Hero KPIs — rediseñado con tarjetas tipo imagen referencia -->
   <div class="fade-up d1">
     <!-- Fila 1: 4 tarjetas -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px;">
+    <div class="inc-top-grid">
 
       <!-- ARS Fijo -->
       <div style="background:linear-gradient(135deg,rgba(200,240,96,0.07) 0%,rgba(200,240,96,0.02) 100%);border:1px solid rgba(200,240,96,0.15);border-radius:14px;padding:16px 18px;">
@@ -1210,7 +1224,7 @@
     </div>
 
     <!-- Fila 2: Ratio ahorro + Retomances -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+    <div class="inc-bottom-grid">
 
       <!-- Ratio Ahorro con donut -->
       <div style="background:var(--surface2);border:1px solid var(--border);border-radius:14px;padding:18px 22px;display:flex;align-items:center;gap:24px;">
@@ -1264,7 +1278,7 @@
   </div>
 
   <!-- Monthly history table + sources -->
-  <div style="display:grid;grid-template-columns:2fr 1fr;gap:18px;" class="fade-up d3">
+  <div class="inc-detail-grid fade-up d3">
     <div class="table-card">
       <div class="table-header">
         <div class="table-title">Historial mensual</div>
@@ -1274,7 +1288,7 @@
         <div class="empty-state" style="padding:40px;"><div class="empty-icon">◎</div><div class="empty-title">Sin meses registrados</div><div class="empty-sub">Hacé click en "+ Registrar mes"<br>para empezar tu historial</div></div>
       </div>
     </div>
-    <div style="display:flex;flex-direction:column;gap:14px;">
+    <div class="inc-side-stack">
       <div class="section-card">
         <div class="section-card-header" style="display:flex;justify-content:space-between;align-items:center;">
           <div style="font-size:13px;font-weight:700;">Fuentes de ingreso</div>
@@ -1310,43 +1324,43 @@
   </div>
 
   <!-- Hero principal: total acumulado en grande -->
-  <div class="sav-hero fade-up d1" style="position:relative;">
-    <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:20px;">
+  <div class="sav-hero fade-up d1">
+    <div class="sav-hero-top">
       <div>
         <div class="sav-hero-label">TOTAL ACUMULADO EN AHORROS (USD)</div>
-        <div class="sav-hero-value" id="sav-hero-total" style="font-size:56px;">$0</div>
-        <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-          <span id="sav-hero-equiv-badge" style="display:none;background:rgba(240,160,96,0.12);border:1px solid rgba(240,160,96,0.25);border-radius:18px;padding:4px 12px;font-size:13px;font-weight:700;font-family:var(--font);color:var(--accent3);"></span>
+        <div class="sav-hero-value sav-hero-value-lg" id="sav-hero-total">$0</div>
+        <div class="sav-hero-badges">
+          <span id="sav-hero-equiv-badge" class="sav-hero-equiv-badge" style="display:none;"></span>
           <span id="sav-streak" class="sav-streak" style="display:none;"></span>
         </div>
       </div>
       <!-- Breakdown ARS / USD / % ingreso -->
-      <div style="display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;">
+      <div class="sav-hero-metrics">
         <div class="sav-hero-stat">
           <div class="sav-hero-stat-label">ARS</div>
-          <div class="sav-hero-stat-val" id="sav-total-ars" style="color:var(--accent);">$0</div>
+          <div class="sav-hero-stat-val sav-hero-stat-val-ars" id="sav-total-ars">$0</div>
         </div>
         <div class="sav-hero-stat">
           <div class="sav-hero-stat-label">USD</div>
-          <div class="sav-hero-stat-val" id="sav-total-usd" style="color:var(--accent2);">U$D 0</div>
+          <div class="sav-hero-stat-val sav-hero-stat-val-usd" id="sav-total-usd">U$D 0</div>
         </div>
         <div class="sav-hero-stat" id="sav-stat-inc-pct" style="display:none;">
           <div class="sav-hero-stat-label">% del ingreso</div>
-          <div class="sav-hero-stat-val" id="sav-inc-pct-val" style="color:var(--accent);"></div>
-          <div style="font-size:10px;font-family:var(--font);font-weight:400;color:var(--text3);margin-top:2px;">promedio mensual</div>
+          <div class="sav-hero-stat-val sav-hero-stat-val-ars" id="sav-inc-pct-val"></div>
+          <div class="sav-hero-stat-note">promedio mensual</div>
         </div>
       </div>
     </div>
     <!-- Barra de distribución de cuentas -->
-    <div id="sav-accounts-bar-wrap" style="margin-top:20px;display:none;">
-      <div style="font-size:9px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">DISTRIBUCIÓN POR CUENTA</div>
-      <div id="sav-accounts-bar" style="height:10px;border-radius:5px;overflow:hidden;display:flex;"></div>
-      <div id="sav-accounts-bar-legend" style="display:flex;flex-wrap:wrap;gap:12px;margin-top:8px;"></div>
+    <div id="sav-accounts-bar-wrap" class="sav-accounts-bar-wrap" style="display:none;">
+      <div class="sav-accounts-bar-kicker">Distribución por cuenta</div>
+      <div id="sav-accounts-bar" class="sav-accounts-bar"></div>
+      <div id="sav-accounts-bar-legend" class="sav-accounts-bar-legend"></div>
     </div>
   </div>
 
   <!-- KPIs secundarios -->
-  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;" class="fade-up d1">
+  <div class="sav-kpi-grid fade-up d1">
     <div class="kpi-card c2">
       <div class="kpi-label">Depositado este año</div>
       <div class="kpi-value" id="sav-kpi-year">—</div>
@@ -1366,8 +1380,8 @@
 
   <!-- Cuentas -->
   <div class="fade-up d2">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-      <div style="font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--text3);">MIS CUENTAS</div>
+    <div class="sav-section-head">
+      <div class="sav-section-kicker">Mis cuentas</div>
       <button class="btn btn-ghost btn-sm" onclick="openSavAccountModal()">+ Nueva cuenta</button>
     </div>
     <div id="sav-accounts-grid" class="sav-accounts-grid">
@@ -1377,8 +1391,8 @@
 
   <!-- Metas -->
   <div class="fade-up d3">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
-      <div style="font-size:11px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--text3);">METAS DE AHORRO</div>
+    <div class="sav-section-head">
+      <div class="sav-section-kicker">Metas de ahorro</div>
       <button class="btn btn-primary btn-sm" onclick="openSavGoalModal()">🎯 Nueva meta</button>
     </div>
     <div id="sav-goals-grid" class="sav-goals-grid">
@@ -1388,7 +1402,7 @@
   </div>
 
   <!-- Gráfico historial + donut por cuenta -->
-  <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:18px;" class="fade-up d4">
+  <div class="sav-chart-grid fade-up d4">
     <div class="chart-card">
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">
         <div>
@@ -1417,6 +1431,18 @@
     </div>
   </div>
 
+  <div class="import-overview-band fade-up d1">
+    <div class="import-overview-copy">
+      <div class="import-overview-kicker">Carga y resguardo</div>
+      <div class="import-overview-title">Unificá importación, carga puntual y seguridad en una sola pantalla más clara.</div>
+    </div>
+    <div class="import-overview-chips">
+      <span class="import-overview-chip">📋 Texto pegado</span>
+      <span class="import-overview-chip">💵 Gasto manual</span>
+      <span class="import-overview-chip">💾 Backup</span>
+    </div>
+  </div>
+
   <!-- Paste zone -->
   <div class="section-card fade-up d1">
     <div class="section-card-header import-header-card">
@@ -1441,7 +1467,7 @@
       </div>
       <button class="btn btn-ghost btn-sm" onclick="toggleManualForm()" id="manual-form-toggle">Nuevo registro</button>
     </div>
-    <div id="manual-form-body" style="display:none;padding-top:4px;">
+    <div id="manual-form-body" class="import-manual-body" style="display:none;">
       <div class="import-grid-2">
         <div class="input-group">
           <label class="input-label">Descripción</label>
@@ -1562,6 +1588,17 @@
   </div>
 
   <div id="cc-compare-content" class="fade-up d1">
+    <div class="ccc-intro-band">
+      <div class="ccc-intro-copy">
+        <div class="ccc-intro-kicker">Cruce automático</div>
+        <div class="ccc-intro-title">Conciliá el resumen con una lectura más clara del gap, los pendientes y el estado general.</div>
+      </div>
+      <div class="ccc-intro-chips">
+        <span class="ccc-intro-chip">📄 PDF oficial</span>
+        <span class="ccc-intro-chip">✅ Match</span>
+        <span class="ccc-intro-chip">⚠️ Diferencias</span>
+      </div>
+    </div>
     <div class="cc-compare-card">
       <!-- Uploader Area -->
       <div id="ccc-upload-area" class="upload-dropzone">

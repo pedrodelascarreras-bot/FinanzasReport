@@ -244,12 +244,6 @@
           </div>
         </div>
 
-        <div class="sp-chip-row fade-in d4">
-          <div class="sp-chip">${hasCycles ? 'Ciclo activo' : 'Mes calendario'}</div>
-          ${ccAlerts[0] ? `<div class="sp-chip">Cierre cercano: ${ccAlerts[0].name}</div>` : ''}
-          ${topEntry ? `<div class="sp-chip">Foco: ${topEntry[0]}</div>` : ''}
-          <div class="sp-chip">Motor IA visible</div>
-        </div>
       </div>
     `;
     }

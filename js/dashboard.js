@@ -1050,11 +1050,16 @@ function renderDashboard(){
     if(compDonut&&incTotalARS>0){
       const compPct=Math.min(Math.round(compromisoTotal/incTotalARS*100),100);
       const tone=compPct>50?'var(--danger)':compPct>30?'var(--accent3)':'var(--accent2)';
-      compDonut.style.width=compPct+'%';
-      compDonut.style.background=tone;
+      const circumference=2*Math.PI*38;
+      const offset=circumference-(compPct/100)*circumference;
+      compDonut.style.stroke=tone;
+      compDonut.style.strokeDasharray=`${circumference}`;
+      compDonut.style.strokeDashoffset=`${offset}`;
       if(compDonutLabel){compDonutLabel.textContent=compPct+'%';compDonutLabel.style.color=tone;}
     } else if(compDonut){
-      compDonut.style.width='0%';
+      const circumference=2*Math.PI*38;
+      compDonut.style.strokeDasharray=`${circumference}`;
+      compDonut.style.strokeDashoffset=`${circumference}`;
       if(compDonutLabel)compDonutLabel.textContent='—';
     }
   }
