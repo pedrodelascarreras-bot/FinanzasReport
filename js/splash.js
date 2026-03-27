@@ -15,6 +15,7 @@
 
     el.style.display = 'flex';
     requestAnimationFrame(()=> requestAnimationFrame(()=> el.classList.add('visible')));
+    _bindDepth(el);
 
     // Ensure the CTA button is clickable
     const cta = el.querySelector('.sp-cta');
@@ -45,10 +46,12 @@
     if(el._interval) clearInterval(el._interval);
     if(el._kd)       document.removeEventListener('keydown', el._kd);
 
-    el.classList.add('leaving');
+    _unbindDepth(el);
+    el.classList.add('leaving','cinematic-exit');
     setTimeout(()=>{
       el.style.display = 'none';
-      el.classList.remove('visible','leaving');
+      el.classList.remove('visible','leaving','cinematic-exit');
+      _resetDepth(el);
     }, 480);
   }
 
@@ -156,6 +159,11 @@
         })
       : [];
     const aiLead = aiSummary[0] || null;
+    const cycleLabel = hasCycles ? 'CICLO ACTUAL' : 'ESTE MES';
+    const exposureTone = spendPct!==null && spendPct>=state.alertThreshold ? 'Tensión alta' : 'Ritmo controlado';
+    const commitmentPreview = typeof detectAutoCuotas==='function'
+      ? ((detectAutoCuotas().length||0) + (state.subscriptions||[]).length + ((state.fixedExpenses||[]).length||0))
+      : ((state.subscriptions||[]).length + ((state.fixedExpenses||[]).length||0));
 
     // ── Strings ──
     const DAYS   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -182,39 +190,65 @@
     if(content){
       content.innerHTML = `
       <div class="sp-presentation">
-        <div class="sp-pre-header fade-in">
-          <div class="sp-pre-greeting">${greeting}, ${state.userName || 'Pedro'}</div>
-          <div class="sp-pre-date">${dateStr}</div>
-          ${lastVisitStr ? `<div class="sp-pre-last-visit">${lastVisitStr}</div>` : ''}
-        </div>
-
-        <div class="sp-pre-main">
-           <div class="sp-pre-label fade-in d1">${hasCycles ? 'CICLO ACTUAL' : 'ESTE MES'}</div>
-           <div class="sp-pre-amount-wrap fade-in d2">
-              <span class="sp-pre-sym">$</span><span class="sp-pre-amount">${fmtN(curTotal)}</span>
-           </div>
-           ${delta !== null ? `
-             <div class="sp-pre-delta ${delta > 0 ? 'up' : 'down'} fade-in d3">
-               ${delta > 0 ? '▲' : '▼'} ${Math.abs(delta).toFixed(1)}% <span>vs anterior</span>
-             </div>
-           ` : ''}
-        </div>
-
-        <div class="sp-pre-grid fade-in d4">
-          ${topEntry ? `
-            <div class="sp-pre-item">
-              <div class="sp-pre-item-icon">${typeof renderUiGlyph==='function'?renderUiGlyph('spark'):'◔'}</div>
-              <div class="sp-pre-item-label">Palanca principal</div>
-              <div class="sp-pre-item-val">${topEntry[0]} · ${topPct}% del gasto</div>
+        <div class="sp-scene">
+          <div class="sp-content-shell fade-in">
+            <div class="sp-pre-header">
+              <div class="sp-pre-greeting">${greeting}, ${state.userName || 'Pedro'}</div>
+              <div class="sp-pre-date">${dateStr}</div>
+              ${lastVisitStr ? `<div class="sp-pre-last-visit">${lastVisitStr}</div>` : ''}
             </div>
-          ` : ''}
-          ${milestone ? `
-            <div class="sp-pre-item">
-              <div class="sp-pre-item-icon">${typeof renderUiGlyph==='function'?renderUiGlyph(milestone.type==='due'?'alert':'calendar'):'◎'}</div>
-              <div class="sp-pre-item-label">Próximo hito</div>
-              <div class="sp-pre-item-val">${milestone.label} · ${milestone.days===0?'hoy':'en '+milestone.days+' días'}</div>
+
+            <div class="sp-pre-main">
+               <div class="sp-pre-label fade-in d1">${cycleLabel}</div>
+               <div class="sp-pre-amount-wrap fade-in d2">
+                  <span class="sp-pre-sym">$</span><span class="sp-pre-amount">${fmtN(curTotal)}</span>
+               </div>
+               ${delta !== null ? `
+                 <div class="sp-pre-delta ${delta > 0 ? 'up' : 'down'} fade-in d3">
+                   ${delta > 0 ? '▲' : '▼'} ${Math.abs(delta).toFixed(1)}% <span>vs anterior</span>
+                 </div>
+               ` : ''}
             </div>
-          ` : ''}
+
+            <div class="sp-pre-grid fade-in d4">
+              ${topEntry ? `
+                <div class="sp-pre-item">
+                  <div class="sp-pre-item-icon">${typeof renderUiGlyph==='function'?renderUiGlyph('spark'):'◔'}</div>
+                  <div class="sp-pre-item-label">Palanca principal</div>
+                  <div class="sp-pre-item-val">${topEntry[0]} · ${topPct}% del gasto</div>
+                </div>
+              ` : ''}
+              ${milestone ? `
+                <div class="sp-pre-item">
+                  <div class="sp-pre-item-icon">${typeof renderUiGlyph==='function'?renderUiGlyph(milestone.type==='due'?'alert':'calendar'):'◎'}</div>
+                  <div class="sp-pre-item-label">Próximo hito</div>
+                  <div class="sp-pre-item-val">${milestone.label} · ${milestone.days===0?'hoy':'en '+milestone.days+' días'}</div>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+
+          <div class="sp-hero-stack" aria-hidden="true">
+            <div class="sp-stage-card sp-stage-card-primary fade-in d2">
+              <div class="sp-stage-kicker">Resumen ejecutivo</div>
+              <div class="sp-stage-value">$${fmtN(curTotal)}</div>
+              <div class="sp-stage-sub">${cycleLabel.toLowerCase()} · ${exposureTone}</div>
+            </div>
+            <div class="sp-stage-card sp-stage-card-secondary fade-in d3">
+              <div class="sp-stage-mini-row">
+                <span class="sp-stage-mini-label">Dólar oficial</span>
+                <span class="sp-stage-mini-value">$${fmtN(state.usdRate||USD_TO_ARS||1420)}</span>
+              </div>
+              <div class="sp-stage-mini-row">
+                <span class="sp-stage-mini-label">Compromisos</span>
+                <span class="sp-stage-mini-value">${commitmentPreview}</span>
+              </div>
+            </div>
+            <div class="sp-stage-card sp-stage-card-tertiary fade-in d4">
+              <div class="sp-stage-kicker">Motor IA</div>
+              <div class="sp-stage-quote">${aiLead ? esc(aiLead.headline) : 'Briefing listo para entrar.'}</div>
+            </div>
+          </div>
         </div>
 
         <div class="sp-brief-grid fade-in d4">
@@ -247,6 +281,55 @@
       </div>
     `;
     }
+  }
+
+  function _bindDepth(el){
+    const shell = el.querySelector('.sp-inner');
+    if(!shell) return;
+    _unbindDepth(el);
+    const move = evt => {
+      const point = evt.touches ? evt.touches[0] : evt;
+      const rect = el.getBoundingClientRect();
+      const px = ((point.clientX - rect.left) / rect.width) - 0.5;
+      const py = ((point.clientY - rect.top) / rect.height) - 0.5;
+      shell.style.setProperty('--sp-tilt-x', `${(-py * 9).toFixed(2)}deg`);
+      shell.style.setProperty('--sp-tilt-y', `${(px * 12).toFixed(2)}deg`);
+      shell.style.setProperty('--sp-shift-x', `${(px * 28).toFixed(2)}px`);
+      shell.style.setProperty('--sp-shift-y', `${(py * 22).toFixed(2)}px`);
+      shell.style.setProperty('--sp-glow-x', `${50 + px * 18}%`);
+      shell.style.setProperty('--sp-glow-y', `${28 + py * 16}%`);
+    };
+    const leave = () => _resetDepth(el);
+    el.addEventListener('mousemove', move);
+    el.addEventListener('touchmove', move, { passive:true });
+    el.addEventListener('mouseleave', leave);
+    el.addEventListener('touchend', leave);
+    el._spMove = move;
+    el._spLeave = leave;
+  }
+
+  function _unbindDepth(el){
+    if(el._spMove){
+      el.removeEventListener('mousemove', el._spMove);
+      el.removeEventListener('touchmove', el._spMove);
+      el._spMove = null;
+    }
+    if(el._spLeave){
+      el.removeEventListener('mouseleave', el._spLeave);
+      el.removeEventListener('touchend', el._spLeave);
+      el._spLeave = null;
+    }
+  }
+
+  function _resetDepth(el){
+    const shell = el?.querySelector('.sp-inner');
+    if(!shell) return;
+    shell.style.setProperty('--sp-tilt-x','0deg');
+    shell.style.setProperty('--sp-tilt-y','0deg');
+    shell.style.setProperty('--sp-shift-x','0px');
+    shell.style.setProperty('--sp-shift-y','0px');
+    shell.style.setProperty('--sp-glow-x','50%');
+    shell.style.setProperty('--sp-glow-y','28%');
   }
 
   // ── Expose globals ──
