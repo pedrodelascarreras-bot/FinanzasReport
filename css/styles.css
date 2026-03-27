@@ -1449,9 +1449,18 @@ tr:last-child td { border-bottom: none; }
 /* ════════════════════════════════════════════════
    DASHBOARD — Apple keynote hero numbers
 ════════════════════════════════════════════════ */
-.dash-row-hero { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 14px; align-items: start; }
+.dash-row-hero { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; align-items: start; }
 .dash-row-hero.has-side-notifs { grid-template-columns: 250px minmax(0,1.08fr) minmax(320px,0.74fr); }
-.dash-row-charts { display: grid; grid-template-columns: 1.3fr 1fr; gap: 14px; }
+.dash-row-charts { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; }
+.dash-row-charts .chart-card {
+  padding: 26px;
+}
+.dash-hero-main-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
 
 /* Hero — Apple "big number" keynote style */
 .dash-hero-card {
@@ -1596,6 +1605,39 @@ tr:last-child td { border-bottom: none; }
   border-radius: var(--r);
   box-shadow: var(--shadow-xs);
 }
+.usd-rate-card-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  min-height: 72px;
+}
+.usd-rate-inline-left,
+.usd-rate-inline-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.usd-rate-inline-left {
+  min-width: 0;
+}
+.usd-rate-inline-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.usd-rate-inline-kicker {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+.usd-rate-inline-right {
+  justify-content: flex-end;
+}
 
 /* Top 5 */
 .top5-inline-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 10px; }
@@ -1631,14 +1673,14 @@ tr:last-child td { border-bottom: none; }
 .top5-amount { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; letter-spacing: -0.02em; }
 
 /* Widgets */
-.dash-widgets-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+.dash-widgets-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
 .dw-card {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015)),
     var(--surface-solid);
   border: 1px solid var(--glass-border);
   border-radius: var(--r);
-  padding: 20px 22px;
+  padding: 22px 24px;
   position: relative; overflow: hidden;
   box-shadow: var(--shadow-xs);
   transition: box-shadow 0.2s;
@@ -3312,6 +3354,9 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   .section-controls { display: none; }
   .dash-row-hero,
   .dash-row-hero.has-side-notifs { grid-template-columns: 1fr; gap: 10px; }
+  .dash-hero-main-col { gap: 10px; }
+  .usd-rate-card-inline { padding: 12px 14px; }
+  .usd-rate-inline-right { justify-content: flex-start; }
   .dash-hero-card { padding: 18px 16px; }
   .dhc-amount { font-size: clamp(28px,8vw,42px); letter-spacing: -0.04em; }
   .dash-kpis-col { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }

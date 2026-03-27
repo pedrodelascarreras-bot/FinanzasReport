@@ -183,46 +183,64 @@
     <div class="dash-row-hero fade-up d1">
       <div id="dash-notifications" class="dash-notif-container dash-side-rail" style="display:none;"></div>
 
-      <!-- Card principal: gasto del mes -->
-      <div class="dash-hero-card dash-hero-clickable" onclick="nav('transactions')" title="Ver detalle de gastos">
-        <div class="dhc-eyebrow">GASTO TOTAL · <span id="dhc-month-label">—</span></div>
-        <div class="dhc-main">
-          <div class="dhc-amount" id="kpi-ars">—</div>
-          <span id="dhc-pct-inline" class="metric-inline"></span>
+      <div class="dash-hero-main-col">
+        <!-- Card principal: gasto del mes -->
+        <div class="dash-hero-card dash-hero-clickable" onclick="nav('transactions')" title="Ver detalle de gastos">
+          <div class="dhc-eyebrow">GASTO TOTAL · <span id="dhc-month-label">—</span></div>
+          <div class="dhc-main">
+            <div class="dhc-amount" id="kpi-ars">—</div>
+            <span id="dhc-pct-inline" class="metric-inline"></span>
+          </div>
+          <!-- 3 inner cards: ARS · USD · Margen -->
+          <div id="dhc-inner-grid" class="hero-inner-grid">
+            <!-- ARS card -->
+            <div class="hero-mini-card">
+              <div class="hero-mini-card-title">GASTO ARS</div>
+              <div class="hero-mini-card-value" id="dhc-ars-line">—</div>
+            </div>
+            <!-- USD card -->
+            <div class="hero-mini-card">
+              <div class="hero-mini-card-title">GASTO USD</div>
+              <div class="hero-mini-card-value accent" id="dhc-usd-line">—</div>
+            </div>
+            <!-- Margen card (spans 2 cols) -->
+            <div id="dhc-margin-section" class="hero-wide-card clickable" style="display:none;" onclick="nav('income')" title="Ver ingresos y configuración">
+              <div class="hero-wide-card-header">
+                <span class="hero-wide-card-title">MARGEN DISPONIBLE</span>
+                <span id="dhc-margin-val" class="hero-wide-card-value"></span>
+              </div>
+              <div class="hero-progress">
+                <div id="dhc-margin-fill" class="hero-progress-fill"></div>
+              </div>
+              <div class="hero-wide-card-footer table-subtle">
+                <span id="dhc-margin-sub"></span>
+                <span id="dhc-margin-ingreso"></span>
+              </div>
+            </div>
+            <!-- Payment method breakdown (spans 2 cols) -->
+            <div id="dhc-pay-method-section" class="hero-wide-card" style="display:none;">
+              <div class="hero-wide-card-title">MEDIOS DE PAGO</div>
+              <!-- Stacked bar -->
+              <div class="hero-pay-bar" id="dhc-pay-bar"></div>
+              <!-- Labels -->
+              <div id="dhc-pay-labels" class="hero-pay-labels"></div>
+            </div>
+          </div>
         </div>
-        <!-- 3 inner cards: ARS · USD · Margen -->
-        <div id="dhc-inner-grid" class="hero-inner-grid">
-          <!-- ARS card -->
-          <div class="hero-mini-card">
-            <div class="hero-mini-card-title">GASTO ARS</div>
-            <div class="hero-mini-card-value" id="dhc-ars-line">—</div>
-          </div>
-          <!-- USD card -->
-          <div class="hero-mini-card">
-            <div class="hero-mini-card-title">GASTO USD</div>
-            <div class="hero-mini-card-value accent" id="dhc-usd-line">—</div>
-          </div>
-          <!-- Margen card (spans 2 cols) -->
-          <div id="dhc-margin-section" class="hero-wide-card clickable" style="display:none;" onclick="nav('income')" title="Ver ingresos y configuración">
-            <div class="hero-wide-card-header">
-              <span class="hero-wide-card-title">MARGEN DISPONIBLE</span>
-              <span id="dhc-margin-val" class="hero-wide-card-value"></span>
+        <div class="fade-up d2 usd-rate-card usd-rate-card-inline" id="usd-rate-card">
+          <div class="usd-rate-inline-left">
+            <span class="usd-rate-icon">💵</span>
+            <div class="usd-rate-inline-copy">
+              <span class="usd-rate-inline-kicker">Dólar oficial</span>
+              <span class="usd-rate-main">U$D 1 = <span id="usd-rate-display">$1.420</span></span>
             </div>
-            <div class="hero-progress">
-              <div id="dhc-margin-fill" class="hero-progress-fill"></div>
-            </div>
-            <div class="hero-wide-card-footer table-subtle">
-              <span id="dhc-margin-sub"></span>
-              <span id="dhc-margin-ingreso"></span>
-            </div>
+            <span id="usd-rate-source-badge" class="usd-rate-source">blue</span>
           </div>
-          <!-- Payment method breakdown (spans 2 cols) -->
-          <div id="dhc-pay-method-section" class="hero-wide-card" style="display:none;">
-            <div class="hero-wide-card-title">MEDIOS DE PAGO</div>
-            <!-- Stacked bar -->
-            <div class="hero-pay-bar" id="dhc-pay-bar"></div>
-            <!-- Labels -->
-            <div id="dhc-pay-labels" class="hero-pay-labels"></div>
+          <div class="usd-rate-inline-right">
+            <span id="usd-rate-status" class="usd-rate-meta"></span>
+            <span id="usd-rate-updated" class="usd-rate-meta usd-rate-updated"></span>
+            <button class="btn btn-ghost btn-sm btn-xs" onclick="fetchUsdRate(true)" id="btn-refresh-usd">↻ Actualizar</button>
+            <button class="btn btn-ghost btn-sm btn-xs" onclick="openUsdRateModal()">✎</button>
           </div>
         </div>
       </div>
@@ -309,18 +327,7 @@
             </div>
           </div>
         </div>
-    </div>
-    </div><!-- /layout-section -->
-
-    <div class="layout-section" data-page="dashboard" data-key="usd"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('dashboard','usd',this)">● Tipo de cambio</button></div>
-    <div class="fade-up d2 usd-rate-card" id="usd-rate-card">
-      <span class="usd-rate-icon">💵</span>
-      <span class="usd-rate-main">U$D 1 = <span id="usd-rate-display">$1.420</span></span>
-      <span id="usd-rate-source-badge" class="usd-rate-source">blue</span>
-      <span id="usd-rate-status" class="usd-rate-meta"></span>
-      <span id="usd-rate-updated" class="usd-rate-meta usd-rate-updated"></span>
-      <button class="btn btn-ghost btn-sm btn-xs" onclick="fetchUsdRate(true)" id="btn-refresh-usd">↻</button>
-      <button class="btn btn-ghost btn-sm btn-xs" onclick="openUsdRateModal()">✎</button>
+      </div>
     </div>
     </div><!-- /layout-section -->
 
