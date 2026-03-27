@@ -15,7 +15,6 @@
 
     el.style.display = 'flex';
     requestAnimationFrame(()=> requestAnimationFrame(()=> el.classList.add('visible')));
-    _bindDepth(el);
 
     // Ensure the CTA button is clickable
     const cta = el.querySelector('.sp-cta');
@@ -46,12 +45,10 @@
     if(el._interval) clearInterval(el._interval);
     if(el._kd)       document.removeEventListener('keydown', el._kd);
 
-    _unbindDepth(el);
     el.classList.add('leaving','cinematic-exit');
     setTimeout(()=>{
       el.style.display = 'none';
       el.classList.remove('visible','leaving','cinematic-exit');
-      _resetDepth(el);
     }, 480);
   }
 
@@ -164,6 +161,11 @@
     const commitmentPreview = typeof detectAutoCuotas==='function'
       ? ((detectAutoCuotas().length||0) + (state.subscriptions||[]).length + ((state.fixedExpenses||[]).length||0))
       : ((state.subscriptions||[]).length + ((state.fixedExpenses||[]).length||0));
+    const topThree = Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).slice(0,3);
+    const reelTone = projectedGap!==null && projectedGap>0 ? 'Ajuste sugerido' : 'Cierre saludable';
+    const reelSub = milestone ? `${milestone.label} ${milestone.days===0?'hoy':'en '+milestone.days+' días'}` : 'Sin hitos críticos';
+    const usdRate = state.usdRate || (typeof USD_TO_ARS!=='undefined' ? USD_TO_ARS : 1420);
+    const reelSeries = topThree.length ? topThree : [['Visión general', curTotal || 1], ['Proyección', Math.max(projected || 1, 1)], ['Compromisos', Math.max(commitmentPreview || 1, 1)]];
 
     // ── Strings ──
     const DAYS   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -228,25 +230,49 @@
             </div>
           </div>
 
-          <div class="sp-hero-stack" aria-hidden="true">
-            <div class="sp-stage-card sp-stage-card-primary fade-in d2">
-              <div class="sp-stage-kicker">Resumen ejecutivo</div>
-              <div class="sp-stage-value">$${fmtN(curTotal)}</div>
-              <div class="sp-stage-sub">${cycleLabel.toLowerCase()} · ${exposureTone}</div>
-            </div>
-            <div class="sp-stage-card sp-stage-card-secondary fade-in d3">
-              <div class="sp-stage-mini-row">
-                <span class="sp-stage-mini-label">Dólar oficial</span>
-                <span class="sp-stage-mini-value">$${fmtN(state.usdRate||USD_TO_ARS||1420)}</span>
+          <div class="sp-reel fade-in d2" aria-hidden="true">
+            <div class="sp-reel-screen">
+              <div class="sp-reel-topline">
+                <span class="sp-reel-live"><span class="sp-reel-live-dot"></span> Live Brief</span>
+                <span class="sp-reel-period">${cycleLabel}</span>
               </div>
-              <div class="sp-stage-mini-row">
-                <span class="sp-stage-mini-label">Compromisos</span>
-                <span class="sp-stage-mini-value">${commitmentPreview}</span>
+              <div class="sp-reel-headline">${reelTone}</div>
+              <div class="sp-reel-highlight">$${fmtN(curTotal)}</div>
+              <div class="sp-reel-sub">${reelSub}</div>
+              <div class="sp-reel-chart">
+                ${reelSeries.map(([name,amount],idx)=>{
+                  const pct = curTotal>0 && topThree.length ? Math.max(18, Math.round((amount/curTotal)*100)) : [72, 54, 38][idx] || 28;
+                  return `
+                    <div class="sp-reel-bar-col" style="--bar-h:${pct}%;--bar-delay:${idx * 140}ms;">
+                      <div class="sp-reel-bar"></div>
+                      <div class="sp-reel-bar-label">${name}</div>
+                    </div>
+                  `;
+                }).join('')}
+              </div>
+              <div class="sp-reel-ticker">
+                <div class="sp-reel-ticker-track">
+                  <div class="sp-reel-ticker-item">${aiLead ? esc(aiLead.headline) : 'Tu briefing financiero está listo para entrar.'}</div>
+                  <div class="sp-reel-ticker-item">Dólar oficial en $${fmtN(usdRate)} y ${commitmentPreview} compromisos detectados.</div>
+                  <div class="sp-reel-ticker-item">${topEntry ? `${topEntry[0]} concentra ${topPct}% del gasto del período.` : 'Cargá más movimientos para enriquecer la lectura automática.'}</div>
+                </div>
               </div>
             </div>
-            <div class="sp-stage-card sp-stage-card-tertiary fade-in d4">
-              <div class="sp-stage-kicker">Motor IA</div>
-              <div class="sp-stage-quote">${aiLead ? esc(aiLead.headline) : 'Briefing listo para entrar.'}</div>
+            <div class="sp-reel-sidecards">
+              <div class="sp-reel-microcard fade-in d3">
+                <span class="sp-reel-micro-kicker">💵 Dólar</span>
+                <span class="sp-reel-micro-value">$${fmtN(usdRate)}</span>
+                <span class="sp-reel-micro-sub">oficial BNA</span>
+              </div>
+              <div class="sp-reel-microcard fade-in d4">
+                <span class="sp-reel-micro-kicker">Compromisos</span>
+                <span class="sp-reel-micro-value">${commitmentPreview}</span>
+                <span class="sp-reel-micro-sub">${exposureTone}</span>
+              </div>
+              <div class="sp-reel-microcard sp-reel-microcard-wide fade-in d4">
+                <span class="sp-reel-micro-kicker">Lectura asistida</span>
+                <span class="sp-reel-micro-quote">${aiLead ? aiLead.body : 'La portada se actualiza sola con señales, hitos y prioridad del día.'}</span>
+              </div>
             </div>
           </div>
         </div>
@@ -281,55 +307,6 @@
       </div>
     `;
     }
-  }
-
-  function _bindDepth(el){
-    const shell = el.querySelector('.sp-inner');
-    if(!shell) return;
-    _unbindDepth(el);
-    const move = evt => {
-      const point = evt.touches ? evt.touches[0] : evt;
-      const rect = el.getBoundingClientRect();
-      const px = ((point.clientX - rect.left) / rect.width) - 0.5;
-      const py = ((point.clientY - rect.top) / rect.height) - 0.5;
-      shell.style.setProperty('--sp-tilt-x', `${(-py * 9).toFixed(2)}deg`);
-      shell.style.setProperty('--sp-tilt-y', `${(px * 12).toFixed(2)}deg`);
-      shell.style.setProperty('--sp-shift-x', `${(px * 28).toFixed(2)}px`);
-      shell.style.setProperty('--sp-shift-y', `${(py * 22).toFixed(2)}px`);
-      shell.style.setProperty('--sp-glow-x', `${50 + px * 18}%`);
-      shell.style.setProperty('--sp-glow-y', `${28 + py * 16}%`);
-    };
-    const leave = () => _resetDepth(el);
-    el.addEventListener('mousemove', move);
-    el.addEventListener('touchmove', move, { passive:true });
-    el.addEventListener('mouseleave', leave);
-    el.addEventListener('touchend', leave);
-    el._spMove = move;
-    el._spLeave = leave;
-  }
-
-  function _unbindDepth(el){
-    if(el._spMove){
-      el.removeEventListener('mousemove', el._spMove);
-      el.removeEventListener('touchmove', el._spMove);
-      el._spMove = null;
-    }
-    if(el._spLeave){
-      el.removeEventListener('mouseleave', el._spLeave);
-      el.removeEventListener('touchend', el._spLeave);
-      el._spLeave = null;
-    }
-  }
-
-  function _resetDepth(el){
-    const shell = el?.querySelector('.sp-inner');
-    if(!shell) return;
-    shell.style.setProperty('--sp-tilt-x','0deg');
-    shell.style.setProperty('--sp-tilt-y','0deg');
-    shell.style.setProperty('--sp-shift-x','0px');
-    shell.style.setProperty('--sp-shift-y','0px');
-    shell.style.setProperty('--sp-glow-x','50%');
-    shell.style.setProperty('--sp-glow-y','28%');
   }
 
   // ── Expose globals ──
