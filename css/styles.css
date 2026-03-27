@@ -73,9 +73,9 @@
   --card-elevated: linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.015));
   --card-muted:    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.012));
   --ease-premium:  cubic-bezier(.22,1,.36,1);
-  --dur-fast:      160ms;
-  --dur-med:       260ms;
-  --dur-slow:      420ms;
+  --dur-fast:      180ms;
+  --dur-med:       320ms;
+  --dur-slow:      520ms;
 
   /* Geometry */
   --r:    18px;
@@ -462,6 +462,13 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
 .main { padding: 36px 44px; display: flex; flex-direction: column; gap: 22px; min-width: 0; position: relative; }
 .page { display: none; }
 .page.active { display: flex; flex-direction: column; gap: 22px; }
+.page.page-enter {
+  animation: pageEnter var(--dur-slow) var(--ease-premium);
+}
+@keyframes pageEnter {
+  from { opacity: 0; transform: translateY(10px) scale(0.996); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
 
 /* Page header — Apple keynote title style */
 .page-header { display: flex; justify-content: space-between; align-items: flex-start; }
@@ -1925,7 +1932,7 @@ select.input-field { cursor: pointer; }
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   z-index: 1000; display: none; align-items: center; justify-content: center;
 }
-.modal-overlay.open { display: flex; }
+.modal-overlay.open { display: flex; animation: modalBackdropIn 220ms var(--ease-premium); }
 .modal {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
@@ -1938,6 +1945,17 @@ select.input-field { cursor: pointer; }
   width: 500px; max-width: 92vw;
   box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255,255,255,0.08);
   max-height: 90vh; overflow-y: auto;
+}
+.modal-overlay.open .modal {
+  animation: modalSheetIn 360ms var(--ease-premium);
+}
+@keyframes modalBackdropIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes modalSheetIn {
+  from { opacity: 0; transform: translateY(14px) scale(0.992); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 .modal-title {
   font-size: 21px; font-weight: 750; margin-bottom: 6px;
@@ -1969,14 +1987,14 @@ select.input-field { cursor: pointer; }
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(10px); }
+  from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.fade-up { animation: fadeUp var(--dur-med) var(--ease-premium) forwards; }
-.d1 { animation-delay: .05s; opacity: 0; }
-.d2 { animation-delay: .10s; opacity: 0; }
-.d3 { animation-delay: .15s; opacity: 0; }
-.d4 { animation-delay: .20s; opacity: 0; }
+.fade-up { animation: fadeUp var(--dur-med) var(--ease-premium) forwards; animation-delay: var(--stagger-delay, 0s); }
+.d1 { --stagger-delay: .05s; opacity: 0; }
+.d2 { --stagger-delay: .10s; opacity: 0; }
+.d3 { --stagger-delay: .15s; opacity: 0; }
+.d4 { --stagger-delay: .20s; opacity: 0; }
 
 .empty-state { text-align: center; padding: 60px 32px; color: var(--text2); }
 .empty-icon { font-size: 40px; margin-bottom: 14px; opacity: 0.25; }
@@ -4809,11 +4827,11 @@ body.light-mode .notif-item.notif-alert { border-color: rgba(0,0,0,0.10); border
   flex-direction: column;
   overflow: hidden;
   transform-origin: top left;
-  animation: notifAppear 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: notifAppear 0.34s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes notifAppear {
-  from { opacity: 0; transform: scale(0.9) translateY(-10px); }
+  from { opacity: 0; transform: scale(0.96) translateY(-8px); }
   to { opacity: 1; transform: scale(1) translateY(0); }
 }
 
@@ -5169,8 +5187,11 @@ body.light-mode .notif-item.notif-alert { border-color: rgba(0,0,0,0.10); border
 .btn-primary:hover,
 .btn-secondary:hover,
 .decision-card:hover,
-.upload-dropzone:hover {
-  transform: translateY(-2px);
+.upload-dropzone:hover,
+.chart-card:hover,
+.dw-card:hover,
+.dash-hero-card:hover {
+  transform: translateY(-1px) scale(1.002);
 }
 .modal.open,
 #txn-detail-panel.open,
@@ -5178,8 +5199,13 @@ body.light-mode .notif-item.notif-alert { border-color: rgba(0,0,0,0.10); border
   animation: premiumRise var(--dur-med) var(--ease-premium);
 }
 @keyframes premiumRise {
-  from { opacity: 0; transform: translateY(16px) scale(0.985); }
+  from { opacity: 0; transform: translateY(12px) scale(0.992); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.comp-donut-ring {
+  transition:
+    stroke-dashoffset var(--dur-slow) var(--ease-premium),
+    stroke var(--dur-med) var(--ease-premium);
 }
 
 /* ─── Dashboard Decision Center ─── */

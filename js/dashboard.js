@@ -49,7 +49,7 @@ function updateUsdRateUI(){
   const rate=USD_TO_ARS;
   // Card en dashboard
   const disp=document.getElementById('usd-rate-display');
-  if(disp)disp.textContent='$'+fmtN(rate);
+  if(disp)animateNumberText(disp,rate,{prefix:'$',decimals:2,duration:680});
   const src=document.getElementById('usd-rate-source-badge');
   if(src)src.textContent=state.usdRateSource||'manual';
   const upd=document.getElementById('usd-rate-updated');
@@ -806,13 +806,16 @@ function renderDashboard(){
   // ── Hero ──
   const dhcML=document.getElementById('dhc-month-label');
   if(dhcML)dhcML.textContent=isTcView&&activeTcCycle?activeTcCycle.label.toUpperCase():(MNAMES[pM-1]+' '+pY).toUpperCase();
-  document.getElementById('kpi-ars').textContent='$'+fmtN(totalGastoARS);
+  animateNumberText(document.getElementById('kpi-ars'),totalGastoARS,{prefix:'$',decimals:2,duration:920});
   // ARS/USD breakdown line
   const _arsLine=document.getElementById('dhc-ars-line');
   const _usdLine=document.getElementById('dhc-usd-line');
   const _pctInline=document.getElementById('dhc-pct-inline');
-  if(_arsLine)_arsLine.textContent='$'+fmtN(arsMonth);
-  if(_usdLine)_usdLine.textContent=usdMonth>0?'U$D '+fmtN(usdMonth):'—';
+  if(_arsLine)animateNumberText(_arsLine,arsMonth,{prefix:'$',decimals:2,duration:760});
+  if(_usdLine){
+    if(usdMonth>0)animateNumberText(_usdLine,usdMonth,{prefix:'U$D ',decimals:2,duration:760});
+    else _usdLine.textContent='—';
+  }
   if(_pctInline&&pct!==null)_pctInline.textContent=pct+'% del ingreso';
   else if(_pctInline)_pctInline.textContent='';
   // Hidden compat
@@ -855,10 +858,13 @@ function renderDashboard(){
     const margenPct=Math.max(0,Math.min(100,Math.round(margenDisp/spendBudget*100)));
     const gastoPct=Math.min(100,Math.round(totalGastoARS/spendBudget*100));
     const isOver=margenDisp<0;
-    document.getElementById('dhc-margin-val').textContent=(isOver?'−$':'$')+fmtN(Math.abs(Math.round(margenDisp)));
+    animateNumberText(document.getElementById('dhc-margin-val'),Math.abs(Math.round(margenDisp)),{
+      decimals:2,
+      formatter:(n)=>(isOver?'−$':'$')+fmtN(n)
+    });
     document.getElementById('dhc-margin-val').style.color=isOver?'var(--danger)':margenPct<20?'var(--accent3)':'var(--green-sys)';
     const mFill=document.getElementById('dhc-margin-fill');
-    mFill.style.width=gastoPct+'%';
+    animateProgressBar(mFill,gastoPct);
     mFill.style.background=isOver?'var(--danger)':gastoPct>=state.alertThreshold?'var(--accent3)':'var(--accent)';
     document.getElementById('dhc-margin-sub').textContent=isOver?'Excedido en $'+fmtN(Math.abs(Math.round(margenDisp))):'Te quedan $'+fmtN(Math.round(margenDisp))+' disponibles';
     const _sp=state.spendPct||100;
@@ -923,7 +929,7 @@ function renderDashboard(){
   const pLabel=document.getElementById('dhc-progress-label');
   if(pFill&&pct!==null){
     const col=pct>=100?'var(--danger)':pct>=state.alertThreshold?'var(--accent3)':'var(--accent)';
-    pFill.style.width=Math.min(100,pct)+'%';pFill.style.background=col;
+    animateProgressBar(pFill,Math.min(100,pct));pFill.style.background=col;
     if(pLabel)pLabel.textContent=pct+'% usado del ingreso · meta: '+state.alertThreshold+'%';
   } else if(pFill){pFill.style.width='0%';}
 
@@ -961,8 +967,14 @@ function renderDashboard(){
     const prefix=card.payMethodKey==='visa'?'visa':'amex';
     const arsEl=document.getElementById('kpi-'+prefix+'-ars');
     const usdEl=document.getElementById('kpi-'+prefix+'-usd');
-    if(arsEl)arsEl.textContent=cardArs>0?'$'+fmtN(Math.round(cardArs)):'—';
-    if(usdEl)usdEl.textContent=cardUsd>0?'U$D '+fmtN(cardUsd):'';
+    if(arsEl){
+      if(cardArs>0)animateNumberText(arsEl,Math.round(cardArs),{prefix:'$',decimals:2,duration:720});
+      else arsEl.textContent='—';
+    }
+    if(usdEl){
+      if(cardUsd>0)animateNumberText(usdEl,cardUsd,{prefix:'U$D ',decimals:2,duration:720});
+      else usdEl.textContent='';
+    }
   });
   const cycleCaption=document.getElementById('kpi-cycle-caption');
   if(cycleCaption){
@@ -983,15 +995,15 @@ function renderDashboard(){
         projEl.textContent='—'; projEl.style.color='var(--text3)';
         if(projD)projD.textContent='Sin datos cargados en este ciclo';
       } else {
-        projEl.textContent='$'+fmtN(projected);
+        animateNumberText(projEl,projected,{prefix:'$',decimals:2,duration:860});
         const overBudget=incTotalARS>0&&projected>incTotalARS;
         projEl.style.color=overBudget?'var(--danger)':projected>incTotalARS*0.85?'var(--accent3)':'var(--text)';
         const closeLabel=projPeriodClose?projPeriodClose.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}):'cierre';
         if(projD)projD.textContent=overBudget?'Exige ajuste antes del '+closeLabel:'Estimación activa hasta '+closeLabel;
         const _dailyEl=document.getElementById('kpi-proj-daily');
-        if(_dailyEl)_dailyEl.textContent='$'+fmtN(Math.round(dailyRate));
+        if(_dailyEl)animateNumberText(_dailyEl,Math.round(dailyRate),{prefix:'$',decimals:2,duration:720});
         const _daysEl=document.getElementById('kpi-proj-days');
-        if(_daysEl)_daysEl.textContent=daysLeft;
+        if(_daysEl)animateNumberText(_daysEl,daysLeft,{decimals:0,duration:620,formatter:(n)=>String(Math.round(n))});
         const _daysLabel=document.getElementById('kpi-proj-days-label');
         if(_daysLabel)_daysLabel.textContent='CIERRE TC'+(projPeriodClose?' · '+projPeriodClose.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}):'');
       }
@@ -999,14 +1011,14 @@ function renderDashboard(){
     } else {
       // Mes mode
       if(isCurrentMonth){
-        projEl.textContent='$'+fmtN(projected);
+        animateNumberText(projEl,projected,{prefix:'$',decimals:2,duration:860});
         const overBudget=incTotalARS>0&&projected>incTotalARS;
         projEl.style.color=overBudget?'var(--danger)':projected>incTotalARS*0.85?'var(--accent3)':'var(--text)';
         if(projD)projD.textContent=overBudget?'Ritmo alto para este mes':'Ritmo estimado al cierre mensual';
         const _dailyEl2=document.getElementById('kpi-proj-daily');
-        if(_dailyEl2)_dailyEl2.textContent='$'+fmtN(Math.round(dailyRate));
+        if(_dailyEl2)animateNumberText(_dailyEl2,Math.round(dailyRate),{prefix:'$',decimals:2,duration:720});
         const _daysEl2=document.getElementById('kpi-proj-days');
-        if(_daysEl2)_daysEl2.textContent=daysLeft;
+        if(_daysEl2)animateNumberText(_daysEl2,daysLeft,{decimals:0,duration:620,formatter:(n)=>String(Math.round(n))});
         const _daysLabel2=document.getElementById('kpi-proj-days-label');
         if(_daysLabel2)_daysLabel2.textContent='DÍAS AL CIERRE';
       } else {
@@ -1025,7 +1037,7 @@ function renderDashboard(){
   const compEl=document.getElementById('kpi-compromisos');
   const compD=document.getElementById('kpi-compromisos-d');
   if(compEl){
-    compEl.textContent='$'+fmtN(Math.round(compromisoTotal));
+    animateNumberText(compEl,Math.round(compromisoTotal),{prefix:'$',decimals:2,duration:820});
     const nC=autoGroups.length+state.cuotas.filter(c=>c.paid<c.total).length;
     const nS=state.subscriptions.length;
     const nF=(state.fixedExpenses||[]).length;
@@ -1050,12 +1062,12 @@ function renderDashboard(){
     if(compDonut&&incTotalARS>0){
       const compPct=Math.min(Math.round(compromisoTotal/incTotalARS*100),100);
       const tone=compPct>50?'var(--danger)':compPct>30?'var(--accent3)':'var(--accent2)';
-      const circumference=2*Math.PI*38;
-      const offset=circumference-(compPct/100)*circumference;
       compDonut.style.stroke=tone;
-      compDonut.style.strokeDasharray=`${circumference}`;
-      compDonut.style.strokeDashoffset=`${offset}`;
-      if(compDonutLabel){compDonutLabel.textContent=compPct+'%';compDonutLabel.style.color=tone;}
+      animateDonutStroke(compDonut,compPct,38);
+      if(compDonutLabel){
+        animateNumberText(compDonutLabel,compPct,{decimals:0,duration:760,suffix:'%',formatter:(n)=>`${Math.round(n)}%`});
+        compDonutLabel.style.color=tone;
+      }
     } else if(compDonut){
       const circumference=2*Math.PI*38;
       compDonut.style.strokeDasharray=`${circumference}`;
@@ -1259,10 +1271,10 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     const dailyLeft = daysLeft > 0 ? Math.round(margen / daysLeft) : 0;
     const usedPct   = Math.min(100, Math.round((arsMonth / incTotalARS) * 100));
     const col       = usedPct >= 100 ? 'var(--danger)' : usedPct >= 80 ? 'var(--accent3)' : 'var(--accent)';
-    wMargenVal.textContent   = '$' + fmtN(margen);
+    animateNumberText(wMargenVal,margen,{prefix:'$',decimals:2,duration:760});
     wMargenVal.style.color   = margen <= 0 ? 'var(--danger)' : 'var(--text)';
     wMargenSub.textContent   = margen > 0 ? (daysLeft > 0 ? daysLeft + ' días restantes este mes' : 'Fin de mes') : 'Ingreso superado ⚠️';
-    wMargenBar.style.width   = usedPct + '%';
+    animateProgressBar(wMargenBar,usedPct);
     wMargenBar.style.background = col;
     wMargenFoot.textContent  = dailyLeft > 0 ? '$' + fmtN(dailyLeft) + '/día disponible · ' + usedPct + '% del ingreso usado' : usedPct + '% del ingreso usado';
   } else {
@@ -1347,19 +1359,19 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     wGoalVal.textContent    = (g.emoji || '🎯') + ' ' + g.name;
     wGoalVal.style.color    = 'var(--text)';
     wGoalSub.textContent    = prefix + fmtN(Math.round(_gCur)) + ' de ' + prefix + fmtN(g.target) + ' · ' + pct + '%';
-    wGoalBar.style.width    = pct + '%';
+    animateProgressBar(wGoalBar,pct);
     wGoalBar.style.background = c;
     wGoalFoot.textContent   = eta ? eta + ' mes' + (eta !== 1 ? 'es' : '') + ' estimados al ritmo actual' : 'Registrá depósitos para estimar el tiempo';
   } else if(goals.length){
     wGoalVal.textContent  = '🎉 Todas completadas';
     wGoalVal.style.color  = 'var(--accent)';
     wGoalSub.textContent  = goals.length + ' meta' + (goals.length !== 1 ? 's' : '') + ' alcanzada' + (goals.length !== 1 ? 's' : '');
-    wGoalBar.style.width  = '100%';
+    animateProgressBar(wGoalBar,100);
     wGoalFoot.textContent = '¡Creá una nueva meta!';
   } else {
     wGoalVal.textContent  = '—';
     wGoalSub.textContent  = 'Sin metas configuradas';
-    wGoalBar.style.width  = '0%';
+    animateProgressBar(wGoalBar,0);
     wGoalFoot.textContent = 'Ir a Ahorros → Nueva meta →';
   }
 }

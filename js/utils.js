@@ -18,6 +18,88 @@ function parseDate(raw){if(!raw)return null;const m=String(raw).match(/(\d{1,2})
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function updateSidebarStats(){/* sidebar stats removed */}
 function showToast(msg,type='info'){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show';setTimeout(()=>t.classList.remove('show'),3500);}
+const _animFrameMap=new WeakMap();
+function prefersReducedMotion(){
+  return window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+function animateNumberText(el,value,opts={}){
+  if(!el)return;
+  const num=Number(value);
+  const formatter=typeof opts.formatter==='function'?opts.formatter:(n=>`${opts.prefix||''}${fmtN(n,opts.decimals)}${opts.suffix||''}`);
+  if(!isFinite(num)){el.textContent=opts.fallback??'—';return;}
+  if(prefersReducedMotion()){el.textContent=formatter(num);return;}
+  const prev=_animFrameMap.get(el);
+  if(prev)cancelAnimationFrame(prev);
+  const duration=opts.duration||820;
+  const easing=opts.easing||((t)=>1-Math.pow(1-t,4));
+  const start=performance.now();
+  const from=Number.isFinite(opts.from)?Number(opts.from):0;
+  const tick=(now)=>{
+    const progress=Math.min(1,(now-start)/duration);
+    const eased=easing(progress);
+    const current=from+((num-from)*eased);
+    el.textContent=formatter(current);
+    if(progress<1){
+      _animFrameMap.set(el,requestAnimationFrame(tick));
+    }else{
+      el.textContent=formatter(num);
+      _animFrameMap.delete(el);
+    }
+  };
+  _animFrameMap.set(el,requestAnimationFrame(tick));
+}
+function animateProgressBar(el,targetPct){
+  if(!el)return;
+  const pct=Math.max(0,Math.min(100,Number(targetPct)||0));
+  if(prefersReducedMotion()){el.style.width=pct+'%';return;}
+  el.style.transition='width 760ms var(--ease-premium)';
+  el.style.width='0%';
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{el.style.width=pct+'%';}));
+}
+function animateDonutStroke(el,targetPct,radius=38){
+  if(!el)return;
+  const pct=Math.max(0,Math.min(100,Number(targetPct)||0));
+  const circumference=2*Math.PI*radius;
+  if(prefersReducedMotion()){
+    el.style.strokeDasharray=`${circumference}`;
+    el.style.strokeDashoffset=`${circumference-(pct/100)*circumference}`;
+    return;
+  }
+  el.style.transition='stroke-dashoffset 820ms var(--ease-premium), stroke var(--dur-med) var(--ease-premium)';
+  el.style.strokeDasharray=`${circumference}`;
+  el.style.strokeDashoffset=`${circumference}`;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    el.style.strokeDashoffset=`${circumference-(pct/100)*circumference}`;
+  }));
+}
+function getFadeDelay(el,idx){
+  if(el.classList.contains('d1'))return 70;
+  if(el.classList.contains('d2'))return 130;
+  if(el.classList.contains('d3'))return 190;
+  if(el.classList.contains('d4'))return 250;
+  return idx*68;
+}
+function replayFadeUp(scope){
+  const root=typeof scope==='string'?document.querySelector(scope):scope;
+  if(!root||prefersReducedMotion())return;
+  const nodes=[...root.querySelectorAll('.fade-up')];
+  nodes.forEach((el,idx)=>{
+    el.style.animation='none';
+    el.style.opacity='0';
+    el.style.setProperty('--stagger-delay',`${getFadeDelay(el,idx)}ms`);
+    void el.offsetWidth;
+    el.style.animation='fadeUp var(--dur-med) var(--ease-premium) forwards';
+  });
+}
+function animatePageEnter(pageEl){
+  if(!pageEl)return;
+  if(prefersReducedMotion())return;
+  pageEl.classList.remove('page-enter');
+  void pageEl.offsetWidth;
+  pageEl.classList.add('page-enter');
+  replayFadeUp(pageEl);
+  setTimeout(()=>pageEl.classList.remove('page-enter'),560);
+}
 /* iOS scroll-lock helpers */
 let _iosOvCnt=0,_iosSY=0;
 function _iosLock(){if(++_iosOvCnt===1){_iosSY=window.scrollY;document.body.style.overflow='hidden';document.body.style.position='fixed';document.body.style.top=(-_iosSY)+'px';document.body.style.width='100%';}}
@@ -42,6 +124,10 @@ function toggleSidebar(){
   const btn=document.getElementById('sidebar-open-btn');
   if(btn)btn.style.display=collapsed?'flex':'none';
 }
+window.addEventListener('load',()=>{
+  const active=document.querySelector('.page.active');
+  if(active)animatePageEnter(active);
+});
 function loadSidebar(){
   const saved=localStorage.getItem('fin_sidebar');
   if(saved==='collapsed'){
@@ -170,4 +256,3 @@ function renderSubsAnnual(){
     </div>`;
   }).join('');
 }
-

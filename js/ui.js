@@ -221,6 +221,7 @@ function nav(page){
   if(page==='cc-compare'){if(typeof initCcCompare==='function')initCcCompare();}
   // Apply saved layout for this page
   setTimeout(()=>applyLayout(page), 0);
+  requestAnimationFrame(()=>animatePageEnter(document.getElementById('page-'+page)));
 }
 
 // ══ CAT HELPERS ══
@@ -456,7 +457,10 @@ function toggleNotifPanel() {
   if(!panel) return;
   const isShow = panel.style.display === 'none';
   panel.style.display = isShow ? 'flex' : 'none';
-  if(isShow) renderNotifications();
+  if(isShow){
+    renderNotifications();
+    requestAnimationFrame(()=>replayFadeUp(panel));
+  }
 }
 
 function renderNotifications() {
