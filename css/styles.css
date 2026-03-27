@@ -491,6 +491,30 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
 .link-inline-action:hover { color: var(--accent); }
 .hidden-stack { display:none; flex-direction:column; gap:14px; }
 .content-stack { display:none; flex-direction:column; gap:20px; }
+#page-dashboard .content-stack {
+  gap: 28px;
+}
+#page-dashboard .layout-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+#page-dashboard .dashboard-header {
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 10px;
+}
+#page-dashboard .header-actions {
+  gap: 10px;
+  margin-bottom: 6px;
+}
+#page-dashboard .page-title {
+  font-size: clamp(32px, 4.2vw, 44px);
+  line-height: 0.95;
+}
+#page-dashboard .page-subtitle {
+  margin-top: 8px;
+}
 
 .notif-trigger {
   position:relative;
@@ -1449,16 +1473,16 @@ tr:last-child td { border-bottom: none; }
 /* ════════════════════════════════════════════════
    DASHBOARD — Apple keynote hero numbers
 ════════════════════════════════════════════════ */
-.dash-row-hero { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 16px; align-items: start; }
+.dash-row-hero { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 22px; align-items: start; }
 .dash-row-hero.has-side-notifs { grid-template-columns: 250px minmax(0,1.08fr) minmax(320px,0.74fr); }
-.dash-row-charts { display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; }
+.dash-row-charts { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; }
 .dash-row-charts .chart-card {
-  padding: 26px;
+  padding: 28px;
 }
 .dash-hero-main-col {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 22px;
   min-width: 0;
 }
 
@@ -1470,10 +1494,11 @@ tr:last-child td { border-bottom: none; }
     var(--surface-solid);
   border: 1px solid rgba(255,255,255,0.12);
   border-radius: var(--r);
-  padding: 22px 24px 20px;
-  display: flex; flex-direction: column; gap: 14px;
+  padding: 24px 26px 22px;
+  display: flex; flex-direction: column; gap: 16px;
   position: relative; overflow: hidden;
   box-shadow: var(--shadow-lg);
+  min-height: 392px;
 }
 /* Thin colored rule at top */
 .dash-hero-card::before {
@@ -1494,7 +1519,7 @@ tr:last-child td { border-bottom: none; }
   letter-spacing: 0.16em; text-transform: uppercase;
   color: var(--text3);
 }
-.dhc-main { display: flex; align-items: flex-end; gap: 14px; flex-wrap: wrap; }
+.dhc-main { display: flex; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
 
 /* THE big Apple keynote number */
 .dhc-amount {
@@ -1538,14 +1563,14 @@ tr:last-child td { border-bottom: none; }
 .dhc-progress-label { font-size: 10px; color: var(--text3); font-family: var(--font); font-weight: 500; margin-top: 5px; }
 
 /* KPI secondary cards */
-.dash-kpis-col { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.dash-kpis-col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
 .dkpi {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.015)),
     var(--surface-solid);
   border: 1px solid var(--glass-border);
   border-radius: var(--r2);
-  padding: 15px 16px;
+  padding: 17px 18px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 12px; flex: 1;
   box-shadow: var(--shadow-xs);
@@ -1609,9 +1634,10 @@ tr:last-child td { border-bottom: none; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 14px;
-  padding: 14px 18px;
-  min-height: 72px;
+  gap: 16px;
+  padding: 18px 22px;
+  min-height: 90px;
+  margin-top: 4px;
 }
 .usd-rate-inline-left,
 .usd-rate-inline-right {
@@ -1626,7 +1652,7 @@ tr:last-child td { border-bottom: none; }
 .usd-rate-inline-copy {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 .usd-rate-inline-kicker {
   font-size: 10px;
@@ -1637,6 +1663,7 @@ tr:last-child td { border-bottom: none; }
 }
 .usd-rate-inline-right {
   justify-content: flex-end;
+  gap: 10px;
 }
 
 /* Top 5 */
@@ -1673,17 +1700,20 @@ tr:last-child td { border-bottom: none; }
 .top5-amount { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; letter-spacing: -0.02em; }
 
 /* Widgets */
-.dash-widgets-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 18px; }
+.dash-widgets-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 22px; }
 .dw-card {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015)),
     var(--surface-solid);
   border: 1px solid var(--glass-border);
   border-radius: var(--r);
-  padding: 22px 24px;
+  padding: 24px 24px 22px;
   position: relative; overflow: hidden;
   box-shadow: var(--shadow-xs);
   transition: box-shadow 0.2s;
+  min-height: 176px;
+  display: flex;
+  flex-direction: column;
 }
 .dw-card:hover { box-shadow: var(--shadow-md); }
 .dw-card::before {
@@ -1708,6 +1738,26 @@ tr:last-child td { border-bottom: none; }
 .dw-bar-track { height: 3px; background: rgba(0,0,0,0.07); border-radius: 2px; overflow: hidden; }
 .dw-bar-fill { height: 100%; border-radius: 2px; transition: width 0.7s cubic-bezier(.34,1.56,.64,1); }
 .dw-footer { margin-top: 10px; font-size: 11px; color: var(--text3); display: flex; align-items: center; gap: 6px; }
+
+#page-dashboard .dash-hero-card,
+#page-dashboard #usd-rate-card,
+#page-dashboard .dkpi,
+#page-dashboard .chart-card,
+#page-dashboard .dw-card {
+  border-radius: 24px;
+}
+#page-dashboard .chart-card-header {
+  margin-bottom: 20px;
+}
+#page-dashboard .chart-card-title-spaced {
+  margin-bottom: 18px;
+}
+#page-dashboard .top5-inline-grid {
+  gap: 12px;
+}
+#page-dashboard .top5-inline-item {
+  padding: 16px;
+}
 .dw-badge {
   display: inline-flex; align-items: center; gap: 3px;
   padding: 2px 8px; border-radius: 980px;
@@ -3353,15 +3403,17 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   .edit-layout-btn, .section-drag-handle, .layout-edit-banner { display: none !important; }
   .section-controls { display: none; }
   .dash-row-hero,
-  .dash-row-hero.has-side-notifs { grid-template-columns: 1fr; gap: 10px; }
-  .dash-hero-main-col { gap: 10px; }
-  .usd-rate-card-inline { padding: 12px 14px; }
+  .dash-row-hero.has-side-notifs { grid-template-columns: 1fr; gap: 14px; }
+  .dash-hero-main-col { gap: 14px; }
+  .usd-rate-card-inline { padding: 14px 16px; min-height: 82px; }
   .usd-rate-inline-right { justify-content: flex-start; }
   .dash-hero-card { padding: 18px 16px; }
   .dhc-amount { font-size: clamp(28px,8vw,42px); letter-spacing: -0.04em; }
-  .dash-kpis-col { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
-  .dkpi { padding: 12px 10px; }
+  .dash-kpis-col { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .dkpi { padding: 13px 12px; }
   .dkpi-value { font-size: clamp(14px,4.5vw,20px); }
+  #page-dashboard .content-stack { gap: 20px; }
+  #page-dashboard .layout-section { gap: 12px; }
   canvas { max-height: 220px; }
   .txn-filters { flex-wrap: wrap; gap: 6px; }
   .search-wrap { max-width: none; width: 100%; }
@@ -5131,7 +5183,7 @@ body.light-mode .notif-item.notif-alert { border-color: rgba(0,0,0,0.10); border
 }
 
 /* ─── Dashboard Decision Center ─── */
-.dash-decision-shell { margin-bottom: 8px; }
+.dash-decision-shell { margin-bottom: 10px; }
 .decision-center {
   position: relative;
   overflow: hidden;
@@ -5140,7 +5192,7 @@ body.light-mode .notif-item.notif-alert { border-color: rgba(0,0,0,0.10); border
   background:
     radial-gradient(circle at top right, rgba(205,236,255,0.18), transparent 34%),
     linear-gradient(145deg, rgba(11,15,25,0.96), rgba(17,27,42,0.92));
-  padding: 24px;
+  padding: 26px 28px;
   box-shadow: 0 26px 60px rgba(0,0,0,0.22);
 }
 .decision-center-head {
@@ -5148,7 +5200,7 @@ body.light-mode .notif-item.notif-alert { border-color: rgba(0,0,0,0.10); border
   align-items:flex-start;
   justify-content:space-between;
   gap:18px;
-  margin-bottom:18px;
+  margin-bottom:20px;
 }
 .decision-center-actions {
   display:flex;
@@ -5158,7 +5210,7 @@ body.light-mode .notif-item.notif-alert { border-color: rgba(0,0,0,0.10); border
   justify-content:flex-end;
 }
 .decision-center-title {
-  font-size: 24px;
+  font-size: 26px;
   line-height: 1.05;
   letter-spacing: -0.05em;
   font-weight: 720;
@@ -5211,7 +5263,7 @@ body.light-mode .notif-item.notif-alert { border-color: rgba(0,0,0,0.10); border
 .decision-card-grid {
   display:grid;
   grid-template-columns:repeat(4,minmax(0,1fr));
-  gap:14px;
+  gap:16px;
 }
 .decision-card {
   appearance:none;
