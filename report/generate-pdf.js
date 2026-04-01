@@ -1,233 +1,359 @@
 /**
- * generate-pdf.js — PDF limpio sin emojis (Helvetica no los soporta)
+ * generate-pdf.js — Apple-style financial report (Helvetica, no emojis)
  */
 
 const PDFDocument = require('pdfkit');
 const fs = require('fs');
 
+/* ── Color palette ── */
+const C = {
+  bg:      '#FFFFFF',
+  dark:    '#1D1D1F',
+  text1:   '#1D1D1F',
+  text2:   '#6E6E73',
+  text3:   '#AEAEB2',
+  accent:  '#0071E3',   // Apple blue
+  green:   '#30D158',
+  red:     '#FF453A',
+  orange:  '#FF9F0A',
+  card:    '#F5F5F7',
+  cardAlt: '#FBFBFD',
+  divider: '#E5E5EA',
+  headerBg:'#1D1D1F',
+};
+
 function fmtN(n) {
   if (n == null || isNaN(n)) return '--';
   return Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
-
 function fmtDate(iso) {
   return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
-
 function shortDate(iso) {
-  return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+  return new Date(iso).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
 }
 
 async function generatePDF(report, aiInsights, outputPath) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: 'A4',
-      margins: { top: 50, bottom: 50, left: 50, right: 50 },
+      margins: { top: 0, bottom: 40, left: 0, right: 0 },
       bufferPages: true,
-      info: { Title: 'Reporte Financiero Semanal', Author: 'Registro de Finanzas' },
+      info: { Title: 'Reporte Financiero', Author: 'Registro de Finanzas' },
     });
 
     const stream = fs.createWriteStream(outputPath);
     doc.pipe(stream);
 
-    const W = doc.page.width - 100;
-    const BLUE = '#0066FF';
-    const RED = '#FF3B30';
-    const GREEN = '#34C759';
-    const GRAY = '#8E8E93';
-    const LGRAY = '#F2F2F7';
-    const DARK = '#1D1D1F';
+    const PW = doc.page.width;   // 595
+    const PH = doc.page.height;  // 842
+    const MX = 40;               // horizontal margin
+    const W = PW - MX * 2;       // usable width
+    const COL_GAP = 10;
 
-    // ── HEADER ──
-    doc.rect(0, 0, doc.page.width, 90).fill(DARK);
-    doc.font('Helvetica-Bold').fontSize(20).fillColor('#FFFFFF')
-      .text('Reporte Financiero Semanal', 50, 25, { width: W });
-    doc.font('Helvetica').fontSize(9).fillColor('#AEAEB2')
-      .text(`Semana ${shortDate(report.period.weekStart)} al ${shortDate(report.period.weekEnd)}  |  Generado: ${fmtDate(report.generatedAt)}  |  TC: $${fmtN(report.usdRate)}`, 50, 52, { width: W });
+    /* ═══════════════════════════════════════════
+       HEADER
+    ═══════════════════════════════════════════ */
+    doc.rect(0, 0, PW, 80).fill(C.headerBg);
+    doc.font('Helvetica-Bold').fontSize(18).fillColor('#FFFFFF')
+      .text('Reporte Financiero', MX, 22, { width: W });
+    doc.font('Helvetica').fontSize(8.5).fillColor('#AEAEB2')
+      .text(`Semana ${shortDate(report.period.weekStart)} al ${shortDate(report.period.weekEnd)}  |  ${fmtDate(report.generatedAt)}  |  TC: $${fmtN(report.usdRate)}`, MX, 46, { width: W });
 
-    let y = 110;
+    let y = 96;
 
-    // ── RESUMEN ──
-    y = section(doc, 'RESUMEN DEL PERIODO', y, W);
+    /* ═══════════════════════════════════════════
+       SECTION 1 — DASHBOARD WIDGETS
+    ═══════════════════════════════════════════ */
 
-    const kpis = [
-      ['Gasto semanal', `$${fmtN(report.week.totalARS)}`, `${report.week.txCount} mov.`, BLUE],
-      ['Gasto mensual', `$${fmtN(report.month.totalARS)}`, `${report.month.txCount} mov.`, BLUE],
-      ['Ingreso del mes', `$${fmtN(report.income.totalARS)}`, report.incomeUsedPct != null ? `${report.incomeUsedPct}% usado` : 'Sin registrar', GREEN],
-      ['Margen disponible', report.marginARS != null ? `$${fmtN(report.marginARS)}` : '--', report.marginARS != null && report.marginARS < 0 ? 'DEFICIT' : 'Este mes', report.marginARS != null && report.marginARS < 0 ? RED : GREEN],
-    ];
-    y = kpiGrid(doc, kpis, y, W);
+    // ── Row 1: Gasto Semanal | Gasto Mensual | Margen Disponible ──
+    const col3W = (W - COL_GAP * 2) / 3;
 
+    y = drawWidgetCard(doc, MX, y, col3W, 68, 'Gasto Semanal', `$${fmtN(report.week.totalARS)}`, `${report.week.txCount} movimientos`, C.accent);
+    const y1 = y;
+    drawWidgetCard(doc, MX + col3W + COL_GAP, y - 68, col3W, 68, 'Gasto Mensual', `$${fmtN(report.month.totalARS)}`, `${report.month.txCount} movimientos`, C.accent);
+
+    const marginVal = report.marginARS;
+    const marginLabel = marginVal != null ? `$${fmtN(marginVal)}` : '--';
+    const marginColor = marginVal != null && marginVal < 0 ? C.red : C.green;
+    const marginSub = marginVal != null && marginVal < 0 ? 'DEFICIT' : 'Disponible este mes';
+    drawWidgetCard(doc, MX + (col3W + COL_GAP) * 2, y - 68, col3W, 68, 'Margen Disponible', marginLabel, marginSub, marginColor);
+
+    // Week vs prev badge
     if (report.weekVsPrevPct != null) {
       const dir = report.weekVsPrevPct > 0 ? '+' : '';
-      const col = report.weekVsPrevPct > 10 ? RED : report.weekVsPrevPct < -5 ? GREEN : GRAY;
-      doc.font('Helvetica').fontSize(9).fillColor(col)
-        .text(`${dir}${report.weekVsPrevPct}% vs semana anterior ($${fmtN(report.prevWeek.totalARS)})`, 50, y, { width: W });
+      const col = report.weekVsPrevPct > 10 ? C.red : report.weekVsPrevPct < -5 ? C.green : C.text2;
+      doc.font('Helvetica').fontSize(7.5).fillColor(col)
+        .text(`${dir}${report.weekVsPrevPct}% vs semana anterior ($${fmtN(report.prevWeek.totalARS)})`, MX, y, { width: W });
       y += 16;
     }
 
-    // ── CATEGORIAS CON SUBCATEGORIAS ──
-    y = pageBreak(doc, y, 180);
-    y = section(doc, 'CATEGORIAS (MES)', y, W);
+    // ── Row 2: Ciclo Tarjeta de Credito ──
+    if (report.ccCycle) {
+      y += 4;
+      const cc = report.ccCycle;
+      // Full width card with inner grid
+      y = drawSectionLabel(doc, MX, y, 'CICLO TARJETA DE CREDITO');
 
-    if (report.categoryGroups && report.categoryGroups.length) {
-      report.categoryGroups.forEach(grp => {
-        y = pageBreak(doc, y, 40);
-
-        // Group header
-        doc.rect(50, y - 2, W, 18).fill('#E8E8ED');
-        doc.font('Helvetica-Bold').fontSize(9).fillColor(DARK)
-          .text(grp.group, 55, y, { width: 220 });
-        doc.font('Helvetica-Bold').fontSize(9).fillColor(DARK)
-          .text(`$${fmtN(grp.totalARS)}`, 300, y, { width: 100, align: 'right' });
-        // Bar
-        const barW = Math.min(grp.pct, 100) * 1.2;
-        doc.rect(420, y + 2, barW, 10).fill(BLUE);
-        doc.font('Helvetica-Bold').fontSize(8).fillColor(GRAY)
-          .text(`${grp.pct}%`, 480, y, { width: 40, align: 'right' });
-        y += 20;
-
-        // Subcategories
-        grp.subs.forEach(sub => {
-          y = pageBreak(doc, y, 14);
-          const subPct = grp.totalARS > 0 ? Math.round((sub.totalARS / report.month.totalARS) * 100) : 0;
-          doc.font('Helvetica').fontSize(8).fillColor('#555555')
-            .text(`  ${sub.name}`, 65, y, { width: 220 });
-          doc.font('Helvetica').fontSize(8).fillColor('#555555')
-            .text(`$${fmtN(sub.totalARS)}`, 300, y, { width: 100, align: 'right' });
-          doc.font('Helvetica').fontSize(7).fillColor(GRAY)
-            .text(`${sub.count} mov.`, 420, y, { width: 50 });
-          doc.font('Helvetica').fontSize(7).fillColor(GRAY)
-            .text(`${subPct}%`, 480, y, { width: 40, align: 'right' });
-          y += 14;
-        });
-        y += 4;
-      });
+      const cc4W = (W - COL_GAP * 3) / 4;
+      const ccY = y;
+      drawMiniCard(doc, MX, ccY, cc4W, 56, 'Gastado', `$${fmtN(cc.totalARS)}`, `${cc.txCount} mov.`, C.accent);
+      drawMiniCard(doc, MX + cc4W + COL_GAP, ccY, cc4W, 56, 'Dias al cierre', `${cc.daysLeft}`, `de ${cc.totalDays} dias`, cc.daysLeft <= 5 ? C.orange : C.text2);
+      drawMiniCard(doc, MX + (cc4W + COL_GAP) * 2, ccY, cc4W, 56, 'Prom. diario ciclo', `$${fmtN(cc.dailyAvg)}`, '', C.text2);
+      drawMiniCard(doc, MX + (cc4W + COL_GAP) * 3, ccY, cc4W, 56, 'Proyeccion cierre', `$${fmtN(cc.projectedClose)}`, `al ${cc.closeDate.slice(8)}/${cc.closeDate.slice(5, 7)}`, cc.projectedClose > cc.totalARS * 1.3 ? C.orange : C.accent);
+      y = ccY + 56 + 6;
     }
 
-    // ── COMPROMISOS ──
-    y = pageBreak(doc, y, 130);
-    y = section(doc, 'COMPROMISOS FIJOS', y, W);
+    // ── Row 3: Promedio por dia de la semana ──
+    if (report.weekdayAvg) {
+      y += 4;
+      y = drawSectionLabel(doc, MX, y, 'GASTO PROMEDIO POR DIA');
+      const barAreaW = W;
+      const barItemW = barAreaW / 7;
+      const maxAvg = Math.max(...report.weekdayAvg.map(d => d.total), 1);
+      const barMaxH = 36;
 
-    const commitKpis = [
-      ['Gastos fijos', `$${fmtN(report.fixedExpenses.gastosFijos)}`, 'Mensuales', GRAY],
-      ['Suscripciones', `$${fmtN(report.fixedExpenses.suscripciones)}`, 'Activas', GRAY],
-      ['Cuotas', `$${fmtN(report.cuotas.monthlyARS)}`, `${report.cuotas.active} activas`, GRAY],
-      ['Total compromisos', `$${fmtN(report.commitments.totalARS)}`, 'Por mes', BLUE],
-    ];
-    y = kpiGrid(doc, commitKpis, y, W);
+      report.weekdayAvg.forEach((d, i) => {
+        const bx = MX + i * barItemW + barItemW * 0.2;
+        const bw = barItemW * 0.6;
+        const bh = maxAvg > 0 ? Math.max(2, (d.total / maxAvg) * barMaxH) : 2;
+        const by = y + barMaxH - bh;
 
+        // Bar
+        roundedRect(doc, bx, by, bw, bh, 3).fill(i < 5 ? C.accent : '#D1D1D6');
+
+        // Day label
+        doc.font('Helvetica-Bold').fontSize(7).fillColor(C.text2)
+          .text(d.day, MX + i * barItemW, y + barMaxH + 4, { width: barItemW, align: 'center' });
+        // Amount
+        doc.font('Helvetica').fontSize(6).fillColor(C.text3)
+          .text(d.total > 0 ? `$${fmtN(d.total)}` : '-', MX + i * barItemW, y + barMaxH + 14, { width: barItemW, align: 'center' });
+      });
+      y += barMaxH + 28;
+    }
+
+    // ── Compromisos Section ──
+    y += 6;
+    y = pageBreak(doc, y, 200, PH);
+    y = drawSectionLabel(doc, MX, y, 'COMPROMISOS MENSUALES');
+
+    const commitCol3 = (W - COL_GAP * 2) / 3;
+    const cY = y;
+    drawMiniCard(doc, MX, cY, commitCol3, 50, 'Gastos Fijos', `$${fmtN(report.fixedExpenses.gastosFijos)}`, `${(report.fixedExpenses.items || []).length} items`, C.text2);
+    drawMiniCard(doc, MX + commitCol3 + COL_GAP, cY, commitCol3, 50, 'Suscripciones', `$${fmtN(report.fixedExpenses.suscripciones)}`, `${(report.subscriptionsList || []).length} activas`, C.text2);
+    drawMiniCard(doc, MX + (commitCol3 + COL_GAP) * 2, cY, commitCol3, 50, 'Cuotas', `$${fmtN(report.cuotas.monthlyARS)}/mes`, `${report.cuotas.active} activas`, C.text2);
+    y = cY + 56;
+
+    // Total compromisos badge
+    roundedRect(doc, MX, y, W, 28, 6).fill('#E8F4FD');
+    doc.font('Helvetica').fontSize(8).fillColor(C.accent)
+      .text('Total compromisos mensuales', MX + 12, y + 5, { width: 200 });
+    doc.font('Helvetica-Bold').fontSize(11).fillColor(C.accent)
+      .text(`$${fmtN(report.commitments.totalARS)}`, MX + 12, y + 5, { width: W - 24, align: 'right' });
+    y += 36;
+
+    // ── Detalle Gastos Fijos ──
+    if (report.fixedExpenses.items && report.fixedExpenses.items.length) {
+      y = pageBreak(doc, y, 60, PH);
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(C.text2).text('Gastos fijos', MX + 4, y);
+      y += 14;
+      report.fixedExpenses.items.forEach(f => {
+        y = pageBreak(doc, y, 14, PH);
+        doc.font('Helvetica').fontSize(7.5).fillColor(C.text1)
+          .text(f.name, MX + 8, y, { width: 260 });
+        doc.font('Helvetica').fontSize(7.5).fillColor(C.text1)
+          .text(`$${fmtN(f.amountARS)}`, MX + 8, y, { width: W - 16, align: 'right' });
+        y += 12;
+      });
+      y += 4;
+    }
+
+    // ── Detalle Suscripciones ──
+    if (report.subscriptionsList && report.subscriptionsList.length) {
+      y = pageBreak(doc, y, 60, PH);
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(C.text2).text('Suscripciones', MX + 4, y);
+      y += 14;
+      report.subscriptionsList.forEach(s => {
+        y = pageBreak(doc, y, 14, PH);
+        doc.font('Helvetica').fontSize(7.5).fillColor(C.text1)
+          .text(s.name, MX + 8, y, { width: 260 });
+        doc.font('Helvetica').fontSize(7.5).fillColor(C.text1)
+          .text(`$${fmtN(s.amountARS)}`, MX + 8, y, { width: W - 16, align: 'right' });
+        y += 12;
+      });
+      y += 4;
+    }
+
+    // ── Detalle Cuotas ──
     if (report.cuotas.items.length) {
-      doc.font('Helvetica-Bold').fontSize(8).fillColor(GRAY).text('Cuotas activas:', 50, y);
+      y = pageBreak(doc, y, 80, PH);
+      doc.font('Helvetica-Bold').fontSize(8).fillColor(C.text2).text('Cuotas activas', MX + 4, y);
       y += 14;
       report.cuotas.items.forEach(c => {
-        y = pageBreak(doc, y, 14);
-        doc.font('Helvetica').fontSize(8).fillColor(DARK)
-          .text(`- ${c.desc}  |  ${c.paid}/${c.total} cuotas  |  $${fmtN(c.monthlyARS)}/mes`, 55, y, { width: W - 10 });
+        y = pageBreak(doc, y, 28, PH);
+        // Row 1: name + monthly amount
+        doc.font('Helvetica').fontSize(7.5).fillColor(C.text1)
+          .text(c.desc, MX + 8, y, { width: 280 });
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.text1)
+          .text(`$${fmtN(c.monthlyARS)}/mes`, MX + 8, y, { width: W - 16, align: 'right' });
+        y += 11;
+        // Row 2: progress + total value
+        const remaining = c.total - c.paid;
+        const pct = c.total > 0 ? Math.round((c.paid / c.total) * 100) : 0;
+        doc.font('Helvetica').fontSize(6.5).fillColor(C.text3)
+          .text(`${c.paid}/${c.total} pagadas  |  Faltan ${remaining}  |  Total: $${fmtN(c.totalValueARS)}`, MX + 8, y, { width: W - 16 });
+        y += 10;
+        // Progress bar
+        const barW = Math.min(W - 16, 180);
+        roundedRect(doc, MX + 8, y, barW, 3, 1.5).fill(C.divider);
+        if (pct > 0) {
+          roundedRect(doc, MX + 8, y, Math.max(3, barW * pct / 100), 3, 1.5).fill(C.accent);
+        }
+        y += 10;
+      });
+      // Total cuotas value
+      if (report.cuotas.totalValueARS > 0) {
+        doc.font('Helvetica').fontSize(7).fillColor(C.text3)
+          .text(`Valor total deuda en cuotas: $${fmtN(report.cuotas.totalValueARS)}`, MX + 8, y, { width: W - 16 });
         y += 14;
-      });
+      }
     }
 
-    // ── AHORROS ──
-    y = pageBreak(doc, y, 100);
-    y = section(doc, 'AHORROS', y, W);
-
-    const savKpis = [
-      ['Total ARS', `$${fmtN(report.savings.totalARS)}`, '', GREEN],
-      ['Total USD', `U$D ${fmtN(report.savings.totalUSD)}`, '', '#007AFF'],
-      ['Equivalente ARS', `$${fmtN(report.savings.equivARS)}`, `TC $${fmtN(report.usdRate)}`, BLUE],
-    ];
-    y = kpiRow(doc, savKpis, y, W);
-
-    if (report.savings.goals.length) {
-      y += 4;
-      report.savings.goals.forEach(g => {
-        y = pageBreak(doc, y, 30);
-        const prefix = g.currency === 'USD' ? 'U$D ' : '$';
-        doc.font('Helvetica-Bold').fontSize(9).fillColor(DARK)
-          .text(g.name, 55, y, { width: 200 });
-        doc.font('Helvetica').fontSize(8).fillColor(GRAY)
-          .text(`${prefix}${fmtN(g.current)} de ${prefix}${fmtN(g.target)}  |  ${g.pct}%`, 280, y, { width: 200, align: 'right' });
-        y += 13;
-        doc.rect(55, y, W - 10, 5).fill(LGRAY);
-        doc.rect(55, y, Math.min(g.pct, 100) / 100 * (W - 10), 5).fill(g.pct >= 100 ? GREEN : BLUE);
-        y += 14;
-      });
-    }
-
-    // ── PROYECCION ──
-    y = pageBreak(doc, y, 70);
-    y = section(doc, 'PROYECCION AL CIERRE', y, W);
-
-    doc.font('Helvetica').fontSize(9).fillColor(DARK);
-    doc.text(`Promedio diario: $${fmtN(report.projection.dailyAvg)}`, 55, y); y += 14;
-    doc.text(`Proyeccion total del mes: $${fmtN(report.projection.projectedMonthTotal)}`, 55, y); y += 14;
-    doc.text(`Dias restantes: ${report.projection.daysRemaining}`, 55, y); y += 14;
-    if (report.budgetRemaining != null) {
-      const col = report.budgetRemaining >= 0 ? GREEN : RED;
-      doc.font('Helvetica-Bold').fontSize(9).fillColor(col)
-        .text(`Presupuesto libre: $${fmtN(report.budgetRemaining)}`, 55, y);
-      y += 16;
-    }
-
-    // ── ALERTAS ──
-    if (report.alerts.length) {
-      y = pageBreak(doc, y, 50);
-      y = section(doc, 'ALERTAS', y, W);
-      report.alerts.forEach(a => {
-        y = pageBreak(doc, y, 18);
-        doc.rect(50, y - 2, W, 18).fill('#FFF3CD');
-        doc.font('Helvetica').fontSize(9).fillColor('#856404')
-          .text(`! ${a}`, 55, y, { width: W - 10 });
-        y += 20;
-      });
-    }
-
-    // ── ANALISIS IA ──
+    /* ═══════════════════════════════════════════
+       SECTION 2 — ANALISIS Y RECOMENDACIONES
+    ═══════════════════════════════════════════ */
     if (aiInsights) {
-      y = pageBreak(doc, y, 120);
-      y = section(doc, 'ANALISIS Y RECOMENDACIONES', y, W);
+      y += 8;
+      y = pageBreak(doc, y, 140, PH);
+      y = drawDivider(doc, MX, y, W);
+      y = drawSectionLabel(doc, MX, y, 'ANALISIS Y RECOMENDACIONES');
 
       if (aiInsights.resumen) {
-        doc.font('Helvetica-Bold').fontSize(9).fillColor(DARK).text('Resumen:', 55, y);
-        y += 14;
-        doc.font('Helvetica').fontSize(9).fillColor('#3A3A3C').text(aiInsights.resumen, 55, y, { width: W - 10 });
-        y = doc.y + 10;
+        roundedRect(doc, MX, y, W, 0.01, 8); // just for measuring
+        doc.font('Helvetica').fontSize(8.5).fillColor(C.text1);
+        const resH = doc.heightOfString(aiInsights.resumen, { width: W - 32 });
+        roundedRect(doc, MX, y, W, resH + 20, 8).fill(C.card);
+        doc.font('Helvetica').fontSize(8.5).fillColor(C.text1)
+          .text(aiInsights.resumen, MX + 16, y + 10, { width: W - 32 });
+        y += resH + 30;
       }
 
       if (aiInsights.insights && aiInsights.insights.length) {
-        doc.font('Helvetica-Bold').fontSize(9).fillColor(DARK).text('Insights clave:', 55, y);
-        y += 14;
+        y = pageBreak(doc, y, 60, PH);
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.text1).text('Insights clave', MX + 4, y);
+        y += 16;
         aiInsights.insights.forEach((ins, i) => {
-          y = pageBreak(doc, y, 14);
-          doc.font('Helvetica').fontSize(9).fillColor('#3A3A3C')
-            .text(`${i + 1}. ${ins}`, 60, y, { width: W - 20 });
-          y = doc.y + 5;
+          y = pageBreak(doc, y, 20, PH);
+          // Numbered circle
+          doc.circle(MX + 12, y + 5, 7).fill(C.accent);
+          doc.font('Helvetica-Bold').fontSize(7).fillColor('#FFFFFF')
+            .text(`${i + 1}`, MX + 7, y + 1.5, { width: 10, align: 'center' });
+          doc.font('Helvetica').fontSize(8).fillColor(C.text1)
+            .text(ins, MX + 26, y, { width: W - 30 });
+          y = doc.y + 8;
         });
       }
 
       if (aiInsights.recomendaciones && aiInsights.recomendaciones.length) {
         y += 4;
-        y = pageBreak(doc, y, 14);
-        doc.font('Helvetica-Bold').fontSize(9).fillColor(DARK).text('Recomendaciones:', 55, y);
-        y += 14;
+        y = pageBreak(doc, y, 60, PH);
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.text1).text('Recomendaciones', MX + 4, y);
+        y += 16;
         aiInsights.recomendaciones.forEach((rec, i) => {
-          y = pageBreak(doc, y, 14);
-          doc.font('Helvetica').fontSize(9).fillColor('#3A3A3C')
-            .text(`${i + 1}. ${rec}`, 60, y, { width: W - 20 });
-          y = doc.y + 5;
+          y = pageBreak(doc, y, 20, PH);
+          doc.circle(MX + 12, y + 5, 7).fill(C.green);
+          doc.font('Helvetica-Bold').fontSize(7).fillColor('#FFFFFF')
+            .text(`${i + 1}`, MX + 7, y + 1.5, { width: 10, align: 'center' });
+          doc.font('Helvetica').fontSize(8).fillColor(C.text1)
+            .text(rec, MX + 26, y, { width: W - 30 });
+          y = doc.y + 8;
         });
       }
     }
 
-    // ── FOOTER en cada pagina ──
+    // ── ALERTAS ──
+    if (report.alerts && report.alerts.length) {
+      y += 6;
+      y = pageBreak(doc, y, 40, PH);
+      report.alerts.forEach(a => {
+        y = pageBreak(doc, y, 24, PH);
+        roundedRect(doc, MX, y, W, 22, 6).fill('#FFF8E1');
+        doc.font('Helvetica').fontSize(7.5).fillColor('#B8860B')
+          .text(`!  ${a}`, MX + 12, y + 5, { width: W - 24 });
+        y += 28;
+      });
+    }
+
+    /* ═══════════════════════════════════════════
+       SECTION 3 — CATEGORIAS Y SUBCATEGORIAS
+    ═══════════════════════════════════════════ */
+    y += 10;
+    y = pageBreak(doc, y, 100, PH);
+    y = drawDivider(doc, MX, y, W);
+    y = drawSectionLabel(doc, MX, y, 'CATEGORIAS Y SUBCATEGORIAS (MES)');
+
+    if (report.categoryGroups && report.categoryGroups.length) {
+      report.categoryGroups.forEach(grp => {
+        y = pageBreak(doc, y, 40, PH);
+
+        // Category header row
+        roundedRect(doc, MX, y, W, 22, 5).fill(C.card);
+
+        // Category name
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.text1)
+          .text(grp.group, MX + 12, y + 5, { width: 200 });
+
+        // Amount
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(C.text1)
+          .text(`$${fmtN(grp.totalARS)}`, MX + 220, y + 5, { width: 100, align: 'right' });
+
+        // Percentage bar
+        const barX = MX + 340;
+        const barMaxW = W - 340 - 50;
+        const barPctW = Math.min(grp.pct, 100) / 100 * barMaxW;
+        roundedRect(doc, barX, y + 8, barMaxW, 5, 2.5).fill(C.divider);
+        if (barPctW > 3) {
+          roundedRect(doc, barX, y + 8, barPctW, 5, 2.5).fill(C.accent);
+        }
+
+        // Percentage text
+        doc.font('Helvetica-Bold').fontSize(7.5).fillColor(C.text2)
+          .text(`${grp.pct}%`, MX + W - 40, y + 5, { width: 36, align: 'right' });
+
+        y += 26;
+
+        // Subcategories
+        grp.subs.forEach(sub => {
+          y = pageBreak(doc, y, 14, PH);
+          const subPct = report.month.totalARS > 0 ? Math.round((sub.totalARS / report.month.totalARS) * 100) : 0;
+
+          doc.font('Helvetica').fontSize(7.5).fillColor(C.text2)
+            .text(sub.name, MX + 24, y, { width: 196 });
+          doc.font('Helvetica').fontSize(7.5).fillColor(C.text2)
+            .text(`$${fmtN(sub.totalARS)}`, MX + 220, y, { width: 100, align: 'right' });
+          doc.font('Helvetica').fontSize(7).fillColor(C.text3)
+            .text(`${sub.count} mov.`, MX + 340, y, { width: 60 });
+          doc.font('Helvetica').fontSize(7).fillColor(C.text3)
+            .text(`${subPct}%`, MX + W - 40, y, { width: 36, align: 'right' });
+          y += 14;
+        });
+        y += 6;
+      });
+    }
+
+    /* ═══════════════════════════════════════════
+       FOOTER on every page
+    ═══════════════════════════════════════════ */
     const totalPages = doc.bufferedPageRange().count;
     for (let i = 0; i < totalPages; i++) {
       doc.switchToPage(i);
-      doc.font('Helvetica').fontSize(7).fillColor(GRAY)
-        .text(`Registro de Finanzas  |  Pag. ${i + 1} de ${totalPages}`, 50, doc.page.height - 35, {
-          width: W, align: 'center',
-        });
+      // Subtle line
+      doc.moveTo(MX, PH - 30).lineTo(MX + W, PH - 30)
+        .strokeColor(C.divider).lineWidth(0.5).stroke();
+      doc.font('Helvetica').fontSize(6.5).fillColor(C.text3)
+        .text('Registro de Finanzas', MX, PH - 24, { width: W * 0.5 });
+      doc.font('Helvetica').fontSize(6.5).fillColor(C.text3)
+        .text(`${i + 1} / ${totalPages}`, MX + W * 0.5, PH - 24, { width: W * 0.5, align: 'right' });
     }
 
     doc.end();
@@ -236,48 +362,66 @@ async function generatePDF(report, aiInsights, outputPath) {
   });
 }
 
-// ── Helpers ──
+/* ══════════════════════════════════════════════
+   HELPER COMPONENTS
+══════════════════════════════════════════════ */
 
-function section(doc, text, y, W) {
-  y += 6;
-  doc.font('Helvetica-Bold').fontSize(11).fillColor('#1D1D1F').text(text, 50, y, { width: W });
-  y += 16;
-  doc.moveTo(50, y).lineTo(50 + W, y).strokeColor('#D1D1D6').lineWidth(0.5).stroke();
-  y += 8;
-  return y;
+function roundedRect(doc, x, y, w, h, r) {
+  r = Math.min(r, w / 2, h / 2);
+  doc.moveTo(x + r, y)
+    .lineTo(x + w - r, y)
+    .quadraticCurveTo(x + w, y, x + w, y + r)
+    .lineTo(x + w, y + h - r)
+    .quadraticCurveTo(x + w, y + h, x + w - r, y + h)
+    .lineTo(x + r, y + h)
+    .quadraticCurveTo(x, y + h, x, y + h - r)
+    .lineTo(x, y + r)
+    .quadraticCurveTo(x, y, x + r, y);
+  return doc;
 }
 
-function kpiGrid(doc, kpis, y, W) {
-  const colW = (W - 12) / 2;
-  const rowH = 48;
-  kpis.forEach((k, i) => {
-    const col = i % 2;
-    const row = Math.floor(i / 2);
-    const x = 50 + col * (colW + 12);
-    const ky = y + row * (rowH + 6);
-    doc.rect(x, ky, colW, rowH).fill('#F9F9FB');
-    doc.font('Helvetica').fontSize(8).fillColor('#8E8E93').text(k[0], x + 10, ky + 6, { width: colW - 20 });
-    doc.font('Helvetica-Bold').fontSize(15).fillColor(k[3] || '#1D1D1F').text(k[1], x + 10, ky + 18, { width: colW - 20 });
-    if (k[2]) doc.font('Helvetica').fontSize(7).fillColor('#AEAEB2').text(k[2], x + 10, ky + 37, { width: colW - 20 });
-  });
-  return y + Math.ceil(kpis.length / 2) * (rowH + 6) + 4;
+function drawWidgetCard(doc, x, y, w, h, label, value, subtitle, accentColor) {
+  roundedRect(doc, x, y, w, h, 10).fill(C.card);
+  doc.font('Helvetica').fontSize(7.5).fillColor(C.text3)
+    .text(label, x + 14, y + 10, { width: w - 28 });
+  doc.font('Helvetica-Bold').fontSize(17).fillColor(accentColor || C.text1)
+    .text(value, x + 14, y + 23, { width: w - 28 });
+  if (subtitle) {
+    doc.font('Helvetica').fontSize(7).fillColor(C.text3)
+      .text(subtitle, x + 14, y + h - 16, { width: w - 28 });
+  }
+  return y + h + 8;
 }
 
-function kpiRow(doc, kpis, y, W) {
-  const colW = (W - (kpis.length - 1) * 10) / kpis.length;
-  const rowH = 44;
-  kpis.forEach((k, i) => {
-    const x = 50 + i * (colW + 10);
-    doc.rect(x, y, colW, rowH).fill('#F9F9FB');
-    doc.font('Helvetica').fontSize(8).fillColor('#8E8E93').text(k[0], x + 10, y + 6, { width: colW - 20 });
-    doc.font('Helvetica-Bold').fontSize(13).fillColor(k[3] || '#1D1D1F').text(k[1], x + 10, y + 18, { width: colW - 20 });
-    if (k[2]) doc.font('Helvetica').fontSize(7).fillColor('#AEAEB2').text(k[2], x + 10, y + 34, { width: colW - 20 });
-  });
-  return y + rowH + 6;
+function drawMiniCard(doc, x, y, w, h, label, value, subtitle, accentColor) {
+  roundedRect(doc, x, y, w, h, 8).fill(C.card);
+  doc.font('Helvetica').fontSize(6.5).fillColor(C.text3)
+    .text(label, x + 10, y + 8, { width: w - 20 });
+  doc.font('Helvetica-Bold').fontSize(13).fillColor(accentColor || C.text1)
+    .text(value, x + 10, y + 20, { width: w - 20 });
+  if (subtitle) {
+    doc.font('Helvetica').fontSize(6).fillColor(C.text3)
+      .text(subtitle, x + 10, y + h - 14, { width: w - 20 });
+  }
+  return y + h + 6;
 }
 
-function pageBreak(doc, y, needed) {
-  if (y + needed > doc.page.height - 55) { doc.addPage(); return 50; }
+function drawSectionLabel(doc, x, y, text) {
+  doc.font('Helvetica-Bold').fontSize(9).fillColor(C.text2)
+    .text(text, x + 4, y, { characterSpacing: 0.8 });
+  return y + 18;
+}
+
+function drawDivider(doc, x, y, w) {
+  doc.moveTo(x, y).lineTo(x + w, y).strokeColor(C.divider).lineWidth(0.5).stroke();
+  return y + 12;
+}
+
+function pageBreak(doc, y, needed, PH) {
+  if (y + needed > (PH || doc.page.height) - 50) {
+    doc.addPage();
+    return 40;
+  }
   return y;
 }
 

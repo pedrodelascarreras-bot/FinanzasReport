@@ -153,6 +153,118 @@ function buildReport(rawData) {
     return { name: g.name, currency: g.currency, target: g.target, current: Math.round(current), pct };
   });
 
+  // ── Ciclo de Tarjeta de Credito ──
+  const tcCycles = (rawData.tcCycles || []).slice().sort((a, b) => b.closeDate.localeCompare(a.closeDate));
+  const ccCards = rawData.ccCards || [];
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+
+  // Find the active TC cycle (where today falls between open and close)
+  let activeCcCycle = null;
+  function getTcCycleOpenDate(cycles, idx) {
+    const sorted = [...cycles].sort((a, b) => a.closeDate.localeCompare(b.closeDate));
+    const ascIdx = sorted.findIndex(c => c.id === cycles[idx].id);
+    if (ascIdx === 0) {
+      const d = new Date(sorted[0].closeDate + 'T12:00:00');
+      d.setDate(d.getDate() - 30);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    }
+    const prevClose = sorted[ascIdx - 1].closeDate;
+    const d = new Date(prevClose + 'T12:00:00');
+    d.setDate(d.getDate() + 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+
+  for (let i = 0; i < tcCycles.length; i++) {
+    const openDate = getTcCycleOpenDate(tcCycles, i);
+    const closeDate = tcCycles[i].closeDate;
+    if (todayStr >= openDate && todayStr <= closeDate) {
+      // Calculate expenses in this cycle across all cards
+      const tcPayMethods = ['tc', 'Tarjeta de Crédito', 'tarjeta_credito'];
+      const cardKeys = ccCards.map(c => c.payMethodKey).filter(Boolean);
+      const allTcMethods = [...tcPayMethods, ...cardKeys];
+
+      const cycleExpenses = transactions.filter(t => {
+        const d = `${t.date.getFullYear()}-${String(t.date.getMonth() + 1).padStart(2, '0')}-${String(t.date.getDate()).padStart(2, '0')}`;
+        return d >= openDate && d <= closeDate && allTcMethods.includes(t.payMethod);
+      });
+      const cycleARS = cycleExpenses.filter(t => t.currency !== 'USD').reduce((s, t) => s + (t.amount || 0), 0);
+      const cycleUSD = cycleExpenses.filter(t => t.currency === 'USD').reduce((s, t) => s + (t.amount || 0), 0);
+      const cycleTotalARS = cycleARS + (cycleUSD * usdRate);
+
+      const closeD = new Date(closeDate + 'T12:00:00');
+      const todayD = new Date(todayStr + 'T12:00:00');
+      const daysLeft = Math.max(0, Math.round((closeD - todayD) / (1000 * 60 * 60 * 24)));
+      const daysElapsed = Math.max(1, Math.round((todayD - new Date(openDate + 'T12:00:00')) / (1000 * 60 * 60 * 24)));
+      const totalCycleDays = daysElapsed + daysLeft;
+      const dailyAvgCycle = cycleTotalARS / daysElapsed;
+      const projectedClose = Math.round(dailyAvgCycle * totalCycleDays);
+
+      activeCcCycle = {
+        label: tcCycles[i].label || `Ciclo ${openDate} - ${closeDate}`,
+        openDate,
+        closeDate,
+        daysLeft,
+        daysElapsed,
+        totalDays: totalCycleDays,
+        totalARS: Math.round(cycleTotalARS),
+        txCount: cycleExpenses.length,
+        dailyAvg: Math.round(dailyAvgCycle),
+        projectedClose,
+      };
+      break;
+    }
+  }
+
+  // ── Promedio por dia de la semana ──
+  const dayNames = ['Dom', 'Lun', 'Mar', 'Mie', 'Jue', 'Vie', 'Sab'];
+  const dayTotals = [0, 0, 0, 0, 0, 0, 0];
+  const dayCounts = [0, 0, 0, 0, 0, 0, 0];
+  monthTx.forEach(t => {
+    const dow = t.date.getDay();
+    const amtARS = t.currency === 'USD' ? (t.amount || 0) * usdRate : (t.amount || 0);
+    dayTotals[dow] += amtARS;
+    dayCounts[dow]++;
+  });
+  // Reorder to start on Monday
+  const weekdayAvg = [1, 2, 3, 4, 5, 6, 0].map(i => ({
+    day: dayNames[i],
+    total: Math.round(dayTotals[i]),
+    count: dayCounts[i],
+    avg: dayCounts[i] > 0 ? Math.round(dayTotals[i] / dayCounts[i]) : 0,
+  }));
+
+  // ── Detalle suscripciones y gastos fijos ──
+  const activeSubscriptions = subscriptions.filter(s => s.active !== false).map(s => ({
+    name: s.name || s.description || 'Suscripcion',
+    amountARS: Math.round(s.currency === 'USD' ? (s.amount || 0) * usdRate : (s.amount || 0)),
+    currency: s.currency || 'ARS',
+    originalAmount: s.amount || 0,
+  }));
+
+  const fixedExpensesList = fixedExpenses.map(f => ({
+    name: f.name || f.description || 'Gasto fijo',
+    amountARS: Math.round(f.currency === 'USD' ? (f.amount || 0) * usdRate : (f.amount || 0)),
+    currency: f.currency || 'ARS',
+    originalAmount: f.amount || 0,
+  }));
+
+  // Cuotas detalladas (sin limite de 5)
+  const cuotasDetailed = cuotas.map(c => {
+    const monthly = c.monthlyAmount || c.amount || 0;
+    const monthlyARS = Math.round(c.currency === 'USD' ? monthly * usdRate : monthly);
+    const totalVal = monthly * (c.installments || c.cuotas || 0);
+    const totalValARS = Math.round(c.currency === 'USD' ? totalVal * usdRate : totalVal);
+    return {
+      desc: c.description || c.desc || 'Cuota',
+      paid: c.paid || 0,
+      total: c.installments || c.cuotas || 0,
+      monthlyARS,
+      totalValueARS: totalValARS,
+      currency: c.currency || 'ARS',
+      originalMonthly: monthly,
+    };
+  });
+
   // Proyeccion
   const dayOfMonth = now.getDate();
   const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
@@ -196,21 +308,20 @@ function buildReport(rawData) {
     marginARS: marginARS !== null ? Math.round(marginARS) : null,
     categoryGroups,
     topCategory: topGroup ? { name: topGroup.group, pct: topGroup.pct } : null,
-    fixedExpenses: { gastosFijos: Math.round(fixedTotalARS), suscripciones: Math.round(subsTotalARS), total: Math.round(fixedAndSubsTotal) },
+    fixedExpenses: { gastosFijos: Math.round(fixedTotalARS), suscripciones: Math.round(subsTotalARS), total: Math.round(fixedAndSubsTotal), items: fixedExpensesList },
+    subscriptionsList: activeSubscriptions,
     cuotas: {
       active: cuotas.length,
       monthlyARS: Math.round(cuotasMonthlyARS),
-      items: cuotas.slice(0, 5).map(c => ({
-        desc: c.description || c.desc || 'Cuota',
-        paid: c.paid || 0,
-        total: c.installments || c.cuotas || 0,
-        monthlyARS: Math.round(c.currency === 'USD' ? (c.monthlyAmount || c.amount || 0) * usdRate : (c.monthlyAmount || c.amount || 0)),
-      })),
+      totalValueARS: cuotasDetailed.reduce((s, c) => s + c.totalValueARS, 0),
+      items: cuotasDetailed,
     },
     commitments: { totalARS: Math.round(fixedAndSubsTotal + cuotasMonthlyARS) },
     budgetRemaining: marginARS !== null ? Math.round(marginARS - fixedAndSubsTotal - cuotasMonthlyARS) : null,
     savings: { totalARS: Math.round(savTotalARS), totalUSD: Math.round(savTotalUSD * 100) / 100, equivARS: Math.round(savEquivARS), goals: savGoals },
     projection: { dailyAvg: Math.round(dailyAvg), projectedMonthTotal, daysRemaining: daysInMonth - dayOfMonth },
+    ccCycle: activeCcCycle,
+    weekdayAvg,
     alerts,
   };
 }
