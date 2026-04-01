@@ -66,12 +66,18 @@ async function generatePDF(report, aiInsights, outputPath) {
        SECTION 1 — DASHBOARD WIDGETS
     ═══════════════════════════════════════════ */
 
-    // ── Row 1: Gasto Semanal | Gasto Mensual | Margen Disponible ──
+    // ── Row 1: Gasto Semanal | Gasto Ciclo TC | Margen Disponible ──
     const col3W = (W - COL_GAP * 2) / 3;
 
     y = drawWidgetCard(doc, MX, y, col3W, 68, 'Gasto Semanal', `$${fmtN(report.week.totalARS)}`, `${report.week.txCount} movimientos`, C.accent);
     const y1 = y;
-    drawWidgetCard(doc, MX + col3W + COL_GAP, y - 68, col3W, 68, 'Gasto Mensual', `$${fmtN(report.month.totalARS)}`, `${report.month.txCount} movimientos`, C.accent);
+
+    // Segundo widget: Gasto del Ciclo TC (o gasto mensual si no hay ciclo)
+    const ccVal = report.ccCycle ? report.ccCycle.totalARS : report.month.totalARS;
+    const ccCount = report.ccCycle ? report.ccCycle.txCount : report.month.txCount;
+    const ccLabel = report.ccCycle ? 'Gasto Ciclo TC' : 'Gasto del Mes';
+    const ccSub = report.ccCycle ? `${ccCount} mov. | Cierre en ${report.ccCycle.daysLeft}d` : `${ccCount} movimientos`;
+    drawWidgetCard(doc, MX + col3W + COL_GAP, y - 68, col3W, 68, ccLabel, `$${fmtN(ccVal)}`, ccSub, C.accent);
 
     const marginVal = report.marginARS;
     const marginLabel = marginVal != null ? `$${fmtN(marginVal)}` : '--';
@@ -88,19 +94,17 @@ async function generatePDF(report, aiInsights, outputPath) {
       y += 16;
     }
 
-    // ── Row 2: Ciclo Tarjeta de Credito ──
+    // ── Row 2: Detalle Ciclo Tarjeta de Credito ──
     if (report.ccCycle) {
       y += 4;
       const cc = report.ccCycle;
-      // Full width card with inner grid
-      y = drawSectionLabel(doc, MX, y, 'CICLO TARJETA DE CREDITO');
+      y = drawSectionLabel(doc, MX, y, 'DETALLE CICLO TARJETA DE CREDITO');
 
-      const cc4W = (W - COL_GAP * 3) / 4;
+      const cc3W = (W - COL_GAP * 2) / 3;
       const ccY = y;
-      drawMiniCard(doc, MX, ccY, cc4W, 56, 'Gastado', `$${fmtN(cc.totalARS)}`, `${cc.txCount} mov.`, C.accent);
-      drawMiniCard(doc, MX + cc4W + COL_GAP, ccY, cc4W, 56, 'Dias al cierre', `${cc.daysLeft}`, `de ${cc.totalDays} dias`, cc.daysLeft <= 5 ? C.orange : C.text2);
-      drawMiniCard(doc, MX + (cc4W + COL_GAP) * 2, ccY, cc4W, 56, 'Prom. diario ciclo', `$${fmtN(cc.dailyAvg)}`, '', C.text2);
-      drawMiniCard(doc, MX + (cc4W + COL_GAP) * 3, ccY, cc4W, 56, 'Proyeccion cierre', `$${fmtN(cc.projectedClose)}`, `al ${cc.closeDate.slice(8)}/${cc.closeDate.slice(5, 7)}`, cc.projectedClose > cc.totalARS * 1.3 ? C.orange : C.accent);
+      drawMiniCard(doc, MX, ccY, cc3W, 56, 'Dias al cierre', `${cc.daysLeft}`, `de ${cc.totalDays} dias`, cc.daysLeft <= 5 ? C.orange : C.text2);
+      drawMiniCard(doc, MX + cc3W + COL_GAP, ccY, cc3W, 56, 'Prom. diario ciclo', `$${fmtN(cc.dailyAvg)}`, `${cc.daysElapsed} dias transcurridos`, C.text2);
+      drawMiniCard(doc, MX + (cc3W + COL_GAP) * 2, ccY, cc3W, 56, 'Proyeccion cierre', `$${fmtN(cc.projectedClose)}`, `al ${cc.closeDate.slice(8)}/${cc.closeDate.slice(5, 7)}`, cc.projectedClose > cc.totalARS * 1.3 ? C.orange : C.accent);
       y = ccY + 56 + 6;
     }
 
@@ -290,7 +294,8 @@ async function generatePDF(report, aiInsights, outputPath) {
     y += 10;
     y = pageBreak(doc, y, 100, PH);
     y = drawDivider(doc, MX, y, W);
-    y = drawSectionLabel(doc, MX, y, 'CATEGORIAS Y SUBCATEGORIAS (MES)');
+    const catLabel = report.period.isCurrentMonth ? 'CATEGORIAS Y SUBCATEGORIAS (MES)' : `CATEGORIAS Y SUBCATEGORIAS (${(report.period.monthLabel || 'MES').toUpperCase()})`;
+    y = drawSectionLabel(doc, MX, y, catLabel);
 
     if (report.categoryGroups && report.categoryGroups.length) {
       report.categoryGroups.forEach(grp => {
