@@ -3395,6 +3395,24 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
 @media(max-width:900px) { .dash-widgets-row { grid-template-columns: 1fr 1fr; } }
 
 @media(max-width:768px) {
+  #page-dashboard *,
+  #page-transactions *,
+  #page-cuotas *,
+  #page-credit-cards *,
+  #page-tendencia *,
+  #page-income *,
+  #page-savings * {
+    box-sizing: border-box;
+  }
+  #page-dashboard .layout-section,
+  #page-transactions .layout-section,
+  #page-cuotas > *,
+  #page-credit-cards > *,
+  #page-tendencia > *,
+  #page-income > *,
+  #page-savings > * {
+    min-width: 0;
+  }
   :root { --sidebar-w: 0px; }
   .sidebar { display: none; }
   .app { grid-template-columns: 1fr; }
@@ -3486,6 +3504,43 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   #page-dashboard .dw-card {
     min-height: unset;
   }
+  #page-dashboard .usd-rate-card-inline {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    padding: 16px 16px 15px;
+  }
+  #page-dashboard .usd-rate-inline-right {
+    justify-content: space-between;
+    width: 100%;
+  }
+  #page-dashboard .usd-rate-main {
+    font-size: 14px;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+  #page-dashboard .dash-kpis-col {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+  #page-dashboard .dkpi,
+  #page-dashboard .dkpi-commitments {
+    min-width: 0;
+  }
+  #page-dashboard .dkpi-commitments-shell {
+    gap: 12px;
+  }
+  #page-dashboard .comp-donut-wrap {
+    width: 82px;
+    height: 82px;
+  }
+  #page-dashboard .comp-donut-value {
+    font-size: 18px;
+  }
+  #page-dashboard .kpi-mini-card-value,
+  #page-dashboard .dkpi-value {
+    overflow-wrap: anywhere;
+  }
 
   /* Transactions: cleaner and more focused */
   #page-transactions .page-header .header-actions {
@@ -3522,6 +3577,19 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   #page-credit-cards #cc-panel-config {
     display: none !important;
   }
+  #page-credit-cards .cc-tabs-row {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  #page-credit-cards #cc-card-tabs button {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  #page-credit-cards .cc-cycle-shell,
+  #page-credit-cards .cc-stage-card {
+    border-radius: 22px;
+  }
 
   /* Tendencias: one key chart + short summary */
   #page-tendencia #tend-spark-section,
@@ -3532,6 +3600,23 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   #page-tendencia #tendencia-empty .empty-actions {
     display: none !important;
   }
+  #page-tendencia .tend-main-chart-card,
+  #page-tendencia #tend-exec-summary {
+    border-radius: 22px;
+  }
+  #page-tendencia .table-header-inline {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  #page-tendencia .rep-design-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  #page-tendencia .chart-wrap.chart-wrap-lg {
+    height: 220px;
+  }
 
   /* Income: compact second-level view */
   #page-income .page-header .header-actions,
@@ -3541,6 +3626,37 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   }
   #page-income .inc-detail-grid {
     grid-template-columns: 1fr !important;
+  }
+  #page-income .inc-top-grid,
+  #page-income .inc-bottom-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  #page-income .inc-top-grid > div,
+  #page-income .inc-bottom-grid > div {
+    padding: 16px 16px !important;
+    border-radius: 18px !important;
+  }
+  #page-income #inc-kpi-ratio,
+  #page-income #inc-kpi-retomances,
+  #page-income #inc-hero-combined,
+  #page-income #inc-hero-val,
+  #page-income #inc-hero-val-usd,
+  #page-income #inc-kpi-avg {
+    overflow-wrap: anywhere;
+  }
+  #page-income .inc-bottom-grid > div[style*="display:flex"] {
+    flex-direction: column;
+    align-items: flex-start !important;
+    gap: 14px !important;
+  }
+  #page-income #inc-month-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  #page-income #inc-month-list > * {
+    border-radius: 18px;
   }
   #page-income #inc-month-list .empty-state {
     padding: 28px 22px !important;
@@ -3555,6 +3671,80 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   #page-savings .sav-kpi-grid {
     grid-template-columns: 1fr !important;
   }
+  #page-savings .sav-hero,
+  #page-savings .sav-goals-grid > *,
+  #page-savings .sav-kpi-grid > * {
+    border-radius: 22px;
+  }
+  #page-savings .sav-hero-top {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #page-savings .sav-hero-metrics {
+    grid-template-columns: 1fr;
+  }
+  #page-savings .sav-goals-grid {
+    grid-template-columns: 1fr !important;
+  }
+  #page-savings .sav-accounts-bar-legend,
+  #page-savings .sav-hero-badges {
+    flex-wrap: wrap;
+  }
+
+  /* Compromisos: remove overflow and make cards breathe */
+  #page-cuotas .page-header {
+    gap: 10px;
+  }
+  #page-cuotas .page-header > div:last-child {
+    width: 100%;
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 8px;
+  }
+  #page-cuotas .page-header > div:last-child .btn {
+    min-width: 0;
+    padding-inline: 10px;
+  }
+  #page-cuotas #compromisos-summary {
+    padding: 18px 16px !important;
+    border-radius: 22px !important;
+  }
+  #page-cuotas #comp-total-combinado {
+    font-size: clamp(24px, 8vw, 34px) !important;
+  }
+  #page-cuotas #compromisos-summary > div[style*="grid-template-columns:1fr 1fr 1fr"] {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+  #page-cuotas #comp-sections-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+  #page-cuotas #comp-sections-grid > div {
+    min-width: 0;
+    padding: 16px 16px !important;
+    border-radius: 22px !important;
+  }
+  #page-cuotas #subs-total-bar {
+    padding: 12px 14px !important;
+  }
+  #page-cuotas .subs-total-bar {
+    gap: 12px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  #page-cuotas .subs-divider {
+    display: none;
+  }
+  #page-cuotas .sub-price-row {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+  #page-cuotas .cuota-card,
+  #page-cuotas .sub-card,
+  #page-cuotas .cuota-summary-card {
+    border-radius: 18px;
+  }
 }
 
 @media(max-width:480px) {
@@ -3563,13 +3753,43 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   .mob-nav-btn { font-size: 8px; padding: 5px 4px; }
   .mob-nav-btn .mn-icon { font-size: 16px; }
   .dhc-amount { font-size: clamp(24px,7vw,34px); }
-  .dash-kpis-col { grid-template-columns: 1fr 1fr !important; }
+  .dash-kpis-col { grid-template-columns: 1fr !important; }
   .inc-kpi-row, .sav-accounts-grid, .sav-goals-grid, .inc-top-grid, .sav-kpi-grid { grid-template-columns: 1fr; }
   .inc-hero-value, .sav-hero-value { font-size: clamp(26px,8vw,36px); }
   table { font-size: 11px; min-width: 400px; }
   .kpi-grid { grid-template-columns: 1fr 1fr; }
   .kpi-value { font-size: 17px; }
   .sav-hero-value-lg { font-size: clamp(34px, 10vw, 44px); }
+  #page-dashboard .usd-rate-inline-right {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  #page-dashboard .usd-rate-inline-right > * {
+    flex: 0 0 auto;
+  }
+  #page-cuotas .page-header > div:last-child {
+    grid-template-columns: 1fr !important;
+  }
+  #page-cuotas #compromisos-summary {
+    padding: 16px 14px !important;
+  }
+  #page-cuotas #comp-sections-grid > div {
+    padding: 15px 14px !important;
+  }
+  #page-tendencia .page-header .header-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+  #page-tendencia #tend-period-select {
+    width: 100%;
+    max-width: 100%;
+  }
+  #page-tendencia .view-toggle {
+    width: 100%;
+    overflow-x: auto;
+    padding-bottom: 2px;
+  }
 }
 
 /* Import review */
