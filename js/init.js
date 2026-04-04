@@ -209,8 +209,8 @@ function setPayMethod(method){
 // ══ INIT ══
 window.addEventListener('DOMContentLoaded',()=>{
   loadState();
-  if (!state.gmailClientId) state.gmailClientId = DEFAULT_GOOGLE_CLIENT_ID;
-  if (!localStorage.getItem('fin_gmail_client_id')) localStorage.setItem('fin_gmail_client_id', getGmailClientId());
+  state.gmailClientId = getGmailClientId();
+  localStorage.setItem('fin_gmail_client_id', state.gmailClientId);
   // One-time cleanup: remove any "Cuota X de Y" standalone entries from old imports
   if(state.transactions.length) deduplicateTransactions();
   loadTheme();
@@ -414,12 +414,25 @@ let gmailAccessToken = null;
 let pendingGmailTxns = [];
 let driveReconnectInFlight = false;
 
+function sanitizeGoogleClientId(raw) {
+  const id = String(raw || '').replace(/\s+/g, '').trim();
+  return /\.apps\.googleusercontent\.com$/.test(id) ? id : '';
+}
+
+function isEmbeddedMobileBrowser() {
+  const ua = navigator.userAgent || '';
+  return /Instagram|FBAN|FBAV|Line|MicroMessenger|wv|WhatsApp/i.test(ua);
+}
+
 function getGmailClientId() {
-  return state.gmailClientId || localStorage.getItem('fin_gmail_client_id') || DEFAULT_GOOGLE_CLIENT_ID;
+  const stateId = sanitizeGoogleClientId(state.gmailClientId);
+  const localId = sanitizeGoogleClientId(localStorage.getItem('fin_gmail_client_id'));
+  const defaultId = sanitizeGoogleClientId(DEFAULT_GOOGLE_CLIENT_ID);
+  return stateId || localId || defaultId;
 }
 
 function saveGmailClientId() {
-  const id = document.getElementById('gmail-client-id-input').value.trim();
+  const id = sanitizeGoogleClientId(document.getElementById('gmail-client-id-input').value);
   if (!id) { showToast('Ingresá un Client ID válido', 'error'); return; }
   state.gmailClientId = id;
   localStorage.setItem('fin_gmail_client_id', id);
@@ -434,8 +447,13 @@ function openCloudSync(event) {
     event.preventDefault();
     event.stopPropagation();
   }
+  if (isEmbeddedMobileBrowser()) {
+    showToast('Abrí la app en Safari o Chrome para conectar Google correctamente', 'info');
+  }
   const clientId = getGmailClientId();
   if (!clientId) {
+    const input = document.getElementById('gmail-client-id-input');
+    if (input) input.value = DEFAULT_GOOGLE_CLIENT_ID;
     openModal('modal-gmail-setup');
     return;
   }
