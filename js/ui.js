@@ -162,6 +162,40 @@ function updateQrBadge(){
 // Map page → which nav-section contains it (if any)
 const PAGE_SECTION={categories:'ns-config',import:'ns-config','credit-cards':'ns-credit-cards','cc-compare':'ns-credit-cards'};
 
+function isMobileAppView(){
+  return window.innerWidth <= 768;
+}
+
+function isMobileBlockedPage(page){
+  return isMobileAppView() && ['insights','reportes','compare','categories','import','cc-compare'].includes(page);
+}
+
+function handleDashEmptyTap(event){
+  if(event){
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  if(isMobileAppView()){
+    openCloudSync(event);
+    return;
+  }
+  nav('import');
+}
+
+function openTrendDetail(){
+  nav(isMobileAppView() ? 'tendencia' : 'compare');
+}
+
+function enforceMobilePagePreferences(){
+  if(!isMobileAppView()) return;
+  if(state.ccPageTab === 'config') state.ccPageTab = 'resumen';
+  const active = document.querySelector('.page.active');
+  if(active){
+    const activeId = active.id.replace('page-','');
+    if(isMobileBlockedPage(activeId)) nav('dashboard');
+  }
+}
+
 function toggleSection(id){
   const sec=document.getElementById(id);if(!sec)return;
   sec.classList.toggle('open');
@@ -194,6 +228,13 @@ function refreshAll(){
 
 function nav(page){
   closeMobMore();
+  if(isMobileBlockedPage(page)){
+    showToast('Esa pantalla quedó disponible solo en desktop', 'info');
+    page='dashboard';
+  }
+  if(isMobileAppView() && page==='credit-cards'){
+    state.ccPageTab='resumen';
+  }
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item,.mob-nav-btn').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('.nav-section').forEach(s=>s.classList.remove('has-active'));

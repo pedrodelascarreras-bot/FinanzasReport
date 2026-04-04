@@ -220,6 +220,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   setChartMode(state.chartMode||'week');
   setTxnFilterMode(state.txnFilterMode||'mes');
   if(state.transactions.length){updateSidebarStats();renderDashboard();renderTransactions();document.getElementById('dash-empty').style.display='none';document.getElementById('dash-content').style.display='flex';setTimeout(()=>applyLayout('dashboard'),0);}
+  if(typeof enforceMobilePagePreferences === 'function') enforceMobilePagePreferences();
   if(!getApiKey()){/* API Key now always visible in sidebar IA section */}
   fetchUsdRate();
   // Daily briefing — shows once per day when data exists

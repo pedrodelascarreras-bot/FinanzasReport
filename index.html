@@ -169,13 +169,13 @@
       </select>
       <button class="edit-layout-btn" id="edit-btn-dashboard" onclick="toggleEditMode('dashboard')">◫ Editar vista</button>
     </div>
-  <div id="dash-empty" class="upload-zone fade-up d1" onclick="nav('import')">
+  <div id="dash-empty" class="upload-zone fade-up d1" onclick="handleDashEmptyTap(event)">
     <div class="upload-icon">◫</div>
     <div class="upload-title">Traé tus movimientos al panel</div>
     <div class="upload-sub">Importá CSV, pegá texto bancario o conectá Google Drive para ver los mismos datos también desde el celular.</div>
     <div class="upload-actions" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px;">
       <button class="btn btn-primary" onclick="openCloudSync(event)">☁️ Conectar Google</button>
-      <button class="btn btn-ghost" onclick="event.stopPropagation();nav('import')">Importar datos</button>
+      <button class="btn btn-ghost mobile-import-cta" onclick="event.stopPropagation();nav('import')">Importar datos</button>
     </div>
     <div class="upload-tags"><span class="tag green">Santander</span><span class="tag">CSV</span><span class="tag">ARS + USD</span><span class="tag">IA Auto</span></div>
   </div>
@@ -375,7 +375,7 @@
       </div>
 
       <!-- Widget 2: Categoría que más creció vs mes anterior -->
-      <div class="dw-card dw-trend dw-card-clickable" onclick="nav('compare')" title="Ver comparación">
+      <div class="dw-card dw-trend dw-card-clickable" onclick="openTrendDetail()" title="Ver comparación">
         <div class="dw-label">CATEGORÍA EN ALZA</div>
         <div class="dw-value widget-value-tight" id="dw-trend-val">—</div>
         <div class="dw-sub" id="dw-trend-sub">vs mes anterior</div>
@@ -1640,19 +1640,15 @@
     <button class="mob-nav-btn active" id="mn-dashboard" onclick="nav('dashboard')"><span class="mn-icon">▦</span>Inicio</button>
     <button class="mob-nav-btn" id="mn-transactions" onclick="nav('transactions')"><span class="mn-icon">≡</span>Gastos</button>
     <button class="mob-nav-btn" id="mn-cuotas" onclick="nav('cuotas')"><span class="mn-icon">⬡</span>Fijos</button>
-    <button class="mob-nav-btn" id="mn-tendencia" onclick="nav('tendencia')"><span class="mn-icon">◫</span>Cats.</button>
+    <button class="mob-nav-btn" id="mn-credit-cards" onclick="nav('credit-cards')"><span class="mn-icon">💳</span>Tarjeta</button>
     <button class="mob-nav-btn" id="mn-more" onclick="toggleMobMore()"><span class="mn-icon">⋯</span>Más</button>
   </div>
   <div id="mob-more-menu" style="display:none;padding:8px 12px 4px;border-top:1px solid var(--border);background:var(--glass);">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
+      <button class="mob-nav-btn" id="mn-tendencia" onclick="nav('tendencia');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">◫</span>Tend.</button>
       <button class="mob-nav-btn" id="mn-income" onclick="nav('income');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">💰</span>Ingresos</button>
       <button class="mob-nav-btn" id="mn-savings" onclick="nav('savings');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">🏦</span>Ahorros</button>
-      <button class="mob-nav-btn" id="mn-compare" onclick="nav('compare');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">⇄</span>Comparar</button>
-      <button class="mob-nav-btn" id="mn-reportes" onclick="nav('reportes');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">📊</span>Reportes</button>
-      <button class="mob-nav-btn" id="mn-categories" onclick="nav('categories');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">◉</span>Categorías</button>
-      <button class="mob-nav-btn" id="mn-import" onclick="nav('import');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">⇪</span>Import</button>
       <button class="mob-nav-btn" id="mn-google-sync" onclick="openCloudSync(event);closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">☁</span>Google</button>
-      <button class="mob-nav-btn" onclick="gmailSync();closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">✉</span>Gmail</button>
     </div>
   </div>
 </nav>

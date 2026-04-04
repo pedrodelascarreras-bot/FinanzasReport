@@ -3447,6 +3447,114 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   .rep-top-band, .import-overview-band, .ccc-intro-band { padding: 18px 18px; }
   .insights-score-shell { padding: 20px; }
   .sav-hero-top, .sav-section-head { gap: 12px; }
+
+  /* Mobile-first product simplification */
+  #page-dashboard #dash-decision-center,
+  #page-dashboard [data-key="top5"],
+  #page-dashboard #dash-insights-panel,
+  #page-dashboard .chart-card.chart-card-clickable,
+  #page-insights,
+  #page-reportes,
+  #page-compare,
+  #page-categories,
+  #page-import,
+  #page-cc-compare,
+  .mobile-import-cta,
+  #ni-insights,
+  #ni-reportes,
+  #ni-compare,
+  #ni-categories,
+  #ni-import,
+  #ni-cc-compare,
+  #mn-compare,
+  #mn-reportes,
+  #mn-categories,
+  #mn-import {
+    display: none !important;
+  }
+
+  #page-dashboard [data-key="charts"] .charts-grid-3 {
+    grid-template-columns: 1fr !important;
+  }
+  #page-dashboard [data-key="charts"] .chart-card:first-child {
+    display: none !important;
+  }
+  #page-dashboard [data-key="widgets"] .dash-widgets-row {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+  #page-dashboard .dw-card {
+    min-height: unset;
+  }
+
+  /* Transactions: cleaner and more focused */
+  #page-transactions .page-header .header-actions {
+    width: 100%;
+    gap: 8px;
+  }
+  #page-transactions .page-header .header-actions .btn:not([onclick*="openNewExpenseModal"]) {
+    display: none !important;
+  }
+  #page-transactions .txn-filters {
+    width: 100%;
+  }
+  #page-transactions #f-cur,
+  #page-transactions #f-cat,
+  #page-transactions .txn-filters > .txn-filter-toggle[title="Filtrar por tarjeta"],
+  #page-transactions .txn-summary-detail,
+  #page-transactions #pendientes-banner,
+  #page-transactions .txn-select-bar {
+    display: none !important;
+  }
+  #page-transactions .summary-stat-card:not(.total) {
+    display: none !important;
+  }
+  #page-transactions .txn-summary-grid {
+    grid-template-columns: 1fr !important;
+  }
+  #page-transactions .summary-stat-card.total {
+    min-height: 68px;
+  }
+
+  /* Credit cards: resumen only */
+  #page-credit-cards .cc-section-tabs,
+  #page-credit-cards #cc-history-section,
+  #page-credit-cards #cc-panel-config {
+    display: none !important;
+  }
+
+  /* Tendencias: one key chart + short summary */
+  #page-tendencia #tend-spark-section,
+  #page-tendencia .table-card.fade-up.d3,
+  #page-tendencia .rep-design-grid #tv-line,
+  #page-tendencia .rep-design-grid #tv-compare,
+  #page-tendencia .rep-design-grid #tv-treemap,
+  #page-tendencia #tendencia-empty .empty-actions {
+    display: none !important;
+  }
+
+  /* Income: compact second-level view */
+  #page-income .page-header .header-actions,
+  #page-income .chart-card.fade-up.d2,
+  #page-income .inc-side-stack {
+    display: none !important;
+  }
+  #page-income .inc-detail-grid {
+    grid-template-columns: 1fr !important;
+  }
+  #page-income #inc-month-list .empty-state {
+    padding: 28px 22px !important;
+  }
+
+  /* Savings: total + goals + progress */
+  #page-savings .page-header .header-actions,
+  #page-savings .fade-up.d2,
+  #page-savings .sav-chart-grid {
+    display: none !important;
+  }
+  #page-savings .sav-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
 }
 
 @media(max-width:480px) {
