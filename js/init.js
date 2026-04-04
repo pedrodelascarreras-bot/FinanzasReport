@@ -209,6 +209,8 @@ function setPayMethod(method){
 // ══ INIT ══
 window.addEventListener('DOMContentLoaded',()=>{
   loadState();
+  if (!state.gmailClientId) state.gmailClientId = DEFAULT_GOOGLE_CLIENT_ID;
+  if (!localStorage.getItem('fin_gmail_client_id')) localStorage.setItem('fin_gmail_client_id', getGmailClientId());
   // One-time cleanup: remove any "Cuota X de Y" standalone entries from old imports
   if(state.transactions.length) deduplicateTransactions();
   loadTheme();
@@ -406,13 +408,14 @@ function updateCSVExportCount() {
 // ══════════════════════════════════════════════════════════
 const GMAIL_SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
 const GMAIL_SENDER = 'mensajesyavisos@mails.santander.com.ar';
+const DEFAULT_GOOGLE_CLIENT_ID = '1074091090601-7t3s8snviodd5ec66vdefe7inmiqr15n.apps.googleusercontent.com';
 let gmailTokenClient = null;
 let gmailAccessToken = null;
 let pendingGmailTxns = [];
 let driveReconnectInFlight = false;
 
 function getGmailClientId() {
-  return state.gmailClientId || localStorage.getItem('fin_gmail_client_id') || '';
+  return state.gmailClientId || localStorage.getItem('fin_gmail_client_id') || DEFAULT_GOOGLE_CLIENT_ID;
 }
 
 function saveGmailClientId() {
