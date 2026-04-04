@@ -172,7 +172,11 @@
   <div id="dash-empty" class="upload-zone fade-up d1" onclick="nav('import')">
     <div class="upload-icon">◫</div>
     <div class="upload-title">Traé tus movimientos al panel</div>
-    <div class="upload-sub">Importá CSV, pegá texto bancario o sincronizá Gmail para empezar con una vista completa.</div>
+    <div class="upload-sub">Importá CSV, pegá texto bancario o conectá Google Drive para ver los mismos datos también desde el celular.</div>
+    <div class="upload-actions" style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;margin-top:14px;">
+      <button class="btn btn-primary" onclick="openCloudSync(event)">☁️ Conectar Google</button>
+      <button class="btn btn-ghost" onclick="event.stopPropagation();nav('import')">Importar datos</button>
+    </div>
     <div class="upload-tags"><span class="tag green">Santander</span><span class="tag">CSV</span><span class="tag">ARS + USD</span><span class="tag">IA Auto</span></div>
   </div>
   <div id="dash-content" class="content-stack">
@@ -1647,6 +1651,7 @@
       <button class="mob-nav-btn" id="mn-reportes" onclick="nav('reportes');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">📊</span>Reportes</button>
       <button class="mob-nav-btn" id="mn-categories" onclick="nav('categories');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">◉</span>Categorías</button>
       <button class="mob-nav-btn" id="mn-import" onclick="nav('import');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">⇪</span>Import</button>
+      <button class="mob-nav-btn" id="mn-google-sync" onclick="openCloudSync(event);closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">☁</span>Google</button>
       <button class="mob-nav-btn" onclick="gmailSync();closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">✉</span>Gmail</button>
     </div>
   </div>

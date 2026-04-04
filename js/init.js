@@ -409,6 +409,7 @@ const GMAIL_SENDER = 'mensajesyavisos@mails.santander.com.ar';
 let gmailTokenClient = null;
 let gmailAccessToken = null;
 let pendingGmailTxns = [];
+let driveReconnectInFlight = false;
 
 function getGmailClientId() {
   return state.gmailClientId || localStorage.getItem('fin_gmail_client_id') || '';
@@ -419,9 +420,33 @@ function saveGmailClientId() {
   if (!id) { showToast('Ingresá un Client ID válido', 'error'); return; }
   state.gmailClientId = id;
   localStorage.setItem('fin_gmail_client_id', id);
+  saveState();
   closeModal('modal-gmail-setup');
   showToast('✓ Client ID guardado', 'success');
   initDriveClient();
+}
+
+function openCloudSync(event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const clientId = getGmailClientId();
+  if (!clientId) {
+    openModal('modal-gmail-setup');
+    return;
+  }
+  initDriveClient(false);
+}
+
+function attemptDriveReconnect(force){
+  const clientId = getGmailClientId();
+  if (!clientId) return;
+  if (driveReconnectInFlight && !force) return;
+  if (driveReady && driveAccessToken) return;
+  driveReconnectInFlight = true;
+  initDriveClient(false);
+  setTimeout(() => { driveReconnectInFlight = false; }, 4000);
 }
 
 function loadGoogleScript(cb) {
@@ -510,30 +535,34 @@ function updateGmailBtn(status) {
   const btn = document.getElementById('gmail-sync-btn');
   const label = document.getElementById('gmail-sync-label');
   const dot = document.getElementById('gmail-sync-dot');
-  if (!btn) return;
-  btn.className = 'gmail-sync-btn';
+  const mobBtn = document.getElementById('mn-google-sync');
+  if (btn) btn.className = 'gmail-sync-btn';
   if (status === 'syncing') {
-    btn.classList.add('syncing');
-    label.innerHTML = '<span class="spinning">↻</span> Sincronizando…';
-    dot.style.background = 'var(--accent3)';
+    if (btn) btn.classList.add('syncing');
+    if (label) label.innerHTML = '<span class="spinning">↻</span> Sincronizando…';
+    if (dot) dot.style.background = 'var(--accent3)';
+    if (mobBtn) mobBtn.innerHTML = '<span class="mn-icon">↻</span>Google';
   } else if (status === 'connected') {
-    btn.classList.add('connected');
+    if (btn) btn.classList.add('connected');
     const lastSyncTag = _getLastSyncTag();
-    label.innerHTML = 'Gmail · Conectado' + (lastSyncTag ? ' · ' + lastSyncTag : '');
-    dot.style.background = 'var(--accent2)';
+    if (label) label.innerHTML = 'Gmail · Conectado' + (lastSyncTag ? ' · ' + lastSyncTag : '');
+    if (dot) dot.style.background = 'var(--accent2)';
+    if (mobBtn) mobBtn.innerHTML = '<span class="mn-icon">☁</span>Google ✓';
   } else if (status === 'done') {
-    btn.classList.add('connected');
+    if (btn) btn.classList.add('connected');
     const lastSyncTag = _getLastSyncTag();
-    label.innerHTML = 'Gmail · Sincronizado ✓' + (lastSyncTag ? ' · ' + lastSyncTag : '');
-    dot.style.background = 'var(--accent)';
+    if (label) label.innerHTML = 'Gmail · Sincronizado ✓' + (lastSyncTag ? ' · ' + lastSyncTag : '');
+    if (dot) dot.style.background = 'var(--accent)';
+    if (mobBtn) mobBtn.innerHTML = '<span class="mn-icon">☁</span>Google ✓';
   } else {
     const lastSyncTag = _getLastSyncTag();
     if (lastSyncTag) {
-      label.innerHTML = `Gmail · ${lastSyncTag}`;
+      if (label) label.innerHTML = `Gmail · ${lastSyncTag}`;
     } else {
-      label.textContent = 'Gmail · Sincronizar';
+      if (label) label.textContent = 'Gmail · Sincronizar';
     }
-    dot.style.background = 'var(--text3)';
+    if (dot) dot.style.background = 'var(--text3)';
+    if (mobBtn) mobBtn.innerHTML = '<span class="mn-icon">☁</span>Conectar';
   }
 }
 
@@ -1010,8 +1039,12 @@ function confirmGmailImport() {
 window.addEventListener('load', () => {
   const clientId = getGmailClientId();
   if (clientId) {
-    setTimeout(() => initDriveClient(false), 1500);
+    setTimeout(() => attemptDriveReconnect(false), 900);
   }
 });
 
-
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') {
+    attemptDriveReconnect(false);
+  }
+});

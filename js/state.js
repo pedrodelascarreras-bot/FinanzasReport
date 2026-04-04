@@ -49,6 +49,7 @@ function getStateSnapshot(){
     catRules:state.catRules||[],catHistory:state.catHistory||{},
     ccCards:state.ccCards||[],ccCycles:state.ccCycles||[],ccActiveCard:state.ccActiveCard||null,
     lastGmailSync:state.lastGmailSync||null,
+    gmailClientId:state.gmailClientId||localStorage.getItem('fin_gmail_client_id')||'',
     userName:state.userName||'Pedro',
     lastVisit:state.lastVisit||null,
     dismissedNotifs:state.dismissedNotifs||[],
@@ -251,6 +252,7 @@ async function loadFromDrive(){
     state.ccCycles=s.ccCycles||[];
     state.ccActiveCard=s.ccActiveCard||null;
     state.lastGmailSync=s.lastGmailSync||null;
+    state.gmailClientId=s.gmailClientId||'';
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
     state.txnCardFilter=s.txnCardFilter||'';
@@ -259,7 +261,10 @@ async function loadFromDrive(){
     const _pmMig={'Efectivo':'ef','Débito':'deb','Tarjeta de Crédito':'tc','USD':'ef'};
     state.transactions.forEach(t=>{if(t.payMethod&&_pmMig[t.payMethod])t.payMethod=_pmMig[t.payMethod];});
     // Also persist to localStorage
-    try{localStorage.setItem('fin_state',JSON.stringify(s));}catch(e){}
+    try{
+      localStorage.setItem('fin_state',JSON.stringify(s));
+      if(state.gmailClientId) localStorage.setItem('fin_gmail_client_id', state.gmailClientId);
+    }catch(e){}
     return true;
   }catch(e){
     console.warn('Drive load error:',e);
@@ -292,6 +297,7 @@ function loadState(){
     state.ccCycles=s.ccCycles||[];
     state.ccActiveCard=s.ccActiveCard||null;
     state.lastGmailSync=s.lastGmailSync||null;
+    state.gmailClientId=s.gmailClientId||localStorage.getItem('fin_gmail_client_id')||'';
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
     state.txnCardFilter=s.txnCardFilter||'';
