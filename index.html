@@ -239,7 +239,9 @@
               <span class="dash-utility-kicker">💵 Dólar oficial</span>
               <span id="usd-rate-source-badge" class="dash-utility-pill">manual</span>
             </div>
-            <div class="dash-utility-value"><span id="usd-rate-display">$1.420</span></div>
+            <div class="dash-utility-value-shell">
+              <div class="dash-utility-value"><span id="usd-rate-display">$1.420</span></div>
+            </div>
             <div class="dash-utility-subline">
               <span id="usd-rate-status" class="usd-rate-meta"></span>
               <span id="usd-rate-updated" class="usd-rate-meta usd-rate-updated"></span>
@@ -1964,7 +1966,22 @@
     <div class="modal-title">Configurar cuotas</div>
     <div class="modal-sub" id="modal-cuota-auto-desc">—</div>
     <div style="display:flex;flex-direction:column;gap:14px;">
-      <div class="input-group"><label class="input-label">Nombre corto / alias</label><input class="input-field" id="autocuota-alias" placeholder="ej: Curso UCA, BomboDoll, Notebook"></div>
+      <div class="grid-2">
+        <div class="input-group"><label class="input-label">Nombre corto / alias</label><input class="input-field" id="autocuota-alias" placeholder="ej: Curso UCA, BomboDoll, Notebook"></div>
+        <div class="input-group">
+          <label class="input-label">Emoji</label>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <div id="autocuota-emoji-preview" style="font-size:28px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:var(--surface2);border-radius:12px;border:1px solid var(--border);cursor:pointer;flex-shrink:0;" onclick="toggleEmojiPicker('autocuota')">🛒</div>
+            <span style="font-size:11px;color:var(--text3);">Tocá para cambiar</span>
+          </div>
+          <input type="hidden" id="autocuota-emoji" value="🛒">
+          <div id="autocuota-emoji-picker" style="display:none;flex-wrap:wrap;gap:4px;margin-top:8px;padding:10px;background:var(--surface2);border-radius:12px;border:1px solid var(--border);max-height:160px;overflow-y:auto;"></div>
+        </div>
+      </div>
+      <div class="input-group">
+        <label class="input-label">Color</label>
+        <div class="color-picker-row" id="autocuota-color-picker"></div>
+      </div>
       <div class="grid-2">
         <div class="input-group"><label class="input-label">Cuotas totales</label><input type="number" class="input-field" id="autocuota-total" placeholder="ej: 12" min="1"></div>
         <div class="input-group"><label class="input-label">Cuotas pagadas</label><input type="number" class="input-field" id="autocuota-paid" placeholder="auto-detectado" min="0"></div>

@@ -128,7 +128,7 @@ function renderCuotas(){
         if(_projected.length>0){const _np=_projected.sort((a,b)=>new Date(a.date)-new Date(b.date))[0];nextPayDate=new Date(_np.date);}
       }
     }
-    return buildCuotaCard(g.key,g.displayName||g.name,'🛒',amountPerCuota,g.currency||'ARS',paid,total,rem,pct,daysUntil,day,remainingTotal,false,null,nextPayDate);
+    return buildCuotaCard(g.key,g.displayName||g.name,cfg.emoji||'🛒',amountPerCuota,g.currency||'ARS',paid,total,rem,pct,daysUntil,day,remainingTotal,false,cfg.color||null,nextPayDate);
   }).join('');
   document.getElementById('cuotas-grid').innerHTML=autoCards||'<div style="color:var(--text3);font-size:13px;font-family:var(--font);">Las cuotas se detectan automáticamente al importar tu CSV.</div>';
   // Manual cuotas
@@ -217,6 +217,8 @@ function openAutoCuotaModal(key){
   const snap=getAutoCuotaSnapshot(g);
   document.getElementById('modal-cuota-auto-desc').textContent=(g.displayName||g.name)+' · $'+fmtN(g.amount)+' por cuota';
   document.getElementById('autocuota-alias').value=cfg.alias||'';
+  initEmojiPicker('autocuota',cfg.emoji||'🛒');
+  renderGenericColorPicker('autocuota-color-picker',cfg.color||'');
   document.getElementById('autocuota-total').value=cfg.total||g.transactions[0]?.cuotaTotal||'';
   document.getElementById('autocuota-paid').value=cfg.paid!==undefined?cfg.paid:snap.paid;
   document.getElementById('autocuota-day').value=cfg.day||'';
@@ -226,12 +228,16 @@ function openAutoCuotaModal(key){
 function saveAutoCuota(){
   const key=document.getElementById('autocuota-key').value;
   const alias=document.getElementById('autocuota-alias').value.trim();
+  const emoji=document.getElementById('autocuota-emoji').value||'🛒';
+  const sw=document.querySelector('#autocuota-color-picker .color-swatch.selected');
+  const rawC=sw?sw.style.backgroundColor:'#888888';
+  const color=rawC.startsWith('#')?rawC:rgbToHex(rawC);
   const total=parseInt(document.getElementById('autocuota-total').value)||null;
   const paid=parseInt(document.getElementById('autocuota-paid').value);
   const day=parseInt(document.getElementById('autocuota-day').value)||null;
   const group=detectAutoCuotas().find(g=>g.key===key);
   const prev=group?getAutoCuotaConfig(group):(state.autoCuotaConfig[key]||{});
-  state.autoCuotaConfig[key]={...prev,total,paid,day,alias};
+  state.autoCuotaConfig[key]={...prev,total,paid,day,alias,emoji,color};
   if(group?.legacyKey&&group.legacyKey!==key&&state.autoCuotaConfig[group.legacyKey]){
     delete state.autoCuotaConfig[group.legacyKey];
   }
