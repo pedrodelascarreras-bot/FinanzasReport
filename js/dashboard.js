@@ -923,42 +923,73 @@ function renderDashboard(){
   }
   const timelineData=getDashboardTimelineData(today);
   const backupHealth=getBackupHealth(today);
-  const _closeVal=document.getElementById('timeline-close-value');
-  const _closeDate=document.getElementById('timeline-close-date');
-  const _closeChip=document.getElementById('timeline-close-chip');
-  if(_closeVal&&_closeDate&&_closeChip){
-    if(timelineData.nextClose){
-      _closeVal.textContent=timelineData.nextClose.shortLabel;
-      _closeDate.textContent=`${timelineData.nextClose.type==='due'?'Vence':'Cierra'} ${timelineData.nextClose.days===0?'hoy':timelineData.nextClose.days===1?'mañana':'en '+timelineData.nextClose.days+' días'} · ${timelineData.nextClose.date.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})}`;
-      _closeChip.textContent=timelineData.nextClose.type==='due'?'vencimiento':'cierre';
-    } else {
-      _closeVal.textContent='Sin cierre próximo';
-      _closeDate.textContent='Cargá ciclos o fechas de vencimiento para ver hitos.';
-      _closeChip.textContent='sin ciclo';
+  const slotEls=[1,2,3].map(i=>({
+    label:document.getElementById(`timeline-slot-${i}-label`),
+    chip:document.getElementById(`timeline-slot-${i}-chip`),
+    value:document.getElementById(`timeline-slot-${i}-value`),
+    meta:document.getElementById(`timeline-slot-${i}-meta`)
+  }));
+  const rawEvents=(timelineData.events||[]).filter(e=>e&&e.days>=0);
+  const seenTimeline=new Set();
+  const timelineCards=[];
+  const pushTimelineEvent=e=>{
+    if(!e) return;
+    const key=`${e.type}-${e.title}-${e.date instanceof Date?e.date.toISOString():e.date}`;
+    if(seenTimeline.has(key)) return;
+    seenTimeline.add(key);
+    timelineCards.push(e);
+  };
+  pushTimelineEvent(rawEvents.find(e=>(e.type==='close'||e.type==='due')&&e.days<=7));
+  rawEvents.filter(e=>e.type!=='close'&&e.type!=='due').forEach(pushTimelineEvent);
+  rawEvents.forEach(pushTimelineEvent);
+  const fallbackCards=[
+    {label:'Presión semanal',chip:'caja',value:timelineData.nextWeekAmount>0?`$${fmtN(Math.round(timelineData.nextWeekAmount||0))}`:'Semana despejada',meta:timelineData.nextWeekCount?`${timelineData.nextWeekCount} evento${timelineData.nextWeekCount!==1?'s':''} en los próximos 7 días.`:`Sin presión inmediata en la agenda financiera.`},
+    {label:'Backup',chip:backupHealth.level==='info'?'al día':'revisar',value:backupHealth.label,meta:backupHealth.desc},
+    {label:'Agenda',chip:'sin eventos',value:'Sin urgencias',meta:'Tu agenda financiera se ve estable por ahora.'}
+  ];
+  while(timelineCards.length<3&&fallbackCards.length) timelineCards.push(fallbackCards.shift());
+  const formatTimelineCard=e=>{
+    if(e.label) return e;
+    const when=e.days===0?'Hoy':e.days===1?'Mañana':`En ${e.days} días`;
+    const dateLabel=e.date instanceof Date?e.date.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}):'';
+    if(e.type==='close'||e.type==='due'){
+      return {
+        label:e.type==='due'?'Vencimiento TC':'Cierre TC',
+        chip:e.type==='due'?'tarjeta':'tarjeta',
+        value:e.shortLabel,
+        meta:`${when} · ${dateLabel}`
+      };
     }
-  }
-  const _commitVal=document.getElementById('timeline-commitment-value');
-  const _commitDate=document.getElementById('timeline-commitment-date');
-  const _commitChip=document.getElementById('timeline-commitment-chip');
-  if(_commitVal&&_commitDate&&_commitChip){
-    if(timelineData.nextCommitment){
-      _commitVal.textContent=timelineData.nextCommitment.shortLabel;
-      _commitDate.textContent=`${timelineData.nextCommitment.days===0?'Hoy':timelineData.nextCommitment.days===1?'Mañana':'En '+timelineData.nextCommitment.days+' días'} · $${fmtN(Math.round(timelineData.nextCommitment.amount||0))}`;
-      _commitChip.textContent=timelineData.nextCommitment.type==='subscription'?'suscripción':timelineData.nextCommitment.type==='fixed'?'gasto fijo':'cuota';
-    } else {
-      _commitVal.textContent='Sin vencimientos cercanos';
-      _commitDate.textContent='No aparecen cuotas, suscripciones ni fijos inmediatos.';
-      _commitChip.textContent='sin eventos';
+    if(e.type==='subscription'){
+      return {
+        label:'Suscripción',
+        chip:'suscripción',
+        value:e.shortLabel,
+        meta:`${when} · $${fmtN(Math.round(e.amount||0))}`
+      };
     }
-  }
-  const _weekVal=document.getElementById('timeline-week-value');
-  const _weekDate=document.getElementById('timeline-week-date');
-  const _weekChip=document.getElementById('timeline-week-chip');
-  if(_weekVal&&_weekDate&&_weekChip){
-    animateNumberText(_weekVal,Math.round(timelineData.nextWeekAmount||0),{prefix:'$',decimals:2,duration:700});
-    _weekChip.textContent=`${timelineData.nextWeekCount||0} evento${timelineData.nextWeekCount!==1?'s':''}`;
-    _weekDate.textContent=timelineData.nextWeekCount?`Próximos 7 días con presión real de caja.${backupHealth.level!=='info'?' · '+backupHealth.label.toLowerCase()+'.':''}`:`Semana despejada.${backupHealth.level!=='info'?' · '+backupHealth.label.toLowerCase()+'.':''}`;
-  }
+    if(e.type==='fixed'){
+      return {
+        label:'Gasto fijo',
+        chip:'fijo',
+        value:e.shortLabel,
+        meta:`${when} · $${fmtN(Math.round(e.amount||0))}`
+      };
+    }
+    return {
+      label:'Próxima cuota',
+      chip:'cuota',
+      value:e.shortLabel,
+      meta:`${when} · $${fmtN(Math.round(e.amount||0))}`
+    };
+  };
+  slotEls.forEach((slot,idx)=>{
+    const card=formatTimelineCard(timelineCards[idx]||fallbackCards[0]);
+    if(slot.label)slot.label.textContent=card.label;
+    if(slot.chip)slot.chip.textContent=card.chip;
+    if(slot.value)slot.value.textContent=card.value;
+    if(slot.meta)slot.meta.textContent=card.meta;
+  });
 
 
   // ── Hero ──

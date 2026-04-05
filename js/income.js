@@ -155,20 +155,11 @@ function renderIncomePage(){
   }).join(''):'<div class="empty-state" style="padding:40px;"><div class="empty-icon">◎</div><div class="empty-title">Sin meses registrados</div><div class="empty-sub">Hacé click en "+ Registrar mes"</div></div>';
   document.getElementById('inc-total-badge').textContent=months.length+' mes'+(months.length!==1?'es':'')+' · prom $'+fmtN(avgCombined)+' combinado';
 
-  // ── Sync banner: warn if current month has no logged entry ──
+  // ── Sync banner hidden: manual monthly logging is now the primary flow ──
   const _syncBanner=document.getElementById('inc-sync-banner');
   if(_syncBanner){
-    const _hasCurEntry=!!state.incomeMonths.find(m=>m.month===curMonthKey);
-    const _hasSources=(state.incomeSources||[]).some(s=>s.base>0);
-    if(!_hasCurEntry&&_hasSources){
-      const _srcTotal=(state.incomeSources||[]).filter(s=>s.currency==='ARS').reduce((a,s)=>a+(s.base||0),0);
-      _syncBanner.style.display='flex';
-      _syncBanner.innerHTML='<span style="font-size:13px;">⚠️ No hay ingreso registrado para el mes actual.</span>'
-        +'<span style="font-size:12px;color:var(--text3);">Las fuentes tienen un base de <strong>$'+fmtN(_srcTotal)+'</strong> configurado.</span>'
-        +'<button class="btn btn-primary" style="padding:7px 16px;font-size:12px;" onclick="syncCurrentMonthIncome()">🔄 Aplicar al mes actual</button>';
-    } else {
-      _syncBanner.style.display='none';
-    }
+    _syncBanner.style.display='none';
+    _syncBanner.innerHTML='';
   }
 
   // Sources panel
@@ -177,7 +168,7 @@ function renderIncomePage(){
 }
 function renderIncSourcesPanel(){
   const el=document.getElementById('inc-sources-list');if(!el)return;
-  if(!state.incomeSources.length){el.innerHTML='<div style="font-size:12px;color:var(--text3);font-family:var(--font);font-weight:400;">Sin fuentes configuradas</div>';return;}
+  if(!state.incomeSources.length){el.innerHTML='<div style="font-size:12px;color:var(--text3);font-family:var(--font);font-weight:400;line-height:1.6;">No tenés una estructura cargada. Está bien si solo registrás tu sueldo principal ARS/USD mes a mes. Sumá estructura cuando tengas otro trabajo, freelance, rentas o quieras dejar una base reutilizable.</div>';return;}
   el.innerHTML='<div class="inc-source-grid">'+state.incomeSources.map(s=>{
     const c=s.color||'#888888';
     const typeLabel={fijo:'Fijo',variable:'Variable',freelance:'Freelance',alquiler:'Alquiler',dividendos:'Inversión',otro:'Otro'}[s.type]||s.type;
@@ -339,6 +330,7 @@ function deleteIncSource(){
 // ── Log income month modal ──
 function openLogIncomeModal(){
   document.getElementById('modal-log-inc-title').textContent='Registrar ingresos del mes';
+  document.getElementById('modal-log-inc-sub').textContent='Registrá el ingreso correspondiente a ese mes, aunque lo hayas cobrado después';
   document.getElementById('log-inc-editing').value='';
   document.getElementById('log-inc-month').value=getMonthKey(new Date());
   document.getElementById('log-inc-note').value='';
@@ -350,6 +342,7 @@ function openLogIncomeModal(){
 function editIncMonth(id){
   const m=state.incomeMonths.find(x=>x.id===id);if(!m)return;
   document.getElementById('modal-log-inc-title').textContent='Editar — '+fmtMonthLabel(m.month);
+  document.getElementById('modal-log-inc-sub').textContent='Ajustá el mes al que corresponde el ingreso, no solamente la fecha en que entró.';
   document.getElementById('log-inc-editing').value=id;
   document.getElementById('log-inc-month').value=m.month;
   document.getElementById('log-inc-note').value=m.note||'';
@@ -360,8 +353,8 @@ function editIncMonth(id){
 }
 function buildLogIncSourceFields(values){
   const el=document.getElementById('log-inc-sources-fields');
-  if(!state.incomeSources.length){el.innerHTML='<div style="font-size:12px;color:var(--text3);font-family:var(--font);padding:8px 0;">Configurá fuentes de ingreso primero (botón ⚙ Fuentes).</div>';return;}
-  el.innerHTML=state.incomeSources.map(src=>{
+  if(!state.incomeSources.length){el.innerHTML='<div style="font-size:12px;color:var(--text3);font-family:var(--font);padding:8px 0;">No necesitás configurar estructura si solo querés cargar tu sueldo principal ARS/USD. Usala cuando tengas otros trabajos, freelance o rentas.</div>';return;}
+  el.innerHTML='<div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);margin-bottom:2px;">Otras fuentes o componentes</div>'+state.incomeSources.map(src=>{
     const c=src.color||'#888888';
     return'<div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:var(--surface2);border-radius:var(--r2);border:1px solid var(--border);">'
       +'<div style="width:8px;height:8px;border-radius:50%;background:'+c+';flex-shrink:0;"></div>'
@@ -423,4 +416,3 @@ function saveIncome(){
 // ══ API KEY ══
 function getApiKey(){return state.apiKey||localStorage.getItem('fin_apikey')||'';}
 function saveApiKey(){const k=document.getElementById('input-apikey').value.trim();if(!k)return;state.apiKey=k;localStorage.setItem('fin_apikey',k);closeModal('modal-apikey');showToast('✓ API Key guardada','success');}
-

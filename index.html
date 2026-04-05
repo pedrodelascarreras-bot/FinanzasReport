@@ -239,7 +239,7 @@
               <span class="dash-utility-kicker">💵 Dólar oficial</span>
               <span id="usd-rate-source-badge" class="dash-utility-pill">manual</span>
             </div>
-            <div class="dash-utility-value">U$D 1 = <span id="usd-rate-display">$1.420</span></div>
+            <div class="dash-utility-value"><span id="usd-rate-display">$1.420</span></div>
             <div class="dash-utility-subline">
               <span id="usd-rate-status" class="usd-rate-meta"></span>
               <span id="usd-rate-updated" class="usd-rate-meta usd-rate-updated"></span>
@@ -257,27 +257,27 @@
             <div class="dash-timeline-shell">
               <div class="dash-timeline-block">
                 <div class="dash-timeline-block-top">
-                  <span class="dash-timeline-label">Cierre</span>
-                  <span id="timeline-close-chip" class="dash-utility-pill">sin ciclo</span>
+                  <span id="timeline-slot-1-label" class="dash-timeline-label">Evento 1</span>
+                  <span id="timeline-slot-1-chip" class="dash-utility-pill">sin eventos</span>
                 </div>
-                <div id="timeline-close-value" class="dash-utility-value">Sin cierre próximo</div>
-                <div id="timeline-close-date" class="dash-utility-subline">Configurá fechas de tarjeta para seguir el ciclo.</div>
+                <div id="timeline-slot-1-value" class="dash-utility-value">Sin novedades</div>
+                <div id="timeline-slot-1-meta" class="dash-utility-subline">La agenda financiera se actualiza sola.</div>
               </div>
               <div class="dash-timeline-block">
                 <div class="dash-timeline-block-top">
-                  <span class="dash-timeline-label">Próximo compromiso</span>
-                  <span id="timeline-commitment-chip" class="dash-utility-pill">sin eventos</span>
+                  <span id="timeline-slot-2-label" class="dash-timeline-label">Evento 2</span>
+                  <span id="timeline-slot-2-chip" class="dash-utility-pill">sin eventos</span>
                 </div>
-                <div id="timeline-commitment-value" class="dash-utility-value">Sin vencimientos cercanos</div>
-                <div id="timeline-commitment-date" class="dash-utility-subline">Tus próximos pagos aparecerán acá.</div>
+                <div id="timeline-slot-2-value" class="dash-utility-value">Sin vencimientos cercanos</div>
+                <div id="timeline-slot-2-meta" class="dash-utility-subline">Tus próximos pagos aparecerán acá.</div>
               </div>
               <div class="dash-timeline-block">
                 <div class="dash-timeline-block-top">
-                  <span class="dash-timeline-label">Próximos 7 días</span>
-                  <span id="timeline-week-chip" class="dash-utility-pill">0 eventos</span>
+                  <span id="timeline-slot-3-label" class="dash-timeline-label">Evento 3</span>
+                  <span id="timeline-slot-3-chip" class="dash-utility-pill">sin eventos</span>
                 </div>
-                <div id="timeline-week-value" class="dash-utility-value">$0</div>
-                <div id="timeline-week-date" class="dash-utility-subline">Sin presión inmediata en la agenda financiera.</div>
+                <div id="timeline-slot-3-value" class="dash-utility-value">Semana despejada</div>
+                <div id="timeline-slot-3-meta" class="dash-utility-subline">Sin presión inmediata en la agenda financiera.</div>
               </div>
             </div>
           </button>
@@ -1208,10 +1208,9 @@
 <!-- INCOME (REDESIGNED) -->
 <div id="page-income" class="page">
   <div class="page-header fade-up">
-    <div><div class="page-title">Ingresos</div><div class="page-subtitle">Historial mensual · fuentes · evolución</div></div>
+    <div><div class="page-title">Ingresos</div><div class="page-subtitle">Mes correspondiente · sueldo ARS/USD · estructura laboral flexible</div></div>
     <div class="header-actions">
-      <button class="btn btn-ghost" onclick="openIncomeSourceModal()">⚙ Fuentes</button>
-      <button class="btn btn-ghost" id="btn-sync-income-month" onclick="syncCurrentMonthIncome()" title="Aplicar montos base de las fuentes al mes actual">🔄 Sincronizar</button>
+      <button class="btn btn-ghost" onclick="openIncomeSourceModal()" title="Usalo si querés dejar una estructura base o sumar otro trabajo, freelance, rentas o componentes extra">⚙ Estructura</button>
       <button class="btn btn-primary" onclick="openLogIncomeModal()">+ Registrar mes</button>
     </div>
   </div>
@@ -1337,7 +1336,7 @@
     <div class="inc-side-stack">
       <div class="section-card">
         <div class="section-card-header" style="display:flex;justify-content:space-between;align-items:center;">
-          <div style="font-size:13px;font-weight:700;">Fuentes de ingreso</div>
+          <div style="font-size:13px;font-weight:700;">Estructura de ingresos</div>
           <button class="btn btn-ghost btn-sm" onclick="openIncomeSourceModal()">+ Nueva</button>
         </div>
         <div class="section-card-body" style="padding:14px 18px;" id="inc-sources-list">
@@ -2004,22 +2003,24 @@
 <div class="modal-overlay" id="modal-log-income">
   <div class="modal" style="width:540px;">
     <div class="modal-title" id="modal-log-inc-title">Registrar ingresos del mes</div>
-    <div class="modal-sub" id="modal-log-inc-sub">Ingresá los montos cobrados este mes</div>
+    <div class="modal-sub" id="modal-log-inc-sub">Registrá el ingreso correspondiente a ese mes, aunque lo hayas cobrado después</div>
     <input type="hidden" id="log-inc-editing">
     <div style="display:flex;flex-direction:column;gap:14px;">
       <div class="grid-2">
-        <div class="input-group"><label class="input-label">Mes</label><input type="month" class="input-field" id="log-inc-month"></div>
-        <div class="input-group"><label class="input-label">Nota (opcional)</label><input class="input-field" id="log-inc-note" placeholder="ej: Aguinaldo incluido"></div>
+        <div class="input-group"><label class="input-label">Mes correspondiente</label><input type="month" class="input-field" id="log-inc-month"></div>
+        <div class="input-group"><label class="input-label">Nota (opcional)</label><input class="input-field" id="log-inc-note" placeholder="ej: Cobrado el 3 de abril"></div>
       </div>
       <div id="log-inc-sources-fields" style="display:flex;flex-direction:column;gap:10px;"></div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);">Ingreso principal del mes</div>
       <div style="display:flex;gap:8px;">
-        <div class="input-group" style="flex:1"><label class="input-label">Extra ARS (otros)</label><input type="number" class="input-field" id="log-inc-extra-ars" placeholder="ej: 50000"></div>
-        <div class="input-group" style="flex:1"><label class="input-label">Extra USD (otros)</label><input type="number" class="input-field" id="log-inc-extra-usd" placeholder="ej: 100"></div>
+        <div class="input-group" style="flex:1"><label class="input-label">Sueldo / ingreso principal ARS</label><input type="number" class="input-field" id="log-inc-extra-ars" placeholder="ej: 500000"></div>
+        <div class="input-group" style="flex:1"><label class="input-label">Sueldo / ingreso principal USD</label><input type="number" class="input-field" id="log-inc-extra-usd" placeholder="ej: 300"></div>
       </div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.5;">Si tu sueldo viene mezclado en pesos y dólares, cargalo acá. La sección de estructura te sirve para sumar otros trabajos, freelance, alquileres o cambiar tu esquema más adelante.</div>
     </div>
     <div style="margin-top:16px;padding:12px 14px;background:var(--surface2);border-radius:var(--r2);font-size:13px;font-family:var(--font);">
-      Total ARS: <span id="log-inc-preview-ars" style="color:var(--accent);font-weight:700;">$0</span>
-      &nbsp;·&nbsp; USD: <span id="log-inc-preview-usd" style="color:var(--accent2);font-weight:700;">U$D 0</span>
+      Principal ARS: <span id="log-inc-preview-ars" style="color:var(--accent);font-weight:700;">$0</span>
+      &nbsp;·&nbsp; Principal USD: <span id="log-inc-preview-usd" style="color:var(--accent2);font-weight:700;">U$D 0</span>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-log-income')">Cancelar</button>
@@ -2033,7 +2034,7 @@
 <div class="modal-overlay" id="modal-inc-source">
   <div class="modal">
     <div class="modal-title" id="modal-inc-src-title">Nueva fuente de ingreso</div>
-    <div class="modal-sub">Trabajo, freelance, alquiler, dividendos...</div>
+    <div class="modal-sub">Usalo para trabajos extra, freelance, alquileres, comisiones o para cambiar tu estructura laboral más adelante.</div>
     <input type="hidden" id="modal-inc-src-editing">
     <div style="display:flex;flex-direction:column;gap:14px;">
       <div class="grid-2">
