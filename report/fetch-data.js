@@ -9,8 +9,36 @@ const { google } = require('googleapis');
 
 const SYNC_FILE_NAME = 'finanzas-data-sync.json';
 
+function parseServiceAccountEnv() {
+  const raw = (process.env.GOOGLE_SERVICE_ACCOUNT_JSON || '').trim();
+
+  if (!raw) {
+    throw new Error(
+      'Falta GOOGLE_SERVICE_ACCOUNT_JSON en Render. Pegá el contenido completo del archivo JSON de la service account.'
+    );
+  }
+
+  const attempts = [
+    raw,
+    raw.replace(/^['"`]|['"`]$/g, ''),
+  ];
+
+  for (const candidate of attempts) {
+    try {
+      const parsed = JSON.parse(candidate);
+      if (parsed && typeof parsed === 'object' && parsed.client_email && parsed.private_key) {
+        return parsed;
+      }
+    } catch (_) {}
+  }
+
+  throw new Error(
+    'GOOGLE_SERVICE_ACCOUNT_JSON está mal pegado en Render. Tiene que ser el contenido completo del archivo JSON de la service account, empezando con "{" y terminando con "}", sin texto extra.'
+  );
+}
+
 async function fetchFinanceData() {
-  const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_JSON);
+  const credentials = parseServiceAccountEnv();
   const auth = new google.auth.GoogleAuth({
     credentials,
     scopes: ['https://www.googleapis.com/auth/drive.readonly'],
