@@ -8,16 +8,16 @@ function toggleBreakdown(id){
   if(chev)chev.style.transform=open?'rotate(0deg)':'rotate(90deg)';
 }
 function setTendMode(m){
-  // Si se pide modo semana (legado), redirigir a mes
-  if(m==='week') m='month';
   state.tendMode=m;
+  const weekBtn=document.getElementById('tend-tog-week');
+  if(weekBtn)weekBtn.classList.toggle('active',m==='week');
   document.getElementById('tend-tog-month').classList.toggle('active',m==='month');
   const tcBtn=document.getElementById('tend-tog-tc');
   if(tcBtn){tcBtn.classList.toggle('active',m==='tc');tcBtn.style.display=getTcCycles().length?'':'none';}
   renderTendencia();
 }
 function getTendPeriodKeys(){
-  if(false&&state.tendMode==='week')return[...new Set(state.transactions.map(t=>t.week||getWeekKey(t.date)))].sort();
+  if(state.tendMode==='week')return[...new Set(state.transactions.map(t=>t.week||getWeekKey(t.date)))].sort();
   if(state.tendMode==='tc'){
     const cycles=getTcCycles().slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
     return cycles.map(c=>c.id);
@@ -25,7 +25,14 @@ function getTendPeriodKeys(){
   return[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))].sort();
 }
 function getTendPeriodLabel(k){
-  if(state.tendMode==='week'){const d=new Date(k+'T12:00:00');const e=new Date(d);e.setDate(e.getDate()+6);return d.getDate()+'/'+(d.getMonth()+1);}
+  if(state.tendMode==='week'){
+    const d=new Date(k+'T12:00:00');
+    const e=new Date(d);
+    e.setDate(e.getDate()+6);
+    const ds=`${d.getDate()} ${d.toLocaleDateString('es-AR',{month:'short'}).replace('.','')}`;
+    const de=`${e.getDate()} ${e.toLocaleDateString('es-AR',{month:'short'}).replace('.','')}`;
+    return `${ds} → ${de}`;
+  }
   if(state.tendMode==='tc'){
     const cycle=getTcCycles().find(c=>c.id===k);
     return cycle?cycle.label||cycle.closeDate:k;
@@ -53,8 +60,17 @@ function setTendChartMode(mode){
 }
 
 function renderTendencia(){
-  // Default to 'tc' (Credit Cards) if it's the default or first time
-  if(!state.tendMode || state.tendMode === 'week') state.tendMode = 'tc';
+  if(!state.tendMode) state.tendMode = 'tc';
+
+  const weekBtn=document.getElementById('tend-tog-week');
+  if(weekBtn)weekBtn.classList.toggle('active',state.tendMode==='week');
+  const monthBtn=document.getElementById('tend-tog-month');
+  if(monthBtn)monthBtn.classList.toggle('active',state.tendMode==='month');
+  const tcBtn=document.getElementById('tend-tog-tc');
+  if(tcBtn){
+    tcBtn.classList.toggle('active',state.tendMode==='tc');
+    tcBtn.style.display=getTcCycles().length?'':'none';
+  }
 
   const keys=getTendPeriodKeys();
   if(keys.length<1){document.getElementById('tendencia-empty').style.display='block';document.getElementById('tendencia-content').style.display='none';return;}
@@ -171,7 +187,7 @@ function renderTendencia(){
   if(tendMode==='bar'&&ctx1){
     // VISTA 1: Ranking (barras horizontales, solo cats con gasto)
     chartTitle.textContent='Ranking de gasto';
-    chartSub.textContent=activeParents.length+' categorías · '+activeKeys.length+' períodos';
+    chartSub.textContent=activeParents.length+' categorías · '+activeKeys.length+' '+(state.tendMode==='week'?'semanas':'períodos');
     const overallAvg=activeCatTotals.reduce((s,v)=>s+v,0)/Math.max(activeCatTotals.length,1);
     state.charts.tendMain=new Chart(ctx1,{
       type:'bar',
@@ -187,7 +203,7 @@ function renderTendencia(){
   } else if(tendMode==='line'&&ctx1){
     // VISTA 2: Evolución temporal por categoría
     chartTitle.textContent='Evolución por categoría';
-    chartSub.textContent='Top '+Math.min(activeParents.length,8)+' categorías · '+keys.length+' períodos';
+    chartSub.textContent='Top '+Math.min(activeParents.length,8)+' categorías · '+keys.length+' '+(state.tendMode==='week'?'semanas':'períodos');
     const lineLabels=keys.map(k=>getTendPeriodLabel(k));
     const lineCats=activeParents.slice(0,8);
     const datasets=lineCats.map(([parent])=>{
@@ -279,7 +295,7 @@ function renderTendencia(){
   // ════════════════════════════════════════════
   const breakdownEl=document.getElementById('tend-breakdown');
   const breakdownSub=document.getElementById('tend-breakdown-sub');
-  if(breakdownSub)breakdownSub.textContent=activeParents.length+' categorías con gasto · '+activeKeys.length+' períodos';
+  if(breakdownSub)breakdownSub.textContent=activeParents.length+' categorías con gasto · '+activeKeys.length+' '+(state.tendMode==='week'?'semanas':'períodos');
   if(breakdownEl){
     const maxParentVal=sortedParents.length?sortedParents[0][1]:1;
     let bHtml='';
@@ -324,7 +340,7 @@ function renderTendencia(){
     breakdownEl.innerHTML=bHtml;
   }
 
-  document.getElementById('tend-sub-title').textContent=(state.tendMode==='week'?'Por semana':'Por mes')+' · '+activeParents.length+' categorías activas';
+  document.getElementById('tend-sub-title').textContent=(state.tendMode==='week'?'Por semana':state.tendMode==='tc'?'Por ciclo de tarjeta':'Por mes')+' · '+activeParents.length+' categorías activas';
 }
 
 // ══ COMPARE ══
@@ -477,4 +493,3 @@ function renderCompareLineChart(ka,kb,la,lb){
     options:{...chartOpts('$',false),plugins:{...chartOpts('$',false).plugins,legend:{display:false}}}
   });
 }
-

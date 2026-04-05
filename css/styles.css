@@ -1723,6 +1723,39 @@ body.light-mode .dash-timeline-block {
 
 /* KPI secondary cards */
 .dash-kpis-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.dash-history-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.dash-history-card {
+  min-height: 118px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+}
+.dash-history-card-clickable { cursor: pointer; }
+.dash-history-label {
+  font-size: 10px;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--text3);
+}
+.dash-history-value {
+  font-size: clamp(24px, 2vw, 34px);
+  line-height: 0.95;
+  letter-spacing: -0.05em;
+  font-weight: 780;
+  color: var(--text);
+}
+.dash-history-sub {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--text3);
+}
 .dkpi {
   background:
     linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.015)),
@@ -1824,6 +1857,7 @@ body.light-mode .dash-timeline-block {
   align-items: center;
   gap: 10px;
   min-width: 0;
+  width: 100%;
 }
 .dash-dollar-flag {
   font-size: 28px;
@@ -1832,12 +1866,13 @@ body.light-mode .dash-timeline-block {
   flex: 0 0 auto;
 }
 .dash-dollar-title {
-  font-size: 15px;
+  font-size: 14px;
   line-height: 0.94;
   letter-spacing: -0.04em;
   font-weight: 800;
   color: var(--text2);
   white-space: normal;
+  flex: 1 1 auto;
 }
 .dash-utility-card-dollar .dash-utility-pill {
   padding: 8px 14px;
@@ -1850,6 +1885,7 @@ body.light-mode .dash-timeline-block {
   border: 1px solid var(--glass-border);
   box-shadow: 0 8px 18px rgba(15,23,42,0.06), inset 0 1px 0 rgba(255,255,255,0.5);
   align-self: flex-start;
+  margin-left: 38px;
 }
 .dash-utility-value-shell {
   display: flex;
@@ -1862,7 +1898,7 @@ body.light-mode .dash-timeline-block {
   align-items: center;
   justify-content: center;
   width: 100%;
-  min-height: 112px;
+  min-height: 108px;
   padding: 14px 18px;
   border-radius: 24px;
   border: 1px solid var(--glass-border);
@@ -1872,12 +1908,31 @@ body.light-mode .dash-timeline-block {
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.42), 0 10px 24px rgba(15,23,42,0.06);
 }
 .dash-utility-card-dollar .dash-utility-value {
-  font-size: clamp(32px, 2.35vw, 44px);
+  font-size: clamp(26px, 1.9vw, 36px);
   line-height: 0.92;
-  letter-spacing: -0.075em;
+  letter-spacing: -0.06em;
   margin-top: 0;
   text-align: center;
   width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: clip;
+}
+.dash-utility-card-dollar .dash-utility-value-dual {
+  flex-direction: column;
+  gap: 10px;
+}
+.dash-utility-card-dollar .dash-utility-value-dual span {
+  display: block;
+  width: 100%;
+  text-align: center;
+}
+.dash-utility-card-dollar .dash-utility-value-dual span:first-child {
+  font-size: clamp(24px, 1.65vw, 32px);
+  opacity: 0.88;
+}
+.dash-utility-card-dollar .dash-utility-value-dual span:last-child {
+  font-size: clamp(29px, 2vw, 38px);
 }
 .dash-utility-card-dollar .dash-utility-subline {
   min-height: 20px;
@@ -1891,16 +1946,22 @@ body.light-mode .dash-timeline-block {
   align-items: flex-start;
   justify-content: flex-start;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 #page-dashboard #usd-rate-card {
   justify-content: center;
   padding: 20px 18px 18px;
 }
 #page-dashboard #usd-rate-card .dash-utility-value {
-  font-size: clamp(30px, 2.2vw, 42px) !important;
-  letter-spacing: -0.07em;
+  font-size: clamp(24px, 1.8vw, 34px) !important;
+  letter-spacing: -0.055em;
   margin-top: 0;
+}
+#page-dashboard #usd-rate-card .dash-utility-value-dual span:first-child {
+  font-size: clamp(22px, 1.55vw, 29px) !important;
+}
+#page-dashboard #usd-rate-card .dash-utility-value-dual span:last-child {
+  font-size: clamp(28px, 1.9vw, 36px) !important;
 }
 #page-dashboard #usd-rate-card .usd-rate-meta {
   font-size: 11px;
@@ -1917,7 +1978,14 @@ body.light-mode .dash-timeline-block {
   justify-content: space-between;
 }
 .dash-utility-topline-compact {
-  margin-bottom: 2px;
+  margin-bottom: 8px;
+}
+.dash-utility-title-main {
+  font-size: clamp(18px, 1.6vw, 24px);
+  line-height: 1;
+  letter-spacing: -0.04em;
+  font-weight: 760;
+  color: var(--text);
 }
 .dash-timeline-shell {
   display: flex;
@@ -3992,6 +4060,9 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   .dash-hero-card { padding: 18px 16px; }
   .dhc-amount { font-size: clamp(28px,8vw,42px); letter-spacing: -0.04em; }
   .dash-kpis-col { display: grid !important; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .dash-history-row { grid-column: 1 / -1; gap: 10px; }
+  .dash-history-card { min-height: 104px; padding: 14px 13px; }
+  .dash-history-value { font-size: clamp(18px, 5vw, 24px); }
   .dkpi { padding: 13px 12px; }
   .dkpi-value { font-size: clamp(14px,4.5vw,20px); }
   #page-dashboard .content-stack { gap: 20px; }
@@ -4310,6 +4381,7 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   .mob-nav-btn .mn-icon { font-size: 16px; }
   .dhc-amount { font-size: clamp(24px,7vw,34px); }
   .dash-kpis-col { grid-template-columns: 1fr !important; }
+  .dash-history-row { grid-template-columns: 1fr !important; }
   .inc-kpi-row, .sav-accounts-grid, .sav-goals-grid, .inc-top-grid, .sav-kpi-grid { grid-template-columns: 1fr; }
   .inc-hero-value, .sav-hero-value { font-size: clamp(26px,8vw,36px); }
   table { font-size: 11px; min-width: 400px; }

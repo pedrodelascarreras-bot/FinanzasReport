@@ -217,7 +217,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   loadColorTheme();
   loadSidebar();
   updateUsdRateUI();
-  setChartMode(state.chartMode||'week');
+  setChartMode(state.chartMode||'bars');
   setTxnFilterMode(state.txnFilterMode||'mes');
   if(state.transactions.length){updateSidebarStats();renderDashboard();renderTransactions();document.getElementById('dash-empty').style.display='none';document.getElementById('dash-content').style.display='flex';setTimeout(()=>applyLayout('dashboard'),0);}
   if(typeof enforceMobilePagePreferences === 'function') enforceMobilePagePreferences();

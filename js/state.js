@@ -18,7 +18,7 @@ let state={
   tcCycles:[],
   dashTcCycle:null,
   dashView:'mes',
-  chartMode:'week',
+  chartMode:'bars',
   dashMonth:null,
   txnFilterMode:'mes',
   charts:{},_assigningTxnId:null,apiKey:'',
@@ -45,7 +45,7 @@ function getStateSnapshot(){
     cuotas:state.cuotas,autoCuotaConfig:state.autoCuotaConfig,subscriptions:state.subscriptions,fixedExpenses:state.fixedExpenses||[],
     incomeSources:state.incomeSources,incomeMonths:state.incomeMonths,
     savAccounts:state.savAccounts,savGoals:state.savGoals,savDeposits:state.savDeposits||[],tcConfig:state.tcConfig,
-    usdRate:state.usdRate||1420,usdRateSource:state.usdRateSource||'blue',usdRateUpdated:state.usdRateUpdated||null,
+    usdRate:state.usdRate||1420,usdRateBuy:state.usdRateBuy||state.usdRate||1420,usdRateSell:state.usdRateSell||state.usdRate||1420,usdRateSource:state.usdRateSource||'blue',usdRateUpdated:state.usdRateUpdated||null,
     catRules:state.catRules||[],catHistory:state.catHistory||{},
     ccCards:state.ccCards||[],ccCycles:state.ccCycles||[],ccActiveCard:state.ccActiveCard||null,
     lastGmailSync:state.lastGmailSync||null,
@@ -244,6 +244,8 @@ async function loadFromDrive(){
     state.dashTcCycle=s.dashTcCycle||null;
     state.tcCycles=s.tcCycles||[];
     state.usdRate=s.usdRate||1420;
+    state.usdRateBuy=s.usdRateBuy||s.usdRate||1420;
+    state.usdRateSell=s.usdRateSell||s.usdRate||1420;
     state.usdRateSource=s.usdRateSource||'blue';
     state.usdRateUpdated=s.usdRateUpdated||null;
     USD_TO_ARS=state.usdRate;
@@ -289,6 +291,8 @@ function loadState(){
     state.dashTcCycle=s.dashTcCycle||null;
     state.tcCycles=s.tcCycles||[];
     state.usdRate=s.usdRate||1420;
+    state.usdRateBuy=s.usdRateBuy||s.usdRate||1420;
+    state.usdRateSell=s.usdRateSell||s.usdRate||1420;
     state.usdRateSource=s.usdRateSource||'blue';
     state.usdRateUpdated=s.usdRateUpdated||null;
     USD_TO_ARS=state.usdRate;

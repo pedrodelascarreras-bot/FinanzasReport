@@ -9,15 +9,15 @@ async function fetchUsdRate(manual=false){
   // Múltiples fuentes con fallback — todas tienen CORS abierto
   const sources=[
     // 1. dolarapi directo
-    {url:'https://dolarapi.com/v1/dolares/oficial', parse:d=>d.venta},
+    {url:'https://dolarapi.com/v1/dolares/oficial', parse:d=>({buy:d.compra,sell:d.venta})},
     // 2. dolarapi via allorigins proxy
-    {url:'https://api.allorigins.win/get?url='+encodeURIComponent('https://dolarapi.com/v1/dolares/oficial'), parse:d=>{const j=JSON.parse(d.contents);return j.venta;}},
+    {url:'https://api.allorigins.win/get?url='+encodeURIComponent('https://dolarapi.com/v1/dolares/oficial'), parse:d=>{const j=JSON.parse(d.contents);return {buy:j.compra,sell:j.venta};}},
     // 3. bluelytics directo
-    {url:'https://api.bluelytics.com.ar/v2/latest', parse:d=>d.oficial?.value_sell},
+    {url:'https://api.bluelytics.com.ar/v2/latest', parse:d=>({buy:d.oficial?.value_buy,sell:d.oficial?.value_sell})},
     // 4. bluelytics via allorigins
-    {url:'https://api.allorigins.win/get?url='+encodeURIComponent('https://api.bluelytics.com.ar/v2/latest'), parse:d=>{const j=JSON.parse(d.contents);return j.oficial?.value_sell;}},
+    {url:'https://api.allorigins.win/get?url='+encodeURIComponent('https://api.bluelytics.com.ar/v2/latest'), parse:d=>{const j=JSON.parse(d.contents);return {buy:j.oficial?.value_buy,sell:j.oficial?.value_sell};}},
     // 5. Argentina.gob.ar series de tiempo (BCRA oficial)
-    {url:'https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones/USD', parse:d=>d.results?.[0]?.tipoPase}
+    {url:'https://api.bcra.gob.ar/estadisticascambiarias/v1.0/Cotizaciones/USD', parse:d=>({buy:d.results?.[0]?.tipoPase,sell:d.results?.[0]?.tipoPase})}
   ];
 
   for(const src of sources){
@@ -27,9 +27,13 @@ async function fetchUsdRate(manual=false){
       clearTimeout(_tmr);
       if(!r.ok)continue;
       const d=await r.json();
-      const venta=src.parse(d);
+      const parsed=src.parse(d);
+      const compra=Number(parsed?.buy||parsed||0);
+      const venta=Number(parsed?.sell||parsed||0);
       if(venta&&venta>0){
         USD_TO_ARS=venta;state.usdRate=venta;
+        state.usdRateBuy=compra&&compra>0?compra:venta;
+        state.usdRateSell=venta;
         state.usdRateSource='oficial BNA';
         state.usdRateUpdated=new Date().toISOString();
         saveState();updateUsdRateUI();
@@ -47,13 +51,19 @@ async function fetchUsdRate(manual=false){
 }
 function updateUsdRateUI(){
   const rate=USD_TO_ARS;
+  const buyRate=Number(state.usdRateBuy||rate||0) || rate;
+  const sellRate=Number(state.usdRateSell||rate||0) || rate;
   // Card en dashboard
-  const disp=document.getElementById('usd-rate-display');
-  if(disp)animateNumberText(disp,rate,{prefix:'$',decimals:2,duration:680});
+  const buyDisp=document.getElementById('usd-rate-buy-display');
+  const sellDisp=document.getElementById('usd-rate-sell-display');
+  if(buyDisp)animateNumberText(buyDisp,buyRate,{prefix:'$',decimals:2,duration:620});
+  if(sellDisp)animateNumberText(sellDisp,sellRate,{prefix:'$',decimals:2,duration:700});
   const src=document.getElementById('usd-rate-source-badge');
   if(src)src.textContent=state.usdRateSource||'manual';
   const upd=document.getElementById('usd-rate-updated');
   if(upd&&state.usdRateUpdated){const d=new Date(state.usdRateUpdated);upd.textContent='Actualizado '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});}
+  const status=document.getElementById('usd-rate-status');
+  if(status)status.textContent='Tocá para ver compra y venta';
   // Legacy badge selector (otros lugares que puedan tener el badge)
   document.querySelectorAll('.usd-rate-badge').forEach(el=>{el.textContent='U$D 1 = $'+fmtN(rate)+' ('+( state.usdRateSource||'manual')+')'});
   // Si el dashboard ya tiene datos, recalcular
@@ -67,12 +77,13 @@ function openUsdRateModal(){
 function saveUsdRateManual(){
   const val=parseFloat(document.getElementById('modal-usd-input').value);
   if(!val||val<1){showToast('⚠️ Ingresá un valor válido','error');return;}
-  USD_TO_ARS=val;state.usdRate=val;state.usdRateSource='manual';state.usdRateUpdated=new Date().toISOString();
+  USD_TO_ARS=val;state.usdRate=val;state.usdRateBuy=state.usdRateBuy||val;state.usdRateSell=val;state.usdRateSource='manual';state.usdRateUpdated=new Date().toISOString();
   saveState();updateUsdRateUI();closeModal('modal-usd-rate');showToast('✓ Tipo de cambio actualizado: $'+fmtN(val),'success');
 }
 async function loadAllRates(){
   const blueEl=document.getElementById('ref-blue');
   const oficialEl=document.getElementById('ref-oficial');
+  const oficialRangeEl=document.getElementById('ref-oficial-range');
   const mepEl=document.getElementById('ref-mep');
   if(blueEl)blueEl.textContent='Cargando...';
   try{
@@ -84,6 +95,7 @@ async function loadAllRates(){
       const mep=list.find(d=>d.casa==='bolsa')||list.find(d=>d.casa==='mep');
       if(blueEl)blueEl.textContent=blue?'$'+fmtN(blue.venta):'—';
       if(oficialEl)oficialEl.textContent=oficial?'$'+fmtN(oficial.venta):'—';
+      if(oficialRangeEl)oficialRangeEl.textContent=oficial?`$${fmtN(oficial.compra)} · $${fmtN(oficial.venta)}`:'—';
       if(mepEl)mepEl.textContent=mep?'$'+fmtN(mep.venta):'—';
       // Pre-fill input with blue
       if(blue&&blue.venta){const inp=document.getElementById('modal-usd-input');if(inp&&!inp.value)inp.value=Math.round(blue.venta);}
@@ -96,9 +108,10 @@ async function loadAllRates(){
     if(r2.ok){const d=await r2.json();
       if(blueEl)blueEl.textContent=d.blue?.value_sell?'$'+fmtN(d.blue.value_sell):'—';
       if(oficialEl)oficialEl.textContent=d.oficial?.value_sell?'$'+fmtN(d.oficial.value_sell):'—';
+      if(oficialRangeEl)oficialRangeEl.textContent=d.oficial?.value_buy&&d.oficial?.value_sell?`$${fmtN(d.oficial.value_buy)} · $${fmtN(d.oficial.value_sell)}`:'—';
       if(mepEl)mepEl.textContent='—';
     }
-  }catch(e2){if(blueEl)blueEl.textContent='Sin conexión';}
+  }catch(e2){if(blueEl)blueEl.textContent='Sin conexión';if(oficialRangeEl)oficialRangeEl.textContent='Sin conexión';}
 }
 function getActiveDashMonth(){
   if(state.dashMonth) return state.dashMonth;
@@ -604,26 +617,9 @@ function renderDashNotifications() {
   const notifEl = document.getElementById('dash-notifications');
   const heroRow = document.querySelector('.dash-row-hero');
   if(!notifEl) return;
-  const active = collectDashboardAlerts();
-  if(!active.length) {
-    notifEl.style.display = 'none';
-    heroRow?.classList.remove('has-side-notifs');
-    return;
-  }
-
-  notifEl.style.display = 'flex';
-  heroRow?.classList.add('has-side-notifs');
-  notifEl.innerHTML = active.map(n => `
-    <div class="notif-item notif-${n.type}" onclick="nav('${n.link}')">
-      <div class="notif-icon">${renderUiGlyph(n.icon)}</div>
-      <div class="notif-content">
-        <div class="notif-title">${n.title}</div>
-        <div class="notif-body">${n.body}</div>
-      </div>
-      <div class="notif-chevron">›</div>
-      <button class="notif-item-close" onclick="event.stopPropagation();dismissNotif('${n.id}')" title="Quitar">✕</button>
-    </div>
-  `).join('');
+  notifEl.style.display = 'none';
+  heroRow?.classList.remove('has-side-notifs');
+  notifEl.innerHTML = '';
 }
 
 
@@ -1014,6 +1010,11 @@ function renderDashboard(){
     if(slot.value)slot.value.textContent=card.value;
     if(slot.meta)slot.meta.textContent=card.meta;
   });
+  const timelinePill=document.getElementById('timeline-card-pill');
+  if(timelinePill){
+    const visibleCount=Math.min(3,timelineCards.length||0);
+    timelinePill.textContent=visibleCount===1?'1 evento':`${visibleCount||3} eventos`;
+  }
 
 
   // ── Hero ──
@@ -1293,8 +1294,8 @@ function renderDashboard(){
   }
 
   // Ensure a valid chart mode is always set before rendering
-  if(!['bars','area','daily'].includes(state.chartMode)) state.chartMode='bars';
-  ['bars','area','daily'].forEach(m=>{
+  if(!['bars','area','week','daily'].includes(state.chartMode)) state.chartMode='bars';
+  ['bars','area','week','daily'].forEach(m=>{
     const btn=document.getElementById('cmt-'+m);
     if(btn)btn.classList.toggle('active',state.chartMode===m);
   });
@@ -1322,7 +1323,7 @@ function getCatData(txns,byGroup){
 }
 
 function setChartMode(mode){
-  const validModes=['bars','area','daily'];
+  const validModes=['bars','area','week','daily'];
   state.chartMode=validModes.includes(mode)?mode:'bars';
   validModes.forEach(m=>{
     const btn=document.getElementById('cmt-'+m);
@@ -1339,6 +1340,19 @@ function renderWeeklyChart(monthTxns){
   const titleEl=document.getElementById('dash-chart-title');
   const legEl=document.getElementById('weekly-chart-legend');
 
+  const formatMonthLabel=(k)=>{
+    const [y,m]=k.split('-');
+    return ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+m-1]+' '+y.slice(2);
+  };
+  const formatWeekRange=(weekKey)=>{
+    const start=new Date(weekKey+'T12:00:00');
+    const end=new Date(start);
+    end.setDate(end.getDate()+6);
+    const startLabel=`${start.getDate()} ${start.toLocaleDateString('es-AR',{month:'short'}).replace('.','')}`;
+    const endLabel=`${end.getDate()} ${end.toLocaleDateString('es-AR',{month:'short'}).replace('.','')}`;
+    return `${startLabel} → ${endLabel}`;
+  };
+
   if(mode==='bars'){
     // Monthly bars — all months
     const byMonth={};
@@ -1347,7 +1361,7 @@ function renderWeeklyChart(monthTxns){
       byMonth[k]=(byMonth[k]||0)+t.amount;
     });
     const sorted=Object.keys(byMonth).sort();
-    const labels=sorted.map(k=>{const[y,m]=k.split('-');return['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+m-1]+' '+y.slice(2);});
+    const labels=sorted.map(formatMonthLabel);
     const values=sorted.map(k=>byMonth[k]);
     const avg=values.length?values.reduce((s,v)=>s+v,0)/values.length:0;
     const currentMonthKey=getMonthKey(new Date());
@@ -1366,6 +1380,32 @@ function renderWeeklyChart(monthTxns){
       scales:{x:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:10}},grid:{display:false}},y:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:10},callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.04)'}}}
     }});
 
+  } else if(mode==='week'){
+    const byWeek={};
+    state.transactions.filter(t=>t.currency==='ARS').forEach(t=>{
+      const k=t.week||getWeekKey(t.date);
+      byWeek[k]=(byWeek[k]||0)+t.amount;
+    });
+    const sorted=Object.keys(byWeek).sort();
+    const labels=sorted.map(formatWeekRange);
+    const values=sorted.map(k=>byWeek[k]);
+    const avg=values.length?values.reduce((s,v)=>s+v,0)/values.length:0;
+    const currentWeekKey=getWeekKey(new Date());
+    const barColors=sorted.map(k=>k===currentWeekKey?'rgba(79,140,255,0.88)':'rgba(79,140,255,0.42)');
+
+    if(titleEl)titleEl.textContent='Gasto semanal';
+    if(sub)sub.textContent=sorted.length+' semanas · promedio $'+fmtN(Math.round(avg))+'/semana';
+    if(legEl)legEl.innerHTML='';
+
+    state.charts.weekly=new Chart(ctx,{type:'bar',data:{labels,datasets:[
+      {data:values,backgroundColor:barColors,borderColor:'rgba(79,140,255,0.28)',borderWidth:0,borderRadius:6,borderSkipped:false},
+      {type:'line',data:values.map(()=>avg),borderColor:'rgba(160,154,148,0.5)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:0}
+    ]},options:{
+      responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1a18',titleColor:'#f0ebe6',bodyColor:'#a09a94',borderColor:'#2e2b28',borderWidth:1,padding:10,callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y)):' $'+fmtN(c.parsed.y)}}},
+      scales:{x:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:9},maxRotation:0,minRotation:0},grid:{display:false}},y:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:10},callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.04)'}}}
+    }});
+
   } else if(mode==='area'){
     // Cumulative area — running total by month
     const byMonth={};
@@ -1374,7 +1414,7 @@ function renderWeeklyChart(monthTxns){
       byMonth[k]=(byMonth[k]||0)+t.amount;
     });
     const sorted=Object.keys(byMonth).sort();
-    const labels=sorted.map(k=>{const[y,m]=k.split('-');return['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][+m-1]+' '+y.slice(2);});
+    const labels=sorted.map(formatMonthLabel);
     const values=sorted.map(k=>byMonth[k]);
     let cumulative=0;
     const cumValues=values.map(v=>{cumulative+=v;return cumulative;});
@@ -1617,6 +1657,33 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     wGoalSub.textContent  = 'Sin metas configuradas';
     animateProgressBar(wGoalBar,0);
     wGoalFoot.textContent = 'Ir a Ahorros → Nueva meta →';
+  }
+
+  /* ── Widgets históricos: promedio diario y mensual ── */
+  const histDailyEl=document.getElementById('kpi-hist-daily');
+  const histDailySub=document.getElementById('kpi-hist-daily-sub');
+  const histMonthlyEl=document.getElementById('kpi-hist-monthly');
+  const histMonthlySub=document.getElementById('kpi-hist-monthly-sub');
+  const historyTxns=(state.transactions||[]).filter(t=>Number(t.amount)>0);
+  if(histDailyEl&&histMonthlyEl&&historyTxns.length){
+    const totalHistoryARS=historyTxns.reduce((sum,t)=>sum+((t.currency==='USD'?t.amount*USD_TO_ARS:t.amount)||0),0);
+    const dateKeys=[...new Set(historyTxns.map(t=>dateToYMD(t.date)).filter(Boolean))].sort();
+    const monthKeys=[...new Set(historyTxns.map(t=>t.month||getMonthKey(t.date)).filter(Boolean))].sort();
+    const firstDate=dateKeys.length?new Date(dateKeys[0]+'T12:00:00'):null;
+    const lastDate=dateKeys.length?new Date(dateKeys[dateKeys.length-1]+'T12:00:00'):null;
+    const daySpan=firstDate&&lastDate?Math.max(1,Math.round((lastDate-firstDate)/(1000*60*60*24))+1):Math.max(1,dateKeys.length);
+    const monthSpan=Math.max(1,monthKeys.length);
+    const dailyAvg=totalHistoryARS/daySpan;
+    const monthlyAvg=totalHistoryARS/monthSpan;
+    animateNumberText(histDailyEl,dailyAvg,{prefix:'$',decimals:2,duration:700});
+    animateNumberText(histMonthlyEl,monthlyAvg,{prefix:'$',decimals:2,duration:760});
+    if(histDailySub)histDailySub.textContent=`Ritmo sobre ${daySpan} días registrados`;
+    if(histMonthlySub)histMonthlySub.textContent=`Promedio de ${monthSpan} ${monthSpan===1?'mes':'meses'} con gasto`;
+  } else {
+    if(histDailyEl)histDailyEl.textContent='—';
+    if(histMonthlyEl)histMonthlyEl.textContent='—';
+    if(histDailySub)histDailySub.textContent='Necesitás más historial';
+    if(histMonthlySub)histMonthlySub.textContent='Necesitás más historial';
   }
 }
 

@@ -244,7 +244,10 @@
               <span id="usd-rate-source-badge" class="dash-utility-pill">manual</span>
             </div>
             <div class="dash-utility-value-shell">
-              <div class="dash-utility-value"><span id="usd-rate-display">$1.420</span></div>
+              <div class="dash-utility-value dash-utility-value-dual">
+                <span id="usd-rate-buy-display">$1.410</span>
+                <span id="usd-rate-sell-display">$1.420</span>
+              </div>
             </div>
             <div class="dash-utility-subline">
               <span id="usd-rate-status" class="usd-rate-meta"></span>
@@ -257,8 +260,8 @@
           </div>
           <button class="dash-utility-card dash-utility-card-timeline" id="timeline-card" onclick="nav('cuotas')">
             <div class="dash-utility-topline dash-utility-topline-compact">
-              <span class="dash-utility-kicker">Timeline financiera</span>
-              <span class="dash-utility-pill">agenda viva</span>
+              <span class="dash-utility-title-main">Agenda viva</span>
+              <span id="timeline-card-pill" class="dash-utility-pill">3 eventos</span>
             </div>
             <div class="dash-timeline-shell">
               <div class="dash-timeline-block">
@@ -389,6 +392,18 @@
             </div>
           </div>
         </div>
+        <div class="dash-history-row">
+          <div class="dkpi dash-history-card dash-history-card-clickable" onclick="setChartMode('daily')" title="Ver ritmo histórico diario">
+            <div class="dash-history-label">PROMEDIO DIARIO</div>
+            <div class="dash-history-value" id="kpi-hist-daily">—</div>
+            <div class="dash-history-sub" id="kpi-hist-daily-sub">Histórico de toda la app</div>
+          </div>
+          <div class="dkpi dash-history-card dash-history-card-clickable" onclick="setChartMode('bars')" title="Ver promedio mensual histórico">
+            <div class="dash-history-label">PROMEDIO MENSUAL</div>
+            <div class="dash-history-value" id="kpi-hist-monthly">—</div>
+            <div class="dash-history-sub" id="kpi-hist-monthly-sub">Histórico de toda la app</div>
+          </div>
+        </div>
       </div>
     </div>
     </div><!-- /layout-section -->
@@ -407,6 +422,7 @@
             <div class="chart-mini-toggle">
               <button class="cmt-btn active" id="cmt-bars" onclick="setChartMode('bars')">▊ Barras</button>
               <button class="cmt-btn" id="cmt-area" onclick="setChartMode('area')">◠ Área</button>
+              <button class="cmt-btn" id="cmt-week" onclick="setChartMode('week')">▤ Semanal</button>
               <button class="cmt-btn" id="cmt-daily" onclick="setChartMode('daily')">⋯ Diario</button>
             </div>
           </div>
@@ -877,6 +893,7 @@
         <option value="">Todos los períodos</option>
       </select>
       <div class="view-toggle">
+        <button class="toggle-btn" id="tend-tog-week" onclick="setTendMode('week')">Semanas</button>
         <button class="toggle-btn active" id="tend-tog-month" onclick="setTendMode('month')">Meses</button>
         <button class="toggle-btn" id="tend-tog-tc" onclick="setTendMode('tc')">Ciclo TC</button>
       </div>
@@ -1727,6 +1744,10 @@
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:12px;color:var(--text2);">🏛 Dólar oficial</span>
           <span id="ref-oficial" style="font-size:12px;font-family:var(--font);color:var(--text2);">—</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:12px;color:var(--text2);">↕ Oficial compra / venta</span>
+          <span id="ref-oficial-range" style="font-size:12px;font-family:var(--font);color:var(--text2);">—</span>
         </div>
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:12px;color:var(--text2);">💳 Dólar tarjeta / MEP</span>
