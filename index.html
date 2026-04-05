@@ -1008,7 +1008,13 @@
 <div id="page-insights" class="page">
   <div class="page-header fade-up">
     <div><div class="page-title">Insights</div><div class="page-subtitle" id="insights-subtitle">Análisis de tu salud financiera</div></div>
-    <button class="btn btn-primary" onclick="generateInsights()">⚡ Actualizar</button>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <div class="insights-view-switch">
+        <button id="insights-tab-general" class="insights-view-btn active" onclick="setInsightTab('general')">Vista general</button>
+        <button id="insights-tab-ahorro" class="insights-view-btn" onclick="setInsightTab('ahorro')">Modo ahorro</button>
+      </div>
+      <button class="btn btn-primary" onclick="generateInsights()">⚡ Actualizar</button>
+    </div>
   </div>
 
   <div id="insights-empty" class="empty-state fade-up">
@@ -1018,40 +1024,43 @@
   </div>
 
   <div id="insights-content" style="display:none;flex-direction:column;gap:24px;">
+    <div id="insights-general-shell" style="display:flex;flex-direction:column;gap:24px;">
+      <!-- ── Score Hero ── -->
+      <div class="fade-up d1 insights-score-shell">
+        <div class="insights-score-ring">
+          <svg viewBox="0 0 100 100" width="96" height="96">
+            <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" stroke-width="8"/>
+            <circle id="score-arc" cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="8"
+              stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="251.2"
+              transform="rotate(-90 50 50)" style="transition:stroke-dashoffset 1s ease,stroke 0.5s;"/>
+            <text x="50" y="56" text-anchor="middle" font-size="22" font-weight="700" fill="var(--text)" id="score-number" font-family="system-ui,sans-serif">—</text>
+          </svg>
+        </div>
+        <div class="insights-score-copy">
+          <div class="insights-score-kicker">Salud financiera</div>
+          <div id="score-label" class="insights-score-label">—</div>
+          <div id="score-desc" class="insights-score-desc">—</div>
+        </div>
+        <div id="score-factors" class="insights-score-factors"></div>
+      </div>
 
-    <!-- ── Score Hero ── -->
-    <div class="fade-up d1 insights-score-shell">
-      <div class="insights-score-ring">
-        <svg viewBox="0 0 100 100" width="96" height="96">
-          <circle cx="50" cy="50" r="40" fill="none" stroke="var(--border)" stroke-width="8"/>
-          <circle id="score-arc" cx="50" cy="50" r="40" fill="none" stroke="var(--accent)" stroke-width="8"
-            stroke-linecap="round" stroke-dasharray="251.2" stroke-dashoffset="251.2"
-            transform="rotate(-90 50 50)" style="transition:stroke-dashoffset 1s ease,stroke 0.5s;"/>
-          <text x="50" y="56" text-anchor="middle" font-size="22" font-weight="700" fill="var(--text)" id="score-number" font-family="system-ui,sans-serif">—</text>
-        </svg>
+      <!-- ── Desafíos Financieros ── -->
+      <div id="ins-challenges-section" class="fade-up d2 insights-panel-shell" style="display:none;"></div>
+
+      <!-- ── Monthly Evolution Chart ── -->
+      <div class="fade-up d3 insights-panel-shell insights-chart-shell">
+        <div class="insights-panel-kicker">Evolución mensual</div>
+        <div id="ins-chart-sub" class="insights-panel-sub">Gasto total ARS por mes</div>
+        <div class="insights-chart-wrap">
+          <canvas id="ins-chart"></canvas>
+        </div>
       </div>
-      <div class="insights-score-copy">
-        <div class="insights-score-kicker">Salud financiera</div>
-        <div id="score-label" class="insights-score-label">—</div>
-        <div id="score-desc" class="insights-score-desc">—</div>
-      </div>
-      <div id="score-factors" class="insights-score-factors"></div>
+
+      <!-- ── All Insight Sections (expanded) ── -->
+      <div id="insights-grid" class="fade-up d3"></div>
     </div>
 
-    <!-- ── Desafíos Financieros ── -->
-    <div id="ins-challenges-section" class="fade-up d2 insights-panel-shell" style="display:none;"></div>
-
-    <!-- ── Monthly Evolution Chart ── -->
-    <div class="fade-up d3 insights-panel-shell insights-chart-shell">
-      <div class="insights-panel-kicker">Evolución mensual</div>
-      <div id="ins-chart-sub" class="insights-panel-sub">Gasto total ARS por mes</div>
-      <div class="insights-chart-wrap">
-        <canvas id="ins-chart"></canvas>
-      </div>
-    </div>
-
-    <!-- ── All Insight Sections (expanded) ── -->
-    <div id="insights-grid" class="fade-up d3"></div>
+    <div id="insights-savings-shell" style="display:none;flex-direction:column;gap:22px;"></div>
 
   </div>
 </div>

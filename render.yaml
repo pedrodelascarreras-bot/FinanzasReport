@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: finanzas-report-server
+    runtime: node
+    rootDir: report
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: RESEND_API_KEY
+        sync: false
+      - key: REPORT_TO_EMAIL
+        sync: false
+      - key: REPORT_FROM_EMAIL
+        sync: false
+      - key: GOOGLE_SERVICE_ACCOUNT_JSON
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false

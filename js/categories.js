@@ -335,6 +335,8 @@ function openEditCatModal(name){const cat=state.categories.find(c=>c.name===name
 
 // ══ EMOJI PICKER ══
 const EMOJI_SETS = {
+  compromisos:['🛒','💳','🧾','📦','🎓','💻','📱','🏠','🔌','🛠️','🎁','🪑','🧸','🧼','📚','🧠','💡','🚗','✈️','🎟️'],
+  suscripciones:['🔁','📺','🎵','🎧','🎬','🧠','☁️','💻','📱','📰','📚','🏋️','🧘','🎮','🎨','🛡️','🗂️','🤖','🛰️','🧪'],
   general:  ['😀','😊','😎','🤩','🥳','😍','🤑','💪','🔥','⭐','💡','🎯','✅','❤️','💚','💙','🩵','💛','🧡','❤️‍🔥'],
   hogar:    ['🏠','🏡','🏢','🏗️','🛋','🛏','🚿','🧹','🔧','🔨','💡','🔌','💧','🌡️','🪟','🚪','🪑','🪴','🗑️','📦'],
   tech:     ['💻','🖥','📱','⌨️','🖱','📷','📸','🎮','🕹️','🎧','🖨','💾','📀','🔋','📡','🛰','⌚','📟','🔭','🔬'],
@@ -346,7 +348,13 @@ const EMOJI_SETS = {
   finanzas: ['💰','💵','💴','💶','💷','💸','🏦','📈','📉','🧾','💹','🪙','💳','🤑','💎','🏧','🔐','📊','🧮','💱'],
   educacion:['📚','📖','✏️','📝','🖊','📐','📏','🎓','🏫','🔬','🔭','🧪','💻','📓','📒','📔','📕','📗','📘','📙'],
 };
-const EMOJI_LABELS = {general:'General',hogar:'Hogar',tech:'Tecnología',comida:'Comida',transporte:'Transporte',salud:'Salud',entretenimiento:'Entretenimiento',compras:'Compras',finanzas:'Finanzas',educacion:'Educación'};
+const EMOJI_LABELS = {compromisos:'Compromisos',suscripciones:'Suscripciones',general:'General',hogar:'Hogar',tech:'Tecnología',comida:'Comida',transporte:'Transporte',salud:'Salud',entretenimiento:'Entretenimiento',compras:'Compras',finanzas:'Finanzas',educacion:'Educación'};
+
+function getDefaultEmojiCategory(pickerId){
+  if(['cuota','autocuota','fixed'].includes(pickerId)) return 'compromisos';
+  if(pickerId==='sub') return 'suscripciones';
+  return 'general';
+}
 
 function buildEmojiPickerHTML(pickerId){
   let html = '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px;">';
@@ -388,7 +396,7 @@ function toggleEmojiPicker(pickerId){
     // Build if empty
     if(!picker.innerHTML.trim()) picker.innerHTML=buildEmojiPickerHTML(pickerId);
     // Show first category by default
-    showEmojiCategory(pickerId, 'general');
+    showEmojiCategory(pickerId, getDefaultEmojiCategory(pickerId));
   } else {
     picker.style.display='none';
   }
@@ -419,4 +427,3 @@ function saveCat(){
 }
 function deleteCat(){const name=document.getElementById('modal-cat-editing').value;if(!name)return;state.categories=state.categories.filter(c=>c.name!==name);state.transactions.forEach(t=>{if(t.category===name)t.category='Uncategorized';});saveState();closeModal('modal-cat');refreshAll();showToast('Eliminada','info');}
 function rgbToHex(rgb){const m=rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);if(!m)return'#888888';return'#'+[m[1],m[2],m[3]].map(x=>parseInt(x).toString(16).padStart(2,'0')).join('');}
-

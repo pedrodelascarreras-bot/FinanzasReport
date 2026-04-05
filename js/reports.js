@@ -2,9 +2,13 @@
 const MNAMES_R=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
 // ── Email Report ──────────────────────────────────────────────────────────────
-// URL del servidor local (report/server.js corriendo en puerto 3001)
-// Si lo tenés en Google Cloud Run, reemplazá por tu URL de Cloud Run
-const REPORT_SERVER_URL = 'http://localhost:3001';
+// URL del servidor de reportes:
+// prioridad: localStorage/state -> fallback localhost
+const REPORT_SERVER_URL = String(
+  state.reportServerUrl
+  || localStorage.getItem('fin_report_server_url')
+  || 'http://localhost:3001'
+).replace(/\/+$/,'');
 
 function openSendReportModal() {
   openModal('modal-send-report');
@@ -35,22 +39,36 @@ async function _checkReportServerStatus() {
   if(!indEl) return;
   indEl.innerHTML = '<span style="opacity:.5">⏳ Verificando servidor…</span>';
   try {
-    const res = await fetch(`${REPORT_SERVER_URL}/health`, { signal: AbortSignal.timeout(3000) });
+    const res = await fetch(`${REPORT_SERVER_URL}/`, { signal: AbortSignal.timeout(3000) });
     if(res.ok) {
+      state._reportServerAvailable = true;
       indEl.innerHTML = '<span style="color:var(--green-sys);">🟢 Servidor activo — listo para enviar</span>';
-      if(sendBtn) sendBtn.disabled = false;
+      if(sendBtn){ sendBtn.disabled = false; sendBtn.innerHTML=`<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M1 8L15 1M15 1L8 15M15 1L1 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Enviar ahora`; }
     } else {
       throw new Error('not ok');
     }
   } catch(e) {
-    indEl.innerHTML = '<span style="color:var(--danger);">🔴 Servidor no disponible</span> <span style="color:var(--text3);font-size:10px;">Corré <code style="background:var(--surface3);padding:1px 5px;border-radius:4px;">node report/server.js</code> en Terminal</span>';
-    if(sendBtn) sendBtn.disabled = true;
+    state._reportServerAvailable = false;
+    indEl.innerHTML = '<span style="color:var(--accent3);">🟠 Servidor no disponible</span> <span style="color:var(--text3);font-size:10px;">Podés abrir el PDF local ahora. Para envío por email automático, corré <code style="background:var(--surface3);padding:1px 5px;border-radius:4px;">node report/server.js</code> en Terminal</span>';
+    if(sendBtn){ sendBtn.disabled = false; sendBtn.innerHTML=`<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2 2h12v12H2z" stroke="currentColor" stroke-width="1.6"/><path d="M5 6h6M5 9h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Abrir PDF`; }
   }
 }
 
 async function sendReportNow() {
   const btn = document.getElementById('sre-send-btn');
   const statusEl = document.getElementById('sre-status');
+
+  if(state._reportServerAvailable === false) {
+    if(statusEl) {
+      statusEl.style.display='block';
+      statusEl.style.background='var(--blue-light)';
+      statusEl.style.color='var(--accent)';
+      statusEl.textContent='Servidor local no disponible. Te abro el reporte para guardarlo como PDF manualmente.';
+    }
+    exportRepPDF();
+    showToast('PDF abierto localmente', 'info');
+    return;
+  }
 
   const period = document.querySelector('input[name="sre-period"]:checked')?.value || 'week';
   const options = {

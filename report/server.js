@@ -76,7 +76,7 @@ const server = http.createServer(async (req, res) => {
   if(req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
   // Health check
-  if(req.method === 'GET' && req.url === '/') {
+  if(req.method === 'GET' && (req.url === '/' || req.url === '/health')) {
     sendJSON(res, 200, { status: 'ok', message: 'Servidor de reportes corriendo ✓' });
     return;
   }

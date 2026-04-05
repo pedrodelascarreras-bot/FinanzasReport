@@ -584,6 +584,18 @@ function collectDashboardAlerts(baseDate=new Date()) {
   if(backupHealth.level!=='info'){
     notifs.push({id:`backup-${backupHealth.state}`,type:backupHealth.level==='alert'?'alert':'warn',icon:'safe',title:backupHealth.label,body:`${backupHealth.desc} Tener una copia reciente te protege antes de grandes cambios o importaciones.`,link:'import'});
   }
+  if(typeof getSavingsDeviationAlerts === 'function'){
+    getSavingsDeviationAlerts().slice(0,2).forEach(a=>{
+      notifs.push({
+        id:a.id,
+        type:a.type,
+        icon:a.type==='alert'?'alert':'trend',
+        title:a.title,
+        body:a.desc,
+        link:'insights'
+      });
+    });
+  }
   const dismissed = state.dismissedNotifs || [];
   const priority={alert:0,warn:1,info:2,success:3};
   return notifs.filter(n => !dismissed.includes(n.id)).sort((a,b)=>(priority[a.type]??9)-(priority[b.type]??9));
@@ -1464,9 +1476,22 @@ function renderTop5(){
   const el=document.getElementById('top5-list');
   const sub=document.getElementById('top5-sub');
   if(!el)return;
-  const txns=getCurrentMonthTxns().filter(t=>t.currency==='ARS').sort((a,b)=>b.amount-a.amount).slice(0,5);
-  if(!txns.length){el.innerHTML='<div style="color:var(--text3);font-size:12px;font-family:var(--font);padding:8px 0;">Sin movimientos este mes</div>';return;}
-  if(sub)sub.textContent=txns.length+' movimientos más altos del mes';
+  const isTcView=state.dashView==='tc';
+  let txns=[];
+  if(isTcView){
+    const cycles=getTcCycles();
+    const selId=state.dashTcCycle||'';
+    const activeCycle=(selId&&cycles.find(c=>c.id===selId))||cycles[0]||null;
+    txns=activeCycle?getTcCycleTxns(activeCycle,cycles):[];
+  } else {
+    txns=getCurrentMonthTxns();
+  }
+  txns=txns.filter(t=>t.currency==='ARS'&&!t.isPendingCuota).sort((a,b)=>b.amount-a.amount).slice(0,5);
+  if(!txns.length){
+    el.innerHTML='<div style="color:var(--text3);font-size:12px;font-family:var(--font);padding:8px 0;">'+(isTcView?'Sin movimientos en este ciclo':'Sin movimientos este mes')+'</div>';
+    return;
+  }
+  if(sub)sub.textContent=txns.length+' movimientos más altos del '+(isTcView?'ciclo':'mes');
   const medals=['🥇','🥈','🥉','4º','5º'];
   el.innerHTML=txns.map((t,i)=>{
     const c=catColor(t.category);

@@ -587,6 +587,20 @@ function renderNotifications() {
     }
   }
 
+  if(typeof getSavingsDeviationAlerts === 'function') {
+    getSavingsDeviationAlerts().slice(0,2).forEach(a => {
+      notifs.push({
+        id: a.id,
+        type: a.type,
+        title: a.title,
+        desc: a.desc,
+        icon: a.icon,
+        color: a.color,
+        time: a.time
+      });
+    });
+  }
+
   // Filter out dismissed
   const activeNotifs = notifs.filter(n => !(state.dismissedNotifs || []).includes(n.id || n.title));
 

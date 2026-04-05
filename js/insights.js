@@ -6,6 +6,8 @@ function generateInsights() {
   const txns = (state.transactions||[]).filter(t => !t.isPendingCuota);
   const emptyEl   = document.getElementById('insights-empty');
   const contentEl = document.getElementById('insights-content');
+  const generalShell = document.getElementById('insights-general-shell');
+  const savingsShell = document.getElementById('insights-savings-shell');
   if(!txns.length) {
     if(emptyEl)  emptyEl.style.display = 'flex';
     if(contentEl) contentEl.style.display = 'none';
@@ -15,15 +17,31 @@ function generateInsights() {
   if(contentEl) contentEl.style.display = 'flex';
 
   const data = _computeInsightsData();
-  _renderScoreCard(data);
-  _renderChallenges(data);
-  _renderInsightsChart(data);
-  _renderAllInsightSections(data);
+  const view = state.insightsView || 'general';
+  const generalBtn = document.getElementById('insights-tab-general');
+  const savingsBtn = document.getElementById('insights-tab-ahorro');
+  if(generalBtn) generalBtn.classList.toggle('active', view === 'general');
+  if(savingsBtn) savingsBtn.classList.toggle('active', view === 'ahorro');
+  if(generalShell) generalShell.style.display = view === 'general' ? 'flex' : 'none';
+  if(savingsShell) savingsShell.style.display = view === 'ahorro' ? 'flex' : 'none';
+
+  if(view === 'ahorro'){
+    _renderSavingsMode(data);
+  } else {
+    _renderScoreCard(data);
+    _renderChallenges(data);
+    _renderInsightsChart(data);
+    _renderAllInsightSections(data);
+  }
   showToast('✓ Insights actualizados','success');
 }
 
 // Legacy stub kept for any old callers
-function setInsightTab(tab) { generateInsights(); }
+function setInsightTab(tab) {
+  state.insightsView = tab === 'ahorro' ? 'ahorro' : 'general';
+  saveState();
+  generateInsights();
+}
 
 // ── Data computation ──────────────────────────────────────
 function _computeInsightsData() {
@@ -186,6 +204,192 @@ function _computeInsightsData() {
     largestTxn,
     nextCuotasTotal,nextMonthCuotas:nextMonthCuotas.length
   };
+}
+
+function getSavingsDeviationAlerts(dataArg){
+  const data = dataArg || _computeInsightsData();
+  const alerts = [];
+  const income = data.incomeARS || 0;
+  if(income > 0){
+    const projectedPct = data.projectedMonth > 0 ? Math.round(data.projectedMonth / income * 100) : 0;
+    if(projectedPct >= 90){
+      alerts.push({
+        id:`sav-projection-${data.currentMonth}`,
+        type: projectedPct >= 100 ? 'alert' : 'warn',
+        title:'Ritmo de gasto demasiado alto',
+        desc:`Tu proyección ya consume el ${projectedPct}% del ingreso. Esta semana conviene recortar gasto variable.`,
+        icon:'📉',
+        color: projectedPct >= 100 ? 'var(--danger)' : 'var(--warning-sys)',
+        time:'Modo ahorro'
+      });
+    }
+    if(data.subsTotal > income * 0.08){
+      alerts.push({
+        id:`sav-subs-${data.currentMonth}`,
+        type:'warn',
+        title:'Suscripciones por encima del rango ideal',
+        desc:`Las suscripciones ya representan ${Math.round(data.subsTotal / income * 100)}% de tu ingreso mensual.`,
+        icon:'🔁',
+        color:'var(--warning-sys)',
+        time:'Modo ahorro'
+      });
+    }
+    if(data.cuotasTotal > income * 0.25){
+      alerts.push({
+        id:`sav-cuotas-${data.currentMonth}`,
+        type:'alert',
+        title:'Cuotas pesadas para este ingreso',
+        desc:`Tus cuotas absorben ${Math.round(data.cuotasTotal / income * 100)}% del ingreso disponible.`,
+        icon:'💳',
+        color:'var(--danger)',
+        time:'Desvío importante'
+      });
+    }
+  }
+  if(data.growingCats?.length){
+    const topGrowth = data.growingCats[0];
+    if(topGrowth && topGrowth.pctChange >= 25){
+      alerts.push({
+        id:`sav-growth-${topGrowth.cat}-${data.currentMonth}`,
+        type:'warn',
+        title:`Desvío fuerte en ${topGrowth.cat}`,
+        desc:`Subió ${topGrowth.pctChange}% versus el mes pasado. Es una palanca clara para ahorrar más.`,
+        icon:'📈',
+        color:'var(--warning-sys)',
+        time:'Categoría en alza'
+      });
+    }
+  }
+  if(data.topCats?.length && data.arsThis > 0){
+    const [catName, catAmount] = data.topCats[0];
+    const catPct = Math.round(catAmount / data.arsThis * 100);
+    if(catPct >= 35){
+      alerts.push({
+        id:`sav-concentration-${catName}-${data.currentMonth}`,
+        type:'info',
+        title:`Concentración alta en ${catName}`,
+        desc:`Esa categoría ya explica el ${catPct}% del gasto actual.`,
+        icon:'🎯',
+        color:'var(--accent)',
+        time:'Modo ahorro'
+      });
+    }
+  }
+  return alerts;
+}
+
+function _renderSavingsMode(data){
+  const el = document.getElementById('insights-savings-shell');
+  if(!el) return;
+  const income = data.incomeARS || 0;
+  const targetSave = income > 0 ? income * 0.2 : 0;
+  const targetSpend = income > 0 ? Math.max(0, income - targetSave) : 0;
+  const projectedSavings = income > 0 ? income - data.projectedMonth : 0;
+  const savingsGap = income > 0 ? Math.max(0, targetSave - Math.max(0, projectedSavings)) : 0;
+  const topLevers = (data.growingCats || [])
+    .filter(c=>c.current>0)
+    .slice(0,3)
+    .map(c=>({
+      name:c.cat,
+      current:c.current,
+      pctChange:c.pctChange,
+      recoverable: Math.round(Math.max(0, c.current - (c.prev || c.current * 0.82)) || c.current * 0.15)
+    }));
+  while(topLevers.length < 3 && (data.topCats||[])[topLevers.length]){
+    const [name, amount] = data.topCats[topLevers.length];
+    topLevers.push({ name, current: amount, pctChange: 15, recoverable: Math.round(amount * 0.12) });
+  }
+  const recoverableTotal = topLevers.reduce((s,l)=>s+(l.recoverable||0),0);
+  const alerts = getSavingsDeviationAlerts(data);
+
+  const advices = income <= 0 ? [
+    {tone:'info', title:'Definí primero el ingreso del período', body:'El modo ahorro necesita saber cuánto entra realmente por mes para recomendarte un plan financiero serio.'},
+    {tone:'info', title:'Registrá sueldo ARS y USD', body:'Como cobrás en dos monedas, la app tiene que sumar ambas para mostrarte margen, ahorro y gasto objetivo reales.'},
+    {tone:'info', title:'Usá esta vista para ordenar prioridades', body:'Cuando cargues ingresos, esta pantalla te va a decir cuánto podés guardar y dónde conviene recortar primero.'}
+  ] : [
+    {tone: projectedSavings >= targetSave ? 'good' : 'warn', title:'Objetivo de ahorro sano', body:`Con tu ingreso actual, una meta razonable es separar <strong>$${fmtN(Math.round(targetSave))}</strong> por mes y tratar de no pasar de <strong>$${fmtN(Math.round(targetSpend))}</strong> de gasto total.`},
+    {tone: savingsGap > 0 ? 'warn' : 'good', title:'Lo que hoy te falta ajustar', body:savingsGap > 0 ? `Para llegar a esa meta, hoy tendrías que recortar alrededor de <strong>$${fmtN(Math.round(savingsGap))}</strong> en gasto variable.` : `Tu proyección ya está alineada con un ahorro cercano al 20% del ingreso.`},
+    {tone:'info', title:'La regla más efectiva para vos', body:'No esperes a ver qué sobra a fin de mes. Apenas cobrás, separá el ahorro primero y después administrá el gasto con el monto restante.'}
+  ];
+
+  el.innerHTML = `
+    <div class="fade-up d1 savings-hero-shell">
+      <div class="insights-panel-kicker">Modo ahorro</div>
+      <div class="savings-hero-title">Cómo bajar tu gasto sin vivir peor</div>
+      <div class="savings-hero-copy">${income>0 ? `Esta vista toma tu ingreso real del período, tu proyección de gasto y tus categorías en alza para mostrarte un plan concreto de ahorro.` : `Primero necesitás registrar ingresos para que la estrategia de ahorro sea precisa y realmente útil.`}</div>
+      <div class="savings-metric-grid">
+        <div class="savings-metric-card">
+          <div class="savings-metric-label">Ahorro proyectado</div>
+          <div class="savings-metric-value ${projectedSavings < 0 ? 'bad' : ''}">${income>0 ? '$'+fmtN(Math.round(projectedSavings)) : '—'}</div>
+          <div class="savings-metric-sub">ingreso menos gasto proyectado</div>
+        </div>
+        <div class="savings-metric-card">
+          <div class="savings-metric-label">Objetivo sugerido</div>
+          <div class="savings-metric-value">${income>0 ? '$'+fmtN(Math.round(targetSave)) : '—'}</div>
+          <div class="savings-metric-sub">20% del ingreso mensual</div>
+        </div>
+        <div class="savings-metric-card">
+          <div class="savings-metric-label">Recorte a lograr</div>
+          <div class="savings-metric-value">${income>0 ? '$'+fmtN(Math.round(savingsGap)) : '—'}</div>
+          <div class="savings-metric-sub">para alcanzar el objetivo</div>
+        </div>
+        <div class="savings-metric-card">
+          <div class="savings-metric-label">Potencial en 3 categorías</div>
+          <div class="savings-metric-value">${topLevers.length ? '$'+fmtN(Math.round(recoverableTotal)) : '—'}</div>
+          <div class="savings-metric-sub">ajuste realista de corto plazo</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fade-up d2 savings-split-grid">
+      <div class="insights-panel-shell">
+        <div class="insights-panel-kicker">Palancas de ahorro</div>
+        <div class="insights-panel-sub">Las tres categorías donde más conviene ajustar hoy</div>
+        <div class="savings-lever-list">
+          ${topLevers.map((lever,idx)=>`
+            <div class="savings-lever-card">
+              <div class="savings-lever-rank">0${idx+1}</div>
+              <div class="savings-lever-copy">
+                <div class="savings-lever-name">${esc(lever.name)}</div>
+                <div class="savings-lever-meta">Gasto actual: <strong>$${fmtN(Math.round(lever.current))}</strong> · desvío: <strong>${lever.pctChange>0?'+':''}${lever.pctChange}%</strong></div>
+              </div>
+              <div class="savings-lever-impact">Ahorro posible<br><strong>$${fmtN(Math.round(lever.recoverable))}</strong></div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="insights-panel-shell">
+        <div class="insights-panel-kicker">Alertas de desvío</div>
+        <div class="insights-panel-sub">Señales importantes que hoy te alejan del ahorro</div>
+        <div class="savings-alert-stack">
+          ${alerts.length ? alerts.map(a=>`
+            <div class="savings-alert-item savings-alert-${a.type}">
+              <div class="savings-alert-icon">${a.icon}</div>
+              <div>
+                <div class="savings-alert-title">${a.title}</div>
+                <div class="savings-alert-desc">${a.desc}</div>
+              </div>
+            </div>
+          `).join('') : `<div class="savings-alert-item savings-alert-success"><div class="savings-alert-icon">✅</div><div><div class="savings-alert-title">Sin alertas críticas</div><div class="savings-alert-desc">Tu situación actual no muestra desvíos fuertes. Ahora el desafío es sostener hábitos y automatizar ahorro.</div></div></div>`}
+        </div>
+      </div>
+    </div>
+
+    <div class="fade-up d3 insights-panel-shell">
+      <div class="insights-panel-kicker">Consejos profesionales</div>
+      <div class="insights-panel-sub">Qué haría un asesor financiero para ayudarte a guardar más plata</div>
+      <div class="savings-advice-grid">
+        ${advices.map(card=>`
+          <div class="savings-advice-card savings-advice-${card.tone}">
+            <div class="savings-advice-title">${card.title}</div>
+            <div class="savings-advice-body">${card.body}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+  const subEl=document.getElementById('insights-subtitle');
+  if(subEl) subEl.textContent='Modo ahorro · objetivo, desvíos y recortes recomendados';
 }
 
 // ── Desafíos Financieros ──────────────────────────────────
