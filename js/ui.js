@@ -160,7 +160,7 @@ function updateQrBadge(){
 
 // ══ NAV ══
 // Map page → which nav-section contains it (if any)
-const PAGE_SECTION={categories:'ns-config',import:'ns-config','credit-cards':'ns-credit-cards','cc-compare':'ns-credit-cards'};
+const PAGE_SECTION={settings:null,'credit-cards':'ns-credit-cards','cc-compare':'ns-credit-cards'};
 
 function isMobileAppView(){
   return window.innerWidth <= 768;
@@ -847,7 +847,8 @@ function getDashboardDesignState(){
     widgetHidden: Array.isArray(pageData.widgetHidden) ? [...pageData.widgetHidden] : ['income-widget','usd-exposure-widget','largest-widget'],
     widgetConfig: pageData.widgetConfig || (ls.dashboard?.widgetConfig || {}),
     customWidgets: Array.isArray(pageData.customWidgets) ? [...pageData.customWidgets] : getDashboardCustomWidgets(),
-    savedViews: Array.isArray(pageData.savedViews) ? [...pageData.savedViews] : getDashboardSavedViews()
+    savedViews: Array.isArray(pageData.savedViews) ? [...pageData.savedViews] : getDashboardSavedViews(),
+    widgetSizes: pageData.widgetSizes || (ls.dashboard?.widgetSizes || {})
   };
 }
 
@@ -912,7 +913,8 @@ function saveDashboardDesignState(pageData, silent){
     widgetHidden: Array.isArray(pageData.widgetHidden) ? pageData.widgetHidden : (ls.dashboard?.widgetHidden || []),
     widgetConfig: pageData.widgetConfig || (ls.dashboard?.widgetConfig || {}),
     customWidgets: pageData.customWidgets || (ls.dashboard?.customWidgets || []),
-    savedViews: pageData.savedViews || (ls.dashboard?.savedViews || [])
+    savedViews: pageData.savedViews || (ls.dashboard?.savedViews || []),
+    widgetSizes: pageData.widgetSizes || (ls.dashboard?.widgetSizes || {})
   };
   saveLayoutState(ls);
   applyLayout('dashboard');
@@ -1007,11 +1009,11 @@ function renderDashboardDesignPage(){
     return `
       <div class="dashboard-library-card ${hidden ? 'is-hidden' : 'is-visible'}">
         ${buildDashboardWidgetTilePreview(key, metaMap)}
-        <div class="dashboard-library-top">
-          <div>
-            <div class="dashboard-library-title">${getDashboardWidgetDisplayName(key, metaMap)}</div>
-            <div class="dashboard-library-desc">${meta.desc}</div>
-          </div>
+      <div class="dashboard-library-top">
+        <div>
+          <div class="dashboard-library-title">${getDashboardWidgetDisplayName(key, metaMap)}</div>
+          <div class="dashboard-library-desc">${meta.desc}</div>
+        </div>
           <span class="dashboard-library-state ${hidden ? 'off' : 'on'}">${hidden ? 'Oculto' : 'Visible'}</span>
         </div>
         <div class="dashboard-library-meta">${DASHBOARD_GROUP_META[meta.group] || 'Dashboard'}</div>
@@ -1036,7 +1038,7 @@ function renderDashboardDesignPage(){
           </div>
           <div class="dashboard-widget-row-main">
             <div class="dashboard-widget-name">${getDashboardWidgetDisplayName(key, metaMap)}</div>
-            <div class="dashboard-widget-meta">${hidden ? 'Oculto en el dashboard' : 'Visible en el dashboard'}</div>
+            <div class="dashboard-widget-meta">${hidden ? 'Oculto en el dashboard' : 'Visible en el dashboard'} · tamaño ${getDashboardWidgetSizeLabel(designState.widgetSizes?.[key])}</div>
           </div>
           <div class="dashboard-widget-row-actions">
             <button class="dashboard-widget-mini" onclick="moveDashboardWidget('${groupKey}','${key}',-1)" ${idx===0?'disabled':''}>↑</button>
@@ -1234,6 +1236,7 @@ function renderDashboardWidgetEditor(){
   const currentVariant = custom?.variant || config.variant || 'default';
   const currentMetric = custom?.metric || 'income_total';
   const currentGroup = custom?.group || meta.group || 'dashboard-widgets';
+  const currentSize = (getDashboardDesignState().widgetSizes || {})[key] || 'regular';
 
   el.innerHTML = `
     <div class="dashboard-editor-form">
@@ -1287,7 +1290,15 @@ function renderDashboardWidgetEditor(){
               <option value="dashboard-widgets" ${currentGroup==='dashboard-widgets'?'selected':''}>Widgets secundarios</option>
             </select>
           </label>
-        ` : `<div class="dashboard-editor-hint">En los widgets base podés cambiar nombre visible, emoji y estilo.</div>`}
+        ` : `<div class="dashboard-editor-hint">En los widgets base podés cambiar nombre visible, emoji, estilo y tamaño.</div>`}
+        <label class="dashboard-editor-field">
+          <span>Tamaño</span>
+          <select id="dash-editor-size" class="txn-select">
+            <option value="compact" ${currentSize==='compact'?'selected':''}>Compacto</option>
+            <option value="regular" ${currentSize==='regular'?'selected':''}>Regular</option>
+            <option value="wide" ${currentSize==='wide'?'selected':''}>Amplio</option>
+          </select>
+        </label>
       </div>
       <div class="dashboard-editor-actions">
         <button class="btn btn-primary" onclick="saveDashboardWidgetEditor('${key}')">Guardar cambios</button>
@@ -1329,9 +1340,12 @@ function saveDashboardWidgetEditor(key){
   const icon = document.getElementById('dash-editor-icon')?.value?.trim();
   const variant = document.getElementById('dash-editor-variant')?.value || 'default';
   const metric = document.getElementById('dash-editor-metric')?.value || 'income_total';
+  const size = document.getElementById('dash-editor-size')?.value || 'regular';
   const designState = getDashboardDesignState();
   const customWidgets = getDashboardCustomWidgets();
   const customIdx = customWidgets.findIndex(w => w.id === key);
+  const widgetSizes = { ...(designState.widgetSizes || {}) };
+  widgetSizes[key] = size;
   if(customIdx >= 0){
     const nextGroup = 'dashboard-widgets';
     const widgetGroups = { ...designState.widgetGroups };
@@ -1350,7 +1364,8 @@ function saveDashboardWidgetEditor(key){
     saveDashboardDesignState({
       ...designState,
       customWidgets,
-      widgetGroups
+      widgetGroups,
+      widgetSizes
     });
   } else {
     const widgetConfig = getDashboardWidgetConfigs();
@@ -1362,7 +1377,8 @@ function saveDashboardWidgetEditor(key){
     };
     saveDashboardDesignState({
       ...designState,
-      widgetConfig
+      widgetConfig,
+      widgetSizes
     });
   }
   renderDashboardDesignPage();
@@ -1379,7 +1395,8 @@ function deleteDashboardCustomWidget(key){
     ...designState,
     customWidgets,
     widgetGroups,
-    widgetHidden: designState.widgetHidden.filter(item => item !== key)
+    widgetHidden: designState.widgetHidden.filter(item => item !== key),
+    widgetSizes: Object.fromEntries(Object.entries(designState.widgetSizes || {}).filter(([item]) => item !== key))
   });
   window._dashWidgetEditing = null;
   renderDashboardDesignPage();
@@ -1399,7 +1416,8 @@ function saveCurrentDashboardView(){
     widgetGroups: designState.widgetGroups || {},
     widgetHidden: designState.widgetHidden || [],
     widgetConfig: designState.widgetConfig || {},
-    customWidgets: designState.customWidgets || []
+    customWidgets: designState.customWidgets || [],
+    widgetSizes: designState.widgetSizes || {}
   });
   saveDashboardSavedViews(views.slice(0,8));
   renderDashboardDesignPage();
@@ -1415,9 +1433,14 @@ function applySavedDashboardView(id){
     widgetGroups: view.widgetGroups || {},
     widgetHidden: view.widgetHidden || [],
     widgetConfig: view.widgetConfig || {},
-    customWidgets: view.customWidgets || []
+    customWidgets: view.customWidgets || [],
+    widgetSizes: view.widgetSizes || {}
   });
   renderDashboardDesignPage();
+}
+
+function getDashboardWidgetSizeLabel(size){
+  return ({compact:'compacto',regular:'regular',wide:'amplio'})[size || 'regular'] || 'regular';
 }
 
 function renameSavedDashboardView(id){

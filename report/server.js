@@ -64,6 +64,7 @@ async function runReportPipeline(options = {}) {
   // 5. Email
   const result = await sendReportEmail(report, aiInsights, pdfPath, {
     include,
+    period,
     previewAttachment: options.previewAttachment || null,
   });
   console.log(`  ✓ Email enviado`);

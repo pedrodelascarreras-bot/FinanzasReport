@@ -21,11 +21,21 @@ function openSendReportModal() {
   // Reset status
   const status = document.getElementById('sre-status');
   if(status) { status.style.display='none'; status.textContent=''; }
+  const preferredPeriod = state.repMode === 'tc' ? 'tc' : (state.repMode === 'mes' ? 'month' : 'week');
+  const activeRadio = document.querySelector(`input[name="sre-period"][value="${preferredPeriod}"]`);
+  if(activeRadio){
+    activeRadio.checked = true;
+    document.querySelectorAll('.sre-option-card').forEach(card => {
+      const input = card.querySelector('input[type="radio"]');
+      card.classList.toggle('active', !!input?.checked);
+    });
+  }
   // Wire up period option cards
   document.querySelectorAll('input[name="sre-period"]').forEach(radio => {
     radio.addEventListener('change', () => {
       document.getElementById('sre-period-week')?.classList.toggle('active', radio.value==='week' && radio.checked);
       document.getElementById('sre-period-month')?.classList.toggle('active', radio.value==='month' && radio.checked);
+      document.getElementById('sre-period-tc')?.classList.toggle('active', radio.value==='tc' && radio.checked);
     });
   });
   document.querySelectorAll('.sre-option-card').forEach(card => {
@@ -217,6 +227,18 @@ function setRepDesign(design){
   updateRepPreview();
 }
 
+function toggleAllReportSections(checked){
+  document.querySelectorAll('#rep-sections input[type="checkbox"]').forEach(input=>{ input.checked = !!checked; });
+  updateRepPreview();
+}
+
+function toggleReportSectionGroup(group, checked){
+  document.querySelectorAll(`#rep-sections [data-section-group="${group}"] input[type="checkbox"]`).forEach(input=>{
+    input.checked = !!checked;
+  });
+  updateRepPreview();
+}
+
 function getRepTxns(){
   const mode=state.repMode||'mes';
   const sel=document.getElementById('rep-period-select')?.value||'';
@@ -260,7 +282,7 @@ function getReportStyleSheet(s){
   const cfg=s||{accent:'#1d1d1f',fontSz:'12px',pad:'32px',brand:'20px',headerBorder:'3px solid #1d1d1f',kpiBg:'#f7f7f7',sectionTitle:'11px'};
   return '*{box-sizing:border-box;margin:0;padding:0;}'
     +'body{background:#fff;font-family:-apple-system,"SF Pro Display","Helvetica Neue",sans-serif;}'
-    +'.rpt{color:'+cfg.accent+';padding:'+cfg.pad+';max-width:100%;font-size:'+cfg.fontSz+';background:linear-gradient(180deg,#ffffff,#fbfcff);border-radius:28px;box-shadow:0 18px 40px rgba(15,23,42,0.08);}'
+    +'.rpt{color:'+cfg.accent+';padding:'+cfg.pad+';width:100%;max-width:none;font-size:'+cfg.fontSz+';background:linear-gradient(180deg,#ffffff,#fbfcff);border-radius:28px;box-shadow:0 18px 40px rgba(15,23,42,0.08);}'
     +'.rpt-header{border-bottom:1px solid #e8edf5;padding-bottom:16px;margin-bottom:24px;display:flex;justify-content:space-between;align-items:flex-end;}'
     +'.rpt-brand{font-size:'+cfg.brand+';font-weight:700;letter-spacing:-0.02em;}'
     +'.rpt-meta{text-align:right;font-size:10px;color:#667085;line-height:1.7;}'
@@ -285,8 +307,8 @@ function getReportStyleSheet(s){
     +'.rpt-exec-inner{padding:30px 32px 26px;}'
     +'.rpt-exec-top{display:flex;justify-content:space-between;align-items:flex-start;gap:18px;flex-wrap:wrap;margin-bottom:20px;}'
     +'.rpt-exec-kicker{font-size:10px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;color:rgba(248,250,252,0.62);margin-bottom:8px;}'
-    +'.rpt-exec-title{max-width:560px;font-size:36px;line-height:1.02;letter-spacing:-0.06em;font-weight:760;}'
-    +'.rpt-exec-summary{margin-top:10px;max-width:560px;font-size:13px;line-height:1.6;color:rgba(248,250,252,0.74);}'
+    +'.rpt-exec-title{max-width:640px;font-size:36px;line-height:1.02;letter-spacing:-0.06em;font-weight:760;}'
+    +'.rpt-exec-summary{margin-top:10px;max-width:640px;font-size:13px;line-height:1.6;color:rgba(248,250,252,0.74);}'
     +'.rpt-exec-score{min-width:210px;border-radius:22px;padding:18px 20px;background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(16px);}'
     +'.rpt-exec-score-label{font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:rgba(248,250,252,0.62);margin-bottom:8px;}'
     +'.rpt-exec-score-value{font-size:48px;line-height:.95;letter-spacing:-0.06em;font-weight:760;color:#fff;}'
@@ -294,8 +316,8 @@ function getReportStyleSheet(s){
     +'.rpt-exec-metric-band{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px;}'
     +'.rpt-exec-metric{border-radius:18px;padding:16px 18px;background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.1);}'
     +'.rpt-exec-metric-label{font-size:10px;font-weight:700;letter-spacing:0.14em;text-transform:uppercase;color:rgba(248,250,252,0.58);margin-bottom:6px;}'
-    +'.rpt-exec-metric-value{font-size:24px;font-weight:720;letter-spacing:-0.04em;color:#fff;}'
-    +'.rpt-exec-metric-sub{margin-top:5px;font-size:11px;color:rgba(248,250,252,0.72);}'
+    +'.rpt-exec-metric-value{font-size:24px;font-weight:720;letter-spacing:-0.04em;color:#fff;overflow-wrap:anywhere;}'
+    +'.rpt-exec-metric-sub{margin-top:5px;font-size:11px;color:rgba(248,250,252,0.72);overflow-wrap:anywhere;}'
     +'.rpt-exec-panel-grid{display:grid;grid-template-columns:1.18fr .82fr;gap:14px;}'
     +'.rpt-exec-panel{border-radius:22px;padding:20px;border:1px solid rgba(255,255,255,0.1);}'
     +'.rpt-exec-panel.light{background:rgba(248,250,252,0.98);color:#0f172a;}'
@@ -311,8 +333,8 @@ function getReportStyleSheet(s){
     +'.rpt-action-kicker{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(248,250,252,0.62);margin-bottom:4px;}'
     +'.rpt-action-title{font-size:14px;line-height:1.25;font-weight:660;color:#fff;}'
     +'.rpt-action-copy{font-size:11px;line-height:1.5;color:rgba(248,250,252,0.72);margin-top:4px;}'
-    +'@page{margin:1.5cm;}'
-    +'@media print{.no-print{display:none !important;}.rpt{box-shadow:none;border-radius:0;padding:20px;}.rpt-exec-metric-band{grid-template-columns:repeat(2,1fr);}.rpt-exec-panel-grid{grid-template-columns:1fr 1fr;}}';
+    +'@page{margin:1cm;}'
+    +'@media print{.no-print{display:none !important;}.rpt{box-shadow:none;border-radius:0;padding:18px;}.rpt-exec-metric-band{grid-template-columns:repeat(2,1fr);}.rpt-exec-panel-grid{grid-template-columns:1fr 1fr;}}';
 }
 
 function buildReportHTML(txns,sections,periodLabel){
@@ -867,15 +889,15 @@ async function renderPreviewPdfBlob(){
   shell.style.position = 'fixed';
   shell.style.left = '-20000px';
   shell.style.top = '0';
-  shell.style.width = '1200px';
-  shell.style.padding = '28px';
+  shell.style.width = '1340px';
+  shell.style.padding = '18px';
   shell.style.background = '#f4f7fb';
   shell.style.zIndex = '-1';
 
   const paper = document.createElement('div');
   paper.style.background = '#ffffff';
-  paper.style.padding = '28px';
-  paper.style.borderRadius = '26px';
+  paper.style.padding = '16px';
+  paper.style.borderRadius = '20px';
   paper.style.boxShadow = '0 20px 50px rgba(15,23,42,0.08)';
   paper.style.fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
 
@@ -909,7 +931,7 @@ async function renderPreviewPdfBlob(){
     const pdf = new jsPDF('p', 'pt', 'a4');
     const pageW = pdf.internal.pageSize.getWidth();
     const pageH = pdf.internal.pageSize.getHeight();
-    const margin = 18;
+    const margin = 10;
     const drawW = pageW - margin * 2;
     const fullDrawH = canvas.height * drawW / canvas.width;
     const availablePageH = pageH - margin * 2;

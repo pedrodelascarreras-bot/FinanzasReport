@@ -99,23 +99,9 @@
     </button>
   </nav>
 
-  <!-- Configuración — colapsable -->
-  <div class="nav-section" id="ns-config">
-    <button class="nav-section-header" onclick="toggleSection('ns-config')">
-      <span class="ns-icon">⚙</span>
-      <span class="ns-label">Configuración</span>
-      <span class="ns-arrow">›</span>
-    </button>
-    <div class="nav-section-body">
-      <button class="nav-item sub" id="ni-categories" onclick="nav('categories')">
-        <span class="nav-icon">◑</span><span>Categorías</span>
-      </button>
-      <button class="nav-item sub" id="ni-import" onclick="nav('import')">
-        <span class="nav-icon">↑</span><span>Importar datos</span>
-      </button>
-
-    </div>
-  </div>
+  <button class="nav-item" id="ni-settings" onclick="nav('settings')">
+    <span class="nav-icon">⚙</span><span>Configuración</span>
+  </button>
 
   <div style="margin-top:auto;padding-top:12px;display:flex;flex-direction:column;gap:6px;">
     <!-- Gmail Sync Button -->
@@ -239,7 +225,7 @@
             <div class="dash-utility-topline">
               <div class="dash-dollar-heading">
                 <span class="dash-dollar-flag">🇺🇸</span>
-                <span class="dash-dollar-title">DÓLAR<br>OFICIAL</span>
+                <span class="dash-dollar-title">DÓLAR OFICIAL</span>
               </div>
               <span id="usd-rate-source-badge" class="dash-utility-pill">manual</span>
             </div>
@@ -632,6 +618,97 @@
   </div>
 </div>
 
+<!-- CONFIGURACIÓN -->
+<div id="page-settings" class="page">
+  <div class="page-header fade-up">
+    <div>
+      <div class="page-title">Configuración</div>
+      <div class="page-subtitle">Prepará la app para vos, tu familia o cualquier persona con sus propios datos, banco y forma de uso.</div>
+    </div>
+  </div>
+
+  <div class="settings-shell fade-up d1">
+    <div class="settings-main">
+      <div class="settings-card settings-card-hero">
+        <div class="settings-hero-copy">
+          <div class="settings-kicker">Centro de configuración</div>
+          <div class="settings-title">Todo lo importante para adaptar la app sin tocar la ingeniería.</div>
+          <div class="settings-note">Desde acá podés definir categorías, importaciones, tarjetas, sincronización y otras bases para que cada usuario configure la app a su medida.</div>
+        </div>
+        <div class="settings-hero-chips">
+          <span class="settings-chip">Google</span>
+          <span class="settings-chip">Gmail</span>
+          <span class="settings-chip">Tarjetas</span>
+          <span class="settings-chip">Importación</span>
+          <span class="settings-chip">Categorías</span>
+        </div>
+      </div>
+
+      <div class="settings-grid">
+        <button class="settings-card settings-nav-card" onclick="nav('categories')">
+          <div class="settings-nav-icon">◑</div>
+          <div class="settings-nav-copy">
+            <div class="settings-nav-title">Categorías</div>
+            <div class="settings-nav-sub">Editá nombres, colores y emojis para que los movimientos se lean mejor y la app se adapte a tu criterio.</div>
+          </div>
+          <div class="settings-nav-cta">Abrir</div>
+        </button>
+
+        <button class="settings-card settings-nav-card" onclick="nav('import')">
+          <div class="settings-nav-icon">↑</div>
+          <div class="settings-nav-copy">
+            <div class="settings-nav-title">Importar datos</div>
+            <div class="settings-nav-sub">CSV, texto pegado, respaldo, historial y limpieza para cualquier flujo de carga.</div>
+          </div>
+          <div class="settings-nav-cta">Abrir</div>
+        </button>
+
+        <button class="settings-card settings-nav-card" onclick="nav('credit-cards');ccSelectPageTab('config')">
+          <div class="settings-nav-icon">💳</div>
+          <div class="settings-nav-copy">
+            <div class="settings-nav-title">Tarjetas y ciclos</div>
+            <div class="settings-nav-sub">Configurá apertura, cierre, vencimiento, nombre visible y comportamiento de cada tarjeta.</div>
+          </div>
+          <div class="settings-nav-cta">Abrir</div>
+        </button>
+
+        <button class="settings-card settings-nav-card" onclick="gmailSync()">
+          <div class="settings-nav-icon">✉️</div>
+          <div class="settings-nav-copy">
+            <div class="settings-nav-title">Gmail y sincronización</div>
+            <div class="settings-nav-sub">Conectá tu correo y Google para importar gastos y ver los mismos datos en distintos dispositivos.</div>
+          </div>
+          <div class="settings-nav-cta">Conectar</div>
+        </button>
+      </div>
+
+      <div class="settings-split">
+        <div class="settings-card">
+          <div class="settings-kicker">Listo para más gente</div>
+          <div class="settings-title settings-title-sm">Qué conviene dejar preparado</div>
+          <div class="settings-list">
+            <div class="settings-list-item"><strong>Banco y formato</strong><span>Resumen propio, nombres de columnas y estilo de importación.</span></div>
+            <div class="settings-list-item"><strong>Tarjetas</strong><span>Fechas clave, ciclos y reglas por banco o tarjeta.</span></div>
+            <div class="settings-list-item"><strong>Google y Gmail</strong><span>Conexión personal, sincronización y lectura de correos propios.</span></div>
+            <div class="settings-list-item"><strong>Personalización</strong><span>Nombre, vistas guardadas, dashboard y lectura visual de la app.</span></div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-kicker">Accesos rápidos</div>
+          <div class="settings-title settings-title-sm">Cambios frecuentes</div>
+          <div class="settings-action-stack">
+            <button class="btn btn-ghost" onclick="nav('dashboard-design')">Editar diseño del dashboard</button>
+            <button class="btn btn-ghost" onclick="openCloudSync(event)">Conectar Google Drive</button>
+            <button class="btn btn-ghost" onclick="nav('income')">Revisar ingresos base</button>
+            <button class="btn btn-ghost" onclick="nav('savings')">Ajustar metas de ahorro</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- TARJETA DE CRÉDITO -->
 <div id="page-credit-cards" class="page">
   <div class="page-header fade-up">
@@ -794,80 +871,87 @@
       <!-- Secciones -->
       <div class="rep-config-card">
         <div class="rep-section-title">Contenido del informe</div>
+        <div class="rep-content-toolbar">
+          <button class="dashboard-widget-mini" onclick="toggleReportSectionGroup('core', true)">Esenciales</button>
+          <button class="dashboard-widget-mini" onclick="toggleReportSectionGroup('analysis', true)">Analítica</button>
+          <button class="dashboard-widget-mini" onclick="toggleReportSectionGroup('detail', true)">Detalle</button>
+          <button class="dashboard-widget-mini" onclick="toggleAllReportSections(true)">Todo</button>
+          <button class="dashboard-widget-mini" onclick="toggleAllReportSections(false)">Nada</button>
+        </div>
         <div class="rep-check-list" id="rep-sections">
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="core">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="resumen"> 
             <div><div class="rep-check-label">Resumen general</div><div class="rep-check-sub">Total ARS/USD · ingresos · margen</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="core">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="score">
             <div><div class="rep-check-label">Score financiero</div><div class="rep-check-sub">Puntaje 0–100 del mes con análisis</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="core">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="proyeccion">
             <div><div class="rep-check-label">Proyección al cierre</div><div class="rep-check-sub">Estimado de gasto a fin de mes</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="analysis">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="comparacion">
             <div><div class="rep-check-label">Comparación mes anterior</div><div class="rep-check-sub">Delta por categoría vs período previo</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="analysis">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="alertas">
             <div><div class="rep-check-label">Alertas y recomendaciones</div><div class="rep-check-sub">Categorías disparadas, anomalías</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="analysis">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="habitos">
             <div><div class="rep-check-label">Hábitos de consumo</div><div class="rep-check-sub">Días pico, ticket promedio, semana más cara</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="core">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="categorias">
             <div><div class="rep-check-label">Gastos por categoría</div><div class="rep-check-sub">Barras y porcentajes</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="analysis">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="medios">
             <div><div class="rep-check-label">Medios de pago</div><div class="rep-check-sub">TC vs débito vs efectivo</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="core">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="compromisos">
             <div><div class="rep-check-label">Compromisos próximo mes</div><div class="rep-check-sub">Cuotas y suscripciones que vienen</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="analysis">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="fijosvar">
             <div><div class="rep-check-label">Gastos fijos vs variables</div><div class="rep-check-sub">Qué % de tu gasto es predecible</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="analysis">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="tendcats">
             <div><div class="rep-check-label">Tendencia por categoría</div><div class="rep-check-sub">Últimos meses, qué sube o baja</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="analysis">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="variabilidad">
             <div><div class="rep-check-label">Consistencia mensual</div><div class="rep-check-sub">Qué tan estable es tu gasto mes a mes</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="analysis">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="simulador">
             <div><div class="rep-check-label">Simulador de gasto disponible</div><div class="rep-check-sub">Cuánto podés gastar sin quedar en rojo</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="detail">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="etacuotas">
             <div><div class="rep-check-label">Fin estimado de cuotas</div><div class="rep-check-sub">Cuándo termina cada cuota activa</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="analysis">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="recomendaciones">
             <div><div class="rep-check-label">Recomendaciones de recorte</div><div class="rep-check-sub">Top 3 acciones concretas para ahorrar</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="analysis">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="metas">
             <div><div class="rep-check-label">Progreso de metas de ahorro</div><div class="rep-check-sub">Avance hacia cada objetivo</div></div>
           </label>
-          <label class="rep-check-item checked">
+          <label class="rep-check-item checked" data-section-group="detail">
             <input type="checkbox" checked onchange="updateRepPreview()" data-section="top10">
             <div><div class="rep-check-label">Top 10 gastos</div><div class="rep-check-sub">Movimientos más altos del período</div></div>
           </label>
-          <label class="rep-check-item">
+          <label class="rep-check-item" data-section-group="detail">
             <input type="checkbox" onchange="updateRepPreview()" data-section="cuotas">
             <div><div class="rep-check-label">Cuotas y suscripciones activas</div><div class="rep-check-sub">Detalle de compromisos vigentes</div></div>
           </label>
-          <label class="rep-check-item">
+          <label class="rep-check-item" data-section-group="detail">
             <input type="checkbox" onchange="updateRepPreview()" data-section="todos">
             <div><div class="rep-check-label">Todos los movimientos</div><div class="rep-check-sub">Lista completa del período</div></div>
           </label>
@@ -2594,7 +2678,7 @@
       <!-- Periodo -->
       <div>
         <div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Período del reporte</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">
           <label class="sre-option-card active" id="sre-period-week">
             <input type="radio" name="sre-period" value="week" checked style="display:none;">
             <div style="font-size:18px;">📅</div>
@@ -2607,12 +2691,18 @@
             <div style="font-size:12px;font-weight:700;">Este mes</div>
             <div style="font-size:10px;color:var(--text3);">Mes en curso</div>
           </label>
+          <label class="sre-option-card" id="sre-period-tc">
+            <input type="radio" name="sre-period" value="tc" style="display:none;">
+            <div style="font-size:18px;">💳</div>
+            <div style="font-size:12px;font-weight:700;">Ciclo TC</div>
+            <div style="font-size:10px;color:var(--text3);">Ciclo actual</div>
+          </label>
         </div>
       </div>
       <!-- Contenido -->
       <div>
         <div style="font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:8px;">Incluir en el PDF</div>
-        <div style="display:flex;flex-direction:column;gap:6px;">
+        <div class="rep-send-option-grid">
           <label class="sre-toggle-row"><input type="checkbox" id="sre-inc-summary" checked><span class="sre-toggle-label">Resumen ejecutivo</span><span class="sre-toggle-desc">KPIs principales e ingresos</span></label>
           <label class="sre-toggle-row"><input type="checkbox" id="sre-inc-cats" checked><span class="sre-toggle-label">Categorías</span><span class="sre-toggle-desc">Gastos por categoría</span></label>
           <label class="sre-toggle-row"><input type="checkbox" id="sre-inc-ai" checked><span class="sre-toggle-label">Análisis IA</span><span class="sre-toggle-desc">Insights y recomendaciones</span></label>

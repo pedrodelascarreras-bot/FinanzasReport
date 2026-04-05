@@ -21,10 +21,25 @@ async function sendReportEmail(report, aiInsights, pdfPath, options = {}) {
   if (!to) throw new Error('REPORT_TO_EMAIL no configurado');
 
   const resend = new Resend(apiKey);
+  const periodKey = options.period || 'week';
+  const periodTitle =
+    periodKey === 'tc' ? 'Ciclo de tarjeta' :
+    periodKey === 'month' ? 'Mes actual' :
+    'Semana actual';
+  const subject =
+    periodKey === 'tc'
+      ? '📊 Reporte Financiero — Ciclo de tarjeta'
+      : periodKey === 'month'
+      ? `📊 Reporte Financiero — ${report.period.monthLabel || 'Mes actual'}`
+      : `📊 Reporte Financiero — Semana del ${formatDateShort(report.period.weekStart)}`;
+  const primaryDate =
+    periodKey === 'tc'
+      ? `${report.period.ccCycleStart ? formatDateShort(report.period.ccCycleStart) : '—'} — ${report.period.ccCycleClose ? formatDateShort(report.period.ccCycleClose) : '—'}`
+      : periodKey === 'month'
+      ? (report.period.monthLabel || 'Mes actual')
+      : `${formatDateShort(report.period.weekStart)} — ${formatDateShort(report.period.weekEnd)}`;
 
   // ── Construir cuerpo del email en HTML ──
-  const weekRange = `${formatDateShort(report.period.weekStart)} — ${formatDateShort(report.period.weekEnd)}`;
-
   const insightsHtml = (aiInsights?.insights || [])
     .map((ins, i) => `<tr><td style="padding:6px 0;font-size:14px;color:#333;line-height:1.5;"><strong>${i + 1}.</strong> ${ins}</td></tr>`)
     .join('');
@@ -48,8 +63,8 @@ async function sendReportEmail(report, aiInsights, pdfPath, options = {}) {
     
     <!-- Header -->
     <div style="background:#1D1D1F;border-radius:12px 12px 0 0;padding:24px 28px;">
-      <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;">📊 Reporte Financiero Semanal</h1>
-      <p style="margin:6px 0 0;font-size:12px;color:#AEAEB2;">${weekRange} · TC: $${fmtN(report.usdRate)}</p>
+      <h1 style="margin:0;font-size:20px;font-weight:700;color:#fff;">📊 Reporte Financiero · ${periodTitle}</h1>
+      <p style="margin:6px 0 0;font-size:12px;color:#AEAEB2;">${primaryDate} · TC: $${fmtN(report.usdRate)}</p>
     </div>
     
     <!-- Body -->
@@ -111,7 +126,13 @@ async function sendReportEmail(report, aiInsights, pdfPath, options = {}) {
   // ── Enviar ──
   const attachments = [];
   const pdfBuffer = fs.readFileSync(pdfPath);
-  const fileName = `reporte-financiero-${formatDateFile(report.period.weekEnd)}.pdf`;
+  const fileStamp =
+    periodKey === 'tc'
+      ? formatDateFile(report.period.ccCycleClose || report.period.weekEnd)
+      : periodKey === 'month'
+      ? String(report.period.monthKey || formatDateFile(report.period.weekEnd))
+      : formatDateFile(report.period.weekEnd);
+  const fileName = `reporte-financiero-${periodKey}-${fileStamp}.pdf`;
   attachments.push({
     filename: fileName,
     content: pdfBuffer.toString('base64'),
@@ -120,13 +141,13 @@ async function sendReportEmail(report, aiInsights, pdfPath, options = {}) {
 
   if (options.previewAttachment?.contentBase64) {
     attachments.push({
-      filename: options.previewAttachment.filename || `reporte-financiero-vista-previa-${formatDateFile(report.period.weekEnd)}.pdf`,
+      filename: options.previewAttachment.filename || `reporte-financiero-vista-previa-${periodKey}-${fileStamp}.pdf`,
       content: options.previewAttachment.contentBase64,
       contentType: 'application/pdf',
     });
   } else if (options.previewPdfPath) {
     const previewBuffer = fs.readFileSync(options.previewPdfPath);
-    const previewFileName = `reporte-financiero-vista-previa-${formatDateFile(report.period.weekEnd)}.pdf`;
+    const previewFileName = `reporte-financiero-vista-previa-${periodKey}-${fileStamp}.pdf`;
     attachments.push({
       filename: previewFileName,
       content: previewBuffer.toString('base64'),
@@ -137,7 +158,7 @@ async function sendReportEmail(report, aiInsights, pdfPath, options = {}) {
   const result = await resend.emails.send({
     from,
     to: [to],
-    subject: `📊 Reporte Financiero — Semana del ${formatDateShort(report.period.weekStart)}`,
+    subject,
     html,
     attachments,
   });

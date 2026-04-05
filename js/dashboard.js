@@ -1911,20 +1911,24 @@ function applyDashboardWidgetConfigs(){
   const configs=getDashboardWidgetConfigs()||{};
   const metaMap=typeof getDashboardWidgetMetaMap==='function'?getDashboardWidgetMetaMap():{};
   const customWidgets=typeof getDashboardCustomWidgets==='function'?getDashboardCustomWidgets():[];
+  const layoutState=typeof loadLayoutState==='function'?loadLayoutState():{};
+  const widgetSizes=layoutState.dashboard?.widgetSizes||{};
   document.querySelectorAll('#dash-content .layout-widget[data-widget-key]').forEach(widget=>{
     const key=widget.dataset.widgetKey;
     const config=configs[key]||{};
     const custom=customWidgets.find(w=>w.id===key)||null;
     const variant=custom?.variant||config.variant||'default';
-    widget.classList.remove('widget-variant-default','widget-variant-minimal','widget-variant-accent','widget-variant-premium');
+    const size=widgetSizes[key]||'regular';
+    widget.classList.remove('widget-variant-default','widget-variant-minimal','widget-variant-accent','widget-variant-premium','widget-size-compact','widget-size-regular','widget-size-wide');
     widget.classList.add(`widget-variant-${variant}`);
+    widget.classList.add(`widget-size-${size}`);
     const selector=metaMap[key]?.titleSelector;
     const titleEl=selector?widget.querySelector(selector):widget.querySelector('.dw-label,.chart-card-title,.dkpi-label');
     if(titleEl){
       if(!titleEl.dataset.baseTitle)titleEl.dataset.baseTitle=titleEl.textContent.trim();
       const label=custom?.name||config.labelOverride||metaMap[key]?.label||titleEl.dataset.baseTitle;
       const icon=custom?.icon||config.icon||'';
-      titleEl.textContent=`${icon?`${icon} `:''}${label}`;
+      titleEl.textContent=(key==='usd-card' && icon)?`${icon} ${label}`:`${icon?`${icon} `:''}${label}`;
     }
   });
 }
