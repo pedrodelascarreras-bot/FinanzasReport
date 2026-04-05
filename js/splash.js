@@ -186,6 +186,7 @@
     const usdRate = state.usdRate || (typeof USD_TO_ARS!=='undefined' ? USD_TO_ARS : 1420);
     const reelSeries = topThree.length ? topThree : [['Visión general', curTotal || 1], ['Proyección', Math.max(projected || 1, 1)], ['Compromisos', Math.max(commitmentPreview || 1, 1)]];
     const reelHeadlineValue = projected > 0 ? projected : curTotal;
+    const connectedNow = typeof isGoogleConnected === 'function' && isGoogleConnected();
 
     // ── Strings ──
     const DAYS   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
@@ -249,10 +250,6 @@
               ` : ''}
             </div>
 
-            <div class="sp-pre-auth fade-in d4">
-              <button class="sp-cta sp-cta-inline" id="splash-primary-cta" onclick="handleSplashPrimaryAction(event)">Iniciar sesión con Google &nbsp;→</button>
-              <div id="sp-google-gate-inline" class="sp-google-gate"></div>
-            </div>
           </div>
 
           <div class="sp-reel fade-in d2" aria-hidden="true">
@@ -270,10 +267,12 @@
                   const pct = topThree.length
                     ? Math.max(16, Math.round((amount / topAmount) * 100))
                     : [100, 72, 48][idx] || 28;
+                  const share = curTotal > 0 ? Math.round((amount / curTotal) * 100) : 0;
                   return `
                     <div class="sp-reel-bar-col" style="--bar-w:${pct}%;--bar-delay:${idx * 140}ms;">
                       <div class="sp-reel-bar"></div>
                       <div class="sp-reel-bar-label">${name}</div>
+                      <div class="sp-reel-bar-meta">${share}% del gasto</div>
                     </div>
                   `;
                 }).join('')}
@@ -305,6 +304,7 @@
           </div>
         </div>
 
+        ${connectedNow ? `
         <div class="sp-brief-grid fade-in d4">
           <div class="sp-brief-card">
             <div class="sp-brief-head">
@@ -331,6 +331,16 @@
             <div class="sp-brief-body">${aiLead ? aiLead.body : 'A medida que cargues más contexto, esta portada va a priorizar señales, próximos hitos y acciones concretas.'}</div>
           </div>
         </div>
+        ` : `
+        <div class="sp-auth-strip fade-in d4">
+          <div class="sp-auth-strip-copy">
+            <div class="sp-auth-strip-kicker">Acceso</div>
+            <div class="sp-auth-strip-title">Iniciá sesión con Google para entrar a tu app</div>
+            <div class="sp-auth-strip-body" id="sp-google-gate-inline">Conectá tu cuenta para ver tus datos sincronizados y seguir al dashboard.</div>
+          </div>
+          <button class="sp-cta sp-auth-strip-btn" id="splash-primary-cta" onclick="handleSplashPrimaryAction(event)">Iniciar sesión con Google &nbsp;→</button>
+        </div>
+        `}
 
       </div>
     `;
@@ -350,8 +360,9 @@
       const gate = document.getElementById('sp-google-gate-inline');
       if(!gate) return;
       gate.innerHTML = connected
-        ? '<div class="sp-google-gate ok">Google conectado. Ya podés entrar a la app con tus datos sincronizados.</div>'
-        : '<div class="sp-google-gate warn">Para entrar a la app y ver tus datos sincronizados, iniciá sesión con Google desde este panel.</div>';
+        ? 'Google conectado. Ya podés entrar a la app con tus datos sincronizados.'
+        : 'Para entrar a la app y ver tus datos sincronizados, iniciá sesión con Google desde este panel.';
+      gate.className = connected ? 'sp-auth-strip-body ok' : 'sp-auth-strip-body warn';
     }
 
     if(connected && autoDismiss){
