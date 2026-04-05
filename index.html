@@ -542,22 +542,27 @@
       <div class="dashboard-design-card">
         <div class="dashboard-design-head">
           <div>
-            <div class="dashboard-design-kicker">Presets</div>
-            <div class="dashboard-design-title">Elegí una base visual</div>
+            <div class="dashboard-design-kicker">Vistas</div>
+            <div class="dashboard-design-title">Elegí una base y cambiá solo lo importante</div>
           </div>
         </div>
         <div id="dashboard-design-presets" class="dashboard-preset-grid"></div>
+        <div class="dashboard-design-inline-head">
+          <div class="dashboard-design-kicker">Mis vistas</div>
+          <div class="dashboard-design-note">Guardalas con nombre para alternar rápido.</div>
+        </div>
+        <div id="dashboard-design-saved" class="dashboard-saved-grid dashboard-saved-grid-simple"></div>
       </div>
 
       <div class="dashboard-design-card">
         <div class="dashboard-design-head">
           <div>
-            <div class="dashboard-design-kicker">Mis vistas</div>
-            <div class="dashboard-design-title">Guardá configuraciones con nombre</div>
+            <div class="dashboard-design-kicker">Widgets activos</div>
+            <div class="dashboard-design-title">Mostrá, mové y ajustá tamaño</div>
           </div>
-          <div class="dashboard-design-note">Podés tener varias y alternarlas cuando te canses del mismo tablero.</div>
+          <div class="dashboard-design-note">Pensado para editar rápido, sin ruido.</div>
         </div>
-        <div id="dashboard-design-saved" class="dashboard-saved-grid"></div>
+        <div id="dashboard-design-groups" class="dashboard-widget-grid-simple"></div>
       </div>
 
       <div class="dashboard-design-card">
@@ -566,20 +571,9 @@
             <div class="dashboard-design-kicker">Biblioteca</div>
             <div class="dashboard-design-title">Widgets disponibles</div>
           </div>
-          <div class="dashboard-design-note">Los ocultos siguen estando acá listos para volver a activarse.</div>
+          <div class="dashboard-design-note">Los que saques quedan acá listos para volver.</div>
         </div>
-        <div id="dashboard-design-library" class="dashboard-library-grid"></div>
-      </div>
-
-      <div class="dashboard-design-card">
-        <div class="dashboard-design-head">
-          <div>
-            <div class="dashboard-design-kicker">Widgets visibles</div>
-            <div class="dashboard-design-title">Mostrá, ocultá y reordená cada bloque del dashboard</div>
-          </div>
-          <div class="dashboard-design-note">Los cambios se aplican solo en la web</div>
-        </div>
-        <div id="dashboard-design-groups" class="dashboard-design-groups"></div>
+        <div id="dashboard-design-library" class="dashboard-widget-grid-simple dashboard-widget-grid-hidden"></div>
       </div>
     </div>
 
@@ -593,26 +587,6 @@
           <button class="btn btn-ghost btn-sm" onclick="openNewDashboardCustomWidget()">+ Nuevo widget</button>
         </div>
         <div id="dashboard-widget-editor" class="dashboard-widget-editor"></div>
-      </div>
-
-      <div class="dashboard-design-card">
-        <div class="dashboard-design-head">
-          <div>
-            <div class="dashboard-design-kicker">Vista previa</div>
-            <div class="dashboard-design-title">Así se ve tu layout actual</div>
-          </div>
-        </div>
-        <div id="dashboard-design-preview" class="dashboard-design-preview"></div>
-      </div>
-
-      <div class="dashboard-design-card">
-        <div class="dashboard-design-head">
-          <div>
-            <div class="dashboard-design-kicker">Resumen</div>
-            <div class="dashboard-design-title">Lectura rápida de esta configuración</div>
-          </div>
-        </div>
-        <div id="dashboard-design-summary" class="dashboard-design-summary"></div>
       </div>
     </div>
   </div>

@@ -964,18 +964,18 @@ function buildDashboardMiniPreview(designState){
 function renderDashboardDesignPage(){
   const presetsEl = document.getElementById('dashboard-design-presets');
   const groupsEl = document.getElementById('dashboard-design-groups');
-  const summaryEl = document.getElementById('dashboard-design-summary');
   const libraryEl = document.getElementById('dashboard-design-library');
-  const previewEl = document.getElementById('dashboard-design-preview');
   const savedEl = document.getElementById('dashboard-design-saved');
   const editorEl = document.getElementById('dashboard-widget-editor');
-  if(!presetsEl || !groupsEl || !summaryEl || !libraryEl || !previewEl || !savedEl || !editorEl) return;
+  if(!presetsEl || !groupsEl || !libraryEl || !savedEl || !editorEl) return;
 
   const designState = getDashboardDesignState();
   const groups = designState.widgetGroups || {};
   const metaMap = getDashboardWidgetMetaMap();
-  const visibleCount = Object.keys(metaMap).filter(key => !designState.widgetHidden.includes(key)).length;
   const savedViews = getDashboardSavedViews();
+  const allWidgetKeys = Object.keys(metaMap);
+  const visibleWidgets = allWidgetKeys.filter(key => !designState.widgetHidden.includes(key));
+  const hiddenWidgets = allWidgetKeys.filter(key => designState.widgetHidden.includes(key));
 
   presetsEl.innerHTML = Object.entries(DASHBOARD_DESIGN_PRESETS).map(([id,preset])=>`
     <button class="dashboard-preset-card" onclick="applyDashboardDesignPreset('${id}')">
@@ -988,105 +988,62 @@ function renderDashboardDesignPage(){
   `).join('');
 
   savedEl.innerHTML = savedViews.length ? savedViews.map(view=>`
-    <div class="dashboard-saved-card">
-      <div class="dashboard-saved-top">
-        <div class="dashboard-saved-name">${view.name}</div>
-        <span class="dashboard-library-state on">guardada</span>
-      </div>
-      <div class="dashboard-saved-preview">
-        ${buildDashboardMiniPreview(view)}
-      </div>
-      <div class="dashboard-saved-actions">
-        <button class="dashboard-widget-mini" onclick="applySavedDashboardView('${view.id}')">Aplicar</button>
-        <button class="dashboard-widget-mini" onclick="renameSavedDashboardView('${view.id}')">Renombrar</button>
-        <button class="dashboard-widget-mini" onclick="deleteSavedDashboardView('${view.id}')">Borrar</button>
-      </div>
+    <div class="dashboard-saved-pill">
+      <button class="dashboard-saved-pill-main" onclick="applySavedDashboardView('${view.id}')">${view.name}</button>
+      <button class="dashboard-saved-pill-mini" onclick="renameSavedDashboardView('${view.id}')">✎</button>
+      <button class="dashboard-saved-pill-mini danger" onclick="deleteSavedDashboardView('${view.id}')">✕</button>
     </div>
   `).join('') : `<div class="dashboard-empty-note">Todavía no guardaste vistas propias. Cuando armes una que te guste, tocá <strong>Guardar vista</strong>.</div>`;
 
-  libraryEl.innerHTML = Object.entries(metaMap).map(([key, meta])=>{
-    const hidden = designState.widgetHidden.includes(key);
-    return `
-      <div class="dashboard-library-card ${hidden ? 'is-hidden' : 'is-visible'}">
-        ${buildDashboardWidgetTilePreview(key, metaMap)}
-      <div class="dashboard-library-top">
-        <div>
-          <div class="dashboard-library-title">${getDashboardWidgetDisplayName(key, metaMap)}</div>
-          <div class="dashboard-library-desc">${meta.desc}</div>
-        </div>
-          <span class="dashboard-library-state ${hidden ? 'off' : 'on'}">${hidden ? 'Oculto' : 'Visible'}</span>
-        </div>
-        <div class="dashboard-library-meta">${DASHBOARD_GROUP_META[meta.group] || 'Dashboard'}</div>
-        <div class="dashboard-library-actions">
-          <button class="dashboard-widget-mini" onclick="openDashboardWidgetEditor('${key}')">Editar</button>
-          <button class="dashboard-widget-toggle ${hidden ? 'off' : 'on'}" onclick="toggleDashboardWidgetVisibility('${key}')">${hidden ? 'Agregar al dashboard' : 'Quitar del dashboard'}</button>
-        </div>
-      </div>
-    `;
-  }).join('');
-
-  groupsEl.innerHTML = Object.entries(DASHBOARD_GROUP_META).map(([groupKey, groupName])=>{
+  const buildSimpleCard = (key, hidden = false) => {
+    const meta = metaMap[key];
+    if(!meta) return '';
+    const groupKey = Object.keys(groups).find(g => (groups[g] || []).includes(key)) || meta.group;
     const order = groups[groupKey] || [];
-    const widgets = order.filter(key => metaMap[key]).map((key, idx)=>{
-      const hidden = designState.widgetHidden.includes(key);
-      return `
-        <div class="dashboard-widget-row ${hidden ? 'is-hidden' : ''}">
-          <div class="dashboard-widget-thumb widget-variant-${(getDashboardWidgetConfigs()[key]?.variant || getDashboardCustomWidgets().find(w => w.id === key)?.variant || 'default')}">
-            <div class="dashboard-widget-thumb-badge">${getDashboardCustomWidgets().find(w => w.id === key)?.icon || getDashboardWidgetConfigs()[key]?.icon || '◫'}</div>
-            <div class="dashboard-widget-thumb-line"></div>
-            <div class="dashboard-widget-thumb-line short"></div>
+    const idx = order.indexOf(key);
+    const variant = getDashboardWidgetConfigs()[key]?.variant || getDashboardCustomWidgets().find(w => w.id === key)?.variant || 'default';
+    const icon = getDashboardCustomWidgets().find(w => w.id === key)?.icon || getDashboardWidgetConfigs()[key]?.icon || meta.icon || '◫';
+    const size = designState.widgetSizes?.[key] || 'regular';
+    return `
+      <div class="dashboard-widget-card-simple ${hidden ? 'is-hidden' : ''}">
+        <div class="dashboard-widget-card-top">
+          <div class="dashboard-widget-card-visual widget-variant-${variant}">
+            <div class="dashboard-widget-card-badge">${icon}</div>
+            <div class="dashboard-widget-card-lines"><span></span><span></span></div>
           </div>
-          <div class="dashboard-widget-row-main">
-            <div class="dashboard-widget-name">${getDashboardWidgetDisplayName(key, metaMap)}</div>
-            <div class="dashboard-widget-meta">${hidden ? 'Oculto en el dashboard' : 'Visible en el dashboard'} · tamaño ${getDashboardWidgetSizeLabel(designState.widgetSizes?.[key])}</div>
+          <div class="dashboard-widget-card-copy">
+            <div class="dashboard-widget-card-name">${getDashboardWidgetDisplayName(key, metaMap)}</div>
+            <div class="dashboard-widget-card-sub">${DASHBOARD_GROUP_META[groupKey] || 'Dashboard'} · ${getDashboardWidgetSizeLabel(size)}</div>
           </div>
-          <div class="dashboard-widget-row-actions">
-            <button class="dashboard-widget-mini" onclick="moveDashboardWidget('${groupKey}','${key}',-1)" ${idx===0?'disabled':''}>↑</button>
+          <span class="dashboard-library-state ${hidden ? 'off' : 'on'}">${hidden ? 'oculto' : 'activo'}</span>
+        </div>
+        <div class="dashboard-size-switch">
+          <button class="dashboard-size-chip ${size==='compact'?'active':''}" onclick="setDashboardWidgetSize('${key}','compact')">S</button>
+          <button class="dashboard-size-chip ${size==='regular'?'active':''}" onclick="setDashboardWidgetSize('${key}','regular')">M</button>
+          <button class="dashboard-size-chip ${size==='wide'?'active':''}" onclick="setDashboardWidgetSize('${key}','wide')">L</button>
+        </div>
+        <div class="dashboard-widget-card-actions">
+          ${hidden ? `<button class="dashboard-widget-mini" onclick="toggleDashboardWidgetVisibility('${key}')">Agregar</button>` : `
+            <button class="dashboard-widget-mini" onclick="moveDashboardWidget('${groupKey}','${key}',-1)" ${idx<=0?'disabled':''}>↑</button>
             <button class="dashboard-widget-mini" onclick="moveDashboardWidget('${groupKey}','${key}',1)" ${idx===order.length-1?'disabled':''}>↓</button>
             <button class="dashboard-widget-mini" onclick="moveDashboardWidgetAcrossGroups('${groupKey}','${key}',-1)">←</button>
             <button class="dashboard-widget-mini" onclick="moveDashboardWidgetAcrossGroups('${groupKey}','${key}',1)">→</button>
-            <button class="dashboard-widget-mini" onclick="openDashboardWidgetEditor('${key}')">Editar</button>
-            <button class="dashboard-widget-toggle ${hidden ? 'off' : 'on'}" onclick="toggleDashboardWidgetVisibility('${key}')">${hidden ? 'Mostrar' : 'Ocultar'}</button>
-          </div>
+            <button class="dashboard-widget-mini" onclick="toggleDashboardWidgetVisibility('${key}')">Ocultar</button>
+          `}
+          <button class="dashboard-widget-mini primary" onclick="openDashboardWidgetEditor('${key}')">Editar</button>
         </div>
-      `;
-    }).join('');
-    return `
-      <div class="dashboard-group-editor">
-        <div class="dashboard-group-editor-head">
-          <div class="dashboard-group-editor-title">${groupName}</div>
-          <div class="dashboard-group-editor-sub">${order.length} widgets</div>
-        </div>
-        <div class="dashboard-group-editor-list">${widgets}</div>
       </div>
     `;
-  }).join('');
+  };
 
-  summaryEl.innerHTML = `
-    <div class="dashboard-summary-stat">
-      <span class="dashboard-summary-label">Widgets visibles</span>
-      <strong>${visibleCount}</strong>
-    </div>
-    <div class="dashboard-summary-stat">
-      <span class="dashboard-summary-label">Widgets ocultos</span>
-      <strong>${Object.keys(metaMap).length - visibleCount}</strong>
-    </div>
-    <div class="dashboard-summary-stat">
-      <span class="dashboard-summary-label">Grupos editables</span>
-      <strong>${Object.keys(DASHBOARD_GROUP_META).length}</strong>
-    </div>
-    <div class="dashboard-summary-stat">
-      <span class="dashboard-summary-label">Widgets disponibles</span>
-      <strong>${Object.keys(metaMap).length}</strong>
-    </div>
-    <div class="dashboard-summary-stat">
-      <span class="dashboard-summary-label">Vistas guardadas</span>
-      <strong>${savedViews.length}</strong>
-    </div>
-    <div class="dashboard-summary-copy">Usá presets para cambiar rápido el estilo general y guardá tus propias vistas para alternar entre tableros más minimalistas, ejecutivos o analíticos.</div>
-  `;
+  groupsEl.innerHTML = visibleWidgets.length
+    ? visibleWidgets.map(key => buildSimpleCard(key, false)).join('')
+    : `<div class="dashboard-empty-note">No hay widgets activos en esta vista. Podés agregar alguno desde la biblioteca de abajo.</div>`;
 
-  previewEl.innerHTML = buildDashboardMiniPreview(designState);
+  libraryEl.innerHTML = hiddenWidgets.length
+    ? hiddenWidgets.map(key => buildSimpleCard(key, true)).join('')
+    : `<div class="dashboard-empty-note">No tenés widgets ocultos ahora mismo.</div>`;
+
   renderDashboardWidgetEditor();
 }
 
@@ -1113,6 +1070,18 @@ function toggleDashboardWidgetVisibility(widgetKey){
   saveDashboardDesignState({
     ...designState,
     widgetHidden: Array.from(hidden)
+  });
+  renderDashboardDesignPage();
+}
+
+function setDashboardWidgetSize(widgetKey, size){
+  const designState = getDashboardDesignState();
+  saveDashboardDesignState({
+    ...designState,
+    widgetSizes: {
+      ...(designState.widgetSizes || {}),
+      [widgetKey]: size
+    }
   });
   renderDashboardDesignPage();
 }
