@@ -13,6 +13,8 @@
     const el = document.getElementById('splash');
     if(!el) return;
 
+    document.querySelectorAll('#sp-google-gate').forEach(node => node.remove());
+
     _buildContent();
 
     el.style.display = 'flex';
@@ -249,7 +251,7 @@
 
             <div class="sp-pre-auth fade-in d4">
               <button class="sp-cta sp-cta-inline" id="splash-primary-cta" onclick="handleSplashPrimaryAction(event)">Iniciar sesión con Google &nbsp;→</button>
-              <div id="sp-google-gate" class="sp-google-gate"></div>
+              <div id="sp-google-gate-inline" class="sp-google-gate"></div>
             </div>
           </div>
 
@@ -269,7 +271,7 @@
                     ? Math.max(16, Math.round((amount / topAmount) * 100))
                     : [100, 72, 48][idx] || 28;
                   return `
-                    <div class="sp-reel-bar-col" style="--bar-h:${pct}%;--bar-delay:${idx * 140}ms;">
+                    <div class="sp-reel-bar-col" style="--bar-w:${pct}%;--bar-delay:${idx * 140}ms;">
                       <div class="sp-reel-bar"></div>
                       <div class="sp-reel-bar-label">${name}</div>
                     </div>
@@ -345,7 +347,7 @@
     }
 
     if(content){
-      const gate = document.getElementById('sp-google-gate');
+      const gate = document.getElementById('sp-google-gate-inline');
       if(!gate) return;
       gate.innerHTML = connected
         ? '<div class="sp-google-gate ok">Google conectado. Ya podés entrar a la app con tus datos sincronizados.</div>'
