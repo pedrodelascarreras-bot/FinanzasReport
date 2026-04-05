@@ -365,6 +365,17 @@ function applyLayout(page) {
     const key = s.dataset.key;
     s.dataset.hidden = hiddenKeys.includes(key) ? 'true' : 'false';
   });
+
+  if (pageData.widgetGroups) {
+    Object.entries(pageData.widgetGroups).forEach(([groupName, order]) => {
+      const groupEl = container.querySelector(`[data-layout-group="${groupName}"]`);
+      if (!groupEl || !Array.isArray(order) || !order.length) return;
+      order.forEach(key => {
+        const el = groupEl.querySelector(`:scope > .layout-widget[data-widget-key="${key}"]`);
+        if (el) groupEl.appendChild(el);
+      });
+    });
+  }
 }
 
 function getPageContainer(page) {
@@ -426,9 +437,16 @@ function toggleSection_vis(page, key, btn) {
 function persistLayout(page, container) {
   const ls = loadLayoutState();
   const sections = Array.from(container.querySelectorAll(':scope > .layout-section'));
+  const widgetGroups = {};
+  container.querySelectorAll('[data-layout-group]').forEach(group => {
+    const key = group.dataset.layoutGroup;
+    const widgets = Array.from(group.querySelectorAll(':scope > .layout-widget'));
+    if (key && widgets.length) widgetGroups[key] = widgets.map(w => w.dataset.widgetKey);
+  });
   ls[page] = {
     order: sections.map(s => s.dataset.key),
-    hidden: sections.filter(s => s.dataset.hidden === 'true').map(s => s.dataset.key)
+    hidden: sections.filter(s => s.dataset.hidden === 'true').map(s => s.dataset.key),
+    widgetGroups
   };
   saveLayoutState(ls);
   showToast('Vista guardada', 'success');
@@ -436,6 +454,7 @@ function persistLayout(page, container) {
 
 // ── Drag & Drop ─────────────────────────────────────────────────────────────
 let _dragSrc = null;
+let _dragWidgetSrc = null;
 
 function enableDragDrop(page, container) {
   container.querySelectorAll(':scope > .layout-section').forEach(sec => {
@@ -446,6 +465,16 @@ function enableDragDrop(page, container) {
     sec.addEventListener('drop', onDrop);
     sec.addEventListener('dragend', onDragEnd);
   });
+  if (page === 'dashboard') {
+    container.querySelectorAll('[data-layout-group] > .layout-widget').forEach(widget => {
+      widget.setAttribute('draggable', 'true');
+      widget.addEventListener('dragstart', onWidgetDragStart);
+      widget.addEventListener('dragover', onWidgetDragOver);
+      widget.addEventListener('dragleave', onWidgetDragLeave);
+      widget.addEventListener('drop', onWidgetDrop);
+      widget.addEventListener('dragend', onWidgetDragEnd);
+    });
+  }
 }
 
 function disableDragDrop(container) {
@@ -456,6 +485,14 @@ function disableDragDrop(container) {
     sec.removeEventListener('dragleave', onDragLeave);
     sec.removeEventListener('drop', onDrop);
     sec.removeEventListener('dragend', onDragEnd);
+  });
+  container.querySelectorAll('[data-layout-group] > .layout-widget').forEach(widget => {
+    widget.setAttribute('draggable', 'false');
+    widget.removeEventListener('dragstart', onWidgetDragStart);
+    widget.removeEventListener('dragover', onWidgetDragOver);
+    widget.removeEventListener('dragleave', onWidgetDragLeave);
+    widget.removeEventListener('drop', onWidgetDrop);
+    widget.removeEventListener('dragend', onWidgetDragEnd);
   });
 }
 
@@ -491,6 +528,44 @@ function onDragEnd(e) {
   this.classList.remove('dragging');
   document.querySelectorAll('.drag-over-section').forEach(el => el.classList.remove('drag-over-section'));
   _dragSrc = null;
+}
+
+function onWidgetDragStart(e) {
+  e.stopPropagation();
+  _dragWidgetSrc = this;
+  this.classList.add('dragging-widget');
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', this.dataset.widgetKey || '');
+}
+function onWidgetDragOver(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  e.dataTransfer.dropEffect = 'move';
+  if (this !== _dragWidgetSrc && this.parentElement === _dragWidgetSrc?.parentElement) {
+    this.classList.add('drag-over-widget');
+  }
+}
+function onWidgetDragLeave(e) {
+  e.stopPropagation();
+  this.classList.remove('drag-over-widget');
+}
+function onWidgetDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  this.classList.remove('drag-over-widget');
+  if (!_dragWidgetSrc || _dragWidgetSrc === this || this.parentElement !== _dragWidgetSrc.parentElement) return;
+  const parent = this.parentElement;
+  const widgets = Array.from(parent.querySelectorAll(':scope > .layout-widget'));
+  const srcIdx = widgets.indexOf(_dragWidgetSrc);
+  const tgtIdx = widgets.indexOf(this);
+  if (srcIdx < tgtIdx) parent.insertBefore(_dragWidgetSrc, this.nextSibling);
+  else parent.insertBefore(_dragWidgetSrc, this);
+}
+function onWidgetDragEnd(e) {
+  e.stopPropagation();
+  this.classList.remove('dragging-widget');
+  document.querySelectorAll('.drag-over-widget').forEach(el => el.classList.remove('drag-over-widget'));
+  _dragWidgetSrc = null;
 }
 
 function toggleNotifPanel() {

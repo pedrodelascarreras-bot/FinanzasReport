@@ -3695,6 +3695,22 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
 .layout-edit-mode .layout-section:active { cursor: grabbing; }
 .layout-edit-mode .layout-section.drag-over-section { outline: 2px solid var(--blue); outline-offset: 3px; background: var(--blue-light); }
 .layout-edit-mode .layout-section.dragging { opacity: 0.3; }
+.layout-edit-mode [data-layout-group] { position: relative; }
+.layout-edit-mode .layout-widget {
+  position: relative;
+  outline: 1px dashed rgba(0,0,0,0.12);
+  outline-offset: 3px;
+  cursor: grab;
+}
+.layout-edit-mode .layout-widget:active { cursor: grabbing; }
+.layout-edit-mode .layout-widget.drag-over-widget {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+  box-shadow: 0 0 0 6px rgba(0,113,227,0.08);
+}
+.layout-edit-mode .layout-widget.dragging-widget {
+  opacity: 0.35;
+}
 .section-controls { display: none; position: absolute; top: 6px; right: 8px; z-index: 50; gap: 5px; align-items: center; }
 .layout-edit-mode .section-controls { display: flex; }
 .section-drag-handle { position: absolute; top: 6px; left: 8px; display: none; cursor: grab; color: var(--text3); font-size: 14px; padding: 2px 4px; border-radius: 5px; background: rgba(255,255,255,0.9); border: 1px solid var(--border); z-index: 50; line-height: 1; }

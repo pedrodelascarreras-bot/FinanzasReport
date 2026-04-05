@@ -1294,8 +1294,8 @@ function renderDashboard(){
   }
 
   // Ensure a valid chart mode is always set before rendering
-  if(!['bars','area','week','daily'].includes(state.chartMode)) state.chartMode='bars';
-  ['bars','area','week','daily'].forEach(m=>{
+  if(!['bars','week','daily'].includes(state.chartMode)) state.chartMode='bars';
+  ['bars','week','daily'].forEach(m=>{
     const btn=document.getElementById('cmt-'+m);
     if(btn)btn.classList.toggle('active',state.chartMode===m);
   });
@@ -1323,7 +1323,7 @@ function getCatData(txns,byGroup){
 }
 
 function setChartMode(mode){
-  const validModes=['bars','area','week','daily'];
+  const validModes=['bars','week','daily'];
   state.chartMode=validModes.includes(mode)?mode:'bars';
   validModes.forEach(m=>{
     const btn=document.getElementById('cmt-'+m);
@@ -1404,31 +1404,6 @@ function renderWeeklyChart(monthTxns){
       responsive:true,maintainAspectRatio:false,
       plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1a18',titleColor:'#f0ebe6',bodyColor:'#a09a94',borderColor:'#2e2b28',borderWidth:1,padding:10,callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y)):' $'+fmtN(c.parsed.y)}}},
       scales:{x:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:9},maxRotation:0,minRotation:0},grid:{display:false}},y:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:10},callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.04)'}}}
-    }});
-
-  } else if(mode==='area'){
-    // Cumulative area — running total by month
-    const byMonth={};
-    state.transactions.filter(t=>t.currency==='ARS').forEach(t=>{
-      const k=t.month||getMonthKey(t.date);
-      byMonth[k]=(byMonth[k]||0)+t.amount;
-    });
-    const sorted=Object.keys(byMonth).sort();
-    const labels=sorted.map(formatMonthLabel);
-    const values=sorted.map(k=>byMonth[k]);
-    let cumulative=0;
-    const cumValues=values.map(v=>{cumulative+=v;return cumulative;});
-
-    if(titleEl)titleEl.textContent='Gasto acumulado';
-    if(sub)sub.textContent='Total acumulado · $'+fmtN(Math.round(cumulative))+' ARS';
-    if(legEl)legEl.innerHTML='';
-
-    state.charts.weekly=new Chart(ctx,{type:'line',data:{labels,datasets:[
-      {data:cumValues,borderColor:'rgba(200,240,96,0.9)',backgroundColor:'rgba(200,240,96,0.12)',borderWidth:2.5,fill:true,tension:0.4,pointRadius:3,pointBackgroundColor:'rgba(200,240,96,1)',pointBorderColor:'#1c1a18',pointBorderWidth:1.5}
-    ]},options:{
-      responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1a18',titleColor:'#f0ebe6',bodyColor:'#a09a94',borderColor:'#2e2b28',borderWidth:1,padding:10,callbacks:{label:c=>' Acumulado: $'+fmtN(c.parsed.y)}}},
-      scales:{x:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:10}},grid:{display:false}},y:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:10},callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.04)'}}}
     }});
 
   } else if(mode==='daily'){

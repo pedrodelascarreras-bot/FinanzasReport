@@ -234,8 +234,8 @@
             </div>
           </div>
         </div>
-        <div class="fade-up d2 dash-utility-grid" id="dash-utility-grid">
-          <div class="dash-utility-card dash-utility-card-dollar" id="usd-rate-card" onclick="openUsdRateModal()" title="Editar tipo de cambio">
+        <div class="fade-up d2 dash-utility-grid" id="dash-utility-grid" data-layout-group="dashboard-utility">
+          <div class="dash-utility-card dash-utility-card-dollar layout-widget" data-widget-key="usd-card" id="usd-rate-card" onclick="openUsdRateModal()" title="Editar tipo de cambio">
             <div class="dash-utility-topline">
               <div class="dash-dollar-heading">
                 <span class="dash-dollar-flag">🇺🇸</span>
@@ -258,7 +258,7 @@
               <button class="btn btn-ghost btn-sm btn-xs" onclick="event.stopPropagation();openUsdRateModal()">✎ Editar</button>
             </div>
           </div>
-          <button class="dash-utility-card dash-utility-card-timeline" id="timeline-card" onclick="nav('cuotas')">
+          <button class="dash-utility-card dash-utility-card-timeline layout-widget" data-widget-key="timeline-card" id="timeline-card" onclick="nav('cuotas')">
             <div class="dash-utility-topline dash-utility-topline-compact">
               <span class="dash-utility-title-main">Agenda viva</span>
               <span id="timeline-card-pill" class="dash-utility-pill">3 eventos</span>
@@ -329,8 +329,8 @@
       </div>
 
       <!-- 3 KPI cards secundarias -->
-      <div class="dash-kpis-col">
-        <div class="dkpi kpi-card-compact kpi-card-clickable kpi-card-credit" onclick="nav('credit-cards')" title="Ver detalle de tarjetas">
+      <div class="dash-kpis-col" id="dash-kpis-col" data-layout-group="dashboard-kpis">
+        <div class="dkpi kpi-card-compact kpi-card-clickable kpi-card-credit layout-widget" data-widget-key="credit-kpi" onclick="nav('credit-cards')" title="Ver detalle de tarjetas">
           <div class="kpi-card-header-grid">
             <div class="dkpi-label">CICLO TARJETAS</div>
           </div>
@@ -352,7 +352,7 @@
           <!-- hidden compat -->
           <div id="kpi-tc" style="display:none;">—</div>
         </div>
-        <div class="dkpi kpi-card-projection">
+        <div class="dkpi kpi-card-projection layout-widget" data-widget-key="projection-kpi">
           <div class="kpi-card-header-grid">
             <div class="dkpi-label" id="kpi-proj-title">Proyección al cierre</div>
           </div>
@@ -372,7 +372,7 @@
             </div>
           </div>
         </div>
-        <div class="dkpi dkpi-commitments" style="cursor:pointer;" onclick="nav('cuotas')" title="Ver compromisos">
+        <div class="dkpi dkpi-commitments layout-widget" data-widget-key="commitments-kpi" style="cursor:pointer;" onclick="nav('cuotas')" title="Ver compromisos">
           <div class="dkpi-commitments-shell">
             <div class="dkpi-left dkpi-left-commitments">
               <div class="dkpi-label">Compromisos próx. mes</div>
@@ -392,7 +392,7 @@
             </div>
           </div>
         </div>
-        <div class="dash-history-row">
+        <div class="dash-history-row layout-widget" data-widget-key="history-kpis">
           <div class="dkpi dash-history-card dash-history-card-clickable" onclick="setChartMode('daily')" title="Ver ritmo histórico diario">
             <div class="dash-history-label">PROMEDIO DIARIO</div>
             <div class="dash-history-value" id="kpi-hist-daily">—</div>
@@ -410,8 +410,8 @@
 
     <div class="layout-section" data-page="dashboard" data-key="charts"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('dashboard','charts',this)">● Gráfico + Categorías</button></div>
     <!-- FILA 2: Gráfico semanal + top categorías -->
-    <div class="dash-row-charts fade-up d2">
-      <div class="chart-card">
+    <div class="dash-row-charts fade-up d2" id="dash-row-charts" data-layout-group="dashboard-charts">
+      <div class="chart-card layout-widget" data-widget-key="main-chart">
         <div class="chart-card-header">
           <div>
             <div class="chart-card-title" id="dash-chart-title">Evolución del gasto</div>
@@ -421,7 +421,6 @@
             <div id="weekly-chart-legend"></div>
             <div class="chart-mini-toggle">
               <button class="cmt-btn active" id="cmt-bars" onclick="setChartMode('bars')">▊ Barras</button>
-              <button class="cmt-btn" id="cmt-area" onclick="setChartMode('area')">◠ Área</button>
               <button class="cmt-btn" id="cmt-week" onclick="setChartMode('week')">▤ Semanal</button>
               <button class="cmt-btn" id="cmt-daily" onclick="setChartMode('daily')">⋯ Diario</button>
             </div>
@@ -429,7 +428,7 @@
         </div>
         <div class="chart-wrap chart-wrap-sm"><canvas id="chart-weekly"></canvas></div>
       </div>
-      <div class="chart-card chart-card-clickable" onclick="nav('tendencia')" title="Ver tendencias por categoría">
+      <div class="chart-card chart-card-clickable layout-widget" data-widget-key="categories-chart" onclick="nav('tendencia')" title="Ver tendencias por categoría">
         <div class="chart-card-title chart-card-title-spaced">Categorías del mes</div>
         <div id="cat-bars" class="cat-list"></div>
       </div>
@@ -438,10 +437,10 @@
 
     <div class="layout-section" data-page="dashboard" data-key="widgets"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('dashboard','widgets',this)">● Widgets</button></div>
     <!-- FILA 3: 3 Widgets — Margen · Categoría en alza · Meta más cercana -->
-    <div class="dash-widgets-row fade-up d3">
+    <div class="dash-widgets-row fade-up d3" id="dash-widgets-row" data-layout-group="dashboard-widgets">
 
       <!-- Widget 1: Margen disponible -->
-      <div class="dw-card dw-margin dw-card-clickable" onclick="nav('income')" title="Ver ingresos y configuración">
+      <div class="dw-card dw-margin dw-card-clickable layout-widget" data-widget-key="margin-widget" onclick="nav('income')" title="Ver ingresos y configuración">
         <div class="dw-label">MARGEN DISPONIBLE</div>
         <div class="dw-value" id="dw-margen-val">—</div>
         <div class="dw-sub" id="dw-margen-sub">hasta fin de mes</div>
@@ -450,7 +449,7 @@
       </div>
 
       <!-- Widget 2: Categoría que más creció vs mes anterior -->
-      <div class="dw-card dw-trend dw-card-clickable" onclick="openTrendDetail()" title="Ver comparación">
+      <div class="dw-card dw-trend dw-card-clickable layout-widget" data-widget-key="trend-widget" onclick="openTrendDetail()" title="Ver comparación">
         <div class="dw-label">CATEGORÍA EN ALZA</div>
         <div class="dw-value widget-value-tight" id="dw-trend-val">—</div>
         <div class="dw-sub" id="dw-trend-sub">vs mes anterior</div>
@@ -462,7 +461,7 @@
       </div>
 
       <!-- Widget 3: Meta de ahorro más cercana -->
-      <div class="dw-card dw-goal dw-card-clickable" onclick="nav('savings')" title="Ver ahorros">
+      <div class="dw-card dw-goal dw-card-clickable layout-widget" data-widget-key="goal-widget" onclick="nav('savings')" title="Ver ahorros">
         <div class="dw-label">META MÁS CERCANA</div>
         <div class="dw-value widget-value-tight" id="dw-goal-val">—</div>
         <div class="dw-sub" id="dw-goal-sub">Sin metas configuradas</div>
