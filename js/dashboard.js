@@ -1301,7 +1301,7 @@ function renderDashboard(){
   });
   renderWeeklyChart(monthTxns);
   renderCatBars(monthTxns);
-  renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLeft);
+  renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLeft, compromisoTotal, projected);
   renderTop5();
 }
 
@@ -1519,7 +1519,8 @@ function renderTop5(){
   }).join('');
 }
 
-function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLeft){
+function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLeft, compromisoTotal, projected){
+  ensureDashboardCustomWidgets();
   const cleanTxns = (monthTxns || []).filter(t => !t.isPendingCuota);
   const usdSpend = cleanTxns.filter(t => t.currency === 'USD').reduce((s,t)=>s + (t.amount||0), 0);
   const usdSpendArs = usdSpend * (USD_TO_ARS || 1420);
@@ -1733,6 +1734,199 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
       if(largestFooter)largestFooter.textContent='Aparece cuando hay movimientos reales en el período';
     }
   }
+
+  renderDashboardCustomWidgets({
+    monthTxns,
+    cleanTxns,
+    arsMonth,
+    incTotalARS,
+    margen,
+    pct,
+    daysLeft,
+    compromisoTotal,
+    projected,
+    usdSpend,
+    usdSpendArs,
+    totalSpendArs
+  });
+  applyDashboardWidgetConfigs();
+}
+
+function ensureDashboardCustomWidgets(){
+  const row=document.getElementById('dash-widgets-row');
+  if(!row||typeof getDashboardCustomWidgets!=='function')return;
+  const customWidgets=getDashboardCustomWidgets();
+  const activeIds=new Set(customWidgets.map(w=>w.id));
+  row.querySelectorAll('.dw-card.dw-custom.layout-widget').forEach(card=>{
+    if(!activeIds.has(card.dataset.widgetKey))card.remove();
+  });
+  customWidgets.forEach(widget=>{
+    let card=row.querySelector(`.dw-card.dw-custom.layout-widget[data-widget-key="${widget.id}"]`);
+    if(!card){
+      card=document.createElement('div');
+      card.className='dw-card dw-custom layout-widget';
+      card.dataset.widgetKey=widget.id;
+      card.innerHTML=`
+        <div class="dw-label">—</div>
+        <div class="dw-value widget-value-tight" data-role="value">—</div>
+        <div class="dw-sub" data-role="sub">—</div>
+        <div class="widget-inline-row" data-role="inline">
+          <span class="dw-badge neutral" data-role="badge"></span>
+          <span class="widget-microcopy" data-role="meta"></span>
+        </div>
+        <div class="dw-bar-track" data-role="bar-track" hidden><div class="dw-bar-fill" data-role="bar"></div></div>
+        <div class="dw-footer widget-footer-tight" data-role="footer">—</div>
+      `;
+      row.appendChild(card);
+    }
+  });
+}
+
+function getDashboardHistoryAverages(){
+  const historyTxns=(state.transactions||[]).filter(t=>Number(t.amount)>0);
+  if(!historyTxns.length)return{dailyAvg:0,monthlyAvg:0,daySpan:0,monthSpan:0};
+  const totalHistoryARS=historyTxns.reduce((sum,t)=>sum+((t.currency==='USD'?t.amount*USD_TO_ARS:t.amount)||0),0);
+  const dateKeys=[...new Set(historyTxns.map(t=>dateToYMD(t.date)).filter(Boolean))].sort();
+  const monthKeys=[...new Set(historyTxns.map(t=>t.month||getMonthKey(t.date)).filter(Boolean))].sort();
+  const firstDate=dateKeys.length?new Date(dateKeys[0]+'T12:00:00'):null;
+  const lastDate=dateKeys.length?new Date(dateKeys[dateKeys.length-1]+'T12:00:00'):null;
+  const daySpan=firstDate&&lastDate?Math.max(1,Math.round((lastDate-firstDate)/(1000*60*60*24))+1):Math.max(1,dateKeys.length);
+  const monthSpan=Math.max(1,monthKeys.length);
+  return{
+    dailyAvg:totalHistoryARS/daySpan,
+    monthlyAvg:totalHistoryARS/monthSpan,
+    daySpan,
+    monthSpan
+  };
+}
+
+function renderDashboardCustomWidgets(context){
+  const row=document.getElementById('dash-widgets-row');
+  if(!row||typeof getDashboardCustomWidgets!=='function')return;
+  const customWidgets=getDashboardCustomWidgets();
+  const history=getDashboardHistoryAverages();
+  customWidgets.forEach(widget=>{
+    const card=row.querySelector(`.dw-card.dw-custom.layout-widget[data-widget-key="${widget.id}"]`);
+    if(!card)return;
+    const labelEl=card.querySelector('.dw-label');
+    const valueEl=card.querySelector('[data-role="value"]');
+    const subEl=card.querySelector('[data-role="sub"]');
+    const inlineEl=card.querySelector('[data-role="inline"]');
+    const badgeEl=card.querySelector('[data-role="badge"]');
+    const metaEl=card.querySelector('[data-role="meta"]');
+    const barTrack=card.querySelector('[data-role="bar-track"]');
+    const barEl=card.querySelector('[data-role="bar"]');
+    const footerEl=card.querySelector('[data-role="footer"]');
+    if(labelEl)labelEl.textContent=`${widget.icon||'✨'} ${(widget.name||'Widget custom').toUpperCase()}`;
+    if(barTrack)barTrack.hidden=true;
+    if(inlineEl)inlineEl.hidden=false;
+    if(badgeEl)badgeEl.textContent='';
+    if(metaEl)metaEl.textContent='';
+
+    const largestTxn=[...(context.cleanTxns||[])].sort((a,b)=>{
+      const aArs=(a.currency==='USD'?(a.amount||0)*(USD_TO_ARS||1420):(a.amount||0));
+      const bArs=(b.currency==='USD'?(b.amount||0)*(USD_TO_ARS||1420):(b.amount||0));
+      return bArs-aArs;
+    })[0];
+    const exposurePct=context.totalSpendArs>0&&context.usdSpend>0?Math.round((context.usdSpendArs/context.totalSpendArs)*100):0;
+    const commitmentsPct=context.incTotalARS>0?Math.min(100,Math.round(((context.compromisoTotal||0)/context.incTotalARS)*100)):0;
+
+    switch(widget.metric){
+      case 'margin_available':
+        if(valueEl)valueEl.textContent=context.margen!==null?`${context.margen>=0?'$':'−$'}${fmtN(Math.round(Math.abs(context.margen||0)))}`:'—';
+        if(subEl)subEl.textContent=context.margen!==null?`${context.daysLeft} días para cerrar el período`:'Sin ingreso configurado';
+        if(badgeEl)badgeEl.textContent=context.pct!==null?`${Math.round(Math.min(999,context.pct))}% usado`:'pendiente';
+        if(metaEl)metaEl.textContent=context.margen>0?'Todavía tenés margen':'Ya estás al límite';
+        if(footerEl)footerEl.textContent='Lo que todavía podés gastar sin pasarte del objetivo';
+        if(barTrack&&barEl){
+          barTrack.hidden=false;
+          animateProgressBar(barEl,Math.max(0,Math.min(100,Math.round(context.pct||0))));
+        }
+        break;
+      case 'usd_exposure':
+        if(valueEl)valueEl.textContent=`${exposurePct}%`;
+        if(subEl)subEl.textContent=context.usdSpend>0?`U$D ${fmtN(context.usdSpend)} del período`:'Sin gasto relevante en USD';
+        if(badgeEl)badgeEl.textContent=context.usdSpend>0?'sensibilidad FX':'estable';
+        if(metaEl)metaEl.textContent=context.usdSpend>0?`$${fmtN(Math.round(context.usdSpendArs))} equivalentes en ARS`:'';
+        if(footerEl)footerEl.textContent='Qué parte de tu gasto depende del dólar';
+        if(barTrack&&barEl){
+          barTrack.hidden=false;
+          animateProgressBar(barEl,exposurePct);
+        }
+        break;
+      case 'largest_expense':
+        if(valueEl)valueEl.textContent=largestTxn?`${largestTxn.currency==='USD'?'U$D ':'$'}${fmtN(largestTxn.amount||0)}`:'—';
+        if(subEl)subEl.textContent=largestTxn?(largestTxn.description||largestTxn.comercio_detectado||'Movimiento'):'Sin movimientos suficientes';
+        if(badgeEl)badgeEl.textContent=largestTxn?.category||'sin datos';
+        if(metaEl)metaEl.textContent=largestTxn?fmtDate(largestTxn.date):'';
+        if(footerEl)footerEl.textContent='El ticket individual más alto del período';
+        break;
+      case 'avg_daily':
+        if(valueEl)valueEl.textContent=history.daySpan?`$${fmtN(Math.round(history.dailyAvg))}`:'—';
+        if(subEl)subEl.textContent=history.daySpan?`Promedio sobre ${history.daySpan} días`:'Necesitás más historial';
+        if(badgeEl)badgeEl.textContent='histórico';
+        if(metaEl)metaEl.textContent=history.monthSpan?`${history.monthSpan} meses cargados`:'';
+        if(footerEl)footerEl.textContent='Tu ritmo diario promedio usando toda la historia';
+        break;
+      case 'avg_monthly':
+        if(valueEl)valueEl.textContent=history.monthSpan?`$${fmtN(Math.round(history.monthlyAvg))}`:'—';
+        if(subEl)subEl.textContent=history.monthSpan?`Promedio de ${history.monthSpan} ${history.monthSpan===1?'mes':'meses'}`:'Necesitás más historial';
+        if(badgeEl)badgeEl.textContent='histórico';
+        if(metaEl)metaEl.textContent=history.daySpan?`${history.daySpan} días registrados`:'';
+        if(footerEl)footerEl.textContent='Tu gasto mensual promedio con toda la historia';
+        break;
+      case 'commitments_total':
+        if(valueEl)valueEl.textContent=`$${fmtN(Math.round(context.compromisoTotal||0))}`;
+        if(subEl)subEl.textContent='Compromisos del próximo mes';
+        if(badgeEl)badgeEl.textContent=`${commitmentsPct}% del ingreso`;
+        if(metaEl)metaEl.textContent=commitmentsPct>0?'peso financiero comprometido':'sin compromisos fuertes';
+        if(footerEl)footerEl.textContent='Cuánto ya está tomado antes de arrancar el próximo período';
+        if(barTrack&&barEl){
+          barTrack.hidden=false;
+          animateProgressBar(barEl,commitmentsPct);
+        }
+        break;
+      case 'projected_close':
+        if(valueEl)valueEl.textContent=context.projected?`$${fmtN(Math.round(context.projected))}`:'—';
+        if(subEl)subEl.textContent='Cierre estimado al ritmo actual';
+        if(badgeEl)badgeEl.textContent=`${context.daysLeft} días`;
+        if(metaEl)metaEl.textContent=context.incTotalARS>0&&context.projected?`${Math.round((context.projected/context.incTotalARS)*100)}% del ingreso`:'';
+        if(footerEl)footerEl.textContent='Proyección automática del período activo';
+        break;
+      case 'income_total':
+      default:
+        if(valueEl)valueEl.textContent=context.incTotalARS>0?`$${fmtN(Math.round(context.incTotalARS))}`:'—';
+        if(subEl)subEl.textContent=context.incTotalARS>0?'Ingreso consolidado del período':'Todavía no cargaste ingresos';
+        if(badgeEl)badgeEl.textContent=context.pct!==null?`${Math.round(Math.min(999,context.pct))}% usado`:'pendiente';
+        if(metaEl)metaEl.textContent=context.margen!==null?`${context.margen>=0?'$'+fmtN(Math.round(context.margen)):'−$'+fmtN(Math.round(Math.abs(context.margen)))} de margen`:'';
+        if(footerEl)footerEl.textContent='Incluye ARS + USD convertidos al cambio operativo';
+        break;
+    }
+    if(inlineEl)inlineEl.hidden=!((badgeEl&&badgeEl.textContent)||(metaEl&&metaEl.textContent));
+  });
+}
+
+function applyDashboardWidgetConfigs(){
+  if(typeof getDashboardWidgetConfigs!=='function')return;
+  const configs=getDashboardWidgetConfigs()||{};
+  const metaMap=typeof getDashboardWidgetMetaMap==='function'?getDashboardWidgetMetaMap():{};
+  const customWidgets=typeof getDashboardCustomWidgets==='function'?getDashboardCustomWidgets():[];
+  document.querySelectorAll('#dash-content .layout-widget[data-widget-key]').forEach(widget=>{
+    const key=widget.dataset.widgetKey;
+    const config=configs[key]||{};
+    const custom=customWidgets.find(w=>w.id===key)||null;
+    const variant=custom?.variant||config.variant||'default';
+    widget.classList.remove('widget-variant-default','widget-variant-minimal','widget-variant-accent','widget-variant-premium');
+    widget.classList.add(`widget-variant-${variant}`);
+    const selector=metaMap[key]?.titleSelector;
+    const titleEl=selector?widget.querySelector(selector):widget.querySelector('.dw-label,.chart-card-title,.dkpi-label');
+    if(titleEl){
+      if(!titleEl.dataset.baseTitle)titleEl.dataset.baseTitle=titleEl.textContent.trim();
+      const label=custom?.name||config.labelOverride||metaMap[key]?.label||titleEl.dataset.baseTitle;
+      const icon=custom?.icon||config.icon||'';
+      titleEl.textContent=`${icon?`${icon} `:''}${label}`;
+    }
+  });
 }
 
 // Stubs para IDs que ya no existen pero podrian ser llamados desde otro lado

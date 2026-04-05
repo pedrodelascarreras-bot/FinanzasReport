@@ -258,6 +258,7 @@ function nav(page){
   if(page==='income')renderIncomePage();
   if(page==='savings')renderSavingsPage();
   if(page==='reportes')renderReportesPage();
+  if(page==='dashboard')renderDashboard();
   if(page==='dashboard-design')renderDashboardDesignPage();
   if(page==='credit-cards')renderCreditCards();
   if(page==='cc-compare'){if(typeof initCcCompare==='function')initCcCompare();}
@@ -344,6 +345,9 @@ function applyLayout(page) {
   const ls = loadLayoutState();
   const pageData = ls[page];
   if (!pageData) return;
+  if (page === 'dashboard' && typeof ensureDashboardCustomWidgets === 'function') {
+    ensureDashboardCustomWidgets();
+  }
   const container = getPageContainer(page);
   if (!container) return;
   const sections = Array.from(container.querySelectorAll(':scope > .layout-section'));
@@ -384,6 +388,9 @@ function applyLayout(page) {
     widget.hidden = isHidden;
     widget.dataset.widgetHidden = isHidden ? 'true' : 'false';
   });
+  if (page === 'dashboard' && typeof applyDashboardWidgetConfigs === 'function') {
+    applyDashboardWidgetConfigs();
+  }
 }
 
 function getPageContainer(page) {
@@ -452,6 +459,7 @@ function persistLayout(page, container) {
     if (key && widgets.length) widgetGroups[key] = widgets.map(w => w.dataset.widgetKey);
   });
   ls[page] = {
+    ...(ls[page] || {}),
     order: sections.map(s => s.dataset.key),
     hidden: sections.filter(s => s.dataset.hidden === 'true').map(s => s.dataset.key),
     widgetGroups,
@@ -730,20 +738,20 @@ function dismissNotif(id) {
 }
 
 const DASHBOARD_WIDGET_META = {
-  'usd-card': { label:'Dólar oficial', group:'dashboard-utility', desc:'Tipo de cambio operativo con acceso rápido a compra y venta.' },
-  'timeline-card': { label:'Agenda viva', group:'dashboard-utility', desc:'Tus próximos eventos financieros relevantes en formato agenda.' },
-  'credit-kpi': { label:'Ciclo tarjetas', group:'dashboard-kpis', desc:'Resumen del ciclo actual por tarjeta.' },
-  'projection-kpi': { label:'Proyección al cierre', group:'dashboard-kpis', desc:'Estimación del cierre si seguís al ritmo actual.' },
-  'commitments-kpi': { label:'Compromisos próximos', group:'dashboard-kpis', desc:'Cuánto del ingreso ya está comprometido el próximo mes.' },
+  'usd-card': { label:'Dólar oficial', group:'dashboard-utility', desc:'Tipo de cambio operativo con acceso rápido a compra y venta.', titleSelector:'.dash-dollar-title' },
+  'timeline-card': { label:'Agenda viva', group:'dashboard-utility', desc:'Tus próximos eventos financieros relevantes en formato agenda.', titleSelector:'.dash-utility-title-main' },
+  'credit-kpi': { label:'Ciclo tarjetas', group:'dashboard-kpis', desc:'Resumen del ciclo actual por tarjeta.', titleSelector:'.dkpi-label' },
+  'projection-kpi': { label:'Proyección al cierre', group:'dashboard-kpis', desc:'Estimación del cierre si seguís al ritmo actual.', titleSelector:'#kpi-proj-title' },
+  'commitments-kpi': { label:'Compromisos próximos', group:'dashboard-kpis', desc:'Cuánto del ingreso ya está comprometido el próximo mes.', titleSelector:'.dkpi-label' },
   'history-kpis': { label:'Promedios históricos', group:'dashboard-kpis', desc:'Promedio diario y mensual sobre toda tu historia cargada.' },
-  'main-chart': { label:'Gráfico principal', group:'dashboard-charts', desc:'Lectura mensual, diaria o semanal del gasto.' },
-  'categories-chart': { label:'Categorías del mes', group:'dashboard-charts', desc:'Distribución y peso de cada categoría en el período.' },
-  'margin-widget': { label:'Margen disponible', group:'dashboard-widgets', desc:'Lo que todavía podés gastar sin pasarte del ingreso.' },
-  'trend-widget': { label:'Categoría en alza', group:'dashboard-widgets', desc:'La categoría que más se aceleró contra el período anterior.' },
-  'goal-widget': { label:'Meta más cercana', group:'dashboard-widgets', desc:'Qué objetivo de ahorro tenés más próximo a completar.' },
-  'income-widget': { label:'Ingreso del período', group:'dashboard-widgets', desc:'Lectura consolidada del ingreso ARS + USD del período activo.' },
-  'usd-exposure-widget': { label:'Exposición USD', group:'dashboard-widgets', desc:'Qué porcentaje del gasto del período depende del dólar.' },
-  'largest-widget': { label:'Gasto más alto', group:'dashboard-widgets', desc:'El ticket más grande registrado en el período activo.' }
+  'main-chart': { label:'Gráfico principal', group:'dashboard-charts', desc:'Lectura mensual, diaria o semanal del gasto.', titleSelector:'#dash-chart-title' },
+  'categories-chart': { label:'Categorías del mes', group:'dashboard-charts', desc:'Distribución y peso de cada categoría en el período.', titleSelector:'.chart-card-title' },
+  'margin-widget': { label:'Margen disponible', group:'dashboard-widgets', desc:'Lo que todavía podés gastar sin pasarte del ingreso.', titleSelector:'.dw-label' },
+  'trend-widget': { label:'Categoría en alza', group:'dashboard-widgets', desc:'La categoría que más se aceleró contra el período anterior.', titleSelector:'.dw-label' },
+  'goal-widget': { label:'Meta más cercana', group:'dashboard-widgets', desc:'Qué objetivo de ahorro tenés más próximo a completar.', titleSelector:'.dw-label' },
+  'income-widget': { label:'Ingreso del período', group:'dashboard-widgets', desc:'Lectura consolidada del ingreso ARS + USD del período activo.', titleSelector:'.dw-label' },
+  'usd-exposure-widget': { label:'Exposición USD', group:'dashboard-widgets', desc:'Qué porcentaje del gasto del período depende del dólar.', titleSelector:'.dw-label' },
+  'largest-widget': { label:'Gasto más alto', group:'dashboard-widgets', desc:'El ticket más grande registrado en el período activo.', titleSelector:'.dw-label' }
 };
 
 const DASHBOARD_GROUP_META = {
@@ -818,6 +826,7 @@ function getDashboardDesignState(){
   const pageData = ls.dashboard || {};
   const container = document.getElementById('dash-content');
   const currentGroups = container ? getDashboardWidgetOrder(container) : {};
+  const metaMap = getDashboardWidgetMetaMap();
   const mergedGroups = {};
   Object.keys(DASHBOARD_GROUP_META).forEach(groupKey=>{
     const saved = Array.isArray(pageData.widgetGroups?.[groupKey]) ? [...pageData.widgetGroups[groupKey]] : [];
@@ -826,14 +835,71 @@ function getDashboardDesignState(){
     current.forEach(key=>{
       if(!merged.includes(key)) merged.push(key);
     });
-    mergedGroups[groupKey] = merged.filter(key => DASHBOARD_WIDGET_META[key]);
+    Object.entries(metaMap).forEach(([key, meta])=>{
+      if(meta.group === groupKey && !merged.includes(key)) merged.push(key);
+    });
+    mergedGroups[groupKey] = merged.filter(key => metaMap[key] && metaMap[key].group === groupKey);
   });
   return {
     order: Array.isArray(pageData.order) ? [...pageData.order] : [],
     hidden: Array.isArray(pageData.hidden) ? [...pageData.hidden] : [],
     widgetGroups: mergedGroups,
-    widgetHidden: Array.isArray(pageData.widgetHidden) ? [...pageData.widgetHidden] : ['income-widget','usd-exposure-widget','largest-widget']
+    widgetHidden: Array.isArray(pageData.widgetHidden) ? [...pageData.widgetHidden] : ['income-widget','usd-exposure-widget','largest-widget'],
+    widgetConfig: pageData.widgetConfig || (ls.dashboard?.widgetConfig || {}),
+    customWidgets: Array.isArray(pageData.customWidgets) ? [...pageData.customWidgets] : getDashboardCustomWidgets(),
+    savedViews: Array.isArray(pageData.savedViews) ? [...pageData.savedViews] : getDashboardSavedViews()
   };
+}
+
+function getDashboardCustomWidgets(){
+  const ls = loadLayoutState();
+  return Array.isArray(ls.dashboard?.customWidgets) ? ls.dashboard.customWidgets : [];
+}
+
+function getDashboardWidgetConfigs(){
+  const ls = loadLayoutState();
+  return ls.dashboard?.widgetConfig || {};
+}
+
+function getDashboardWidgetMetaMap(){
+  const meta = { ...DASHBOARD_WIDGET_META };
+  getDashboardCustomWidgets().forEach(w=>{
+    meta[w.id] = {
+      label: w.name || 'Widget custom',
+      group: w.group || 'dashboard-widgets',
+      desc: 'Widget personalizado basado en una métrica real de tu app.',
+      isCustom: true,
+      titleSelector: '.dw-label'
+    };
+  });
+  return meta;
+}
+
+function getDashboardWidgetDisplayName(key, metaMap){
+  const config = getDashboardWidgetConfigs()[key] || {};
+  const custom = getDashboardCustomWidgets().find(w => w.id === key);
+  const baseName = custom?.name || config.labelOverride || metaMap[key]?.label || key;
+  return `${config.icon || custom?.icon || ''}${config.icon || custom?.icon ? ' ' : ''}${baseName}`.trim();
+}
+
+function buildDashboardWidgetTilePreview(key, metaMap){
+  const config = getDashboardWidgetConfigs()[key] || {};
+  const custom = getDashboardCustomWidgets().find(w => w.id === key);
+  const variant = custom?.variant || config.variant || 'default';
+  const icon = custom?.icon || config.icon || '◫';
+  return `
+    <div class="dashboard-library-visual widget-variant-${variant}">
+      <div class="dashboard-library-visual-top">
+        <div class="dashboard-library-emoji">${icon}</div>
+        <span class="dashboard-library-state on">${custom ? 'custom' : 'base'}</span>
+      </div>
+      <div class="dashboard-library-lines">
+        <div class="dashboard-library-line lg"></div>
+        <div class="dashboard-library-line md"></div>
+        <div class="dashboard-library-line sm"></div>
+      </div>
+    </div>
+  `;
 }
 
 function saveDashboardDesignState(pageData, silent){
@@ -843,10 +909,16 @@ function saveDashboardDesignState(pageData, silent){
     order: Array.isArray(pageData.order) ? pageData.order : (ls.dashboard?.order || []),
     hidden: Array.isArray(pageData.hidden) ? pageData.hidden : (ls.dashboard?.hidden || []),
     widgetGroups: pageData.widgetGroups || (ls.dashboard?.widgetGroups || {}),
-    widgetHidden: Array.isArray(pageData.widgetHidden) ? pageData.widgetHidden : (ls.dashboard?.widgetHidden || [])
+    widgetHidden: Array.isArray(pageData.widgetHidden) ? pageData.widgetHidden : (ls.dashboard?.widgetHidden || []),
+    widgetConfig: pageData.widgetConfig || (ls.dashboard?.widgetConfig || {}),
+    customWidgets: pageData.customWidgets || (ls.dashboard?.customWidgets || []),
+    savedViews: pageData.savedViews || (ls.dashboard?.savedViews || [])
   };
   saveLayoutState(ls);
   applyLayout('dashboard');
+  if(document.getElementById('page-dashboard')?.classList.contains('active') && typeof renderDashboard === 'function'){
+    renderDashboard();
+  }
   if(!silent) showToast('Diseño del dashboard guardado', 'success');
 }
 
@@ -865,6 +937,7 @@ function saveDashboardSavedViews(views){
 }
 
 function buildDashboardMiniPreview(designState){
+  const metaMap = getDashboardWidgetMetaMap();
   const rows = [
     (designState.widgetGroups['dashboard-utility'] || []).filter(key => !designState.widgetHidden.includes(key)).slice(0,2),
     (designState.widgetGroups['dashboard-kpis'] || []).filter(key => !designState.widgetHidden.includes(key)).slice(0,4),
@@ -877,7 +950,7 @@ function buildDashboardMiniPreview(designState){
         <div class="dashboard-preview-row row-${idx+1}">
           ${row.length ? row.map(key=>`
             <div class="dashboard-preview-block size-${row.length >= 4 ? 's' : row.length === 3 ? 'm' : 'l'}">
-              <span>${(DASHBOARD_WIDGET_META[key]?.label || key).replace(' del período','').replace(' próximos','')}</span>
+              <span>${getDashboardWidgetDisplayName(key, metaMap).replace(' del período','').replace(' próximos','')}</span>
             </div>
           `).join('') : `<div class="dashboard-preview-empty">sin widgets</div>`}
         </div>
@@ -893,11 +966,13 @@ function renderDashboardDesignPage(){
   const libraryEl = document.getElementById('dashboard-design-library');
   const previewEl = document.getElementById('dashboard-design-preview');
   const savedEl = document.getElementById('dashboard-design-saved');
-  if(!presetsEl || !groupsEl || !summaryEl || !libraryEl || !previewEl || !savedEl) return;
+  const editorEl = document.getElementById('dashboard-widget-editor');
+  if(!presetsEl || !groupsEl || !summaryEl || !libraryEl || !previewEl || !savedEl || !editorEl) return;
 
   const designState = getDashboardDesignState();
   const groups = designState.widgetGroups || {};
-  const visibleCount = Object.keys(DASHBOARD_WIDGET_META).filter(key => !designState.widgetHidden.includes(key)).length;
+  const metaMap = getDashboardWidgetMetaMap();
+  const visibleCount = Object.keys(metaMap).filter(key => !designState.widgetHidden.includes(key)).length;
   const savedViews = getDashboardSavedViews();
 
   presetsEl.innerHTML = Object.entries(DASHBOARD_DESIGN_PRESETS).map(([id,preset])=>`
@@ -927,19 +1002,21 @@ function renderDashboardDesignPage(){
     </div>
   `).join('') : `<div class="dashboard-empty-note">Todavía no guardaste vistas propias. Cuando armes una que te guste, tocá <strong>Guardar vista</strong>.</div>`;
 
-  libraryEl.innerHTML = Object.entries(DASHBOARD_WIDGET_META).map(([key, meta])=>{
+  libraryEl.innerHTML = Object.entries(metaMap).map(([key, meta])=>{
     const hidden = designState.widgetHidden.includes(key);
     return `
       <div class="dashboard-library-card ${hidden ? 'is-hidden' : 'is-visible'}">
+        ${buildDashboardWidgetTilePreview(key, metaMap)}
         <div class="dashboard-library-top">
           <div>
-            <div class="dashboard-library-title">${meta.label}</div>
+            <div class="dashboard-library-title">${getDashboardWidgetDisplayName(key, metaMap)}</div>
             <div class="dashboard-library-desc">${meta.desc}</div>
           </div>
           <span class="dashboard-library-state ${hidden ? 'off' : 'on'}">${hidden ? 'Oculto' : 'Visible'}</span>
         </div>
         <div class="dashboard-library-meta">${DASHBOARD_GROUP_META[meta.group] || 'Dashboard'}</div>
         <div class="dashboard-library-actions">
+          <button class="dashboard-widget-mini" onclick="openDashboardWidgetEditor('${key}')">Editar</button>
           <button class="dashboard-widget-toggle ${hidden ? 'off' : 'on'}" onclick="toggleDashboardWidgetVisibility('${key}')">${hidden ? 'Agregar al dashboard' : 'Quitar del dashboard'}</button>
         </div>
       </div>
@@ -948,17 +1025,25 @@ function renderDashboardDesignPage(){
 
   groupsEl.innerHTML = Object.entries(DASHBOARD_GROUP_META).map(([groupKey, groupName])=>{
     const order = groups[groupKey] || [];
-    const widgets = order.filter(key => DASHBOARD_WIDGET_META[key]).map((key, idx)=>{
+    const widgets = order.filter(key => metaMap[key]).map((key, idx)=>{
       const hidden = designState.widgetHidden.includes(key);
       return `
         <div class="dashboard-widget-row ${hidden ? 'is-hidden' : ''}">
+          <div class="dashboard-widget-thumb widget-variant-${(getDashboardWidgetConfigs()[key]?.variant || getDashboardCustomWidgets().find(w => w.id === key)?.variant || 'default')}">
+            <div class="dashboard-widget-thumb-badge">${getDashboardCustomWidgets().find(w => w.id === key)?.icon || getDashboardWidgetConfigs()[key]?.icon || '◫'}</div>
+            <div class="dashboard-widget-thumb-line"></div>
+            <div class="dashboard-widget-thumb-line short"></div>
+          </div>
           <div class="dashboard-widget-row-main">
-            <div class="dashboard-widget-name">${DASHBOARD_WIDGET_META[key].label}</div>
+            <div class="dashboard-widget-name">${getDashboardWidgetDisplayName(key, metaMap)}</div>
             <div class="dashboard-widget-meta">${hidden ? 'Oculto en el dashboard' : 'Visible en el dashboard'}</div>
           </div>
           <div class="dashboard-widget-row-actions">
             <button class="dashboard-widget-mini" onclick="moveDashboardWidget('${groupKey}','${key}',-1)" ${idx===0?'disabled':''}>↑</button>
             <button class="dashboard-widget-mini" onclick="moveDashboardWidget('${groupKey}','${key}',1)" ${idx===order.length-1?'disabled':''}>↓</button>
+            <button class="dashboard-widget-mini" onclick="moveDashboardWidgetAcrossGroups('${groupKey}','${key}',-1)">←</button>
+            <button class="dashboard-widget-mini" onclick="moveDashboardWidgetAcrossGroups('${groupKey}','${key}',1)">→</button>
+            <button class="dashboard-widget-mini" onclick="openDashboardWidgetEditor('${key}')">Editar</button>
             <button class="dashboard-widget-toggle ${hidden ? 'off' : 'on'}" onclick="toggleDashboardWidgetVisibility('${key}')">${hidden ? 'Mostrar' : 'Ocultar'}</button>
           </div>
         </div>
@@ -982,7 +1067,7 @@ function renderDashboardDesignPage(){
     </div>
     <div class="dashboard-summary-stat">
       <span class="dashboard-summary-label">Widgets ocultos</span>
-      <strong>${Object.keys(DASHBOARD_WIDGET_META).length - visibleCount}</strong>
+      <strong>${Object.keys(metaMap).length - visibleCount}</strong>
     </div>
     <div class="dashboard-summary-stat">
       <span class="dashboard-summary-label">Grupos editables</span>
@@ -990,7 +1075,7 @@ function renderDashboardDesignPage(){
     </div>
     <div class="dashboard-summary-stat">
       <span class="dashboard-summary-label">Widgets disponibles</span>
-      <strong>${Object.keys(DASHBOARD_WIDGET_META).length}</strong>
+      <strong>${Object.keys(metaMap).length}</strong>
     </div>
     <div class="dashboard-summary-stat">
       <span class="dashboard-summary-label">Vistas guardadas</span>
@@ -1000,6 +1085,7 @@ function renderDashboardDesignPage(){
   `;
 
   previewEl.innerHTML = buildDashboardMiniPreview(designState);
+  renderDashboardWidgetEditor();
 }
 
 function applyDashboardDesignPreset(presetId){
@@ -1049,6 +1135,26 @@ function moveDashboardWidget(groupKey, widgetKey, direction){
   renderDashboardDesignPage();
 }
 
+function moveDashboardWidgetAcrossGroups(groupKey, widgetKey, direction){
+  const designState = getDashboardDesignState();
+  const groupKeys = Object.keys(DASHBOARD_GROUP_META);
+  const currentIndex = groupKeys.indexOf(groupKey);
+  const nextGroupKey = groupKeys[currentIndex + direction];
+  if(!nextGroupKey) return;
+  const currentOrder = [...(designState.widgetGroups[groupKey] || [])].filter(k => k !== widgetKey);
+  const nextOrder = [...(designState.widgetGroups[nextGroupKey] || [])];
+  nextOrder.unshift(widgetKey);
+  saveDashboardDesignState({
+    ...designState,
+    widgetGroups: {
+      ...designState.widgetGroups,
+      [groupKey]: currentOrder,
+      [nextGroupKey]: nextOrder
+    }
+  });
+  renderDashboardDesignPage();
+}
+
 function resetDashboardDesign(){
   const ls = loadLayoutState();
   delete ls.dashboard;
@@ -1056,6 +1162,227 @@ function resetDashboardDesign(){
   applyLayout('dashboard');
   renderDashboardDesignPage();
   showToast('Diseño restablecido', 'success');
+}
+
+function getCustomMetricLabel(metric){
+  const labels = {
+    income_total:'Ingreso del período',
+    margin_available:'Margen disponible',
+    usd_exposure:'Exposición USD',
+    largest_expense:'Gasto más alto',
+    avg_daily:'Promedio diario',
+    avg_monthly:'Promedio mensual',
+    commitments_total:'Compromisos próximos',
+    projected_close:'Proyección al cierre'
+  };
+  return labels[metric] || 'Métrica';
+}
+
+function openDashboardWidgetEditor(widgetKey){
+  window._dashWidgetEditing = widgetKey;
+  renderDashboardWidgetEditor();
+}
+
+function openNewDashboardCustomWidget(){
+  const id = 'custom-widget-' + Date.now();
+  const customWidgets = getDashboardCustomWidgets();
+  customWidgets.unshift({
+    id,
+    name:'Nuevo widget',
+    icon:'✨',
+    metric:'income_total',
+    variant:'accent',
+    group:'dashboard-widgets'
+  });
+  const designState = getDashboardDesignState();
+  const nextWidgets = [...(designState.widgetGroups['dashboard-widgets'] || []), id];
+  saveDashboardDesignState({
+    ...designState,
+    customWidgets,
+    widgetGroups: {
+      ...designState.widgetGroups,
+      'dashboard-widgets': nextWidgets
+    },
+    widgetHidden: designState.widgetHidden.filter(k => k !== id)
+  });
+  openDashboardWidgetEditor(id);
+  renderDashboardDesignPage();
+}
+
+function renderDashboardWidgetEditor(){
+  const el = document.getElementById('dashboard-widget-editor');
+  if(!el) return;
+  const key = window._dashWidgetEditing;
+  const customWidgets = getDashboardCustomWidgets();
+  const custom = customWidgets.find(w => w.id === key) || null;
+  const metaMap = getDashboardWidgetMetaMap();
+  const meta = key ? metaMap[key] : null;
+  const config = getDashboardWidgetConfigs()[key] || {};
+
+  if(!key || !meta){
+    el.innerHTML = `
+      <div class="dashboard-empty-note">
+        Elegí un widget desde la biblioteca o desde el listado de visibles para editarlo.
+        También podés crear uno nuevo con el botón <strong>+ Nuevo widget</strong>.
+      </div>
+    `;
+    return;
+  }
+
+  const currentName = custom?.name || config.labelOverride || meta.label;
+  const currentIcon = custom?.icon || config.icon || '✨';
+  const currentVariant = custom?.variant || config.variant || 'default';
+  const currentMetric = custom?.metric || 'income_total';
+  const currentGroup = custom?.group || meta.group || 'dashboard-widgets';
+
+  el.innerHTML = `
+    <div class="dashboard-editor-form">
+      <div class="dashboard-editor-preview variant-${currentVariant}">
+        <div class="dashboard-editor-icon">${currentIcon}</div>
+        <div class="dashboard-editor-copy">
+          <div class="dashboard-editor-label">${currentName}</div>
+          <div class="dashboard-editor-meta">${custom ? getCustomMetricLabel(currentMetric) : 'Widget base del dashboard'}</div>
+        </div>
+      </div>
+      <div class="dashboard-variant-grid">
+        ${[
+          ['default','Default'],
+          ['minimal','Minimal'],
+          ['accent','Accent'],
+          ['premium','Premium']
+        ].map(([variant,label])=>`
+          <button class="dashboard-variant-btn ${currentVariant===variant?'active':''}" data-variant="${variant}" onclick="setDashboardEditorVariant('${variant}')" type="button">
+            <span class="dashboard-variant-thumb variant-${variant}"></span>
+            <span class="dashboard-variant-name">${label}</span>
+          </button>
+        `).join('')}
+      </div>
+      <div class="dashboard-editor-grid">
+        <label class="dashboard-editor-field">
+          <span>Nombre</span>
+          <input id="dash-editor-name" class="input-field" value="${String(currentName).replace(/"/g,'&quot;')}" oninput="refreshDashboardEditorPreview()">
+        </label>
+        <label class="dashboard-editor-field">
+          <span>Emoji</span>
+          <input id="dash-editor-icon" class="input-field" value="${String(currentIcon).replace(/"/g,'&quot;')}" oninput="refreshDashboardEditorPreview()">
+        </label>
+        <input type="hidden" id="dash-editor-variant" value="${currentVariant}">
+        ${custom ? `
+          <label class="dashboard-editor-field">
+            <span>Métrica</span>
+            <select id="dash-editor-metric" class="txn-select" onchange="refreshDashboardEditorPreview()">
+              <option value="income_total" ${currentMetric==='income_total'?'selected':''}>Ingreso del período</option>
+              <option value="margin_available" ${currentMetric==='margin_available'?'selected':''}>Margen disponible</option>
+              <option value="usd_exposure" ${currentMetric==='usd_exposure'?'selected':''}>Exposición USD</option>
+              <option value="largest_expense" ${currentMetric==='largest_expense'?'selected':''}>Gasto más alto</option>
+              <option value="avg_daily" ${currentMetric==='avg_daily'?'selected':''}>Promedio diario</option>
+              <option value="avg_monthly" ${currentMetric==='avg_monthly'?'selected':''}>Promedio mensual</option>
+              <option value="commitments_total" ${currentMetric==='commitments_total'?'selected':''}>Compromisos próximos</option>
+              <option value="projected_close" ${currentMetric==='projected_close'?'selected':''}>Proyección al cierre</option>
+            </select>
+          </label>
+          <label class="dashboard-editor-field">
+            <span>Zona</span>
+            <select id="dash-editor-group" class="txn-select">
+              <option value="dashboard-widgets" ${currentGroup==='dashboard-widgets'?'selected':''}>Widgets secundarios</option>
+            </select>
+          </label>
+        ` : `<div class="dashboard-editor-hint">En los widgets base podés cambiar nombre visible, emoji y estilo.</div>`}
+      </div>
+      <div class="dashboard-editor-actions">
+        <button class="btn btn-primary" onclick="saveDashboardWidgetEditor('${key}')">Guardar cambios</button>
+        ${custom ? `<button class="btn btn-ghost" onclick="deleteDashboardCustomWidget('${key}')">Eliminar widget</button>` : ``}
+      </div>
+    </div>
+  `;
+}
+
+function setDashboardEditorVariant(variant){
+  const input = document.getElementById('dash-editor-variant');
+  if(!input) return;
+  input.value = variant;
+  refreshDashboardEditorPreview();
+}
+
+function refreshDashboardEditorPreview(){
+  const preview = document.querySelector('.dashboard-editor-preview');
+  if(!preview) return;
+  const iconEl = preview.querySelector('.dashboard-editor-icon');
+  const labelEl = preview.querySelector('.dashboard-editor-label');
+  const metaEl = preview.querySelector('.dashboard-editor-meta');
+  const icon = document.getElementById('dash-editor-icon')?.value?.trim() || '✨';
+  const label = document.getElementById('dash-editor-name')?.value?.trim() || 'Widget';
+  const metric = document.getElementById('dash-editor-metric')?.value || 'income_total';
+  const variant = document.getElementById('dash-editor-variant')?.value || 'default';
+  preview.classList.remove('variant-default','variant-minimal','variant-accent','variant-premium');
+  preview.classList.add(`variant-${variant}`);
+  if(iconEl) iconEl.textContent = icon;
+  if(labelEl) labelEl.textContent = label;
+  if(metaEl) metaEl.textContent = getCustomMetricLabel(metric);
+  document.querySelectorAll('.dashboard-variant-btn').forEach(btn=>{
+    btn.classList.toggle('active', btn.dataset.variant === variant);
+  });
+}
+
+function saveDashboardWidgetEditor(key){
+  const name = document.getElementById('dash-editor-name')?.value?.trim();
+  const icon = document.getElementById('dash-editor-icon')?.value?.trim();
+  const variant = document.getElementById('dash-editor-variant')?.value || 'default';
+  const metric = document.getElementById('dash-editor-metric')?.value || 'income_total';
+  const designState = getDashboardDesignState();
+  const customWidgets = getDashboardCustomWidgets();
+  const customIdx = customWidgets.findIndex(w => w.id === key);
+  if(customIdx >= 0){
+    const nextGroup = 'dashboard-widgets';
+    const widgetGroups = { ...designState.widgetGroups };
+    Object.keys(widgetGroups).forEach(groupKey=>{
+      widgetGroups[groupKey] = (widgetGroups[groupKey] || []).filter(item => item !== key);
+    });
+    widgetGroups[nextGroup] = [...(widgetGroups[nextGroup] || []), key];
+    customWidgets[customIdx] = {
+      ...customWidgets[customIdx],
+      name: name || customWidgets[customIdx].name,
+      icon: icon || customWidgets[customIdx].icon || '✨',
+      variant,
+      metric,
+      group: nextGroup
+    };
+    saveDashboardDesignState({
+      ...designState,
+      customWidgets,
+      widgetGroups
+    });
+  } else {
+    const widgetConfig = getDashboardWidgetConfigs();
+    widgetConfig[key] = {
+      ...(widgetConfig[key] || {}),
+      labelOverride: name || '',
+      icon: icon || '',
+      variant
+    };
+    saveDashboardDesignState({
+      ...designState,
+      widgetConfig
+    });
+  }
+  renderDashboardDesignPage();
+}
+
+function deleteDashboardCustomWidget(key){
+  const designState = getDashboardDesignState();
+  const customWidgets = getDashboardCustomWidgets().filter(w => w.id !== key);
+  const widgetGroups = { ...designState.widgetGroups };
+  Object.keys(widgetGroups).forEach(groupKey=>{
+    widgetGroups[groupKey] = (widgetGroups[groupKey] || []).filter(item => item !== key);
+  });
+  saveDashboardDesignState({
+    ...designState,
+    customWidgets,
+    widgetGroups,
+    widgetHidden: designState.widgetHidden.filter(item => item !== key)
+  });
+  window._dashWidgetEditing = null;
+  renderDashboardDesignPage();
 }
 
 function saveCurrentDashboardView(){
@@ -1067,7 +1394,12 @@ function saveCurrentDashboardView(){
   views.unshift({
     id,
     name: name.trim(),
-    ...designState
+    order: designState.order || [],
+    hidden: designState.hidden || [],
+    widgetGroups: designState.widgetGroups || {},
+    widgetHidden: designState.widgetHidden || [],
+    widgetConfig: designState.widgetConfig || {},
+    customWidgets: designState.customWidgets || []
   });
   saveDashboardSavedViews(views.slice(0,8));
   renderDashboardDesignPage();
@@ -1081,7 +1413,9 @@ function applySavedDashboardView(id){
     order: view.order || [],
     hidden: view.hidden || [],
     widgetGroups: view.widgetGroups || {},
-    widgetHidden: view.widgetHidden || []
+    widgetHidden: view.widgetHidden || [],
+    widgetConfig: view.widgetConfig || {},
+    customWidgets: view.customWidgets || []
   });
   renderDashboardDesignPage();
 }
