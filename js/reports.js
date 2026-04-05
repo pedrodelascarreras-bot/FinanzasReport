@@ -286,7 +286,7 @@ function buildReportHTML(txns,sections,periodLabel){
   // Cuotas activas
   const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
   const cuotasActivas=[
-    ...autoGroups.filter(g=>{const cfg=state.autoCuotaConfig[g.key]||{};const maxP=Math.max(...g.transactions.map(t=>t.cuotaNum||1));const paid=cfg.paid!==undefined?cfg.paid:maxP;const total=cfg.total||g.transactions[0]?.cuotaTotal||maxP;return paid<total;}),
+    ...autoGroups.filter(g=>{const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(g):null;return !!snap&&snap.paid<snap.total;}),
     ...state.cuotas.filter(c=>c.paid<c.total)
   ];
   const toMonthly=s=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
@@ -676,7 +676,7 @@ function buildReportHTML(txns,sections,periodLabel){
       const nombre=item.key||item.description||'Cuota';
       const monto=item.amount||item.monthlyAmount||0;
       let paid=0,total=0;
-      if(item.key){const cfg=state.autoCuotaConfig[item.key]||{};const maxP=Math.max(...(item.transactions||[{cuotaNum:1}]).map(t=>t.cuotaNum||1));paid=cfg.paid!==undefined?cfg.paid:maxP;total=cfg.total||item.transactions?.[0]?.cuotaTotal||maxP;}
+      if(item.key){const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(item):null;paid=snap?snap.paid:0;total=snap?snap.total:1;}
       else{paid=item.paid||0;total=item.total||1;}
       const remaining=total-paid;
       const etaDate=new Date(nowDate.getFullYear(),nowDate.getMonth()+remaining,1);

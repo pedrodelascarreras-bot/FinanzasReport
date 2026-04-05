@@ -168,6 +168,172 @@ function getUpcomingCardMilestone(baseDate=new Date()){
   events.sort((a,b)=>a.date-b.date);
   return events[0]||null;
 }
+function getBackupHealth(baseDate=new Date()){
+  const raw=localStorage.getItem('fin_last_backup');
+  if(!raw) return {state:'missing', level:'alert', label:'Sin backup', desc:'Todavía no generaste una copia de seguridad.', days:null};
+  const stamp=new Date(raw);
+  const days=Math.floor((new Date(baseDate)-stamp)/86400000);
+  if(days>=21) return {state:'stale', level:'alert', label:'Backup desactualizado', desc:`Última copia hace ${days} días.`, days};
+  if(days>=10) return {state:'aging', level:'warn', label:'Conviene renovar backup', desc:`Última copia hace ${days} días.`, days};
+  return {state:'healthy', level:'info', label:'Backup al día', desc:days<=0?'Copia realizada hoy.':`Última copia hace ${days} días.`, days};
+}
+function getDashboardTimelineData(baseDate=new Date()){
+  const today=new Date(baseDate);
+  const normalizeDate=d=>{
+    const dt=d instanceof Date?new Date(d):new Date(d);
+    if(isNaN(dt)) return null;
+    dt.setHours(12,0,0,0);
+    return dt;
+  };
+  const daysAway=d=>Math.round((normalizeDate(d)-normalizeDate(today))/86400000);
+  const events=[];
+  const cycles=typeof getTcCycles==='function'?getTcCycles():[];
+  cycles.forEach(cyc=>{
+    const card=(state.ccCards||[]).find(c=>c.id===cyc.cardId);
+    const close=normalizeDate(cyc.closeDate+'T12:00:00');
+    const due=cyc.dueDate?normalizeDate(cyc.dueDate+'T12:00:00'):null;
+    if(close&&close>=today) events.push({type:'close', title:`${card?.name||cyc.label||'Tarjeta'} cierra`, shortLabel:card?.name||cyc.label||'Tarjeta', date:close, days:daysAway(close), page:'credit-cards'});
+    if(due&&due>=today) events.push({type:'due', title:`${card?.name||cyc.label||'Tarjeta'} vence`, shortLabel:card?.name||cyc.label||'Tarjeta', date:due, days:daysAway(due), page:'credit-cards'});
+  });
+  const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
+  autoGroups.forEach(g=>{
+    const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(g,today):null;
+    const day=snap?.cfg?.day||snap?.scheduleDay||null;
+    if(!snap||snap.paid>=snap.total||!day||typeof getNextCuotaDate!=='function') return;
+    const nextDate=getNextCuotaDate(day);
+    if(nextDate&&nextDate>=today){
+      events.push({type:'commitment', title:g.name, shortLabel:g.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:snap.amountPerCuota, page:'cuotas'});
+    }
+  });
+  (state.cuotas||[]).forEach(c=>{
+    if(c.paid>=c.total||!c.day||typeof getNextCuotaDate!=='function') return;
+    const nextDate=getNextCuotaDate(c.day);
+    if(nextDate&&nextDate>=today){
+      events.push({type:'commitment', title:c.name, shortLabel:c.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:c.amount, page:'cuotas'});
+    }
+  });
+  const toMonthly=s=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
+  (state.subscriptions||[]).forEach(s=>{
+    if(s.active===false||!s.day||typeof getNextCuotaDate!=='function') return;
+    const nextDate=getNextCuotaDate(s.day);
+    if(nextDate&&nextDate>=today){
+      events.push({type:'subscription', title:s.name, shortLabel:s.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:s.currency==='USD'?toMonthly(s)*(USD_TO_ARS||1420):toMonthly(s), page:'subs'});
+    }
+  });
+  (state.fixedExpenses||[]).forEach(f=>{
+    if(!f.day||typeof getNextCuotaDate!=='function') return;
+    const nextDate=getNextCuotaDate(f.day);
+    if(nextDate&&nextDate>=today){
+      events.push({type:'fixed', title:f.name, shortLabel:f.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:f.currency==='USD'?f.amount*(USD_TO_ARS||1420):f.amount, page:'fixed'});
+    }
+  });
+  events.sort((a,b)=>a.date-b.date||((a.days||0)-(b.days||0)));
+  const nextClose=events.find(e=>e.type==='close'||e.type==='due')||null;
+  const nextCommitment=events.find(e=>e.type!=='close'&&e.type!=='due')||events.find(e=>e.type==='due')||null;
+  const nextWeek=events.filter(e=>e.days>=0&&e.days<=7&&e.amount);
+  return {events,nextClose,nextCommitment,nextWeekCount:nextWeek.length,nextWeekAmount:nextWeek.reduce((s,e)=>s+(e.amount||0),0)};
+}
+function openGlobalSearch(prefill=''){
+  openModal('modal-global-search');
+  setTimeout(()=>{
+    const input=document.getElementById('global-search-input');
+    if(!input)return;
+    input.value=prefill;
+    input.focus();
+    input.select();
+    renderGlobalSearchResults(prefill);
+  },80);
+}
+function handleGlobalSearchInput(el){
+  renderGlobalSearchResults(el?.value||'');
+}
+function getGlobalSearchBuckets(query=''){
+  const q=String(query||'').trim().toLowerCase();
+  const match=text=>String(text||'').toLowerCase().includes(q);
+  const buckets=[];
+  const shortcuts=[
+    {icon:'spark', title:'Dashboard', meta:'Volver al tablero principal', action:'page', payload:'dashboard', tag:'atajo'},
+    {icon:'trend', title:'Movimientos', meta:'Buscar, revisar y corregir movimientos', action:'page', payload:'transactions', tag:'atajo'},
+    {icon:'loop', title:'Compromisos', meta:'Cuotas, suscripciones y gastos fijos', action:'page', payload:'cuotas', tag:'atajo'},
+    {icon:'card', title:'Tarjeta de crédito', meta:'Ciclos, vencimientos y detalle de tarjetas', action:'page', payload:'credit-cards', tag:'atajo'},
+    {icon:'safe', title:'Descargar backup', meta:'Exportar una copia de seguridad ahora', action:'backup', payload:'backup', tag:'seguridad'},
+    {icon:'report', title:'Restaurar backup', meta:'Importar una copia guardada desde un archivo JSON', action:'restore', payload:'restore', tag:'seguridad'},
+    {icon:'ai', title:'Conectar Google', meta:'Sincronizar tu archivo para verlo también desde el celular', action:'google', payload:'google', tag:'sync'}
+  ].filter(item=>!q||match(item.title)||match(item.meta)||match(item.tag));
+  buckets.push({title:q?'Coincidencias rápidas':'Atajos', items:shortcuts.slice(0,6)});
+
+  const txns=(state.transactions||[])
+    .filter(t=>!q||match(t.description)||match(t.category)||match(t.comercio_detectado)||match(fmtN(t.amount))||match(fmtDate(t.date)))
+    .sort((a,b)=>new Date(b.date)-new Date(a.date))
+    .slice(0,q?6:4)
+    .map(t=>({icon:'report',title:t.description,meta:`${fmtDate(t.date)} · ${t.currency==='USD'?'U$D ':'$'}${fmtN(t.amount)} · ${t.category||'Sin categoría'}`,action:'txn-search',payload:t.description,tag:'movimiento'}));
+  if(txns.length) buckets.push({title:'Movimientos', items:txns});
+
+  const autoGroups=(typeof detectAutoCuotas==='function'?detectAutoCuotas():[])
+    .filter(g=>!q||match(g.name))
+    .slice(0,4)
+    .map(g=>{
+      const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(g):null;
+      return {icon:'loop',title:g.name,meta:`${snap?snap.paid:1}/${snap?snap.total:(g.transactions?.[0]?.cuotaTotal||1)} pagadas · $${fmtN(Math.round(snap?snap.amountPerCuota:g.amount||0))} por cuota`,action:'page',payload:'cuotas',tag:'cuota'};
+    });
+  if(autoGroups.length) buckets.push({title:'Cuotas', items:autoGroups});
+
+  const recurring=[
+    ...(state.subscriptions||[]).map(s=>({icon:'bell', title:s.name, meta:`Suscripción · ${(s.currency==='USD'?'U$D ':'$')+fmtN(s.price)} · día ${s.day||'sin definir'}`, action:'page', payload:'cuotas', tag:'suscripción'})),
+    ...((state.fixedExpenses||[]).map(f=>({icon:'calendar', title:f.name, meta:`Gasto fijo · ${(f.currency==='USD'?'U$D ':'$')+fmtN(f.amount)} · día ${f.day||'sin definir'}`, action:'page', payload:'cuotas', tag:'fijo'})))
+  ].filter(item=>!q||match(item.title)||match(item.meta)||match(item.tag)).slice(0,6);
+  if(recurring.length) buckets.push({title:'Compromisos', items:recurring});
+
+  const cats=(state.categories||[])
+    .filter(c=>!q||match(c.name)||match(c.group))
+    .slice(0,6)
+    .map(c=>({icon:'tag', title:c.name, meta:`Categoría · ${c.group||'Sin grupo'}`, action:'txn-search', payload:c.name, tag:'categoría'}));
+  if(cats.length) buckets.push({title:'Categorías', items:cats});
+
+  return buckets.filter(bucket=>bucket.items.length);
+}
+function runGlobalSearchAction(action,payload){
+  closeModal('modal-global-search');
+  if(action==='page'){nav(payload);return;}
+  if(action==='txn-search'){
+    nav('transactions');
+    setTimeout(()=>{
+      const input=document.getElementById('f-search');
+      if(input){input.value=payload||'';onSearchInput(input);}
+    },120);
+    return;
+  }
+  if(action==='backup'){if(typeof confirmarAccion==='function') confirmarAccion('backup');return;}
+  if(action==='restore'){document.getElementById('restore-json-input')?.click();return;}
+  if(action==='google'){
+    if(typeof openCloudSync==='function') openCloudSync();
+    else if(typeof gmailSync==='function') gmailSync();
+  }
+}
+function renderGlobalSearchResults(query=''){
+  const el=document.getElementById('global-search-results');
+  if(!el)return;
+  const buckets=getGlobalSearchBuckets(query);
+  if(!buckets.length){
+    el.innerHTML='<div class="global-search-empty">No encontré resultados para esa búsqueda. Probá con otro comercio, categoría o acción.</div>';
+    return;
+  }
+  el.innerHTML=buckets.map(bucket=>`
+    <div class="global-search-section">
+      <div class="global-search-section-title">${esc(bucket.title)}</div>
+      ${bucket.items.map(item=>`
+        <button class="global-search-item" onclick="runGlobalSearchAction('${item.action}','${String(item.payload||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")}')">
+          <div class="global-search-item-icon">${renderUiGlyph(item.icon||'spark')}</div>
+          <div class="global-search-item-copy">
+            <div class="global-search-item-title">${esc(item.title)}</div>
+            <div class="global-search-item-meta">${item.meta}</div>
+          </div>
+          <div class="global-search-item-tag">${esc(item.tag||'ir')}</div>
+        </button>
+      `).join('')}
+    </div>
+  `).join('');
+}
 function fallbackInsights(summary){
   const items=[];
   const top=summary.categories?.[0];
@@ -245,11 +411,12 @@ function renderDecisionCenter(model){
     <div class="decision-center ${collapsed?'is-collapsed':''}">
       <div class="decision-center-head">
         <div>
-          <div class="section-kicker">CENTRO DE DECISIONES</div>
-          <div class="decision-center-title">Prioridades claras para ${esc(model.periodLabel)}</div>
+          <div class="section-kicker">${esc(model.kicker||'CENTRO DE ALERTAS Y DECISIONES')}</div>
+          <div class="decision-center-title">${esc(model.title||('Prioridades claras para '+model.periodLabel))}</div>
           <div class="decision-center-sub">${model.summary}</div>
         </div>
         <div class="decision-center-actions">
+          ${model.alertCount?`<div class="decision-center-badge alerts">${renderUiGlyph('alert')} ${model.alertCount} alerta${model.alertCount!==1?'s':''}</div>`:''}
           <div class="decision-center-badge">${renderUiGlyph('ai')} Lectura asistida</div>
           <button class="decision-center-toggle" type="button" onclick="event.stopPropagation();toggleDecisionCenter()">${collapsed?'Mostrar':'Minimizar'}</button>
         </div>
@@ -353,53 +520,29 @@ async function generateDashInsights(){
   loadEl.style.display='none';feedEl.style.display='flex';
 }
 
-function renderDashNotifications() {
-  const notifEl = document.getElementById('dash-notifications');
-  const heroRow = document.querySelector('.dash-row-hero');
-  if(!notifEl) return;
-
-  const notifs = [];
-  const today = new Date();
+function collectDashboardAlerts(baseDate=new Date()) {
+  const today = new Date(baseDate);
   const monthKey = today.toISOString().slice(0,7);
-
-  // 1. Credit Card Deadlines
+  const notifs = [];
   const cycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
   cycles.forEach(cyc => {
     const card = (state.ccCards||[]).find(c => c.id === cyc.cardId);
     const closeDate = new Date(cyc.closeDate + 'T12:00:00');
     const dueDate = cyc.dueDate ? new Date(cyc.dueDate + 'T12:00:00') : null;
-
     const daysToClose = Math.round((closeDate - today) / 86400000);
     if(daysToClose >= 0 && daysToClose <= 5) {
-      notifs.push({
-        id: `tc-close-${cyc.id}-${cyc.closeDate}`,
-        type: 'warn',
-        icon: 'card',
-        title: 'Cierre de Tarjeta',
-        body: `Tu tarjeta <strong>${card?.name || 'TC'}</strong> cierra en ${daysToClose === 0 ? 'hoy' : daysToClose + ' días'}.`,
-        link: 'credit-cards'
-      });
+      notifs.push({id:`tc-close-${cyc.id}-${cyc.closeDate}`,type:'warn',icon:'card',title:'Cierre de Tarjeta',body:`Tu tarjeta <strong>${card?.name || 'TC'}</strong> cierra en ${daysToClose === 0 ? 'hoy' : daysToClose + ' días'}.`,link:'credit-cards'});
     }
-
     if(dueDate) {
       const daysToDue = Math.round((dueDate - today) / 86400000);
       if(daysToDue >= 0 && daysToDue <= 7) {
-        notifs.push({
-          id: `tc-due-${cyc.id}-${cyc.dueDate}`,
-          type: 'alert',
-          icon: 'alert',
-          title: 'Vencimiento de Tarjeta',
-          body: `El pago de <strong>${card?.name || 'TC'}</strong> vence en ${daysToDue === 0 ? 'hoy' : daysToDue + ' días'}.`,
-          link: 'credit-cards'
-        });
+        notifs.push({id:`tc-due-${cyc.id}-${cyc.dueDate}`,type:'alert',icon:'alert',title:'Vencimiento de Tarjeta',body:`El pago de <strong>${card?.name || 'TC'}</strong> vence en ${daysToDue === 0 ? 'hoy' : daysToDue + ' días'}.`,link:'credit-cards'});
       }
     }
   });
 
-  // 2. Spending vs Income (excluir cuotas proyectadas — son gastos futuros)
   const monthTxns = getCurrentMonthTxns().filter(t=>!t.isPendingCuota);
   const arsT = monthTxns.filter(t => t.currency === 'ARS').reduce((s,t) => s + t.amount, 0);
-  // Use new income system (same priority logic as renderDashboard)
   let totalIncome = (state.income?.ars||0)+(state.income?.varArs||0);
   const _notifIncEntry=(state.incomeMonths||[]).find(m=>m.month===monthKey);
   if(_notifIncEntry&&typeof getMonthTotalARS==='function'){
@@ -413,63 +556,38 @@ function renderDashNotifications() {
   }
   if(totalIncome > 0) {
     const pct = (arsT / totalIncome) * 100;
-    if(pct >= 85) {
-      notifs.push({
-        id: `budget-85-${monthKey}`,
-        type: 'alert',
-        icon: 'alert',
-        title: 'Límite de Presupuesto',
-        body: `Ya gastaste el <strong>${Math.round(pct)}%</strong> de tus ingresos este mes. Recomendamos moderar gastos.`,
-        link: 'dashboard'
-      });
-    } else if(pct >= 70) {
-      notifs.push({
-        id: `budget-70-${monthKey}`,
-        type: 'warn',
-        icon: 'trend',
-        title: 'Alerta de Gasto',
-        body: `Has consumido el <strong>${Math.round(pct)}%</strong> de tu presupuesto mensual.`,
-        link: 'dashboard'
-      });
-    }
+    if(pct >= 85) notifs.push({id:`budget-85-${monthKey}`,type:'alert',icon:'alert',title:'Límite de Presupuesto',body:`Ya gastaste el <strong>${Math.round(pct)}%</strong> de tus ingresos este mes. Recomendamos moderar gastos.`,link:'dashboard'});
+    else if(pct >= 70) notifs.push({id:`budget-70-${monthKey}`,type:'warn',icon:'trend',title:'Alerta de Gasto',body:`Has consumido el <strong>${Math.round(pct)}%</strong> de tu presupuesto mensual.`,link:'dashboard'});
   }
 
-  // 3. Recurring Payments (Cuotas)
   const cuotas = state.transactions.filter(t => t.isPendingCuota && t.currency === 'ARS');
   cuotas.forEach(c => {
     const cDate = new Date(c.date + 'T12:00:00');
     if(cDate.getMonth() === today.getMonth() && cDate.getFullYear() === today.getFullYear()) {
       const dDiff = Math.round((cDate - today) / 86400000);
       if(dDiff >= 0 && dDiff <= 3) {
-        notifs.push({
-          id: `cuota-${c.id}-${monthKey}`,
-          type: 'info',
-          icon: 'loop',
-          title: 'Próximo Compromiso',
-          body: `En ${dDiff === 0 ? 'hoy' : dDiff + ' días'} vence la cuota de: <strong>${c.descripcion || c.description}</strong>.`,
-          link: 'cuotas'
-        });
+        notifs.push({id:`cuota-${c.id}-${monthKey}`,type:'info',icon:'loop',title:'Próximo Compromiso',body:`En ${dDiff === 0 ? 'hoy' : dDiff + ' días'} vence la cuota de: <strong>${c.descripcion || c.description}</strong>.`,link:'cuotas'});
       }
     }
   });
 
-  // 4. Uncategorized Transactions Tip
   const uncategorized = monthTxns.filter(t => !t.category || t.category === 'Uncategorized' || t.category === 'Procesando...');
   if(uncategorized.length >= 5) {
-    notifs.push({
-      id: `uncat-${monthKey}`,
-      type: 'info',
-      icon: 'tag',
-      title: 'Mejorá tu Reporte',
-      body: `Tenés <strong>${uncategorized.length}</strong> movimientos sin categoría. Clasificalos para mejores insights.`,
-      link: 'transactions'
-    });
+    notifs.push({id:`uncat-${monthKey}`,type:'info',icon:'tag',title:'Mejorá tu Reporte',body:`Tenés <strong>${uncategorized.length}</strong> movimientos sin categoría. Clasificalos para mejores insights.`,link:'transactions'});
   }
-
-  // Filter dismissed
+  const backupHealth=getBackupHealth(today);
+  if(backupHealth.level!=='info'){
+    notifs.push({id:`backup-${backupHealth.state}`,type:backupHealth.level==='alert'?'alert':'warn',icon:'safe',title:backupHealth.label,body:`${backupHealth.desc} Tener una copia reciente te protege antes de grandes cambios o importaciones.`,link:'import'});
+  }
   const dismissed = state.dismissedNotifs || [];
-  const active = notifs.filter(n => !dismissed.includes(n.id));
-
+  const priority={alert:0,warn:1,info:2,success:3};
+  return notifs.filter(n => !dismissed.includes(n.id)).sort((a,b)=>(priority[a.type]??9)-(priority[b.type]??9));
+}
+function renderDashNotifications() {
+  const notifEl = document.getElementById('dash-notifications');
+  const heroRow = document.querySelector('.dash-row-hero');
+  if(!notifEl) return;
+  const active = collectDashboardAlerts();
   if(!active.length) {
     notifEl.style.display = 'none';
     heroRow?.classList.remove('has-side-notifs');
@@ -660,7 +778,19 @@ function renderDashboard(){
   };
   const aiItems=fallbackInsights(insightSummary);
   const upcomingCard=getUpcomingCardMilestone(today);
+  const liveAlerts=collectDashboardAlerts(today);
   const decisionCards=[];
+  liveAlerts.slice(0,2).forEach(alert=>{
+    decisionCards.push({
+      icon:alert.icon||'alert',
+      tone:alert.type==='alert'?'danger':alert.type==='warn'?'warning':'info',
+      kicker:'Alerta real',
+      title:alert.title,
+      body:alert.body,
+      cta:'Resolver',
+      link:alert.link||'dashboard'
+    });
+  });
   if(incTotalARS<=0){
     decisionCards.push({
       icon:'focus',
@@ -747,33 +877,20 @@ function renderDashboard(){
     });
   }
   renderDecisionCenter({
+    kicker:liveAlerts.length?'CENTRO DE ALERTAS Y DECISIONES':'CENTRO DE DECISIONES',
+    title:liveAlerts.length?`Alertas reales y próximos pasos para ${isTcView?(activeTcCycle?.label||'este ciclo'):(dashMonthNames[pM-1]+' '+pY)}`:`Prioridades claras para ${isTcView?(activeTcCycle?.label||'este ciclo'):(dashMonthNames[pM-1]+' '+pY)}`,
     periodLabel:isTcView?(activeTcCycle?.label||'este ciclo'):(dashMonthNames[pM-1]+' '+pY),
-    summary:aiItems[1]?stripHtml(aiItems[1].headline):'Tu tablero ahora destaca lo urgente, lo importante y la próxima mejor acción.',
+    summary:liveAlerts[0]?stripHtml(liveAlerts[0].body):aiItems[1]?stripHtml(aiItems[1].headline):'Tu tablero ahora destaca lo urgente, lo importante y la próxima mejor acción.',
+    alertCount:liveAlerts.length,
     cards:decisionCards.slice(0,4)
   });
 
   // ── Compromisos (cuotas + subs + gastos fijos) ──
   const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
   const cuotasAmt=autoGroups.map(g=>{
-    const cfg=state.autoCuotaConfig[g.key]||{};
-    const txSorted=g.transactions.filter(t=>!t.isPendingCuota).sort((a,b)=>a.cuotaNum-b.cuotaNum);
-    const firstTxn=txSorted[0];
-    const maxPaidFound=txSorted[txSorted.length-1]?.cuotaNum||1;
-    
-    let autoPaid = maxPaidFound;
-    if(firstTxn && firstTxn.cuotaNum === 1) {
-      const startD = new Date(firstTxn.date);
-      const diffMonths = (today.getFullYear() - startD.getFullYear()) * 12 + (today.getMonth() - startD.getMonth());
-      autoPaid = Math.max(maxPaidFound, diffMonths + 1);
-    }
-    const total=cfg.total||g.transactions[0]?.cuotaTotal||autoPaid;
-    const paid=cfg.paid!==undefined?cfg.paid:Math.min(total, autoPaid);
-    
-    if(paid>=total) return 0;
-    const actualTxns=g.transactions.filter(t=>!t.isPendingCuota);
-    const acc=actualTxns.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);
-    const amtPerCuota=actualTxns.length>0?acc/actualTxns.length:g.amount;
-    return amtPerCuota;
+    const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(g,today):null;
+    if(!snap||snap.paid>=snap.total) return 0;
+    return snap.amountPerCuota;
   }).reduce((s,v)=>s+v,0) + state.cuotas.filter(c=>c.paid<c.total).reduce((s,c)=>s+c.amount,0);
   const toMonthly=s=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
   const subsARS=state.subscriptions.filter(s=>s.currency==='ARS').reduce((acc,s)=>acc+toMonthly(s),0);
@@ -800,6 +917,44 @@ function renderDashboard(){
     const _h=today.getHours();
     const _greeting=_h<12?'Buenos días':_h<20?'Buenas tardes':'Buenas noches';
     _titleEl.textContent=_greeting+', '+(state.userName||'Pedro');
+  }
+  const timelineData=getDashboardTimelineData(today);
+  const backupHealth=getBackupHealth(today);
+  const _closeVal=document.getElementById('timeline-close-value');
+  const _closeDate=document.getElementById('timeline-close-date');
+  const _closeChip=document.getElementById('timeline-close-chip');
+  if(_closeVal&&_closeDate&&_closeChip){
+    if(timelineData.nextClose){
+      _closeVal.textContent=timelineData.nextClose.shortLabel;
+      _closeDate.textContent=`${timelineData.nextClose.type==='due'?'Vence':'Cierra'} ${timelineData.nextClose.days===0?'hoy':timelineData.nextClose.days===1?'mañana':'en '+timelineData.nextClose.days+' días'} · ${timelineData.nextClose.date.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})}`;
+      _closeChip.textContent=timelineData.nextClose.type==='due'?'vencimiento':'cierre';
+    } else {
+      _closeVal.textContent='Sin cierre próximo';
+      _closeDate.textContent='Cargá ciclos o fechas de vencimiento para ver hitos.';
+      _closeChip.textContent='sin ciclo';
+    }
+  }
+  const _commitVal=document.getElementById('timeline-commitment-value');
+  const _commitDate=document.getElementById('timeline-commitment-date');
+  const _commitChip=document.getElementById('timeline-commitment-chip');
+  if(_commitVal&&_commitDate&&_commitChip){
+    if(timelineData.nextCommitment){
+      _commitVal.textContent=timelineData.nextCommitment.shortLabel;
+      _commitDate.textContent=`${timelineData.nextCommitment.days===0?'Hoy':timelineData.nextCommitment.days===1?'Mañana':'En '+timelineData.nextCommitment.days+' días'} · $${fmtN(Math.round(timelineData.nextCommitment.amount||0))}`;
+      _commitChip.textContent=timelineData.nextCommitment.type==='subscription'?'suscripción':timelineData.nextCommitment.type==='fixed'?'gasto fijo':'cuota';
+    } else {
+      _commitVal.textContent='Sin vencimientos cercanos';
+      _commitDate.textContent='No aparecen cuotas, suscripciones ni fijos inmediatos.';
+      _commitChip.textContent='sin eventos';
+    }
+  }
+  const _weekVal=document.getElementById('timeline-week-value');
+  const _weekDate=document.getElementById('timeline-week-date');
+  const _weekChip=document.getElementById('timeline-week-chip');
+  if(_weekVal&&_weekDate&&_weekChip){
+    animateNumberText(_weekVal,Math.round(timelineData.nextWeekAmount||0),{prefix:'$',decimals:2,duration:700});
+    _weekChip.textContent=`${timelineData.nextWeekCount||0} evento${timelineData.nextWeekCount!==1?'s':''}`;
+    _weekDate.textContent=timelineData.nextWeekCount?`Próximos 7 días con presión real de caja.${backupHealth.level!=='info'?' · '+backupHealth.label.toLowerCase()+'.':''}`:`Semana despejada.${backupHealth.level!=='info'?' · '+backupHealth.label.toLowerCase()+'.':''}`;
   }
 
 
@@ -1201,6 +1356,21 @@ function renderWeeklyChart(monthTxns){
       scales:{x:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:9},maxRotation:0},grid:{display:false}},y:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:10},callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.04)'}}}
     }});
   }
+}
+
+if(!window._globalSearchShortcutBound){
+  window._globalSearchShortcutBound=true;
+  document.addEventListener('keydown',e=>{
+    const tag=(document.activeElement?.tagName||'').toLowerCase();
+    const typingField=['input','textarea','select'].includes(tag);
+    if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){
+      e.preventDefault();
+      openGlobalSearch();
+    } else if(!typingField&&e.key==='/'&&document.getElementById('page-dashboard')?.classList.contains('active')){
+      e.preventDefault();
+      openGlobalSearch();
+    }
+  });
 }
 
 

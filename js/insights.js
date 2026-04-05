@@ -102,8 +102,11 @@ function _computeInsightsData() {
   try {
     const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
     autoGroups.forEach(g=>{
-      const alreadyPaid = monthTxns.some(t => t.cuotaGroupId === g.key || (t.description.includes(g.name) && t.amount === g.amount));
-      if(!alreadyPaid) cuotasTotal += (g.currency === 'USD' ? g.amount * (USD_TO_ARS||1500) : g.amount);
+      const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(g):null;
+      if(!snap||snap.paid>=snap.total) return;
+      const groupId=g.transactions?.[0]?.cuotaGroupId||null;
+      const alreadyPaid = monthTxns.some(t => (groupId&&t.cuotaGroupId===groupId) || (t.description.includes(g.name) && t.amount === snap.amountPerCuota));
+      if(!alreadyPaid) cuotasTotal += ((g.currency === 'USD' ? snap.amountPerCuota * (USD_TO_ARS||1500) : snap.amountPerCuota) || 0);
     });
     (state.cuotas||[]).forEach(c=>{
        if(c.paid < c.total) {
@@ -133,10 +136,8 @@ function _computeInsightsData() {
     autoGroups.forEach(g=>{
       const cfg=(state.autoCuotaConfig||{})[g.key]||{};
       if(!cfg.day)return;
-      const actualT=g.transactions.filter(t=>!t.isPendingCuota);
-      const maxPaid=actualT.sort((a,b)=>b.cuotaNum-a.cuotaNum)[0]?.cuotaNum||1;
-      const total=cfg.total||g.transactions[0]?.cuotaTotal||maxPaid;
-      if(maxPaid<total) upcomingPayments.push({name:g.name,daysUntil:getDaysUntilNext(cfg.day),amount:g.amount});
+      const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(g):null;
+      if(snap&&snap.paid<snap.total) upcomingPayments.push({name:g.name,daysUntil:getDaysUntilNext(cfg.day),amount:snap.amountPerCuota});
     });
     (state.cuotas||[]).forEach(c=>{
       if(c.day&&c.paid<c.total) upcomingPayments.push({name:c.name,daysUntil:getDaysUntilNext(c.day),amount:c.amount});

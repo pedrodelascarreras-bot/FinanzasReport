@@ -862,7 +862,7 @@ function parseSantanderEmail(email, currentBatch) {
 
     const baseDesc = comercio;
     const description = cuotaTotal && cuotaTotal >= 2
-      ? baseDesc + ' (Cuota 1/' + cuotaTotal + ')' + (hora ? ' ' + hora : '')
+      ? baseDesc + ' (Cuota ' + cuotaNum + '/' + cuotaTotal + ')' + (hora ? ' ' + hora : '')
       : baseDesc + (hora ? ' ' + hora : '');
     const id = 'gmail_' + emailId; // stable ID = no duplicates
 

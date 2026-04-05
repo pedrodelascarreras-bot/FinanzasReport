@@ -144,6 +144,9 @@
         <span class="notif-icon">🔔</span>
         <span id="notif-badge" class="notif-badge"></span>
       </div>
+      <button class="notif-trigger dashboard-search-trigger" onclick="openGlobalSearch()" title="Buscar en toda la app">
+        <span class="notif-icon">🔍</span>
+      </button>
       <div><div class="page-title" id="dash-page-title">Finanzas · Pedro</div><div class="page-subtitle" id="dash-date">—</div></div>
     </div>
     
@@ -230,21 +233,46 @@
             </div>
           </div>
         </div>
-        <div class="fade-up d2 usd-rate-card usd-rate-card-inline" id="usd-rate-card">
-          <div class="usd-rate-inline-left">
-            <span class="usd-rate-icon">💵</span>
-            <div class="usd-rate-inline-copy">
-              <span class="usd-rate-inline-kicker">Dólar oficial</span>
-              <span class="usd-rate-main">U$D 1 = <span id="usd-rate-display">$1.420</span></span>
+        <div class="fade-up d2 dash-utility-grid" id="dash-utility-grid">
+          <div class="dash-utility-card dash-utility-card-dollar" id="usd-rate-card" onclick="openUsdRateModal()" title="Editar tipo de cambio">
+            <div class="dash-utility-topline">
+              <span class="dash-utility-kicker">💵 Dólar oficial</span>
+              <span id="usd-rate-source-badge" class="dash-utility-pill">manual</span>
             </div>
-            <span id="usd-rate-source-badge" class="usd-rate-source">blue</span>
+            <div class="dash-utility-value">U$D 1 = <span id="usd-rate-display">$1.420</span></div>
+            <div class="dash-utility-subline">
+              <span id="usd-rate-status" class="usd-rate-meta"></span>
+              <span id="usd-rate-updated" class="usd-rate-meta usd-rate-updated"></span>
+            </div>
+            <div class="dash-utility-actions">
+              <button class="btn btn-ghost btn-sm btn-xs" onclick="event.stopPropagation();fetchUsdRate(true)" id="btn-refresh-usd">↻ Actualizar</button>
+              <button class="btn btn-ghost btn-sm btn-xs" onclick="event.stopPropagation();openUsdRateModal()">✎ Editar</button>
+            </div>
           </div>
-          <div class="usd-rate-inline-right">
-            <span id="usd-rate-status" class="usd-rate-meta"></span>
-            <span id="usd-rate-updated" class="usd-rate-meta usd-rate-updated"></span>
-            <button class="btn btn-ghost btn-sm btn-xs" onclick="fetchUsdRate(true)" id="btn-refresh-usd">↻ Actualizar</button>
-            <button class="btn btn-ghost btn-sm btn-xs" onclick="openUsdRateModal()">✎</button>
-          </div>
+          <button class="dash-utility-card" id="timeline-card-close" onclick="nav('credit-cards')">
+            <div class="dash-utility-topline">
+              <span class="dash-utility-kicker">Timeline financiera</span>
+              <span id="timeline-close-chip" class="dash-utility-pill">sin ciclo</span>
+            </div>
+            <div id="timeline-close-value" class="dash-utility-value">Sin cierre próximo</div>
+            <div id="timeline-close-date" class="dash-utility-subline">Configurá fechas de tarjeta para seguir el ciclo.</div>
+          </button>
+          <button class="dash-utility-card" id="timeline-card-commitment" onclick="nav('cuotas')">
+            <div class="dash-utility-topline">
+              <span class="dash-utility-kicker">Próximo compromiso</span>
+              <span id="timeline-commitment-chip" class="dash-utility-pill">sin eventos</span>
+            </div>
+            <div id="timeline-commitment-value" class="dash-utility-value">Sin vencimientos cercanos</div>
+            <div id="timeline-commitment-date" class="dash-utility-subline">Tus próximos pagos aparecerán acá.</div>
+          </button>
+          <button class="dash-utility-card" id="timeline-card-week" onclick="nav('cuotas')">
+            <div class="dash-utility-topline">
+              <span class="dash-utility-kicker">Próximos 7 días</span>
+              <span id="timeline-week-chip" class="dash-utility-pill">0 eventos</span>
+            </div>
+            <div id="timeline-week-value" class="dash-utility-value">$0</div>
+            <div id="timeline-week-date" class="dash-utility-subline">Sin presión inmediata en la agenda financiera.</div>
+          </button>
         </div>
       </div>
 
@@ -1685,6 +1713,26 @@
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-usd-rate')">Cancelar</button>
       <button class="btn btn-primary" onclick="saveUsdRateManual()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-global-search">
+  <div class="modal" style="max-width:760px;">
+    <div class="modal-header">
+      <div>
+        <div class="page-title" style="font-size:24px;">Buscador global</div>
+        <div class="page-subtitle">Movimientos, categorías, cuotas, suscripciones, accesos rápidos y seguridad.</div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="closeModal('modal-global-search')">Cerrar</button>
+    </div>
+    <div class="modal-body" style="display:flex;flex-direction:column;gap:14px;">
+      <div class="global-search-bar">
+        <span class="global-search-icon">🔍</span>
+        <input id="global-search-input" class="global-search-input" type="search" placeholder="Buscar comercio, categoría, cuota, suscripción o acción..." oninput="handleGlobalSearchInput(this)" onkeydown="if(event.key==='Escape'){closeModal('modal-global-search')}">
+      </div>
+      <div id="global-search-hints" class="global-search-hints">Probá con “Megatlón”, “delivery”, “cuotas”, “backup” o “Google”.</div>
+      <div id="global-search-results" class="global-search-results"></div>
     </div>
   </div>
 </div>

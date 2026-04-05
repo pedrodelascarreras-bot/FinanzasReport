@@ -18,6 +18,48 @@ function detectAutoCuotas(){
   });
   return Object.values(groups).filter(g=>!state.dismissedAutoCuotas.includes(g.key));
 }
+function getAutoCuotaSnapshot(group, baseDate=new Date()){
+  const cfg=state.autoCuotaConfig[group.key]||{};
+  const actualTxns=group.transactions.filter(t=>!t.isPendingCuota);
+  const txSorted=[...actualTxns].sort((a,b)=>new Date(a.date)-new Date(b.date)||((a.cuotaNum||0)-(b.cuotaNum||0)));
+  const firstTxn=txSorted[0]||null;
+  const labeledNums=[...new Set(actualTxns.map(t=>parseInt(t.cuotaNum,10)).filter(n=>Number.isFinite(n)&&n>0))].sort((a,b)=>a-b);
+  const labelsSequentialFromOne=labeledNums.length>0&&labeledNums.every((n,idx)=>n===idx+1);
+  const observedPaidCount=Math.max(actualTxns.length, labeledNums[0]===1?labeledNums.length:0, 1);
+  const maxPaidFound=labelsSequentialFromOne?labeledNums[labeledNums.length-1]:observedPaidCount;
+  let inferredPaid=maxPaidFound;
+  let scheduleDay=cfg.day||null;
+
+  if(firstTxn){
+    const startD=new Date(firstTxn.date);
+    if(!scheduleDay) scheduleDay=startD.getDate();
+    if(firstTxn.cuotaNum===1){
+      const monthDiff=(baseDate.getFullYear()-startD.getFullYear())*12+(baseDate.getMonth()-startD.getMonth());
+      if(monthDiff>=0){
+        const currentMonthMaxDay=new Date(baseDate.getFullYear(),baseDate.getMonth()+1,0).getDate();
+        const effectiveDueDay=Math.min(scheduleDay||startD.getDate(), currentMonthMaxDay);
+        const dueCount=monthDiff+(baseDate.getDate()>=effectiveDueDay?1:0);
+        inferredPaid=Math.max(maxPaidFound, dueCount);
+      }
+    }
+  }
+
+  if(!scheduleDay){
+    const projected=state.transactions
+      .filter(t=>t.isPendingCuota&&t.cuotaGroupId&&group.transactions[0]?.cuotaGroupId&&t.cuotaGroupId===group.transactions[0].cuotaGroupId)
+      .sort((a,b)=>new Date(a.date)-new Date(b.date))[0];
+    if(projected) scheduleDay=new Date(projected.date).getDate();
+  }
+
+  const total=cfg.total||group.transactions[0]?.cuotaTotal||Math.max(inferredPaid,maxPaidFound,1);
+  const paid=cfg.paid!==undefined?cfg.paid:Math.min(total, Math.max(maxPaidFound, inferredPaid));
+  const rem=Math.max(0,total-paid);
+  const pct=Math.round((paid/Math.max(total,1))*100);
+  const acc=actualTxns.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);
+  const amountPerCuota=actualTxns.length>0?acc/actualTxns.length:group.amount;
+  const remainingTotal=rem*amountPerCuota;
+  return {cfg,actualTxns,txSorted,firstTxn,maxPaidFound,total,paid,rem,pct,amountPerCuota,remainingTotal,scheduleDay};
+}
 function getDaysUntilNext(day){
   if(!day)return null;
   const today=new Date();const next=new Date(today.getFullYear(),today.getMonth(),day);
@@ -49,44 +91,23 @@ function renderCuotas(){
   document.getElementById('cuotas-empty').style.display='none';document.getElementById('cuotas-content').style.display='flex';
   // Build all auto cuota cards
   const autoCards=autoGroups.map(g=>{
-    const cfg=state.autoCuotaConfig[g.key]||{};
-    // Only count actual (non-projected) transactions as "paid"
-    const actualTxns=g.transactions.filter(t=>!t.isPendingCuota);
-    const txSorted=actualTxns.sort((a,b)=>a.cuotaNum-b.cuotaNum); // sort asc
-    const firstTxn=txSorted[0];
-    const maxPaidFound=txSorted[txSorted.length-1]?.cuotaNum||1;
-    
-    // Auto-calculate paid based on date if we have a first installment
-    let autoPaid = maxPaidFound;
-    if(firstTxn && firstTxn.cuotaNum === 1) {
-      const startD = new Date(firstTxn.date);
-      const today = new Date();
-      const diffMonths = (today.getFullYear() - startD.getFullYear()) * 12 + (today.getMonth() - startD.getMonth());
-      autoPaid = Math.max(maxPaidFound, diffMonths + 1);
-    }
-
-    const total=cfg.total||g.transactions[0]?.cuotaTotal||autoPaid;
-    const paid=cfg.paid!==undefined?cfg.paid:Math.min(total, autoPaid);
-    const rem=total-paid;const pct=Math.round(paid/total*100);
-    const day=cfg.day||null;const daysUntil=getDaysUntilNext(day);
-    // Calculate amount per cuota from actual transactions only
-    const acc=actualTxns.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);
-    const amtPerCuota=actualTxns.length>0?acc/actualTxns.length:g.amount;
-    const remainingTotal=rem*amtPerCuota;
+    const snap=getAutoCuotaSnapshot(g);
+    const {cfg,actualTxns,total,paid,rem,pct,amountPerCuota,remainingTotal,scheduleDay}=snap;
+    const day=cfg.day||scheduleDay||null;
+    const daysUntil=getDaysUntilNext(day);
     // Derive next payment date: configured day > transaction day > projected cuota date
     let nextPayDate=null;
     if(rem>0){
       if(cfg.day){nextPayDate=getNextCuotaDate(cfg.day);}
-      else if(actualTxns.length>0){
-        const _latest=[...actualTxns].sort((a,b)=>new Date(b.date)-new Date(a.date))[0];
-        nextPayDate=getNextCuotaDate(new Date(_latest.date).getDate());
+      else if(scheduleDay){
+        nextPayDate=getNextCuotaDate(scheduleDay);
       } else {
         // Check projected cuotas matching this group
         const _projected=state.transactions.filter(t=>t.isPendingCuota&&t.cuotaGroupId&&g.transactions[0]?.cuotaGroupId&&t.cuotaGroupId===g.transactions[0].cuotaGroupId&&new Date(t.date)>new Date());
         if(_projected.length>0){const _np=_projected.sort((a,b)=>new Date(a.date)-new Date(b.date))[0];nextPayDate=new Date(_np.date);}
       }
     }
-    return buildCuotaCard(g.key,g.name,'🛒',amtPerCuota,g.currency||'ARS',paid,total,rem,pct,daysUntil,day,remainingTotal,false,null,nextPayDate);
+    return buildCuotaCard(g.key,g.name,'🛒',amountPerCuota,g.currency||'ARS',paid,total,rem,pct,daysUntil,day,remainingTotal,false,null,nextPayDate);
   }).join('');
   document.getElementById('cuotas-grid').innerHTML=autoCards||'<div style="color:var(--text3);font-size:13px;font-family:var(--font);">Las cuotas se detectan automáticamente al importar tu CSV.</div>';
   // Manual cuotas
@@ -101,12 +122,12 @@ function renderCuotas(){
   else manualSection.style.display='none';
   // Summary
   const allRem=[
-    ...autoGroups.map(g=>{const cfg=state.autoCuotaConfig[g.key]||{};const actualT=g.transactions.filter(t=>!t.isPendingCuota);const maxP=actualT.sort((a,b)=>b.cuotaNum-a.cuotaNum)[0]?.cuotaNum||1;const total=cfg.total||g.transactions[0]?.cuotaTotal||maxP;const paid=cfg.paid!==undefined?cfg.paid:maxP;const acc=actualT.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);return(total-paid)*(actualT.length>0?acc/actualT.length:g.amount);}),
+    ...autoGroups.map(g=>getAutoCuotaSnapshot(g).remainingTotal),
     ...state.cuotas.map(c=>(c.total-c.paid)*c.amount)
   ];
   const totalRem=allRem.reduce((s,v)=>s+v,0);
   const nextMonth=[
-    ...autoGroups.map(g=>{const cfg=state.autoCuotaConfig[g.key]||{};const actualT=g.transactions.filter(t=>!t.isPendingCuota);const maxP=actualT.sort((a,b)=>b.cuotaNum-a.cuotaNum)[0]?.cuotaNum||1;const paid=cfg.paid!==undefined?cfg.paid:maxP;const total=cfg.total||g.transactions[0]?.cuotaTotal||maxP;if(paid>=total)return 0;const acc=actualT.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);return actualT.length>0?acc/actualT.length:g.amount;}),
+    ...autoGroups.map(g=>{const snap=getAutoCuotaSnapshot(g);return snap.paid>=snap.total?0:snap.amountPerCuota;}),
     ...state.cuotas.filter(c=>c.paid<c.total).map(c=>c.amount)
   ].reduce((s,v)=>s+v,0);
   const totalCount=autoGroups.length+state.cuotas.length;
@@ -172,10 +193,10 @@ function deleteCuota(){
 function openAutoCuotaModal(key){
   const g=detectAutoCuotas().find(g=>g.key===key);if(!g)return;
   const cfg=state.autoCuotaConfig[key]||{};
-  const maxPaid=g.transactions.sort((a,b)=>b.cuotaNum-a.cuotaNum)[0]?.cuotaNum||1;
+  const snap=getAutoCuotaSnapshot(g);
   document.getElementById('modal-cuota-auto-desc').textContent=g.name+' · $'+fmtN(g.amount)+' por cuota';
   document.getElementById('autocuota-total').value=cfg.total||g.transactions[0]?.cuotaTotal||'';
-  document.getElementById('autocuota-paid').value=cfg.paid!==undefined?cfg.paid:maxPaid;
+  document.getElementById('autocuota-paid').value=cfg.paid!==undefined?cfg.paid:snap.paid;
   document.getElementById('autocuota-day').value=cfg.day||'';
   document.getElementById('autocuota-key').value=key;
   openModal('modal-cuota-auto');
@@ -279,7 +300,7 @@ function renderCompromisosSummary(){
   // ARS: cuotas + subs ARS + fijos ARS
   const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
   const cuotasARS=[
-    ...autoGroups.map(g=>{const cfg=state.autoCuotaConfig[g.key]||{};const actualT=g.transactions.filter(t=>!t.isPendingCuota);const maxP=actualT.sort((a,b)=>b.cuotaNum-a.cuotaNum)[0]?.cuotaNum||1;const paid=cfg.paid!==undefined?cfg.paid:maxP;const total=cfg.total||g.transactions[0]?.cuotaTotal||maxP;if(paid>=total)return 0;const acc=actualT.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);return actualT.length>0?acc/actualT.length:g.amount;}),
+    ...autoGroups.map(g=>{const snap=getAutoCuotaSnapshot(g);return snap.paid>=snap.total?0:snap.amountPerCuota;}),
     ...state.cuotas.filter(c=>c.paid<c.total).map(c=>c.amount)
   ].reduce((s,v)=>s+v,0);
   const subsARS=state.subscriptions.filter(s=>s.currency==='ARS').reduce((a,s)=>a+toMonthly(s),0);
@@ -437,4 +458,3 @@ function renderSubsAnnual(){
     </div>`;
   }).join('');
 }
-
