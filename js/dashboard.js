@@ -720,22 +720,32 @@ function renderDashboard(){
   const hasPayTagsWidget=_tcWidgetTxns.some(t=>t.payMethod);
 
   // ── Ingresos ──
-  // Priority: 1) exact incomeMonths entry for active month  2) source bases  3) most recent logged  4) legacy
+  // Priority: 1) income month linked to active TC cycle open month  2) exact active month
+  // 3) most recent logged month  4) source bases  5) legacy fallback
   let incARS=state.income.ars+state.income.varArs;
   let incUSD=state.income.usd+state.income.varUsd;
-  const _exactIncMonth=(state.incomeMonths||[]).find(m=>m.month===activeMk);
+  const incomeCandidates=[];
+  if(isTcView&&activeTcCycle){
+    const _cycleList=getTcCycles();
+    const _cycleIdx=_cycleList.findIndex(c=>c.id===activeTcCycle.id);
+    const _openMonth=getTcCycleOpen(_cycleList,_cycleIdx)?.slice(0,7);
+    const _closeMonth=activeTcCycle.closeDate?.slice(0,7);
+    if(_openMonth)incomeCandidates.push(_openMonth);
+    if(_closeMonth&&_closeMonth!==_openMonth)incomeCandidates.push(_closeMonth);
+  }
+  if(!incomeCandidates.includes(activeMk))incomeCandidates.push(activeMk);
+  const _exactIncMonth=incomeCandidates.map(mk=>(state.incomeMonths||[]).find(m=>m.month===mk)).find(Boolean);
   const _incFromSrcBases=(state.incomeSources||[]).some(s=>s.base>0);
   if(_exactIncMonth){
     incARS=getMonthTotalARS(_exactIncMonth);
     incUSD=getMonthTotalUSD(_exactIncMonth);
-  } else if(_incFromSrcBases){
-    // No entry for this month yet — use configured source bases (always up-to-date)
-    incARS=(state.incomeSources||[]).filter(s=>s.currency==='ARS').reduce((a,s)=>a+(s.base||0),0);
-    incUSD=(state.incomeSources||[]).filter(s=>s.currency==='USD').reduce((a,s)=>a+(s.base||0),0);
   } else if(state.incomeMonths?.length){
-    // Last resort: most recent logged entry
+    // Most recent logged entry
     const _last=[...state.incomeMonths].sort((a,b)=>b.month.localeCompare(a.month))[0];
     if(_last){incARS=getMonthTotalARS(_last);incUSD=getMonthTotalUSD(_last);}
+  } else if(_incFromSrcBases){
+    incARS=(state.incomeSources||[]).filter(s=>s.currency==='ARS').reduce((a,s)=>a+(s.base||0),0);
+    incUSD=(state.incomeSources||[]).filter(s=>s.currency==='USD').reduce((a,s)=>a+(s.base||0),0);
   }
   // (Sync button removed from margin widget)
   const incTotalARS=incARS+(incUSD*USD_TO_ARS);

@@ -296,6 +296,7 @@ function saveIncSource(){
       if(!_cur.sources)_cur.sources={};
       _cur.sources[obj.id]=obj.base;
       state.income.ars=getMonthTotalARS(_cur);
+      state.income.usd=getMonthTotalUSD(_cur);
     }
   }
   saveState();closeModal('modal-inc-source');renderIncomePage();refreshAll();showToast('✓ Fuente guardada','success');
@@ -318,6 +319,7 @@ function syncCurrentMonthIncome(){
     state.incomeMonths.push(entry);
   }
   state.income.ars=getMonthTotalARS(entry);
+  state.income.usd=getMonthTotalUSD(entry);
   saveState();renderIncomePage();refreshAll();
   showToast('✓ Ingreso del mes sincronizado con las fuentes configuradas','success');
 }
@@ -387,7 +389,9 @@ function saveIncMonth(){
   }
   // update legacy income fields so dashboard still works
   const totalARS=getMonthTotalARS(obj);
+  const totalUSD=getMonthTotalUSD(obj);
   state.income.ars=totalARS;
+  state.income.usd=totalUSD;
   saveState();closeModal('modal-log-income');renderIncomePage();
   showToast('✓ '+fmtMonthLabel(month)+' guardado','success');
   refreshAll();
