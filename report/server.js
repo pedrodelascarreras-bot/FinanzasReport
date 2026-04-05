@@ -19,7 +19,6 @@ const { fetchFinanceData } = require('./fetch-data');
 const { buildReport }      = require('./build-report');
 const { generateInsights } = require('./ai-insights');
 const { generatePDF }      = require('./generate-pdf');
-const { generatePreviewPDF } = require('./generate-preview-pdf');
 const { sendReportEmail }  = require('./send-email');
 
 const PORT = process.env.PORT || 3001;
@@ -62,18 +61,14 @@ async function runReportPipeline(options = {}) {
   await generatePDF(report, aiInsights, pdfPath, { include });
   console.log(`  ✓ PDF generado: ${pdfPath}`);
 
-  const previewPdfPath = path.join(__dirname, `reporte-preview-${period}-${Date.now()}.pdf`);
-  await generatePreviewPDF(report, aiInsights, previewPdfPath, { include });
-  console.log(`  ✓ PDF vista previa generado: ${previewPdfPath}`);
-
   // 5. Email
   const result = await sendReportEmail(report, aiInsights, pdfPath, {
     include,
-    previewPdfPath,
+    previewAttachment: options.previewAttachment || null,
   });
   console.log(`  ✓ Email enviado`);
 
-  return { to: process.env.REPORT_TO_EMAIL, period, pdfPath, previewPdfPath };
+  return { to: process.env.REPORT_TO_EMAIL, period, pdfPath };
 }
 
 // ── Server ───────────────────────────────────────────────────────────────────

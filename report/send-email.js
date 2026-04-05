@@ -118,7 +118,13 @@ async function sendReportEmail(report, aiInsights, pdfPath, options = {}) {
     contentType: 'application/pdf',
   });
 
-  if (options.previewPdfPath) {
+  if (options.previewAttachment?.contentBase64) {
+    attachments.push({
+      filename: options.previewAttachment.filename || `reporte-financiero-vista-previa-${formatDateFile(report.period.weekEnd)}.pdf`,
+      content: options.previewAttachment.contentBase64,
+      contentType: 'application/pdf',
+    });
+  } else if (options.previewPdfPath) {
     const previewBuffer = fs.readFileSync(options.previewPdfPath);
     const previewFileName = `reporte-financiero-vista-previa-${formatDateFile(report.period.weekEnd)}.pdf`;
     attachments.push({

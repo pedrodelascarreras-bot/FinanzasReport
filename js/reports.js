@@ -109,6 +109,16 @@ async function sendReportNow() {
     }
   };
 
+  try {
+    const previewBlob = await renderPreviewPdfBlob();
+    options.previewAttachment = {
+      filename: `reporte-vista-previa-${String(getRepPeriodLabel() || 'periodo').replace(/[^\w\-]+/g, '_')}.pdf`,
+      contentBase64: await blobToBase64(previewBlob),
+    };
+  } catch(err) {
+    console.warn('No se pudo adjuntar la vista previa real del frontend', err);
+  }
+
   // UI: loading state
   if(btn) { btn.disabled=true; btn.innerHTML='<span style="opacity:.7">Enviando…</span>'; }
   if(statusEl) { statusEl.style.display='block'; statusEl.style.background='var(--blue-light)'; statusEl.style.color='var(--accent)'; statusEl.textContent='⏳ Generando PDF y enviando email…'; }
@@ -847,34 +857,117 @@ function updateRepPreview(){
 
 function exportRepHTML(){showToast('Usá Guardar PDF','info');}
 
-function exportRepPDF(){
+async function renderPreviewPdfBlob(){
+  const preview = document.getElementById('rep-preview-content');
+  if(!preview || !preview.innerHTML.trim()) throw new Error('La vista previa todavía no está lista');
+  if(!window.html2canvas || !window.jspdf?.jsPDF) throw new Error('Faltan librerías de PDF en el navegador');
+
+  const label = getRepPeriodLabel();
+  const shell = document.createElement('div');
+  shell.style.position = 'fixed';
+  shell.style.left = '-20000px';
+  shell.style.top = '0';
+  shell.style.width = '1200px';
+  shell.style.padding = '28px';
+  shell.style.background = '#f4f7fb';
+  shell.style.zIndex = '-1';
+
+  const paper = document.createElement('div');
+  paper.style.background = '#ffffff';
+  paper.style.padding = '28px';
+  paper.style.borderRadius = '26px';
+  paper.style.boxShadow = '0 20px 50px rgba(15,23,42,0.08)';
+  paper.style.fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif';
+
+  const meta = document.createElement('div');
+  meta.style.display = 'flex';
+  meta.style.justifyContent = 'space-between';
+  meta.style.alignItems = 'center';
+  meta.style.gap = '12px';
+  meta.style.marginBottom = '16px';
+  meta.innerHTML = `<div style="font-size:15px;font-weight:700;color:#0f172a;">FINANZAS · Vista previa del informe</div><div style="font-size:12px;color:#64748b;">${esc(label)}</div>`;
+
+  const clone = preview.cloneNode(true);
+  clone.style.padding = '0';
+  clone.style.margin = '0';
+
+  paper.appendChild(meta);
+  paper.appendChild(clone);
+  shell.appendChild(paper);
+  document.body.appendChild(shell);
+
+  try {
+    const canvas = await window.html2canvas(shell, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#f4f7fb',
+      logging: false,
+      windowWidth: 1280,
+    });
+
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p', 'pt', 'a4');
+    const pageW = pdf.internal.pageSize.getWidth();
+    const pageH = pdf.internal.pageSize.getHeight();
+    const margin = 18;
+    const drawW = pageW - margin * 2;
+    const fullDrawH = canvas.height * drawW / canvas.width;
+    const availablePageH = pageH - margin * 2;
+    const pageCanvasHeight = Math.floor(canvas.width * (availablePageH / drawW));
+
+    let srcY = 0;
+    let pageIndex = 0;
+    while(srcY < canvas.height){
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = Math.min(pageCanvasHeight, canvas.height - srcY);
+      const ctx = pageCanvas.getContext('2d');
+      ctx.drawImage(canvas, 0, srcY, canvas.width, pageCanvas.height, 0, 0, canvas.width, pageCanvas.height);
+      const pageImg = pageCanvas.toDataURL('image/png');
+      const pageImgH = pageCanvas.height * drawW / pageCanvas.width;
+      if(pageIndex > 0) pdf.addPage();
+      pdf.addImage(pageImg, 'PNG', margin, margin, drawW, pageImgH, undefined, 'FAST');
+      srcY += pageCanvas.height;
+      pageIndex += 1;
+    }
+
+    return pdf.output('blob');
+  } finally {
+    shell.remove();
+  }
+}
+
+async function blobToBase64(blob){
+  const buffer = await blob.arrayBuffer();
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const chunk = 0x8000;
+  for(let i=0;i<bytes.length;i+=chunk){
+    binary += String.fromCharCode(...bytes.subarray(i, i+chunk));
+  }
+  return btoa(binary);
+}
+
+async function exportRepPDF(){
   const txns=getRepTxns();const sections=getRepSections();const label=getRepPeriodLabel();
   if(!txns.length){showToast('Sin datos para exportar','error');return;}
-  const design=state.repDesign||'executive';
-
-  const styles={
-    executive:{accent:'#1d1d1f',fontSz:'12px',pad:'32px',brand:'20px',headerBorder:'3px solid #1d1d1f',kpiBg:'#f7f7f7',sectionTitle:'11px'},
-    detailed:{accent:'#007aff',fontSz:'11px',pad:'24px',brand:'18px',headerBorder:'2px solid #007aff',kpiBg:'#f0f5ff',sectionTitle:'10px'},
-    minimal:{accent:'#333',fontSz:'11px',pad:'28px',brand:'16px',headerBorder:'1px solid #ccc',kpiBg:'#fafafa',sectionTitle:'9px'},
-  };
-  const s=styles[design]||styles.executive;
-  const reportBody=buildReportHTML(txns,sections,label);
-
-  const html='<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Reporte Financiero — '+esc(label)+'</title><style>'
-    +getReportStyleSheet(s)
-    +'</style></head><body>'
-    +reportBody
-    +'<div class="no-print" style="position:fixed;bottom:20px;right:20px;display:flex;gap:8px;z-index:999;">'
-    +'<button onclick="window.print()" style="padding:12px 24px;border-radius:10px;border:none;background:#007aff;color:#fff;font-size:14px;font-weight:700;cursor:pointer;font-family:-apple-system,sans-serif;box-shadow:0 4px 12px rgba(0,0,0,0.15);">📄 Guardar como PDF</button>'
-    +'</div>'
-    +'</body></html>';
-
-  // Open in new tab — works in all browsers without popup issues
-  const blob=new Blob([html],{type:'text/html;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  window.open(url,'_blank');
-  setTimeout(()=>URL.revokeObjectURL(url),30000);
-  showToast('✓ Reporte abierto — hacé click en "Guardar como PDF"','success');
+  try {
+    showToast('Generando PDF…', 'info');
+    const blob = await renderPreviewPdfBlob();
+    const safeLabel = String(label || 'reporte').replace(/[^\w\-]+/g, '_');
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `reporte-finanzas-${safeLabel}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+    showToast('✓ PDF descargado en tu computadora', 'success');
+  } catch(err) {
+    console.error(err);
+    showToast('No pude generar el PDF visual', 'error');
+  }
 }
 
 function fallbackPrintPDF(reportBody,s,label){
