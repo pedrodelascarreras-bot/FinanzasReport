@@ -286,6 +286,7 @@ function _renderSavingsMode(data){
   const targetSpend = income > 0 ? Math.max(0, income - targetSave) : 0;
   const projectedSavings = income > 0 ? income - data.projectedMonth : 0;
   const savingsGap = income > 0 ? Math.max(0, targetSave - Math.max(0, projectedSavings)) : 0;
+  const currentSaveRate = income > 0 ? Math.round((Math.max(0, projectedSavings) / income) * 100) : 0;
   const topLevers = (data.growingCats || [])
     .filter(c=>c.current>0)
     .slice(0,3)
@@ -301,6 +302,24 @@ function _renderSavingsMode(data){
   }
   const recoverableTotal = topLevers.reduce((s,l)=>s+(l.recoverable||0),0);
   const alerts = getSavingsDeviationAlerts(data);
+  const sevenDayTarget = savingsGap > 0 ? Math.max(0, Math.round(savingsGap / 4)) : Math.round(recoverableTotal * 0.35);
+  const scenarioBase = Math.max(recoverableTotal, Math.max(0, data.projectedMonth - targetSpend), Math.max(0, data.arsThis * 0.08));
+  const scenarios = income > 0 ? [
+    { label:'Ajuste suave', pct:'5%', recorte: Math.round(scenarioBase * 0.5), ahorro: Math.round(Math.max(0, projectedSavings) + scenarioBase * 0.5) },
+    { label:'Meta recomendada', pct:'10%', recorte: Math.round(scenarioBase * 0.85), ahorro: Math.round(Math.max(0, projectedSavings) + scenarioBase * 0.85) },
+    { label:'Modo agresivo', pct:'15%', recorte: Math.round(scenarioBase * 1.15), ahorro: Math.round(Math.max(0, projectedSavings) + scenarioBase * 1.15) }
+  ] : [];
+  const weeklyPlan = income > 0 ? [
+    `Poné un techo semanal de <strong>$${fmtN(Math.round(targetSpend / 4.3))}</strong> para no comerte el margen del mes.`,
+    topLevers[0] ? `Bajá primero <strong>${esc(topLevers[0].name)}</strong>: hoy es tu mejor palanca para recuperar plata rápido.` : 'Empezá por una sola categoría variable para que el ajuste sea sostenible.',
+    sevenDayTarget > 0 ? `Intentá liberar <strong>$${fmtN(Math.round(sevenDayTarget))}</strong> en los próximos 7 días para acercarte al objetivo.` : 'Tu foco esta semana debería ser sostener el ritmo y evitar compras impulsivas.',
+    `Cuando cobres, separá de entrada <strong>$${fmtN(Math.round(targetSave))}</strong> y gastá con el monto restante, no al revés.`
+  ] : [
+    'Cargá el ingreso ARS y USD del período para que la vista calcule ahorro real.',
+    'Una vez cargado, esta pantalla te va a sugerir recortes concretos por categoría.',
+    'Usá las alertas como semáforo para saber qué corregir primero.',
+    'Después definí una meta automática de ahorro para no depender de “lo que sobre”.'
+  ];
 
   const advices = income <= 0 ? [
     {tone:'info', title:'Definí primero el ingreso del período', body:'El modo ahorro necesita saber cuánto entra realmente por mes para recomendarte un plan financiero serio.'},
@@ -387,9 +406,46 @@ function _renderSavingsMode(data){
         `).join('')}
       </div>
     </div>
+
+    <div class="fade-up d3 savings-bottom-grid">
+      <div class="insights-panel-shell">
+        <div class="insights-panel-kicker">Escenarios de ahorro</div>
+        <div class="insights-panel-sub">Cómo cambia tu mes si ajustás un poco el gasto variable</div>
+        <div class="savings-scenario-grid">
+          ${scenarios.length ? scenarios.map(s=>`
+            <div class="savings-scenario-card">
+              <div class="savings-scenario-top">
+                <span class="savings-scenario-label">${s.label}</span>
+                <span class="savings-scenario-chip">${s.pct}</span>
+              </div>
+              <div class="savings-scenario-value">$${fmtN(Math.round(s.ahorro))}</div>
+              <div class="savings-scenario-sub">ahorro final estimado</div>
+              <div class="savings-scenario-foot">recorte sugerido: <strong>$${fmtN(Math.round(s.recorte))}</strong></div>
+            </div>
+          `).join('') : `
+            <div class="savings-scenario-card">
+              <div class="savings-scenario-value">—</div>
+              <div class="savings-scenario-sub">Cargá ingresos para ver escenarios reales</div>
+            </div>
+          `}
+        </div>
+      </div>
+      <div class="insights-panel-shell">
+        <div class="insights-panel-kicker">Plan de 7 días</div>
+        <div class="insights-panel-sub">Pasos concretos para que el modo ahorro se vuelva una rutina</div>
+        <div class="savings-week-plan">
+          ${weeklyPlan.map((step, idx)=>`
+            <div class="savings-week-step">
+              <div class="savings-week-index">0${idx+1}</div>
+              <div class="savings-week-copy">${step}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    </div>
   `;
   const subEl=document.getElementById('insights-subtitle');
-  if(subEl) subEl.textContent='Modo ahorro · objetivo, desvíos y recortes recomendados';
+  if(subEl) subEl.textContent=`Modo ahorro · objetivo, desvíos y recortes recomendados${income > 0 ? ` · ahorro proyectado ${currentSaveRate}% del ingreso` : ''}`;
 }
 
 // ── Desafíos Financieros ──────────────────────────────────

@@ -171,7 +171,7 @@
       <select id="dash-month-select" class="txn-select" onchange="setDashMonthFromSelect(this.value)">
         <option value="">Mes actual</option>
       </select>
-      <button class="edit-layout-btn" id="edit-btn-dashboard" onclick="toggleEditMode('dashboard')">◫ Editar vista</button>
+      <button class="edit-layout-btn" id="edit-btn-dashboard" onclick="nav('dashboard-design')">◫ Editar diseño</button>
     </div>
   <div id="dash-empty" class="upload-zone fade-up d1" onclick="handleDashEmptyTap(event)">
     <div class="upload-icon">◫</div>
@@ -469,6 +469,36 @@
         <div class="dw-footer widget-footer-tight" id="dw-goal-footer">Ver ahorros →</div>
       </div>
 
+      <div class="dw-card dw-income layout-widget" data-widget-key="income-widget" hidden>
+        <div class="dw-label">INGRESO DEL PERÍODO</div>
+        <div class="dw-value widget-value-tight" id="dw-income-val">—</div>
+        <div class="dw-sub" id="dw-income-sub">ARS + USD convertidos</div>
+        <div class="widget-inline-row">
+          <span class="dw-badge neutral" id="dw-income-badge">base</span>
+          <span class="widget-microcopy" id="dw-income-meta"></span>
+        </div>
+        <div class="dw-footer widget-footer-tight" id="dw-income-footer">Lectura real del período activo</div>
+      </div>
+
+      <div class="dw-card dw-usd layout-widget" data-widget-key="usd-exposure-widget" hidden>
+        <div class="dw-label">EXPOSICIÓN USD</div>
+        <div class="dw-value widget-value-tight" id="dw-usd-val">—</div>
+        <div class="dw-sub" id="dw-usd-sub">del gasto del período</div>
+        <div class="dw-bar-track"><div class="dw-bar-fill" id="dw-usd-bar" style="background:var(--accent2);width:0%;"></div></div>
+        <div class="dw-footer widget-footer-tight" id="dw-usd-footer">Qué parte del mes depende del dólar</div>
+      </div>
+
+      <div class="dw-card dw-ticket layout-widget" data-widget-key="largest-widget" hidden>
+        <div class="dw-label">GASTO MÁS ALTO</div>
+        <div class="dw-value widget-value-tight" id="dw-largest-val">—</div>
+        <div class="dw-sub" id="dw-largest-sub">mayor ticket registrado</div>
+        <div class="widget-inline-row">
+          <span class="dw-badge neutral" id="dw-largest-badge">sin datos</span>
+          <span class="widget-microcopy" id="dw-largest-meta"></span>
+        </div>
+        <div class="dw-footer widget-footer-tight" id="dw-largest-footer">Ideal para detectar compras que te mueven el período</div>
+      </div>
+
     </div>
     </div><!-- /layout-section -->
 
@@ -505,6 +535,91 @@
     </div>
   </div>
 
+</div>
+
+<!-- DISEÑO DEL DASHBOARD -->
+<div id="page-dashboard-design" class="page">
+  <div class="page-header fade-up">
+    <div>
+      <div class="page-title">Diseño del dashboard</div>
+      <div class="page-subtitle">Organizá qué querés ver, en qué orden y con qué estilo general</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost" onclick="nav('dashboard')">← Volver al dashboard</button>
+      <button class="btn btn-ghost" onclick="resetDashboardDesign()">Restablecer</button>
+    </div>
+  </div>
+
+  <div class="dashboard-design-shell fade-up d1">
+    <div class="dashboard-design-main">
+      <div class="dashboard-design-card">
+        <div class="dashboard-design-head">
+          <div>
+            <div class="dashboard-design-kicker">Presets</div>
+            <div class="dashboard-design-title">Elegí una base y después ajustala a tu gusto</div>
+          </div>
+        </div>
+        <div id="dashboard-design-presets" class="dashboard-preset-grid"></div>
+      </div>
+
+      <div class="dashboard-design-card">
+        <div class="dashboard-design-head">
+          <div>
+            <div class="dashboard-design-kicker">Biblioteca</div>
+            <div class="dashboard-design-title">Todos los widgets disponibles para tu tablero</div>
+          </div>
+          <div class="dashboard-design-note">Los ocultos siguen estando acá listos para volver a activarse.</div>
+        </div>
+        <div id="dashboard-design-library" class="dashboard-library-grid"></div>
+      </div>
+
+      <div class="dashboard-design-card">
+        <div class="dashboard-design-head">
+          <div>
+            <div class="dashboard-design-kicker">Widgets visibles</div>
+            <div class="dashboard-design-title">Mostrá, ocultá y reordená cada bloque del dashboard</div>
+          </div>
+          <div class="dashboard-design-note">Los cambios se aplican solo en la web</div>
+        </div>
+        <div id="dashboard-design-groups" class="dashboard-design-groups"></div>
+      </div>
+    </div>
+
+    <div class="dashboard-design-side">
+      <div class="dashboard-design-card">
+        <div class="dashboard-design-head">
+          <div>
+            <div class="dashboard-design-kicker">Resumen</div>
+            <div class="dashboard-design-title">Cómo va a quedar tu dashboard</div>
+          </div>
+        </div>
+        <div id="dashboard-design-summary" class="dashboard-design-summary"></div>
+      </div>
+
+      <div class="dashboard-design-card">
+        <div class="dashboard-design-head">
+          <div>
+            <div class="dashboard-design-kicker">Ideas</div>
+            <div class="dashboard-design-title">Variantes para no aburrirte del mismo layout</div>
+          </div>
+        </div>
+        <div class="dashboard-design-ideas">
+          <div class="dashboard-design-idea">
+            <strong>Minimal</strong>
+            <span>Dejá arriba solo control de gasto, agenda y compromisos.</span>
+          </div>
+          <div class="dashboard-design-idea">
+            <strong>Analítico</strong>
+            <span>Mostrá promedios, gráficos y categorías para leer mejor el período.</span>
+          </div>
+          <div class="dashboard-design-idea">
+            <strong>Enfoque ahorro</strong>
+            <span>Priorizá margen, agenda, compromisos y metas para tomar decisiones más rápidas.</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </div>
 
 <!-- TARJETA DE CRÉDITO -->

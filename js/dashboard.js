@@ -1520,6 +1520,10 @@ function renderTop5(){
 }
 
 function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLeft){
+  const cleanTxns = (monthTxns || []).filter(t => !t.isPendingCuota);
+  const usdSpend = cleanTxns.filter(t => t.currency === 'USD').reduce((s,t)=>s + (t.amount||0), 0);
+  const usdSpendArs = usdSpend * (USD_TO_ARS || 1420);
+  const totalSpendArs = arsMonth + usdSpendArs;
 
   /* ── Widget 1: Margen disponible ── */
   const wMargenVal = document.getElementById('dw-margen-val');
@@ -1659,6 +1663,75 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     if(histMonthlyEl)histMonthlyEl.textContent='—';
     if(histDailySub)histDailySub.textContent='Necesitás más historial';
     if(histMonthlySub)histMonthlySub.textContent='Necesitás más historial';
+  }
+
+  /* ── Widget extra: ingreso del período ── */
+  const incomeVal=document.getElementById('dw-income-val');
+  const incomeSub=document.getElementById('dw-income-sub');
+  const incomeBadge=document.getElementById('dw-income-badge');
+  const incomeMeta=document.getElementById('dw-income-meta');
+  const incomeFooter=document.getElementById('dw-income-footer');
+  if(incomeVal){
+    if(incTotalARS > 0){
+      animateNumberText(incomeVal,incTotalARS,{prefix:'$',decimals:2,duration:720});
+      if(incomeSub)incomeSub.textContent='Ingreso consolidado del período activo';
+      if(incomeBadge)incomeBadge.textContent = pct !== null ? `${Math.round(Math.min(999,pct))}% usado` : 'registrado';
+      if(incomeMeta)incomeMeta.textContent = margen !== null ? `${margen >= 0 ? '$'+fmtN(margen) : '−$'+fmtN(Math.abs(margen))} de margen` : 'Sin margen calculado';
+      if(incomeFooter)incomeFooter.textContent = 'Incluye ARS + USD convertidos al cambio operativo';
+    } else {
+      incomeVal.textContent='—';
+      if(incomeSub)incomeSub.textContent='Todavía no cargaste ingresos';
+      if(incomeBadge)incomeBadge.textContent='pendiente';
+      if(incomeMeta)incomeMeta.textContent='';
+      if(incomeFooter)incomeFooter.textContent='Registrá el ingreso en la pestaña de Ingresos';
+    }
+  }
+
+  /* ── Widget extra: exposición USD ── */
+  const usdVal=document.getElementById('dw-usd-val');
+  const usdSub=document.getElementById('dw-usd-sub');
+  const usdBar=document.getElementById('dw-usd-bar');
+  const usdFooter=document.getElementById('dw-usd-footer');
+  if(usdVal){
+    if(totalSpendArs > 0 && usdSpend > 0){
+      const exposurePct = Math.round((usdSpendArs / totalSpendArs) * 100);
+      usdVal.textContent = `${exposurePct}%`;
+      if(usdSub)usdSub.textContent = `U$D ${fmtN(usdSpend)} del período`;
+      animateProgressBar(usdBar, exposurePct);
+      if(usdFooter)usdFooter.textContent = `$${fmtN(Math.round(usdSpendArs))} equivalentes al cambio actual`;
+    } else {
+      usdVal.textContent = '0%';
+      if(usdSub)usdSub.textContent = 'Sin gasto relevante en USD';
+      if(usdBar)usdBar.style.width='0%';
+      if(usdFooter)usdFooter.textContent = 'Si volvés a gastar en USD, lo vas a ver acá enseguida';
+    }
+  }
+
+  /* ── Widget extra: gasto más alto ── */
+  const largestVal=document.getElementById('dw-largest-val');
+  const largestSub=document.getElementById('dw-largest-sub');
+  const largestBadge=document.getElementById('dw-largest-badge');
+  const largestMeta=document.getElementById('dw-largest-meta');
+  const largestFooter=document.getElementById('dw-largest-footer');
+  if(largestVal){
+    const largestTxn = [...cleanTxns].sort((a,b)=>{
+      const aArs=(a.currency==='USD'?(a.amount||0)*(USD_TO_ARS||1420):(a.amount||0));
+      const bArs=(b.currency==='USD'?(b.amount||0)*(USD_TO_ARS||1420):(b.amount||0));
+      return bArs-aArs;
+    })[0];
+    if(largestTxn){
+      largestVal.textContent = largestTxn.description || largestTxn.comercio_detectado || 'Movimiento';
+      if(largestSub)largestSub.textContent = `${largestTxn.currency==='USD'?'U$D ':'$'}${fmtN(largestTxn.amount || 0)} · ${fmtDate(largestTxn.date)}`;
+      if(largestBadge)largestBadge.textContent = largestTxn.category || 'sin categoría';
+      if(largestMeta)largestMeta.textContent = largestTxn.currency==='USD' ? `$${fmtN(Math.round((largestTxn.amount||0) * (USD_TO_ARS||1420)))} en ARS` : '';
+      if(largestFooter)largestFooter.textContent = 'Tu ticket individual más pesado del período activo';
+    } else {
+      largestVal.textContent='—';
+      if(largestSub)largestSub.textContent='Todavía no hay movimientos suficientes';
+      if(largestBadge)largestBadge.textContent='sin datos';
+      if(largestMeta)largestMeta.textContent='';
+      if(largestFooter)largestFooter.textContent='Aparece cuando hay movimientos reales en el período';
+    }
   }
 }
 

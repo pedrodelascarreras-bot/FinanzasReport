@@ -167,7 +167,7 @@ function isMobileAppView(){
 }
 
 function isMobileBlockedPage(page){
-  return isMobileAppView() && ['insights','reportes','compare','categories','import','cc-compare'].includes(page);
+  return isMobileAppView() && ['insights','reportes','compare','categories','import','cc-compare','dashboard-design'].includes(page);
 }
 
 function handleDashEmptyTap(event){
@@ -258,6 +258,7 @@ function nav(page){
   if(page==='income')renderIncomePage();
   if(page==='savings')renderSavingsPage();
   if(page==='reportes')renderReportesPage();
+  if(page==='dashboard-design')renderDashboardDesignPage();
   if(page==='credit-cards')renderCreditCards();
   if(page==='cc-compare'){if(typeof initCcCompare==='function')initCcCompare();}
   // Apply saved layout for this page
@@ -376,6 +377,13 @@ function applyLayout(page) {
       });
     });
   }
+
+  const hiddenWidgets = pageData.widgetHidden || [];
+  container.querySelectorAll('.layout-widget[data-widget-key]').forEach(widget => {
+    const isHidden = hiddenWidgets.includes(widget.dataset.widgetKey);
+    widget.hidden = isHidden;
+    widget.dataset.widgetHidden = isHidden ? 'true' : 'false';
+  });
 }
 
 function getPageContainer(page) {
@@ -446,7 +454,10 @@ function persistLayout(page, container) {
   ls[page] = {
     order: sections.map(s => s.dataset.key),
     hidden: sections.filter(s => s.dataset.hidden === 'true').map(s => s.dataset.key),
-    widgetGroups
+    widgetGroups,
+    widgetHidden: Array.from(container.querySelectorAll('.layout-widget[data-widget-key]'))
+      .filter(w => w.dataset.widgetHidden === 'true' || w.hidden)
+      .map(w => w.dataset.widgetKey)
   };
   saveLayoutState(ls);
   showToast('Vista guardada', 'success');
@@ -716,4 +727,268 @@ function dismissNotif(id) {
   saveState();
   renderNotifications();
   if(typeof renderDashNotifications === 'function') renderDashNotifications();
+}
+
+const DASHBOARD_WIDGET_META = {
+  'usd-card': { label:'Dólar oficial', group:'dashboard-utility', desc:'Tipo de cambio operativo con acceso rápido a compra y venta.' },
+  'timeline-card': { label:'Agenda viva', group:'dashboard-utility', desc:'Tus próximos eventos financieros relevantes en formato agenda.' },
+  'credit-kpi': { label:'Ciclo tarjetas', group:'dashboard-kpis', desc:'Resumen del ciclo actual por tarjeta.' },
+  'projection-kpi': { label:'Proyección al cierre', group:'dashboard-kpis', desc:'Estimación del cierre si seguís al ritmo actual.' },
+  'commitments-kpi': { label:'Compromisos próximos', group:'dashboard-kpis', desc:'Cuánto del ingreso ya está comprometido el próximo mes.' },
+  'history-kpis': { label:'Promedios históricos', group:'dashboard-kpis', desc:'Promedio diario y mensual sobre toda tu historia cargada.' },
+  'main-chart': { label:'Gráfico principal', group:'dashboard-charts', desc:'Lectura mensual, diaria o semanal del gasto.' },
+  'categories-chart': { label:'Categorías del mes', group:'dashboard-charts', desc:'Distribución y peso de cada categoría en el período.' },
+  'margin-widget': { label:'Margen disponible', group:'dashboard-widgets', desc:'Lo que todavía podés gastar sin pasarte del ingreso.' },
+  'trend-widget': { label:'Categoría en alza', group:'dashboard-widgets', desc:'La categoría que más se aceleró contra el período anterior.' },
+  'goal-widget': { label:'Meta más cercana', group:'dashboard-widgets', desc:'Qué objetivo de ahorro tenés más próximo a completar.' },
+  'income-widget': { label:'Ingreso del período', group:'dashboard-widgets', desc:'Lectura consolidada del ingreso ARS + USD del período activo.' },
+  'usd-exposure-widget': { label:'Exposición USD', group:'dashboard-widgets', desc:'Qué porcentaje del gasto del período depende del dólar.' },
+  'largest-widget': { label:'Gasto más alto', group:'dashboard-widgets', desc:'El ticket más grande registrado en el período activo.' }
+};
+
+const DASHBOARD_GROUP_META = {
+  'dashboard-utility': 'Franja utilitaria',
+  'dashboard-kpis': 'KPIs del período',
+  'dashboard-charts': 'Gráficos centrales',
+  'dashboard-widgets': 'Widgets secundarios'
+};
+
+const DASHBOARD_DESIGN_PRESETS = {
+  balanced: {
+    name: 'Balanceado',
+    desc: 'La vista más completa y equilibrada para el día a día.',
+    widgetHidden: []
+  },
+  minimal: {
+    name: 'Minimal',
+    desc: 'Menos ruido, más foco en gasto, agenda y compromisos.',
+    widgetHidden: ['usd-card', 'history-kpis', 'margin-widget', 'trend-widget', 'goal-widget', 'income-widget', 'usd-exposure-widget', 'largest-widget']
+  },
+  ahorro: {
+    name: 'Modo ahorro',
+    desc: 'Resalta margen, agenda, compromisos y metas.',
+    widgetHidden: ['credit-kpi', 'usd-card'],
+    widgetGroups: {
+      'dashboard-kpis': ['projection-kpi', 'commitments-kpi', 'history-kpis', 'credit-kpi'],
+      'dashboard-widgets': ['margin-widget', 'goal-widget', 'income-widget', 'trend-widget', 'usd-exposure-widget', 'largest-widget']
+    }
+  },
+  analitico: {
+    name: 'Analítico',
+    desc: 'Prioriza lectura histórica, categorías y comparaciones.',
+    widgetHidden: [],
+    widgetGroups: {
+      'dashboard-kpis': ['projection-kpi', 'credit-kpi', 'history-kpis', 'commitments-kpi'],
+      'dashboard-charts': ['categories-chart', 'main-chart'],
+      'dashboard-widgets': ['income-widget', 'usd-exposure-widget', 'largest-widget', 'margin-widget', 'trend-widget', 'goal-widget']
+    }
+  },
+  ejecutivo: {
+    name: 'Ejecutivo',
+    desc: 'Menos detalle operativo y más lectura de alto nivel.',
+    widgetHidden: ['trend-widget', 'goal-widget'],
+    widgetGroups: {
+      'dashboard-utility': ['timeline-card', 'usd-card'],
+      'dashboard-kpis': ['projection-kpi', 'commitments-kpi', 'credit-kpi', 'history-kpis'],
+      'dashboard-widgets': ['income-widget', 'margin-widget', 'usd-exposure-widget', 'largest-widget', 'trend-widget', 'goal-widget']
+    }
+  },
+  seguimiento: {
+    name: 'Seguimiento',
+    desc: 'Ideal para mirar todos los días ritmo, ingreso y tickets grandes.',
+    widgetHidden: [],
+    widgetGroups: {
+      'dashboard-widgets': ['income-widget', 'largest-widget', 'margin-widget', 'trend-widget', 'usd-exposure-widget', 'goal-widget']
+    }
+  }
+};
+
+function getDashboardWidgetOrder(container){
+  const widgetGroups = {};
+  container.querySelectorAll('[data-layout-group]').forEach(group => {
+    const key = group.dataset.layoutGroup;
+    const widgets = Array.from(group.querySelectorAll(':scope > .layout-widget'));
+    if (key && widgets.length) widgetGroups[key] = widgets.map(w => w.dataset.widgetKey);
+  });
+  return widgetGroups;
+}
+
+function getDashboardDesignState(){
+  const ls = loadLayoutState();
+  const pageData = ls.dashboard || {};
+  const container = document.getElementById('dash-content');
+  const currentGroups = container ? getDashboardWidgetOrder(container) : {};
+  const mergedGroups = {};
+  Object.keys(DASHBOARD_GROUP_META).forEach(groupKey=>{
+    const saved = Array.isArray(pageData.widgetGroups?.[groupKey]) ? [...pageData.widgetGroups[groupKey]] : [];
+    const current = Array.isArray(currentGroups[groupKey]) ? [...currentGroups[groupKey]] : [];
+    const merged = [...saved];
+    current.forEach(key=>{
+      if(!merged.includes(key)) merged.push(key);
+    });
+    mergedGroups[groupKey] = merged.filter(key => DASHBOARD_WIDGET_META[key]);
+  });
+  return {
+    order: Array.isArray(pageData.order) ? [...pageData.order] : [],
+    hidden: Array.isArray(pageData.hidden) ? [...pageData.hidden] : [],
+    widgetGroups: mergedGroups,
+    widgetHidden: Array.isArray(pageData.widgetHidden) ? [...pageData.widgetHidden] : ['income-widget','usd-exposure-widget','largest-widget']
+  };
+}
+
+function saveDashboardDesignState(pageData, silent){
+  const ls = loadLayoutState();
+  ls.dashboard = {
+    ...(ls.dashboard || {}),
+    order: Array.isArray(pageData.order) ? pageData.order : (ls.dashboard?.order || []),
+    hidden: Array.isArray(pageData.hidden) ? pageData.hidden : (ls.dashboard?.hidden || []),
+    widgetGroups: pageData.widgetGroups || (ls.dashboard?.widgetGroups || {}),
+    widgetHidden: Array.isArray(pageData.widgetHidden) ? pageData.widgetHidden : (ls.dashboard?.widgetHidden || [])
+  };
+  saveLayoutState(ls);
+  applyLayout('dashboard');
+  if(!silent) showToast('Diseño del dashboard guardado', 'success');
+}
+
+function renderDashboardDesignPage(){
+  const presetsEl = document.getElementById('dashboard-design-presets');
+  const groupsEl = document.getElementById('dashboard-design-groups');
+  const summaryEl = document.getElementById('dashboard-design-summary');
+  const libraryEl = document.getElementById('dashboard-design-library');
+  if(!presetsEl || !groupsEl || !summaryEl || !libraryEl) return;
+
+  const designState = getDashboardDesignState();
+  const groups = designState.widgetGroups || {};
+  const visibleCount = Object.keys(DASHBOARD_WIDGET_META).filter(key => !designState.widgetHidden.includes(key)).length;
+
+  presetsEl.innerHTML = Object.entries(DASHBOARD_DESIGN_PRESETS).map(([id,preset])=>`
+    <button class="dashboard-preset-card" onclick="applyDashboardDesignPreset('${id}')">
+      <span class="dashboard-preset-name">${preset.name}</span>
+      <span class="dashboard-preset-desc">${preset.desc}</span>
+    </button>
+  `).join('');
+
+  libraryEl.innerHTML = Object.entries(DASHBOARD_WIDGET_META).map(([key, meta])=>{
+    const hidden = designState.widgetHidden.includes(key);
+    return `
+      <div class="dashboard-library-card ${hidden ? 'is-hidden' : 'is-visible'}">
+        <div class="dashboard-library-top">
+          <div>
+            <div class="dashboard-library-title">${meta.label}</div>
+            <div class="dashboard-library-desc">${meta.desc}</div>
+          </div>
+          <span class="dashboard-library-state ${hidden ? 'off' : 'on'}">${hidden ? 'Oculto' : 'Visible'}</span>
+        </div>
+        <div class="dashboard-library-meta">${DASHBOARD_GROUP_META[meta.group] || 'Dashboard'}</div>
+        <div class="dashboard-library-actions">
+          <button class="dashboard-widget-toggle ${hidden ? 'off' : 'on'}" onclick="toggleDashboardWidgetVisibility('${key}')">${hidden ? 'Agregar al dashboard' : 'Quitar del dashboard'}</button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  groupsEl.innerHTML = Object.entries(DASHBOARD_GROUP_META).map(([groupKey, groupName])=>{
+    const order = groups[groupKey] || [];
+    const widgets = order.filter(key => DASHBOARD_WIDGET_META[key]).map((key, idx)=>{
+      const hidden = designState.widgetHidden.includes(key);
+      return `
+        <div class="dashboard-widget-row ${hidden ? 'is-hidden' : ''}">
+          <div class="dashboard-widget-row-main">
+            <div class="dashboard-widget-name">${DASHBOARD_WIDGET_META[key].label}</div>
+            <div class="dashboard-widget-meta">${hidden ? 'Oculto en el dashboard' : 'Visible en el dashboard'}</div>
+          </div>
+          <div class="dashboard-widget-row-actions">
+            <button class="dashboard-widget-mini" onclick="moveDashboardWidget('${groupKey}','${key}',-1)" ${idx===0?'disabled':''}>↑</button>
+            <button class="dashboard-widget-mini" onclick="moveDashboardWidget('${groupKey}','${key}',1)" ${idx===order.length-1?'disabled':''}>↓</button>
+            <button class="dashboard-widget-toggle ${hidden ? 'off' : 'on'}" onclick="toggleDashboardWidgetVisibility('${key}')">${hidden ? 'Mostrar' : 'Ocultar'}</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+    return `
+      <div class="dashboard-group-editor">
+        <div class="dashboard-group-editor-head">
+          <div class="dashboard-group-editor-title">${groupName}</div>
+          <div class="dashboard-group-editor-sub">${order.length} widgets</div>
+        </div>
+        <div class="dashboard-group-editor-list">${widgets}</div>
+      </div>
+    `;
+  }).join('');
+
+  summaryEl.innerHTML = `
+    <div class="dashboard-summary-stat">
+      <span class="dashboard-summary-label">Widgets visibles</span>
+      <strong>${visibleCount}</strong>
+    </div>
+    <div class="dashboard-summary-stat">
+      <span class="dashboard-summary-label">Widgets ocultos</span>
+      <strong>${Object.keys(DASHBOARD_WIDGET_META).length - visibleCount}</strong>
+    </div>
+    <div class="dashboard-summary-stat">
+      <span class="dashboard-summary-label">Grupos editables</span>
+      <strong>${Object.keys(DASHBOARD_GROUP_META).length}</strong>
+    </div>
+    <div class="dashboard-summary-stat">
+      <span class="dashboard-summary-label">Widgets disponibles</span>
+      <strong>${Object.keys(DASHBOARD_WIDGET_META).length}</strong>
+    </div>
+    <div class="dashboard-summary-copy">Tip: podés dejar una versión más minimal para mirar rápido y después volver a una más analítica cuando quieras revisar el período a fondo.</div>
+  `;
+}
+
+function applyDashboardDesignPreset(presetId){
+  const preset = DASHBOARD_DESIGN_PRESETS[presetId];
+  if(!preset) return;
+  const designState = getDashboardDesignState();
+  saveDashboardDesignState({
+    ...designState,
+    widgetGroups: {
+      ...designState.widgetGroups,
+      ...(preset.widgetGroups || {})
+    },
+    widgetHidden: [...(preset.widgetHidden || [])]
+  });
+  renderDashboardDesignPage();
+}
+
+function toggleDashboardWidgetVisibility(widgetKey){
+  const designState = getDashboardDesignState();
+  const hidden = new Set(designState.widgetHidden || []);
+  if(hidden.has(widgetKey)) hidden.delete(widgetKey);
+  else hidden.add(widgetKey);
+  saveDashboardDesignState({
+    ...designState,
+    widgetHidden: Array.from(hidden)
+  });
+  renderDashboardDesignPage();
+}
+
+function moveDashboardWidget(groupKey, widgetKey, direction){
+  const designState = getDashboardDesignState();
+  const order = [...(designState.widgetGroups[groupKey] || [])];
+  const index = order.indexOf(widgetKey);
+  if(index < 0) return;
+  const nextIndex = index + direction;
+  if(nextIndex < 0 || nextIndex >= order.length) return;
+  const temp = order[index];
+  order[index] = order[nextIndex];
+  order[nextIndex] = temp;
+  saveDashboardDesignState({
+    ...designState,
+    widgetGroups: {
+      ...designState.widgetGroups,
+      [groupKey]: order
+    }
+  });
+  renderDashboardDesignPage();
+}
+
+function resetDashboardDesign(){
+  const ls = loadLayoutState();
+  delete ls.dashboard;
+  saveLayoutState(ls);
+  applyLayout('dashboard');
+  renderDashboardDesignPage();
+  showToast('Diseño restablecido', 'success');
 }
