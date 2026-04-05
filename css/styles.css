@@ -5166,6 +5166,7 @@ body.ios-scroll-locked {
   color: var(--text2);
   font-size: 13px;
   line-height: 1.62;
+  overflow-wrap: anywhere;
 }
 .savings-metric-grid {
   display: grid;
@@ -5221,6 +5222,11 @@ body.ios-scroll-locked {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  min-width: 0;
+}
+.savings-lever-copy,
+.savings-alert-item > div {
+  min-width: 0;
 }
 .savings-lever-card {
   display: grid;
@@ -5358,6 +5364,7 @@ body.ios-scroll-locked {
   font-size: 12px;
   font-weight: 700;
   color: var(--text);
+  overflow-wrap: anywhere;
 }
 .savings-scenario-chip {
   border-radius: 999px;
@@ -5545,6 +5552,21 @@ body.ios-scroll-locked {
   cursor: pointer;
   transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
 }
+.dashboard-preset-preview {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 6px;
+  height: 68px;
+  margin-bottom: 4px;
+}
+.dashboard-preset-preview span {
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04));
+  border: 1px solid var(--glass-border);
+}
+.dashboard-preset-preview span:first-child {
+  grid-row: 1 / span 2;
+}
 .dashboard-preset-card:hover {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--accent) 45%, var(--glass-border));
@@ -5648,6 +5670,106 @@ body.ios-scroll-locked {
   flex-direction: column;
   gap: 12px;
 }
+.dashboard-design-preview {
+  min-width: 0;
+}
+.dashboard-preview-canvas {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.dashboard-preview-row {
+  display: grid;
+  gap: 8px;
+}
+.dashboard-preview-row.row-1,
+.dashboard-preview-row.row-3 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.dashboard-preview-row.row-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.dashboard-preview-row.row-4 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.dashboard-preview-block,
+.dashboard-preview-empty {
+  border-radius: 16px;
+  min-height: 56px;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--surface-solid) 95%, white 5%);
+  box-shadow: var(--shadow-xs);
+  display: flex;
+  align-items: center;
+}
+.dashboard-preview-block span {
+  font-size: 11px;
+  line-height: 1.35;
+  font-weight: 700;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.dashboard-preview-empty {
+  justify-content: center;
+  color: var(--text3);
+  font-size: 11px;
+}
+.dashboard-saved-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.dashboard-saved-card {
+  border-radius: 18px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--surface-solid) 95%, white 5%);
+  box-shadow: var(--shadow-xs);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.dashboard-saved-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+.dashboard-saved-name {
+  font-size: 13px;
+  font-weight: 730;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+.dashboard-saved-preview {
+  min-width: 0;
+}
+.dashboard-saved-preview .dashboard-preview-canvas {
+  gap: 7px;
+}
+.dashboard-saved-preview .dashboard-preview-block,
+.dashboard-saved-preview .dashboard-preview-empty {
+  min-height: 40px;
+  padding: 8px 10px;
+}
+.dashboard-saved-preview .dashboard-preview-block span {
+  font-size: 10px;
+}
+.dashboard-saved-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.dashboard-empty-note {
+  border-radius: 16px;
+  border: 1px dashed var(--glass-border);
+  padding: 16px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--text2);
+}
 .dashboard-summary-stat {
   display: flex;
   justify-content: space-between;
@@ -5711,6 +5833,7 @@ body.ios-scroll-locked {
   }
 
   .dashboard-preset-grid,
+  .dashboard-saved-grid,
   .dashboard-library-grid,
   .savings-scenario-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));

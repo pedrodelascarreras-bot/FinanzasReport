@@ -542,9 +542,10 @@
   <div class="page-header fade-up">
     <div>
       <div class="page-title">Diseño del dashboard</div>
-      <div class="page-subtitle">Organizá qué querés ver, en qué orden y con qué estilo general</div>
+      <div class="page-subtitle">Armá vistas distintas, cambiá widgets y guardá configuraciones con nombre</div>
     </div>
     <div class="header-actions">
+      <button class="btn btn-primary" onclick="saveCurrentDashboardView()">Guardar vista</button>
       <button class="btn btn-ghost" onclick="nav('dashboard')">← Volver al dashboard</button>
       <button class="btn btn-ghost" onclick="resetDashboardDesign()">Restablecer</button>
     </div>
@@ -556,7 +557,7 @@
         <div class="dashboard-design-head">
           <div>
             <div class="dashboard-design-kicker">Presets</div>
-            <div class="dashboard-design-title">Elegí una base y después ajustala a tu gusto</div>
+            <div class="dashboard-design-title">Elegí una base visual</div>
           </div>
         </div>
         <div id="dashboard-design-presets" class="dashboard-preset-grid"></div>
@@ -565,8 +566,19 @@
       <div class="dashboard-design-card">
         <div class="dashboard-design-head">
           <div>
+            <div class="dashboard-design-kicker">Mis vistas</div>
+            <div class="dashboard-design-title">Guardá configuraciones con nombre</div>
+          </div>
+          <div class="dashboard-design-note">Podés tener varias y alternarlas cuando te canses del mismo tablero.</div>
+        </div>
+        <div id="dashboard-design-saved" class="dashboard-saved-grid"></div>
+      </div>
+
+      <div class="dashboard-design-card">
+        <div class="dashboard-design-head">
+          <div>
             <div class="dashboard-design-kicker">Biblioteca</div>
-            <div class="dashboard-design-title">Todos los widgets disponibles para tu tablero</div>
+            <div class="dashboard-design-title">Widgets disponibles</div>
           </div>
           <div class="dashboard-design-note">Los ocultos siguen estando acá listos para volver a activarse.</div>
         </div>
@@ -589,34 +601,21 @@
       <div class="dashboard-design-card">
         <div class="dashboard-design-head">
           <div>
-            <div class="dashboard-design-kicker">Resumen</div>
-            <div class="dashboard-design-title">Cómo va a quedar tu dashboard</div>
+            <div class="dashboard-design-kicker">Vista previa</div>
+            <div class="dashboard-design-title">Así se ve tu layout actual</div>
           </div>
         </div>
-        <div id="dashboard-design-summary" class="dashboard-design-summary"></div>
+        <div id="dashboard-design-preview" class="dashboard-design-preview"></div>
       </div>
 
       <div class="dashboard-design-card">
         <div class="dashboard-design-head">
           <div>
-            <div class="dashboard-design-kicker">Ideas</div>
-            <div class="dashboard-design-title">Variantes para no aburrirte del mismo layout</div>
+            <div class="dashboard-design-kicker">Resumen</div>
+            <div class="dashboard-design-title">Lectura rápida de esta configuración</div>
           </div>
         </div>
-        <div class="dashboard-design-ideas">
-          <div class="dashboard-design-idea">
-            <strong>Minimal</strong>
-            <span>Dejá arriba solo control de gasto, agenda y compromisos.</span>
-          </div>
-          <div class="dashboard-design-idea">
-            <strong>Analítico</strong>
-            <span>Mostrá promedios, gráficos y categorías para leer mejor el período.</span>
-          </div>
-          <div class="dashboard-design-idea">
-            <strong>Enfoque ahorro</strong>
-            <span>Priorizá margen, agenda, compromisos y metas para tomar decisiones más rápidas.</span>
-          </div>
-        </div>
+        <div id="dashboard-design-summary" class="dashboard-design-summary"></div>
       </div>
     </div>
   </div>

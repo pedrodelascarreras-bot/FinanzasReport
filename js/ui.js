@@ -850,23 +850,82 @@ function saveDashboardDesignState(pageData, silent){
   if(!silent) showToast('Diseño del dashboard guardado', 'success');
 }
 
+function getDashboardSavedViews(){
+  const ls = loadLayoutState();
+  return Array.isArray(ls.dashboard?.savedViews) ? ls.dashboard.savedViews : [];
+}
+
+function saveDashboardSavedViews(views){
+  const ls = loadLayoutState();
+  ls.dashboard = {
+    ...(ls.dashboard || {}),
+    savedViews: views
+  };
+  saveLayoutState(ls);
+}
+
+function buildDashboardMiniPreview(designState){
+  const rows = [
+    (designState.widgetGroups['dashboard-utility'] || []).filter(key => !designState.widgetHidden.includes(key)).slice(0,2),
+    (designState.widgetGroups['dashboard-kpis'] || []).filter(key => !designState.widgetHidden.includes(key)).slice(0,4),
+    (designState.widgetGroups['dashboard-charts'] || []).filter(key => !designState.widgetHidden.includes(key)).slice(0,2),
+    (designState.widgetGroups['dashboard-widgets'] || []).filter(key => !designState.widgetHidden.includes(key)).slice(0,6)
+  ];
+  return `
+    <div class="dashboard-preview-canvas">
+      ${rows.map((row, idx)=>`
+        <div class="dashboard-preview-row row-${idx+1}">
+          ${row.length ? row.map(key=>`
+            <div class="dashboard-preview-block size-${row.length >= 4 ? 's' : row.length === 3 ? 'm' : 'l'}">
+              <span>${(DASHBOARD_WIDGET_META[key]?.label || key).replace(' del período','').replace(' próximos','')}</span>
+            </div>
+          `).join('') : `<div class="dashboard-preview-empty">sin widgets</div>`}
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
 function renderDashboardDesignPage(){
   const presetsEl = document.getElementById('dashboard-design-presets');
   const groupsEl = document.getElementById('dashboard-design-groups');
   const summaryEl = document.getElementById('dashboard-design-summary');
   const libraryEl = document.getElementById('dashboard-design-library');
-  if(!presetsEl || !groupsEl || !summaryEl || !libraryEl) return;
+  const previewEl = document.getElementById('dashboard-design-preview');
+  const savedEl = document.getElementById('dashboard-design-saved');
+  if(!presetsEl || !groupsEl || !summaryEl || !libraryEl || !previewEl || !savedEl) return;
 
   const designState = getDashboardDesignState();
   const groups = designState.widgetGroups || {};
   const visibleCount = Object.keys(DASHBOARD_WIDGET_META).filter(key => !designState.widgetHidden.includes(key)).length;
+  const savedViews = getDashboardSavedViews();
 
   presetsEl.innerHTML = Object.entries(DASHBOARD_DESIGN_PRESETS).map(([id,preset])=>`
     <button class="dashboard-preset-card" onclick="applyDashboardDesignPreset('${id}')">
+      <span class="dashboard-preset-preview">
+        <span></span><span></span><span></span><span></span>
+      </span>
       <span class="dashboard-preset-name">${preset.name}</span>
       <span class="dashboard-preset-desc">${preset.desc}</span>
     </button>
   `).join('');
+
+  savedEl.innerHTML = savedViews.length ? savedViews.map(view=>`
+    <div class="dashboard-saved-card">
+      <div class="dashboard-saved-top">
+        <div class="dashboard-saved-name">${view.name}</div>
+        <span class="dashboard-library-state on">guardada</span>
+      </div>
+      <div class="dashboard-saved-preview">
+        ${buildDashboardMiniPreview(view)}
+      </div>
+      <div class="dashboard-saved-actions">
+        <button class="dashboard-widget-mini" onclick="applySavedDashboardView('${view.id}')">Aplicar</button>
+        <button class="dashboard-widget-mini" onclick="renameSavedDashboardView('${view.id}')">Renombrar</button>
+        <button class="dashboard-widget-mini" onclick="deleteSavedDashboardView('${view.id}')">Borrar</button>
+      </div>
+    </div>
+  `).join('') : `<div class="dashboard-empty-note">Todavía no guardaste vistas propias. Cuando armes una que te guste, tocá <strong>Guardar vista</strong>.</div>`;
 
   libraryEl.innerHTML = Object.entries(DASHBOARD_WIDGET_META).map(([key, meta])=>{
     const hidden = designState.widgetHidden.includes(key);
@@ -933,8 +992,14 @@ function renderDashboardDesignPage(){
       <span class="dashboard-summary-label">Widgets disponibles</span>
       <strong>${Object.keys(DASHBOARD_WIDGET_META).length}</strong>
     </div>
-    <div class="dashboard-summary-copy">Tip: podés dejar una versión más minimal para mirar rápido y después volver a una más analítica cuando quieras revisar el período a fondo.</div>
+    <div class="dashboard-summary-stat">
+      <span class="dashboard-summary-label">Vistas guardadas</span>
+      <strong>${savedViews.length}</strong>
+    </div>
+    <div class="dashboard-summary-copy">Usá presets para cambiar rápido el estilo general y guardá tus propias vistas para alternar entre tableros más minimalistas, ejecutivos o analíticos.</div>
   `;
+
+  previewEl.innerHTML = buildDashboardMiniPreview(designState);
 }
 
 function applyDashboardDesignPreset(presetId){
@@ -991,4 +1056,50 @@ function resetDashboardDesign(){
   applyLayout('dashboard');
   renderDashboardDesignPage();
   showToast('Diseño restablecido', 'success');
+}
+
+function saveCurrentDashboardView(){
+  const name = prompt('¿Cómo querés llamar a esta vista del dashboard?');
+  if(!name || !name.trim()) return;
+  const designState = getDashboardDesignState();
+  const views = getDashboardSavedViews();
+  const id = 'dashview-' + Date.now();
+  views.unshift({
+    id,
+    name: name.trim(),
+    ...designState
+  });
+  saveDashboardSavedViews(views.slice(0,8));
+  renderDashboardDesignPage();
+  showToast('Vista guardada', 'success');
+}
+
+function applySavedDashboardView(id){
+  const view = getDashboardSavedViews().find(v => v.id === id);
+  if(!view) return;
+  saveDashboardDesignState({
+    order: view.order || [],
+    hidden: view.hidden || [],
+    widgetGroups: view.widgetGroups || {},
+    widgetHidden: view.widgetHidden || []
+  });
+  renderDashboardDesignPage();
+}
+
+function renameSavedDashboardView(id){
+  const views = getDashboardSavedViews();
+  const view = views.find(v => v.id === id);
+  if(!view) return;
+  const next = prompt('Nuevo nombre para esta vista:', view.name || '');
+  if(!next || !next.trim()) return;
+  view.name = next.trim();
+  saveDashboardSavedViews(views);
+  renderDashboardDesignPage();
+}
+
+function deleteSavedDashboardView(id){
+  const views = getDashboardSavedViews().filter(v => v.id !== id);
+  saveDashboardSavedViews(views);
+  renderDashboardDesignPage();
+  showToast('Vista eliminada', 'success');
 }
