@@ -3,12 +3,18 @@ const MNAMES_R=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto
 
 // ── Email Report ──────────────────────────────────────────────────────────────
 // URL del servidor de reportes:
-// prioridad: localStorage/state -> fallback localhost
+// prioridad: state -> localStorage -> Render -> localhost
 const REPORT_SERVER_URL = String(
   state.reportServerUrl
   || localStorage.getItem('fin_report_server_url')
+  || 'https://finanzas-report-server.onrender.com'
   || 'http://localhost:3001'
 ).replace(/\/+$/,'');
+
+if(!state.reportServerUrl) state.reportServerUrl = REPORT_SERVER_URL;
+if(!localStorage.getItem('fin_report_server_url')) {
+  localStorage.setItem('fin_report_server_url', REPORT_SERVER_URL);
+}
 
 function openSendReportModal() {
   openModal('modal-send-report');
