@@ -204,8 +204,9 @@ function getDashboardTimelineData(baseDate=new Date()){
     const day=snap?.cfg?.day||snap?.scheduleDay||null;
     if(!snap||snap.paid>=snap.total||!day||typeof getNextCuotaDate!=='function') return;
     const nextDate=getNextCuotaDate(day);
+    const cuotaName=g.displayName||g.name;
     if(nextDate&&nextDate>=today){
-      events.push({type:'commitment', title:g.name, shortLabel:g.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:snap.amountPerCuota, page:'cuotas'});
+      events.push({type:'commitment', title:cuotaName, shortLabel:cuotaName, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:snap.amountPerCuota, page:'cuotas'});
     }
   });
   (state.cuotas||[]).forEach(c=>{
@@ -273,11 +274,12 @@ function getGlobalSearchBuckets(query=''){
   if(txns.length) buckets.push({title:'Movimientos', items:txns});
 
   const autoGroups=(typeof detectAutoCuotas==='function'?detectAutoCuotas():[])
-    .filter(g=>!q||match(g.name))
+    .filter(g=>!q||match(g.displayName||g.name)||match(g.name))
     .slice(0,4)
     .map(g=>{
       const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(g):null;
-      return {icon:'loop',title:g.name,meta:`${snap?snap.paid:1}/${snap?snap.total:(g.transactions?.[0]?.cuotaTotal||1)} pagadas · $${fmtN(Math.round(snap?snap.amountPerCuota:g.amount||0))} por cuota`,action:'page',payload:'cuotas',tag:'cuota'};
+      const cuotaName=g.displayName||g.name;
+      return {icon:'loop',title:cuotaName,meta:`${snap?snap.paid:1}/${snap?snap.total:(g.transactions?.[0]?.cuotaTotal||1)} pagadas · $${fmtN(Math.round(snap?snap.amountPerCuota:g.amount||0))} por cuota`,action:'page',payload:'cuotas',tag:'cuota'};
     });
   if(autoGroups.length) buckets.push({title:'Cuotas', items:autoGroups});
 

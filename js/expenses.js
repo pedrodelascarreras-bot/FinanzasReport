@@ -13,7 +13,8 @@ function detectAutoCuotas(){
     // normalize key: strip the cuota number from description to get the base name
     const baseName=t.description.replace(/\s*\d+\/\d+\s*$/,'').replace(/cuota\s+\d+\s+de\s+\d+/i,'').trim();
     const key=baseName.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'').substring(0,30);
-    if(!groups[key])groups[key]={key,name:baseName,transactions:[],amount:t.amount,currency:t.currency};
+    const alias=state.autoCuotaConfig?.[key]?.alias?.trim();
+    if(!groups[key])groups[key]={key,name:baseName,displayName:alias||baseName,transactions:[],amount:t.amount,currency:t.currency};
     groups[key].transactions.push(t);
   });
   return Object.values(groups).filter(g=>!state.dismissedAutoCuotas.includes(g.key));
@@ -107,7 +108,7 @@ function renderCuotas(){
         if(_projected.length>0){const _np=_projected.sort((a,b)=>new Date(a.date)-new Date(b.date))[0];nextPayDate=new Date(_np.date);}
       }
     }
-    return buildCuotaCard(g.key,g.name,'🛒',amountPerCuota,g.currency||'ARS',paid,total,rem,pct,daysUntil,day,remainingTotal,false,null,nextPayDate);
+    return buildCuotaCard(g.key,g.displayName||g.name,'🛒',amountPerCuota,g.currency||'ARS',paid,total,rem,pct,daysUntil,day,remainingTotal,false,null,nextPayDate);
   }).join('');
   document.getElementById('cuotas-grid').innerHTML=autoCards||'<div style="color:var(--text3);font-size:13px;font-family:var(--font);">Las cuotas se detectan automáticamente al importar tu CSV.</div>';
   // Manual cuotas
@@ -194,7 +195,8 @@ function openAutoCuotaModal(key){
   const g=detectAutoCuotas().find(g=>g.key===key);if(!g)return;
   const cfg=state.autoCuotaConfig[key]||{};
   const snap=getAutoCuotaSnapshot(g);
-  document.getElementById('modal-cuota-auto-desc').textContent=g.name+' · $'+fmtN(g.amount)+' por cuota';
+  document.getElementById('modal-cuota-auto-desc').textContent=(g.displayName||g.name)+' · $'+fmtN(g.amount)+' por cuota';
+  document.getElementById('autocuota-alias').value=cfg.alias||'';
   document.getElementById('autocuota-total').value=cfg.total||g.transactions[0]?.cuotaTotal||'';
   document.getElementById('autocuota-paid').value=cfg.paid!==undefined?cfg.paid:snap.paid;
   document.getElementById('autocuota-day').value=cfg.day||'';
@@ -203,10 +205,11 @@ function openAutoCuotaModal(key){
 }
 function saveAutoCuota(){
   const key=document.getElementById('autocuota-key').value;
+  const alias=document.getElementById('autocuota-alias').value.trim();
   const total=parseInt(document.getElementById('autocuota-total').value)||null;
   const paid=parseInt(document.getElementById('autocuota-paid').value);
   const day=parseInt(document.getElementById('autocuota-day').value)||null;
-  state.autoCuotaConfig[key]={total,paid,day};
+  state.autoCuotaConfig[key]={total,paid,day,alias};
   saveState();closeModal('modal-cuota-auto');renderCuotas();refreshAll();showToast('✓ Configuración guardada','success');
 }
 
