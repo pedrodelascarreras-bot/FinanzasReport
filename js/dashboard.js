@@ -1248,6 +1248,7 @@ function renderDashboard(){
     // Animate compromisos donut (% of income)
     const compDonut=document.getElementById('comp-donut-fill');
     const compDonutLabel=document.getElementById('comp-donut-label');
+    const compMeta=document.querySelector('.comp-donut-meta');
     if(compDonut&&incTotalARS>0){
       const compPct=Math.min(Math.round(compromisoTotal/incTotalARS*100),100);
       const tone=compPct>50?'var(--danger)':compPct>30?'var(--accent3)':'var(--accent2)';
@@ -1257,11 +1258,13 @@ function renderDashboard(){
         animateNumberText(compDonutLabel,compPct,{decimals:0,duration:760,suffix:'%',formatter:(n)=>`${Math.round(n)}%`});
         compDonutLabel.style.color=tone;
       }
+      if(compMeta)compMeta.textContent='Porcentaje del ingreso comprometido';
     } else if(compDonut){
       const circumference=2*Math.PI*38;
       compDonut.style.strokeDasharray=`${circumference}`;
       compDonut.style.strokeDashoffset=`${circumference}`;
       if(compDonutLabel)compDonutLabel.textContent='—';
+      if(compMeta)compMeta.textContent='Porcentaje del ingreso comprometido';
     }
   }
 
