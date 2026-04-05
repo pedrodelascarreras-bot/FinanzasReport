@@ -246,6 +246,11 @@
                 </div>
               ` : ''}
             </div>
+
+            <div class="sp-pre-auth fade-in d4">
+              <button class="sp-cta sp-cta-inline" id="splash-primary-cta" onclick="handleSplashPrimaryAction(event)">Iniciar sesión con Google &nbsp;→</button>
+              <div id="sp-google-gate" class="sp-google-gate"></div>
+            </div>
           </div>
 
           <div class="sp-reel fade-in d2" aria-hidden="true">
@@ -259,7 +264,10 @@
               <div class="sp-reel-sub">${reelSub}</div>
               <div class="sp-reel-chart">
                 ${reelSeries.map(([name,amount],idx)=>{
-                  const pct = curTotal>0 && topThree.length ? Math.max(18, Math.round((amount/curTotal)*100)) : [72, 54, 38][idx] || 28;
+                  const topAmount = topThree.length ? Math.max(...topThree.map(([,v]) => v || 0), 1) : Math.max(...reelSeries.map(([,v]) => v || 0), 1);
+                  const pct = topThree.length
+                    ? Math.max(16, Math.round((amount / topAmount) * 100))
+                    : [100, 72, 48][idx] || 28;
                   return `
                     <div class="sp-reel-bar-col" style="--bar-h:${pct}%;--bar-delay:${idx * 140}ms;">
                       <div class="sp-reel-bar"></div>
@@ -337,13 +345,8 @@
     }
 
     if(content){
-      let gate = document.getElementById('sp-google-gate');
-      if(!gate){
-        gate = document.createElement('div');
-        gate.id = 'sp-google-gate';
-        gate.className = 'sp-google-gate';
-        content.insertAdjacentElement('afterend', gate);
-      }
+      const gate = document.getElementById('sp-google-gate');
+      if(!gate) return;
       gate.innerHTML = connected
         ? '<div class="sp-google-gate ok">Google conectado. Ya podés entrar a la app con tus datos sincronizados.</div>'
         : '<div class="sp-google-gate warn">Para entrar a la app y ver tus datos sincronizados, iniciá sesión con Google desde este panel.</div>';

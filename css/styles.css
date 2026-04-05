@@ -3208,6 +3208,17 @@ select.input-field { cursor: pointer; }
 .sp-google-gate {
   margin-top: 14px;
 }
+.sp-pre-auth {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-end;
+  min-height: 118px;
+}
+.sp-cta-inline {
+  width: min(360px, 100%);
+}
 .sp-google-gate > div {
   border-radius: 14px;
   padding: 12px 14px;
@@ -6291,6 +6302,9 @@ body.light-mode .insights-panel-shell {
 }
 .sp-footer {
   margin-top: 8px;
+}
+body.light-mode .sp-cta-inline {
+  box-shadow: 0 12px 30px rgba(69, 97, 140, 0.12);
 }
 
 body.light-mode #splash {
