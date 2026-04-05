@@ -249,29 +249,37 @@
               <button class="btn btn-ghost btn-sm btn-xs" onclick="event.stopPropagation();openUsdRateModal()">✎ Editar</button>
             </div>
           </div>
-          <button class="dash-utility-card" id="timeline-card-close" onclick="nav('credit-cards')">
-            <div class="dash-utility-topline">
+          <button class="dash-utility-card dash-utility-card-timeline" id="timeline-card" onclick="nav('cuotas')">
+            <div class="dash-utility-topline dash-utility-topline-compact">
               <span class="dash-utility-kicker">Timeline financiera</span>
-              <span id="timeline-close-chip" class="dash-utility-pill">sin ciclo</span>
+              <span class="dash-utility-pill">agenda viva</span>
             </div>
-            <div id="timeline-close-value" class="dash-utility-value">Sin cierre próximo</div>
-            <div id="timeline-close-date" class="dash-utility-subline">Configurá fechas de tarjeta para seguir el ciclo.</div>
-          </button>
-          <button class="dash-utility-card" id="timeline-card-commitment" onclick="nav('cuotas')">
-            <div class="dash-utility-topline">
-              <span class="dash-utility-kicker">Próximo compromiso</span>
-              <span id="timeline-commitment-chip" class="dash-utility-pill">sin eventos</span>
+            <div class="dash-timeline-shell">
+              <div class="dash-timeline-block">
+                <div class="dash-timeline-block-top">
+                  <span class="dash-timeline-label">Cierre</span>
+                  <span id="timeline-close-chip" class="dash-utility-pill">sin ciclo</span>
+                </div>
+                <div id="timeline-close-value" class="dash-utility-value">Sin cierre próximo</div>
+                <div id="timeline-close-date" class="dash-utility-subline">Configurá fechas de tarjeta para seguir el ciclo.</div>
+              </div>
+              <div class="dash-timeline-block">
+                <div class="dash-timeline-block-top">
+                  <span class="dash-timeline-label">Próximo compromiso</span>
+                  <span id="timeline-commitment-chip" class="dash-utility-pill">sin eventos</span>
+                </div>
+                <div id="timeline-commitment-value" class="dash-utility-value">Sin vencimientos cercanos</div>
+                <div id="timeline-commitment-date" class="dash-utility-subline">Tus próximos pagos aparecerán acá.</div>
+              </div>
+              <div class="dash-timeline-block">
+                <div class="dash-timeline-block-top">
+                  <span class="dash-timeline-label">Próximos 7 días</span>
+                  <span id="timeline-week-chip" class="dash-utility-pill">0 eventos</span>
+                </div>
+                <div id="timeline-week-value" class="dash-utility-value">$0</div>
+                <div id="timeline-week-date" class="dash-utility-subline">Sin presión inmediata en la agenda financiera.</div>
+              </div>
             </div>
-            <div id="timeline-commitment-value" class="dash-utility-value">Sin vencimientos cercanos</div>
-            <div id="timeline-commitment-date" class="dash-utility-subline">Tus próximos pagos aparecerán acá.</div>
-          </button>
-          <button class="dash-utility-card" id="timeline-card-week" onclick="nav('cuotas')">
-            <div class="dash-utility-topline">
-              <span class="dash-utility-kicker">Próximos 7 días</span>
-              <span id="timeline-week-chip" class="dash-utility-pill">0 eventos</span>
-            </div>
-            <div id="timeline-week-value" class="dash-utility-value">$0</div>
-            <div id="timeline-week-date" class="dash-utility-subline">Sin presión inmediata en la agenda financiera.</div>
           </button>
         </div>
       </div>

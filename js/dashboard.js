@@ -133,6 +133,9 @@ function renderUiGlyph(name){
 function stripHtml(text){
   return String(text||'').replace(/<[^>]*>/g,'').trim();
 }
+function expandPeriodYearLabel(label=''){
+  return String(label||'').replace(/\b(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre)\s+(\d{2})\b/gi,(_,month,yy)=>`${month} 20${yy}`);
+}
 function getIncomeSnapshot(monthKey){
   let ars=(state.income?.ars||0)+(state.income?.varArs||0);
   let usd=(state.income?.usd||0)+(state.income?.varUsd||0);
@@ -662,11 +665,11 @@ function renderDashboard(){
       if(open){
         const openD=new Date(open+'T12:00:00');
         const closeD=new Date(activeTcCycle.closeDate+'T12:00:00');
-        tcPeriodLabel=activeTcCycle.label+' · '+openD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' → '+closeD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'});
+        tcPeriodLabel='Ciclo actual · '+expandPeriodYearLabel(activeTcCycle.label)+' · '+openD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' → '+closeD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'});
         monthTxns=getTcCycleTxns(activeTcCycle, cycles);
       } else {
         monthTxns=[];
-        tcPeriodLabel=activeTcCycle.label;
+        tcPeriodLabel='Ciclo actual · '+expandPeriodYearLabel(activeTcCycle.label);
       }
     } else {
       monthTxns=[];
