@@ -44,18 +44,35 @@ async function _checkReportServerStatus() {
   const sendBtn = document.getElementById('sre-send-btn');
   if(!indEl) return;
   indEl.innerHTML = '<span style="opacity:.5">⏳ Verificando servidor…</span>';
+  const isHosted = !/localhost|127\.0\.0\.1/.test(REPORT_SERVER_URL);
   try {
-    const res = await fetch(`${REPORT_SERVER_URL}/`, { signal: AbortSignal.timeout(3000) });
-    if(res.ok) {
+    let res = null;
+    let lastErr = null;
+    for(let attempt=0;attempt<2;attempt++){
+      try{
+        res = await fetch(`${REPORT_SERVER_URL}/health`, { signal: AbortSignal.timeout(isHosted?12000:4000) });
+        if(res.ok) break;
+        lastErr = new Error('not ok');
+      }catch(err){
+        lastErr = err;
+        if(isHosted && attempt===0){
+          indEl.innerHTML = '<span style="opacity:.7">⏳ Despertando servidor de Render… puede tardar unos segundos</span>';
+          await new Promise(resolve=>setTimeout(resolve, 3500));
+        }
+      }
+    }
+    if(res && res.ok) {
       state._reportServerAvailable = true;
       indEl.innerHTML = '<span style="color:var(--green-sys);">🟢 Servidor activo — listo para enviar</span>';
       if(sendBtn){ sendBtn.disabled = false; sendBtn.innerHTML=`<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M1 8L15 1M15 1L8 15M15 1L1 15" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg> Enviar ahora`; }
-    } else {
-      throw new Error('not ok');
+      return;
     }
+    throw lastErr || new Error('not ok');
   } catch(e) {
     state._reportServerAvailable = false;
-    indEl.innerHTML = '<span style="color:var(--accent3);">🟠 Servidor no disponible</span> <span style="color:var(--text3);font-size:10px;">Podés abrir el PDF local ahora. Para envío por email automático, corré <code style="background:var(--surface3);padding:1px 5px;border-radius:4px;">node report/server.js</code> en Terminal</span>';
+    indEl.innerHTML = isHosted
+      ? '<span style="color:var(--accent3);">🟠 No se pudo conectar con tu servidor de reportes</span> <span style="color:var(--text3);font-size:10px;">Si el servicio está dormido, esperá unos segundos y volvé a probar. Mientras tanto podés abrir el PDF local.</span>'
+      : '<span style="color:var(--accent3);">🟠 Servidor local no disponible</span> <span style="color:var(--text3);font-size:10px;">Podés abrir el PDF local ahora. Para envío por email automático, corré <code style="background:var(--surface3);padding:1px 5px;border-radius:4px;">node report/server.js</code> en Terminal</span>';
     if(sendBtn){ sendBtn.disabled = false; sendBtn.innerHTML=`<svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2 2h12v12H2z" stroke="currentColor" stroke-width="1.6"/><path d="M5 6h6M5 9h6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg> Abrir PDF`; }
   }
 }
@@ -65,11 +82,15 @@ async function sendReportNow() {
   const statusEl = document.getElementById('sre-status');
 
   if(state._reportServerAvailable === false) {
+    await _checkReportServerStatus();
+  }
+
+  if(state._reportServerAvailable === false) {
     if(statusEl) {
       statusEl.style.display='block';
       statusEl.style.background='var(--blue-light)';
       statusEl.style.color='var(--accent)';
-      statusEl.textContent='Servidor local no disponible. Te abro el reporte para guardarlo como PDF manualmente.';
+      statusEl.textContent='No pude conectar con el servidor de reportes. Te abro el reporte para guardarlo como PDF manualmente.';
     }
     exportRepPDF();
     showToast('PDF abierto localmente', 'info');
@@ -112,7 +133,9 @@ async function sendReportNow() {
   } catch(err) {
     let msg;
     if(err.name === 'AbortError' || err.message?.includes('fetch')) {
-      msg = '⚠️ No se pudo conectar con el servidor local. ¿Está corriendo report/server.js?\n\nCorré en Terminal: node report/server.js';
+      msg = /localhost|127\.0\.0\.1/.test(REPORT_SERVER_URL)
+        ? '⚠️ No se pudo conectar con el servidor local. ¿Está corriendo report/server.js?\n\nCorré en Terminal: node report/server.js'
+        : '⚠️ No se pudo conectar con tu servidor de reportes en Render. Esperá unos segundos y volvé a probar.';
     } else {
       msg = '✕ ' + (err.message || 'Error desconocido');
     }
