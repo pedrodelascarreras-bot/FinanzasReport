@@ -415,6 +415,10 @@ let gmailAccessToken = null;
 let pendingGmailTxns = [];
 let driveReconnectInFlight = false;
 
+function isGoogleConnected() {
+  return !!(driveReady && driveAccessToken);
+}
+
 function sanitizeGoogleClientId(raw) {
   const id = String(raw || '').replace(/\s+/g, '').trim();
   return /\.apps\.googleusercontent\.com$/.test(id) ? id : '';
@@ -1059,14 +1063,5 @@ function confirmGmailImport() {
 
 // Auto-sync DESACTIVADO — sync solo manual via botón Gmail
 window.addEventListener('load', () => {
-  const clientId = getGmailClientId();
-  if (clientId) {
-    setTimeout(() => attemptDriveReconnect(false), 900);
-  }
-});
-
-document.addEventListener('visibilitychange', () => {
-  if (document.visibilityState === 'visible') {
-    attemptDriveReconnect(false);
-  }
+  updateGmailBtn(isGoogleConnected() ? 'connected' : 'idle');
 });

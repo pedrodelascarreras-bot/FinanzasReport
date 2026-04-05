@@ -4,10 +4,12 @@
 
 (function(){
 
+  function _requiresGoogleGate(){
+    return typeof isGoogleConnected === 'function' ? !isGoogleConnected() : true;
+  }
+
   // ── Entry point ──────────────────────────────────────────
   function initSplash(){
-    if(!state.transactions||!state.transactions.length) return;
-
     const el = document.getElementById('splash');
     if(!el) return;
 
@@ -20,14 +22,16 @@
     const cta = el.querySelector('.sp-cta');
     if(cta) {
       cta.onclick = (e) => {
-        dismissSplash();
+        handleSplashPrimaryAction(e);
       };
     }
+
+    refreshSplashGoogleState(false);
 
     _startCountdown(el);
 
     const _kd = e => {
-      if(['Enter','Escape',' '].includes(e.key)){
+      if(['Enter','Escape',' '].includes(e.key) && !_requiresGoogleGate()){
         dismissSplash();
         document.removeEventListener('keydown', _kd);
       }
@@ -40,6 +44,7 @@
   function dismissSplash(){
     const el = document.getElementById('splash');
     if(!el || !el.classList.contains('visible')) return;
+    if(_requiresGoogleGate()) return;
 
 
     if(el._interval) clearInterval(el._interval);
@@ -322,8 +327,51 @@
     }
   }
 
+  function refreshSplashGoogleState(autoDismiss){
+    const cta = document.getElementById('splash-primary-cta');
+    const content = document.getElementById('sp-content');
+    const connected = typeof isGoogleConnected === 'function' && isGoogleConnected();
+
+    if(cta){
+      cta.innerHTML = connected ? 'Continuar &nbsp;→' : 'Iniciar sesión con Google &nbsp;→';
+    }
+
+    if(content){
+      let gate = document.getElementById('sp-google-gate');
+      if(!gate){
+        gate = document.createElement('div');
+        gate.id = 'sp-google-gate';
+        gate.className = 'sp-google-gate';
+        content.insertAdjacentElement('afterend', gate);
+      }
+      gate.innerHTML = connected
+        ? '<div class="sp-google-gate ok">Google conectado. Ya podés entrar a la app con tus datos sincronizados.</div>'
+        : '<div class="sp-google-gate warn">Para entrar a la app y ver tus datos sincronizados, iniciá sesión con Google desde este panel.</div>';
+    }
+
+    if(connected && autoDismiss){
+      setTimeout(()=>dismissSplash(), 260);
+    }
+  }
+
+  function handleSplashPrimaryAction(event){
+    if(event){
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    if(typeof isGoogleConnected === 'function' && isGoogleConnected()){
+      dismissSplash();
+      return;
+    }
+    if(typeof openCloudSync === 'function'){
+      openCloudSync(event);
+    }
+  }
+
   // ── Expose globals ──
   window.initSplash   = initSplash;
   window.dismissSplash = dismissSplash;
+  window.refreshSplashGoogleState = refreshSplashGoogleState;
+  window.handleSplashPrimaryAction = handleSplashPrimaryAction;
 
 })();

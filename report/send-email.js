@@ -12,7 +12,7 @@ function fmtN(n) {
   return Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
-async function sendReportEmail(report, aiInsights, pdfPath) {
+async function sendReportEmail(report, aiInsights, pdfPath, options = {}) {
   const apiKey = process.env.RESEND_API_KEY;
   const to = process.env.REPORT_TO_EMAIL;
   const from = process.env.REPORT_FROM_EMAIL || 'Finanzas <onboarding@resend.dev>';
@@ -97,7 +97,7 @@ async function sendReportEmail(report, aiInsights, pdfPath) {
       ` : ''}
       
       <p style="font-size:12px;color:#AEAEB2;margin:24px 0 0;text-align:center;">
-        📎 Reporte completo adjunto en PDF
+        📎 Vas a recibir el reporte técnico y una versión visual inspirada en la vista previa de la app
       </p>
     </div>
     
@@ -109,21 +109,31 @@ async function sendReportEmail(report, aiInsights, pdfPath) {
 </html>`;
 
   // ── Enviar ──
+  const attachments = [];
   const pdfBuffer = fs.readFileSync(pdfPath);
   const fileName = `reporte-financiero-${formatDateFile(report.period.weekEnd)}.pdf`;
+  attachments.push({
+    filename: fileName,
+    content: pdfBuffer.toString('base64'),
+    contentType: 'application/pdf',
+  });
+
+  if (options.previewPdfPath) {
+    const previewBuffer = fs.readFileSync(options.previewPdfPath);
+    const previewFileName = `reporte-financiero-vista-previa-${formatDateFile(report.period.weekEnd)}.pdf`;
+    attachments.push({
+      filename: previewFileName,
+      content: previewBuffer.toString('base64'),
+      contentType: 'application/pdf',
+    });
+  }
 
   const result = await resend.emails.send({
     from,
     to: [to],
     subject: `📊 Reporte Financiero — Semana del ${formatDateShort(report.period.weekStart)}`,
     html,
-    attachments: [
-      {
-        filename: fileName,
-        content: pdfBuffer.toString('base64'),
-        contentType: 'application/pdf',
-      },
-    ],
+    attachments,
   });
 
   console.log(`✓ Email enviado a ${to} (ID: ${result.data?.id || 'ok'})`);

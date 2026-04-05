@@ -98,6 +98,7 @@ function initDriveClient(autoSync){
             if(state.transactions.length){document.getElementById('dash-empty').style.display='none';document.getElementById('dash-content').style.display='flex';}
             updateSidebarStats();renderDashboard();renderTransactions();renderCuotas();
           }
+          if(typeof refreshSplashGoogleState === 'function') refreshSplashGoogleState(true);
           // Auto-sync DESACTIVADO — nunca sincronizar automáticamente
           if(autoSync||window._gmailSyncPending){window._gmailSyncPending=false;openGmailPeriodModal();}
         });

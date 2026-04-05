@@ -17,6 +17,7 @@ const { fetchFinanceData } = require('./fetch-data');
 const { buildReport } = require('./build-report');
 const { generateInsights } = require('./ai-insights');
 const { generatePDF } = require('./generate-pdf');
+const { generatePreviewPDF } = require('./generate-preview-pdf');
 const { sendReportEmail } = require('./send-email');
 
 async function run() {
@@ -54,13 +55,17 @@ async function run() {
 
     // ── Paso 4: Generar PDF ──
     console.log('📄 Paso 4/5: Generando PDF...');
-const pdfPath = path.join(__dirname, 'reporte-semanal.pdf');
+    const pdfPath = path.join(__dirname, 'reporte-semanal.pdf');
     await generatePDF(report, aiInsights, pdfPath);
     console.log(`   PDF guardado: ${pdfPath}\n`);
 
+    const previewPdfPath = path.join(__dirname, 'reporte-semanal-vista-previa.pdf');
+    await generatePreviewPDF(report, aiInsights, previewPdfPath);
+    console.log(`   PDF vista previa guardado: ${previewPdfPath}\n`);
+
     // ── Paso 5: Enviar email ──
     console.log('📧 Paso 5/5: Enviando email...');
-    await sendReportEmail(report, aiInsights, pdfPath);
+    await sendReportEmail(report, aiInsights, pdfPath, { previewPdfPath });
 
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     console.log('\n═══════════════════════════════════════════');
