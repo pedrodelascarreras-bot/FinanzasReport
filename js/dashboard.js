@@ -639,7 +639,7 @@ function renderDashboard(){
       // TC mode: show cycle list
       const _cycles=getTcCycles();
       const _selId=state.dashTcCycle||'';
-      _dashSel.innerHTML='<option value="">Ciclo actual</option>'+_cycles.map(c=>'<option value="'+c.id+'" '+(c.id===_selId?'selected':'')+'>'+esc(c.label)+'</option>').join('');
+      _dashSel.innerHTML='<option value="">Ciclo actual</option>'+_cycles.map(c=>'<option value="'+c.id+'" '+(c.id===_selId?'selected':'')+'>'+esc(expandPeriodYearLabel(c.label||''))+'</option>').join('');
     } else {
       // Mes mode: show calendar months
       if(!_dashSel.querySelector('option[value="'+activeMk+'"]')){
@@ -893,8 +893,8 @@ function renderDashboard(){
   }
   renderDecisionCenter({
     kicker:liveAlerts.length?'CENTRO DE ALERTAS Y DECISIONES':'CENTRO DE DECISIONES',
-    title:liveAlerts.length?`Alertas reales y próximos pasos para ${isTcView?(activeTcCycle?.label||'este ciclo'):(dashMonthNames[pM-1]+' '+pY)}`:`Prioridades claras para ${isTcView?(activeTcCycle?.label||'este ciclo'):(dashMonthNames[pM-1]+' '+pY)}`,
-    periodLabel:isTcView?(activeTcCycle?.label||'este ciclo'):(dashMonthNames[pM-1]+' '+pY),
+    title:liveAlerts.length?`Alertas reales y próximos pasos para ${isTcView?(expandPeriodYearLabel(activeTcCycle?.label||'este ciclo')):(dashMonthNames[pM-1]+' '+pY)}`:`Prioridades claras para ${isTcView?(expandPeriodYearLabel(activeTcCycle?.label||'este ciclo')):(dashMonthNames[pM-1]+' '+pY)}`,
+    periodLabel:isTcView?(expandPeriodYearLabel(activeTcCycle?.label||'este ciclo')):(dashMonthNames[pM-1]+' '+pY),
     summary:liveAlerts[0]?stripHtml(liveAlerts[0].body):aiItems[1]?stripHtml(aiItems[1].headline):'Tu tablero ahora destaca lo urgente, lo importante y la próxima mejor acción.',
     alertCount:liveAlerts.length,
     cards:decisionCards.slice(0,4)
@@ -1006,7 +1006,7 @@ function renderDashboard(){
 
   // ── Hero ──
   const dhcML=document.getElementById('dhc-month-label');
-  if(dhcML)dhcML.textContent=isTcView&&activeTcCycle?activeTcCycle.label.toUpperCase():(MNAMES[pM-1]+' '+pY).toUpperCase();
+  if(dhcML)dhcML.textContent=isTcView&&activeTcCycle?expandPeriodYearLabel(activeTcCycle.label||'').toUpperCase():(MNAMES[pM-1]+' '+pY).toUpperCase();
   animateNumberText(document.getElementById('kpi-ars'),totalGastoARS,{prefix:'$',decimals:2,duration:920});
   // ARS/USD breakdown line
   const _arsLine=document.getElementById('dhc-ars-line');
@@ -1179,7 +1179,7 @@ function renderDashboard(){
   });
   const cycleCaption=document.getElementById('kpi-cycle-caption');
   if(cycleCaption){
-    cycleCaption.textContent=_currentTcCyc?.label||'Sin ciclo activo';
+    cycleCaption.textContent=_currentTcCyc?.label?expandPeriodYearLabel(_currentTcCyc.label):'Sin ciclo activo';
   }
   // Hidden compat element
   document.getElementById('kpi-tc').textContent=hasPayTagsWidget?'$'+fmtN(tcWidgetAmt+debWidgetAmt):'$'+fmtN(_tcWidgetTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0));

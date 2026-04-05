@@ -1,4 +1,23 @@
 // ══ CUOTAS ══
+function normalizeAutoCuotaSlug(value=''){
+  return String(value||'').toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'').replace(/-+/g,'-').replace(/^-|-$/g,'');
+}
+function getLegacyAutoCuotaKey(baseName=''){
+  return normalizeAutoCuotaSlug(baseName).substring(0,30);
+}
+function getAutoCuotaKey(txn, baseName=''){
+  if(txn?.cuotaGroupId){
+    const groupKey=normalizeAutoCuotaSlug(String(txn.cuotaGroupId));
+    if(groupKey) return 'grp-'+groupKey;
+  }
+  const normalized=normalizeAutoCuotaSlug(baseName);
+  return normalized||getLegacyAutoCuotaKey(baseName)||('cuota-'+Date.now());
+}
+function getAutoCuotaConfig(group){
+  const cfgs=state.autoCuotaConfig||{};
+  return cfgs[group.key]||cfgs[group.legacyKey]||{};
+}
+
 function dismissAutoCuota(key){
   if(!state.dismissedAutoCuotas) state.dismissedAutoCuotas=[];
   if(!state.dismissedAutoCuotas.includes(key)) state.dismissedAutoCuotas.push(key);
@@ -12,15 +31,16 @@ function detectAutoCuotas(){
   state.transactions.filter(t=>t.cuotaNum&&t.cuotaTotal).forEach(t=>{
     // normalize key: strip the cuota number from description to get the base name
     const baseName=t.description.replace(/\s*\d+\/\d+\s*$/,'').replace(/cuota\s+\d+\s+de\s+\d+/i,'').trim();
-    const key=baseName.toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'').substring(0,30);
-    const alias=state.autoCuotaConfig?.[key]?.alias?.trim();
-    if(!groups[key])groups[key]={key,name:baseName,displayName:alias||baseName,transactions:[],amount:t.amount,currency:t.currency};
+    const key=getAutoCuotaKey(t,baseName);
+    const legacyKey=getLegacyAutoCuotaKey(baseName);
+    const alias=(state.autoCuotaConfig?.[key]?.alias||state.autoCuotaConfig?.[legacyKey]?.alias||'').trim();
+    if(!groups[key])groups[key]={key,legacyKey,name:baseName,displayName:alias||baseName,transactions:[],amount:t.amount,currency:t.currency};
     groups[key].transactions.push(t);
   });
-  return Object.values(groups).filter(g=>!state.dismissedAutoCuotas.includes(g.key));
+  return Object.values(groups).filter(g=>!state.dismissedAutoCuotas.includes(g.key)&&!state.dismissedAutoCuotas.includes(g.legacyKey));
 }
 function getAutoCuotaSnapshot(group, baseDate=new Date()){
-  const cfg=state.autoCuotaConfig[group.key]||{};
+  const cfg=getAutoCuotaConfig(group);
   const actualTxns=group.transactions.filter(t=>!t.isPendingCuota);
   const txSorted=[...actualTxns].sort((a,b)=>new Date(a.date)-new Date(b.date)||((a.cuotaNum||0)-(b.cuotaNum||0)));
   const firstTxn=txSorted[0]||null;
@@ -193,7 +213,7 @@ function deleteCuota(){
 }
 function openAutoCuotaModal(key){
   const g=detectAutoCuotas().find(g=>g.key===key);if(!g)return;
-  const cfg=state.autoCuotaConfig[key]||{};
+  const cfg=getAutoCuotaConfig(g);
   const snap=getAutoCuotaSnapshot(g);
   document.getElementById('modal-cuota-auto-desc').textContent=(g.displayName||g.name)+' · $'+fmtN(g.amount)+' por cuota';
   document.getElementById('autocuota-alias').value=cfg.alias||'';
@@ -209,7 +229,12 @@ function saveAutoCuota(){
   const total=parseInt(document.getElementById('autocuota-total').value)||null;
   const paid=parseInt(document.getElementById('autocuota-paid').value);
   const day=parseInt(document.getElementById('autocuota-day').value)||null;
-  state.autoCuotaConfig[key]={total,paid,day,alias};
+  const group=detectAutoCuotas().find(g=>g.key===key);
+  const prev=group?getAutoCuotaConfig(group):(state.autoCuotaConfig[key]||{});
+  state.autoCuotaConfig[key]={...prev,total,paid,day,alias};
+  if(group?.legacyKey&&group.legacyKey!==key&&state.autoCuotaConfig[group.legacyKey]){
+    delete state.autoCuotaConfig[group.legacyKey];
+  }
   saveState();closeModal('modal-cuota-auto');renderCuotas();refreshAll();showToast('✓ Configuración guardada','success');
 }
 
