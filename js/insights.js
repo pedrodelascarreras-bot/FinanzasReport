@@ -6,6 +6,7 @@ function generateInsights() {
   const txns = (state.transactions||[]).filter(t => !t.isPendingCuota);
   const emptyEl   = document.getElementById('insights-empty');
   const contentEl = document.getElementById('insights-content');
+  const configShell = document.getElementById('insights-config-shell');
   const generalShell = document.getElementById('insights-general-shell');
   const savingsShell = document.getElementById('insights-savings-shell');
   const wealthShell = document.getElementById('insights-wealth-shell');
@@ -18,6 +19,7 @@ function generateInsights() {
   if(contentEl) contentEl.style.display = 'flex';
 
   const data = _computeInsightsData();
+  if(configShell) _renderInsightsConfig(data);
   const view = state.insightsView || 'general';
   const generalBtn = document.getElementById('insights-tab-general');
   const savingsBtn = document.getElementById('insights-tab-ahorro');
@@ -47,6 +49,74 @@ function setInsightTab(tab) {
   state.insightsView = tab === 'ahorro' ? 'ahorro' : tab === 'salud' ? 'salud' : 'general';
   saveState();
   generateInsights();
+}
+
+function _getInsightsTargets(){
+  const saveTargetPct = Math.max(5, Math.min(40, Number(state.savingsGoal) || 20));
+  let spendCapPct = Number(state.spendPct);
+  if(!isFinite(spendCapPct) || spendCapPct >= 100) spendCapPct = Math.max(55, 100 - saveTargetPct);
+  spendCapPct = Math.max(50, Math.min(95, spendCapPct));
+  const bufferMonths = Math.max(1, Math.min(12, Number(state.insightsBufferMonths) || 3));
+  return { saveTargetPct, spendCapPct, bufferMonths };
+}
+
+function saveInsightsPreferences(){
+  const saveInput = document.getElementById('ins-pref-save');
+  const spendInput = document.getElementById('ins-pref-spend');
+  const bufferInput = document.getElementById('ins-pref-buffer');
+  const saveTargetPct = Math.max(5, Math.min(40, Number(saveInput?.value) || 20));
+  const spendCapPct = Math.max(50, Math.min(95, Number(spendInput?.value) || Math.max(55, 100 - saveTargetPct)));
+  const bufferMonths = Math.max(1, Math.min(12, Number(bufferInput?.value) || 3));
+  state.savingsGoal = saveTargetPct;
+  state.spendPct = spendCapPct;
+  state.insightsBufferMonths = bufferMonths;
+  saveState();
+  generateInsights();
+  showToast('✓ Objetivos de insights actualizados', 'success');
+}
+
+function _renderInsightsConfig(data){
+  const el = document.getElementById('insights-config-shell');
+  if(!el) return;
+  const { saveTargetPct, spendCapPct, bufferMonths } = _getInsightsTargets();
+  const projectedSavings = data.incomeARS > 0 ? Math.round(data.incomeARS - data.projectedMonth) : null;
+  const projectedSpendPct = data.incomeARS > 0 ? Math.round((data.projectedMonth / data.incomeARS) * 100) : null;
+  const actualSavePct = data.incomeARS > 0 ? Math.round(((data.incomeARS - data.projectedMonth) / data.incomeARS) * 100) : null;
+  el.innerHTML = `
+    <div class="insights-panel-kicker">Cómo querés que te mida la app</div>
+    <div class="insights-panel-sub">Definí tus objetivos base para que el score, el modo ahorro y la salud patrimonial hablen de tu realidad y no de un estándar genérico. La app va a comparar tu cierre proyectado y tu ahorro esperado contra estos límites.</div>
+    <div class="insights-config-grid">
+      <div class="insights-config-item">
+        <label>Meta de ahorro mensual (%)</label>
+        <input id="ins-pref-save" type="number" min="5" max="40" step="1" class="input-field" value="${saveTargetPct}">
+      </div>
+      <div class="insights-config-item">
+        <label>Tope de gasto sobre ingreso (%)</label>
+        <input id="ins-pref-spend" type="number" min="50" max="95" step="1" class="input-field" value="${spendCapPct}">
+      </div>
+      <div class="insights-config-item">
+        <label>Colchón deseado (meses)</label>
+        <input id="ins-pref-buffer" type="number" min="1" max="12" step="1" class="input-field" value="${bufferMonths}">
+      </div>
+    </div>
+    <div class="settings-module-actions" style="margin-top:14px;">
+      <button class="btn btn-primary btn-sm" onclick="saveInsightsPreferences()">Guardar objetivos</button>
+    </div>
+    <div class="insights-config-help">
+      <div class="insights-config-help-card">
+        <div class="insights-config-help-title">Plata que te quedaría</div>
+        <div class="insights-config-help-body">${projectedSavings===null ? 'Se calcula cuando cargás ingresos: es lo que te quedaría al cierre si seguís gastando al ritmo actual.' : `Hoy proyectás cerrar con <strong>$${fmtN(projectedSavings)}</strong> libres. Eso equivale a <strong>${actualSavePct}%</strong> de tu ingreso.`}</div>
+      </div>
+      <div class="insights-config-help-card">
+        <div class="insights-config-help-title">Meta para guardar</div>
+        <div class="insights-config-help-body">Es tu meta mensual de ahorro según esta configuración. Hoy la app te va a empujar a guardar <strong>${saveTargetPct}% de lo que entra</strong> y a no pasar de <strong>${spendCapPct}% de gasto</strong>.</div>
+      </div>
+      <div class="insights-config-help-card">
+        <div class="insights-config-help-title">Salud financiera</div>
+        <div class="insights-config-help-body">${projectedSpendPct===null ? 'No premia solo “gastar poco”. También mira si ahorrás, si tus cuotas pesan demasiado y si tenés colchón para aguantar meses más duros.' : `Hoy tu cierre proyectado va por <strong>${projectedSpendPct}% del ingreso</strong>. El score compara eso contra tu límite, además del ahorro, las cuotas y el colchón.`}</div>
+      </div>
+    </div>
+  `;
 }
 
 // ── Data computation ──────────────────────────────────────
@@ -216,6 +286,7 @@ function _renderWealthMode(data){
   const el = document.getElementById('insights-wealth-shell');
   if(!el) return;
   const health = _getHealthScore(data);
+  const { bufferMonths } = _getInsightsTargets();
   const savAccounts = state.savAccounts || [];
   const savGoals = state.savGoals || [];
   const totalSavingsARS = savAccounts.reduce((sum, acc) => sum + (acc.currency==='USD' ? (acc.balance||0)*(USD_TO_ARS||1500) : (acc.balance||0)), 0);
@@ -251,34 +322,34 @@ function _renderWealthMode(data){
     `Score actual: <strong>${health.score}</strong> · ${health.label}`,
     `Patrimonio neto estimado: <strong>$${fmtN(Math.round(netPatrimony))}</strong>`,
     `Deuda activa restante: <strong>$${fmtN(Math.round(totalDebtARS))}</strong>`,
-    `Liquidez estimada: <strong>${liquidityMonths ? liquidityMonths.toFixed(1) : '0.0'} meses</strong> de gasto promedio`
+    `Liquidez estimada: <strong>${liquidityMonths ? liquidityMonths.toFixed(1) : '0.0'} meses</strong> de gasto promedio (objetivo: ${bufferMonths} meses)`
   ];
 
   el.innerHTML = `
     <div class="fade-up d1 savings-hero-shell">
       <div class="insights-panel-kicker">Salud y patrimonio</div>
       <div class="savings-hero-title">Cómo está tu estructura financiera hoy</div>
-      <div class="savings-hero-copy">Esta vista junta score financiero, ahorro acumulado, deuda activa y liquidez para que entiendas tu posición con más profundidad.</div>
+      <div class="savings-hero-copy">Esta vista junta score financiero, ahorro acumulado, deuda activa y liquidez. La idea es responder una pregunta simple: si mañana se complica un mes, ¿qué tan parado estás?</div>
       <div class="savings-metric-grid">
         <div class="savings-metric-card">
-          <div class="savings-metric-label">Patrimonio neto estimado</div>
+          <div class="savings-metric-label">Lo que te quedaría si pagás todo</div>
           <div class="savings-metric-value ${netPatrimony < 0 ? 'bad' : ''}">$${fmtN(Math.round(netPatrimony))}</div>
-          <div class="savings-metric-sub">ahorro + proyección - deuda activa</div>
+          <div class="savings-metric-sub">lo que te quedaría si sumás ahorro registrado, proyección del período y restás la deuda pendiente</div>
         </div>
         <div class="savings-metric-card">
-          <div class="savings-metric-label">Ahorro líquido</div>
+          <div class="savings-metric-label">Ahorro ya guardado</div>
           <div class="savings-metric-value">$${fmtN(Math.round(totalSavingsARS))}</div>
-          <div class="savings-metric-sub">saldos registrados en ahorro</div>
+          <div class="savings-metric-sub">plata que hoy ya registraste como ahorro disponible</div>
         </div>
         <div class="savings-metric-card">
-          <div class="savings-metric-label">Deuda activa</div>
+          <div class="savings-metric-label">Deuda que todavía debés</div>
           <div class="savings-metric-value ${totalDebtARS > 0 ? 'bad' : ''}">$${fmtN(Math.round(totalDebtARS))}</div>
-          <div class="savings-metric-sub">cuotas pendientes por delante</div>
+          <div class="savings-metric-sub">todo lo que todavía te queda pagar en cuotas</div>
         </div>
         <div class="savings-metric-card">
-          <div class="savings-metric-label">Liquidez estimada</div>
+          <div class="savings-metric-label">Meses que aguantarías</div>
           <div class="savings-metric-value">${liquidityMonths ? liquidityMonths.toFixed(1) : '0.0'}x</div>
-          <div class="savings-metric-sub">meses de gasto promedio cubiertos</div>
+          <div class="savings-metric-sub">cuántos meses promedio podrías cubrir con tu ahorro actual</div>
         </div>
       </div>
     </div>
@@ -306,7 +377,7 @@ function _renderWealthMode(data){
           </div>
           <div class="savings-advice-card savings-advice-info">
             <div class="savings-advice-title">Cobertura operativa</div>
-            <div class="savings-advice-body">${liquidityMonths >= 3 ? `Tenés una cobertura razonable para absorber meses más pesados.` : `Tu colchón todavía es corto: conviene priorizar liquidez antes de sumar más compromisos.`}</div>
+            <div class="savings-advice-body">${liquidityMonths >= bufferMonths ? `Tenés una cobertura razonable para absorber meses más pesados.` : `Tu colchón todavía es corto frente al objetivo de ${bufferMonths} meses: conviene priorizar liquidez antes de sumar más compromisos.`}</div>
           </div>
           <div class="savings-advice-card savings-advice-${health.score >= 70 ? 'good' : 'warn'}">
             <div class="savings-advice-title">Salud financiera</div>
@@ -413,7 +484,8 @@ function _renderSavingsMode(data){
   const el = document.getElementById('insights-savings-shell');
   if(!el) return;
   const income = data.incomeARS || 0;
-  const targetSave = income > 0 ? income * 0.2 : 0;
+  const { saveTargetPct, spendCapPct } = _getInsightsTargets();
+  const targetSave = income > 0 ? income * (saveTargetPct / 100) : 0;
   const targetSpend = income > 0 ? Math.max(0, income - targetSave) : 0;
   const projectedSavings = income > 0 ? income - data.projectedMonth : 0;
   const savingsGap = income > 0 ? Math.max(0, targetSave - Math.max(0, projectedSavings)) : 0;
@@ -458,7 +530,7 @@ function _renderSavingsMode(data){
     {tone:'info', title:'Usá esta vista para ordenar prioridades', body:'Cuando cargues ingresos, esta pantalla te va a decir cuánto podés guardar y dónde conviene recortar primero.'}
   ] : [
     {tone: projectedSavings >= targetSave ? 'good' : 'warn', title:'Objetivo de ahorro sano', body:`Con tu ingreso actual, una meta razonable es separar <strong>$${fmtN(Math.round(targetSave))}</strong> por mes y tratar de no pasar de <strong>$${fmtN(Math.round(targetSpend))}</strong> de gasto total.`},
-    {tone: savingsGap > 0 ? 'warn' : 'good', title:'Lo que hoy te falta ajustar', body:savingsGap > 0 ? `Para llegar a esa meta, hoy tendrías que recortar alrededor de <strong>$${fmtN(Math.round(savingsGap))}</strong> en gasto variable.` : `Tu proyección ya está alineada con un ahorro cercano al 20% del ingreso.`},
+    {tone: savingsGap > 0 ? 'warn' : 'good', title:'Lo que hoy te falta ajustar', body:savingsGap > 0 ? `Para llegar a esa meta, hoy tendrías que recortar alrededor de <strong>$${fmtN(Math.round(savingsGap))}</strong> en gasto variable.` : `Tu proyección ya está alineada con una meta de ahorro cercana al <strong>${saveTargetPct}%</strong> del ingreso.`},
     {tone:'info', title:'La regla más efectiva para vos', body:'No esperes a ver qué sobra a fin de mes. Apenas cobrás, separá el ahorro primero y después administrá el gasto con el monto restante.'}
   ];
 
@@ -466,27 +538,27 @@ function _renderSavingsMode(data){
     <div class="fade-up d1 savings-hero-shell">
       <div class="insights-panel-kicker">Modo ahorro</div>
       <div class="savings-hero-title">Cómo bajar tu gasto sin vivir peor</div>
-      <div class="savings-hero-copy">${income>0 ? `Esta vista toma tu ingreso real del período, tu proyección de gasto y tus categorías en alza para mostrarte un plan concreto de ahorro.` : `Primero necesitás registrar ingresos para que la estrategia de ahorro sea precisa y realmente útil.`}</div>
+      <div class="savings-hero-copy">${income>0 ? `Esta vista compara lo que hoy proyectás gastar contra la meta que definiste para ahorrar. La lectura es simple: cuánto te quedaría, cuánto querés guardar y qué tendrías que corregir para llegar.` : `Primero necesitás registrar ingresos para que la estrategia de ahorro sea precisa y realmente útil.`}</div>
       <div class="savings-metric-grid">
         <div class="savings-metric-card">
-          <div class="savings-metric-label">Ahorro proyectado</div>
+          <div class="savings-metric-label">Plata que te quedaría</div>
           <div class="savings-metric-value ${projectedSavings < 0 ? 'bad' : ''}">${income>0 ? '$'+fmtN(Math.round(projectedSavings)) : '—'}</div>
-          <div class="savings-metric-sub">ingreso menos gasto proyectado</div>
+          <div class="savings-metric-sub">lo que te quedaría al cierre si seguís gastando al ritmo actual</div>
         </div>
         <div class="savings-metric-card">
-          <div class="savings-metric-label">Objetivo sugerido</div>
+          <div class="savings-metric-label">Meta para guardar</div>
           <div class="savings-metric-value">${income>0 ? '$'+fmtN(Math.round(targetSave)) : '—'}</div>
-          <div class="savings-metric-sub">20% del ingreso mensual</div>
+          <div class="savings-metric-sub">${saveTargetPct}% del ingreso mensual según tu configuración</div>
         </div>
         <div class="savings-metric-card">
-          <div class="savings-metric-label">Recorte a lograr</div>
+          <div class="savings-metric-label">Lo que deberías bajar</div>
           <div class="savings-metric-value">${income>0 ? '$'+fmtN(Math.round(savingsGap)) : '—'}</div>
-          <div class="savings-metric-sub">para alcanzar el objetivo</div>
+          <div class="savings-metric-sub">cuánto deberías bajar tu gasto proyectado para llegar a esa meta</div>
         </div>
         <div class="savings-metric-card">
-          <div class="savings-metric-label">Potencial en 3 categorías</div>
+          <div class="savings-metric-label">Ajuste posible en 3 categorías</div>
           <div class="savings-metric-value">${topLevers.length ? '$'+fmtN(Math.round(recoverableTotal)) : '—'}</div>
-          <div class="savings-metric-sub">ajuste realista de corto plazo</div>
+          <div class="savings-metric-sub">ahorro posible en corto plazo si ajustás las tres palancas sugeridas</div>
         </div>
       </div>
     </div>
@@ -576,7 +648,7 @@ function _renderSavingsMode(data){
     </div>
   `;
   const subEl=document.getElementById('insights-subtitle');
-  if(subEl) subEl.textContent=`Modo ahorro · objetivo, desvíos y recortes recomendados${income > 0 ? ` · ahorro proyectado ${currentSaveRate}% del ingreso` : ''}`;
+  if(subEl) subEl.textContent=`Modo ahorro · meta ${saveTargetPct}% · tope de gasto ${spendCapPct}%${income > 0 ? ` · ahorro proyectado ${currentSaveRate}%` : ''}`;
 }
 
 // ── Desafíos Financieros ──────────────────────────────────
@@ -806,7 +878,12 @@ function _renderInsightsChart(data) {
 
 // ── Health score ──────────────────────────────────────────
 function _getHealthScore(data) {
-  // If no transactions or income, return a neutral/insufficient state
+  const { saveTargetPct, spendCapPct, bufferMonths } = _getInsightsTargets();
+  const totalSavingsARS = (state.savAccounts || []).reduce((sum, acc) => sum + (acc.currency==='USD' ? (acc.balance||0)*(USD_TO_ARS||1500) : (acc.balance||0)), 0);
+  const liquidityMonths = data.avgMonthly > 0 ? (totalSavingsARS / data.avgMonthly) : 0;
+  const projectedSavings = data.incomeARS > 0 ? data.incomeARS - data.projectedMonth : null;
+  const projectedSpendPct = data.incomeARS > 0 ? Math.round((data.projectedMonth / data.incomeARS) * 100) : null;
+  const actualSavePct = data.incomeARS > 0 ? Math.round((projectedSavings / data.incomeARS) * 100) : null;
   if(!data.arsThis && !data.incomeARS) {
     return {
       score: 0, 
@@ -816,47 +893,63 @@ function _getHealthScore(data) {
       scoreColor: '#8e8e93'
     };
   }
-  let score=100;
+  let score=0;
   const factors=[];
 
-  if(data.spendPct!==null){
-    const pts=data.spendPct<=70?40:data.spendPct<=85?28:data.spendPct<=100?14:0;
-    score-=(40-pts);
-    factors.push({label:'Presupuesto',value:data.spendPct+'%',pct:Math.max(0,100-Math.max(0,data.spendPct-60)*2),color:data.spendPct<=75?'var(--accent2)':data.spendPct<=95?'var(--accent3)':'var(--danger)'});
-  } else {
-    factors.push({label:'Presupuesto',value:'Sin ingreso',pct:50,color:'var(--text3)'});
-  }
-  if(data.momChange!==null){
-    const pts=data.momChange<=-5?25:data.momChange<=5?20:data.momChange<=20?10:0;
-    score-=(25-pts);
-    factors.push({label:'Tendencia',value:(data.momChange>0?'+':'')+data.momChange+'%',pct:data.momChange<=0?100:Math.max(0,100-data.momChange*4),color:data.momChange<=0?'var(--accent2)':data.momChange<=15?'var(--accent3)':'var(--danger)'});
-  }
-  if(data.cuotasPct!==null){
-    const pts=data.cuotasPct<=15?20:data.cuotasPct<=30?10:data.cuotasPct<=50?5:0;
-    score-=(20-pts);
-    factors.push({label:'Cuotas',value:data.cuotasPct+'% ingreso',pct:Math.max(0,100-data.cuotasPct*2),color:data.cuotasPct<=15?'var(--accent2)':data.cuotasPct<=30?'var(--accent3)':'var(--danger)'});
-  }
-  if(data.fixedPct!==null){
-    const pts=data.fixedPct<=35?15:data.fixedPct<=50?8:0;
-    score-=(15-pts);
-    factors.push({label:'Gastos fijos',value:data.fixedPct+'% ingreso',pct:Math.max(0,100-data.fixedPct*1.5),color:data.fixedPct<=35?'var(--accent2)':data.fixedPct<=50?'var(--accent3)':'var(--danger)'});
-  }
-  
-  // Penalty for overspending income
-  if(data.spendPct > 100) {
-    score -= Math.min(30, (data.spendPct - 100) * 0.5);
-  }
-  // Penalty for USD exposure if high
-  if(data.usdExposurePct > 40) {
-    score -= 5;
-  }
+  const budgetScore = projectedSpendPct===null ? 35
+    : projectedSpendPct <= spendCapPct - 5 ? 100
+    : projectedSpendPct <= spendCapPct ? 84
+    : projectedSpendPct <= 100 ? Math.max(22, Math.round(84 - ((projectedSpendPct - spendCapPct) / Math.max(1, 100 - spendCapPct)) * 62))
+    : projectedSpendPct <= 115 ? Math.max(6, Math.round(22 - (projectedSpendPct - 100) * 1.2))
+    : 0;
+  const savingsScore = actualSavePct===null ? 35
+    : actualSavePct >= saveTargetPct ? 100
+    : actualSavePct >= Math.round(saveTargetPct * 0.6) ? 68
+    : actualSavePct >= 0 ? 28
+    : 0;
+  const trendScore = data.momChange===null ? 50
+    : data.momChange <= 0 ? 92
+    : data.momChange <= 10 ? 72
+    : data.momChange <= 20 ? 42
+    : 12;
+  const cuotasScore = data.cuotasPct===null ? 60
+    : data.cuotasPct <= 15 ? 95
+    : data.cuotasPct <= 25 ? 75
+    : data.cuotasPct <= 35 ? 50
+    : data.cuotasPct <= 50 ? 20
+    : 0;
+  const fixedScore = data.fixedPct===null ? 60
+    : data.fixedPct <= 35 ? 90
+    : data.fixedPct <= 50 ? 65
+    : data.fixedPct <= 65 ? 35
+    : 10;
+  const liquidityScore = liquidityMonths >= bufferMonths ? 100
+    : liquidityMonths >= bufferMonths * 0.6 ? 72
+    : liquidityMonths > 0 ? 42
+    : 12;
 
-  score=Math.max(10,Math.min(100,Math.round(score)));
+  score = Math.round(
+    budgetScore * 0.30 +
+    savingsScore * 0.22 +
+    trendScore * 0.13 +
+    cuotasScore * 0.13 +
+    fixedScore * 0.12 +
+    liquidityScore * 0.10
+  );
+
+  factors.push({label:'Cierre proyectado',value:projectedSpendPct!==null?`${projectedSpendPct}% ingreso`:'Sin ingreso',pct:budgetScore,color:budgetScore>=80?'var(--accent2)':budgetScore>=55?'var(--accent3)':'var(--danger)'});
+  factors.push({label:'Ahorro mensual',value:actualSavePct!==null?`${actualSavePct}%`:'Sin definir',pct:savingsScore,color:savingsScore>=80?'var(--accent2)':savingsScore>=55?'var(--accent3)':'var(--danger)'});
+  factors.push({label:'Tendencia',value:data.momChange!==null?`${data.momChange>0?'+':''}${data.momChange}%`:'Sin base',pct:trendScore,color:trendScore>=80?'var(--accent2)':trendScore>=55?'var(--accent3)':'var(--danger)'});
+  factors.push({label:'Cuotas',value:data.cuotasPct!==null?`${data.cuotasPct}% ingreso`:'Sin dato',pct:cuotasScore,color:cuotasScore>=80?'var(--accent2)':cuotasScore>=55?'var(--accent3)':'var(--danger)'});
+  factors.push({label:'Gastos fijos',value:data.fixedPct!==null?`${data.fixedPct}% ingreso`:'Sin dato',pct:fixedScore,color:fixedScore>=80?'var(--accent2)':fixedScore>=55?'var(--accent3)':'var(--danger)'});
+  factors.push({label:'Colchón',value:`${liquidityMonths ? liquidityMonths.toFixed(1) : '0.0'} meses`,pct:liquidityScore,color:liquidityScore>=80?'var(--accent2)':liquidityScore>=55?'var(--accent3)':'var(--danger)'});
+
+  score=Math.max(5,Math.min(100,Math.round(score)));
   let label,desc,scoreColor;
-  if(score>=80){label='Excelente 🟢';desc='Tus finanzas están muy bien encaminadas. Seguí así.';scoreColor='#34c759';}
-  else if(score>=65){label='Bien 🟡';desc='Hay algunas áreas a mejorar, pero vas bien en general.';scoreColor='#ff9500';}
-  else if(score>=50){label='Regular 🟠';desc='Prestá atención a los puntos débiles para mejorar.';scoreColor='#ff6b00';}
-  else{label='Crítica 🔴';desc='Revisá y ajustá tus hábitos financieros con urgencia.';scoreColor='#ff3b30';}
+  if(score>=85){label='Muy saludable 🟢';desc='Tus finanzas muestran orden, margen y una estructura bastante sólida.';scoreColor='#34c759';}
+  else if(score>=68){label='Aceptable 🟡';desc='Estás encaminado, pero todavía hay señales que podrían complicarte si no las corregís.';scoreColor='#ffcc00';}
+  else if(score>=50){label='Frágil 🟠';desc='Llegás con poco margen. Si seguís gastando al mismo ritmo, te puede costar ahorrar o absorber un mes pesado.';scoreColor='#ff9500';}
+  else{label='En riesgo 🔴';desc='Hoy tu estructura financiera está exigida. Conviene bajar gasto y fortalecer ahorro cuanto antes.';scoreColor='#ff3b30';}
 
   return{score,factors,label,desc,scoreColor};
 }
@@ -877,10 +970,12 @@ function _renderScoreCard(data) {
   const factorsEl=document.getElementById('score-factors');
   if(factorsEl){
     const tooltipMap = {
-      'Presupuesto': 'Mide qué porcentaje de tus ingresos ya gastaste en este ciclo.',
+      'Cierre proyectado': 'Mide cuánto del ingreso te consumiría el mes si seguís gastando al ritmo actual.',
+      'Ahorro mensual': 'Compara lo que proyectás ahorrar con la meta que elegiste para este mes.',
       'Tendencia': 'Compara tu gasto actual contra el mismo período del mes pasado.',
       'Cuotas': 'Impacto de tus compras financiadas sobre tus ingresos mensuales.',
-      'Gastos fijos': 'Porcentaje de ingresos comprometido en gastos recurrentes obligatorios.'
+      'Gastos fijos': 'Porcentaje de ingresos comprometido en gastos recurrentes obligatorios.',
+      'Colchón': 'Cuántos meses de gasto promedio cubrirías con tu ahorro líquido actual.'
     };
     factorsEl.innerHTML=factors.map(f=>`
       <div style="display:flex;flex-direction:column;gap:3px;" title="${tooltipMap[f.label] || ''}">
@@ -894,7 +989,7 @@ function _renderScoreCard(data) {
       </div>`).join('');
   }
   const subEl=document.getElementById('insights-subtitle');
-  if(subEl)subEl.textContent='Salud financiera: '+label+' · '+new Date().toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+  if(subEl)subEl.textContent='Vista general · el score compara tu cierre proyectado, tu ahorro, tus cuotas y tu colchón contra objetivos configurables';
 }
 
 // ── Render ALL sections expanded ──────────────────────────

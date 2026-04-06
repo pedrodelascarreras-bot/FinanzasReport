@@ -1282,6 +1282,7 @@ function getCurrentProfileSnapshot(){
     savingsGoal: state.savingsGoal || 20,
     alertThreshold: state.alertThreshold || 80,
     spendPct: state.spendPct || 100,
+    insightsBufferMonths: state.insightsBufferMonths || 3,
     dashView: state.dashView || 'mes',
     dashMonth: state.dashMonth || null,
     dashTcCycle: state.dashTcCycle || null,
@@ -1412,6 +1413,7 @@ function applyUserProfile(profileId){
   state.savingsGoal = profile.savingsGoal || state.savingsGoal || 20;
   state.alertThreshold = profile.alertThreshold || state.alertThreshold || 80;
   state.spendPct = profile.spendPct || state.spendPct || 100;
+  state.insightsBufferMonths = profile.insightsBufferMonths || state.insightsBufferMonths || 3;
   state.dashView = profile.dashView || state.dashView || 'mes';
   state.dashMonth = profile.dashMonth || null;
   state.dashTcCycle = profile.dashTcCycle || null;
@@ -1628,17 +1630,16 @@ function renderSettingsPage(){
   ensureAutomationPrefs();
   updateLastBackupLabel();
   const onboardingEl = document.getElementById('settings-onboarding-shell');
-  const profileEl = document.getElementById('settings-profile-shell');
   const rulesEl = document.getElementById('settings-gmail-rules-shell');
   const importEl = document.getElementById('settings-import-shell');
   const bankEl = document.getElementById('settings-bank-profiles-shell');
   const usersEl = document.getElementById('settings-user-profiles-shell');
   const multiEl = document.getElementById('settings-multiuser-shell');
-  const automationEl = document.getElementById('settings-automations-shell');
   const overviewEl = document.getElementById('settings-overview-shell');
-  const appearanceEl = document.getElementById('settings-appearance-shell');
   const safetyEl = document.getElementById('settings-safety-shell');
-  if(!onboardingEl || !profileEl || !rulesEl || !importEl || !bankEl || !usersEl || !multiEl || !automationEl || !overviewEl || !appearanceEl || !safetyEl) return;
+  const advancedPanel = document.getElementById('settings-advanced-panel');
+  const advancedArrow = document.getElementById('settings-advanced-arrow');
+  if(!onboardingEl || !rulesEl || !importEl || !bankEl || !usersEl || !multiEl || !overviewEl || !safetyEl || !advancedPanel || !advancedArrow) return;
 
   const activeRules = getActiveGmailImportRules().length;
   const backupRaw = localStorage.getItem('fin_last_backup');
@@ -1646,27 +1647,31 @@ function renderSettingsPage(){
   const activeProfile = (state.userProfiles || []).find(profile => profile.id === state.activeUserProfileId);
   const connectedGoogle = isGoogleConnected();
   overviewEl.innerHTML = `
-    <div class="settings-overview-card">
+    <div class="settings-overview-card profile">
       <div class="settings-overview-kicker">Perfil activo</div>
       <div class="settings-overview-value">${activeProfile?.name || state.userName || 'Sin perfil'}</div>
       <div class="settings-overview-sub">${activeProfile?.profileTemplate || state.profileTemplate || 'personal'}</div>
     </div>
-    <div class="settings-overview-card">
+    <div class="settings-overview-card google">
       <div class="settings-overview-kicker">Google</div>
       <div class="settings-overview-value">${connectedGoogle ? 'Conectado' : 'Pendiente'}</div>
       <div class="settings-overview-sub">${activeRules} regla${activeRules===1?'':'s'} Gmail activa${activeRules===1?'':'s'}</div>
     </div>
-    <div class="settings-overview-card">
+    <div class="settings-overview-card bank">
       <div class="settings-overview-kicker">Bancos</div>
       <div class="settings-overview-value">${(state.bankProfiles || []).length}</div>
       <div class="settings-overview-sub">perfil${(state.bankProfiles || []).length===1?'':'es'} bancario${(state.bankProfiles || []).length===1?'':'s'}</div>
     </div>
-    <div class="settings-overview-card">
+    <div class="settings-overview-card backup">
       <div class="settings-overview-kicker">Backup</div>
       <div class="settings-overview-value">${backupLabel}</div>
       <div class="settings-overview-sub">${backupRaw ? 'última copia guardada' : 'sin respaldo reciente'}</div>
     </div>
   `;
+
+  const advancedOpen = localStorage.getItem('fin_settings_advanced_open') === '1';
+  advancedPanel.style.display = advancedOpen ? 'flex' : 'none';
+  advancedArrow.textContent = advancedOpen ? '⌄' : '›';
 
   const checklist = getOnboardingChecklist();
   onboardingEl.innerHTML = checklist.map(step => `
@@ -1680,29 +1685,31 @@ function renderSettingsPage(){
     </div>
   `).join('');
 
-  const profiles = [
-    {id:'personal', title:'Personal', sub:'Balanceado y general, para uso diario.'},
-    {id:'ahorro', title:'Modo ahorro', sub:'Prioriza control, recortes y lectura financiera.'},
-    {id:'familiar', title:'Familiar', sub:'Seguimiento más ordenado para varios compromisos.'},
-    {id:'freelance', title:'Freelance', sub:'Más foco en ingreso variable y estabilidad.'}
-  ];
-  profileEl.innerHTML = profiles.map(profile => `
-    <button class="settings-template-btn ${state.profileTemplate===profile.id?'active':''}" onclick="applyUsageProfile('${profile.id}')">
-      <div class="settings-template-title">${profile.title}</div>
-      <div class="settings-template-sub">${profile.sub}</div>
-    </button>
-  `).join('');
-
-  appearanceEl.innerHTML = `
-    <div class="settings-list-item"><strong>Tema</strong><span>Cambiá entre modo claro y oscuro según cómo preferís leer la app.</span><button class="dashboard-widget-mini" onclick="toggleTheme()">Alternar</button></div>
-    <div class="settings-list-item"><strong>Color principal</strong><span>Elegí el tono general de la interfaz para que la app se sienta más tuya.</span><button class="dashboard-widget-mini" onclick="toggleColorThemePanel()">Cambiar</button></div>
-    <div class="settings-list-item"><strong>Dashboard</strong><span>Ordená widgets, tamaños y vistas guardadas para que el panel principal te sirva de verdad.</span><button class="dashboard-widget-mini primary" onclick="nav('dashboard-design')">Editar</button></div>
-  `;
-
   safetyEl.innerHTML = `
-    <div class="settings-list-item"><strong>Descargar backup</strong><span>Guardá una copia completa de tus datos antes de importar, limpiar o probar cambios grandes.</span><button class="dashboard-widget-mini primary" onclick="exportBackupJSON()">Guardar</button></div>
-    <div class="settings-list-item"><strong>Restaurar backup</strong><span>Recuperá una copia previa si querés volver a un estado estable.</span><button class="dashboard-widget-mini" onclick="document.getElementById('restore-json-input')?.click()">Restaurar</button></div>
-    <div class="settings-list-item"><strong>Exportar movimientos</strong><span>Bajá tus transacciones en CSV para revisar, auditar o compartir por fuera de la app.</span><button class="dashboard-widget-mini" onclick="exportarCSV()">Exportar</button></div>
+    <div class="settings-safety-item backup">
+      <div class="settings-safety-icon">🛟</div>
+      <div class="settings-safety-copy">
+        <div class="settings-safety-title">Descargar backup</div>
+        <div class="settings-safety-sub">Guardá una copia completa antes de importar, limpiar o probar cambios grandes.</div>
+      </div>
+      <button class="dashboard-widget-mini primary" onclick="exportBackupJSON()">Guardar</button>
+    </div>
+    <div class="settings-safety-item restore">
+      <div class="settings-safety-icon">♻️</div>
+      <div class="settings-safety-copy">
+        <div class="settings-safety-title">Restaurar backup</div>
+        <div class="settings-safety-sub">Recuperá una copia previa si querés volver a un estado estable.</div>
+      </div>
+      <button class="dashboard-widget-mini" onclick="document.getElementById('restore-json-input')?.click()">Restaurar</button>
+    </div>
+    <div class="settings-safety-item export">
+      <div class="settings-safety-icon">📄</div>
+      <div class="settings-safety-copy">
+        <div class="settings-safety-title">Exportar movimientos</div>
+        <div class="settings-safety-sub">Bajá tus transacciones en CSV para revisar, auditar o compartir por fuera de la app.</div>
+      </div>
+      <button class="dashboard-widget-mini" onclick="exportarCSV()">Exportar</button>
+    </div>
   `;
 
   const rules = ensureGmailImportRules();
@@ -1833,14 +1840,16 @@ function renderSettingsPage(){
     <div class="settings-list-item"><strong>Datos aislados</strong><span>Movimientos, compromisos, importaciones, ahorros y layout del dashboard ya quedan asociados al perfil activo.</span></div>
     <div class="settings-list-item"><strong>Preparada para otros</strong><span>Podés duplicar un perfil y armar rápidamente la base de un amigo o familiar sin mezclar su información con la tuya.</span></div>
   `;
+}
 
-  const automations = ensureAutomationPrefs();
-  automationEl.innerHTML = `
-    <div class="settings-list-item"><strong>Reporte semanal</strong><span>${automations.weeklyReport ? 'Activo para usarlo como hábito de seguimiento.' : 'Apagado por ahora. Ideal si querés una rutina de revisión.'}</span><button class="dashboard-widget-mini ${automations.weeklyReport?'primary':''}" onclick="toggleAutomationPref('weeklyReport')">${automations.weeklyReport?'Activo':'Activar'}</button></div>
-    <div class="settings-list-item"><strong>Alertas de gasto</strong><span>${automations.spendingAlerts ? 'La app puede resaltar desvíos importantes y concentración de gasto.' : 'Hoy no se marcan alertas relevantes de gasto.'}</span><button class="dashboard-widget-mini ${automations.spendingAlerts?'primary':''}" onclick="toggleAutomationPref('spendingAlerts')">${automations.spendingAlerts?'Activas':'Activar'}</button></div>
-    <div class="settings-list-item"><strong>Recordatorio de backup</strong><span>${automations.backupReminder ? 'Útil para no olvidarte del resguardo antes de cambios grandes.' : 'Desactivado. Podés activarlo si querés cuidar mejor el historial.'}</span><button class="dashboard-widget-mini ${automations.backupReminder?'primary':''}" onclick="toggleAutomationPref('backupReminder')">${automations.backupReminder?'Activo':'Activar'}</button></div>
-    <div class="settings-list-item"><strong>Cierre de tarjeta</strong><span>${automations.cardCloseReminder ? 'Pensado para avisarte cuando el ciclo esté por cerrar.' : 'Sin recordatorio de cierre por ahora.'}</span><button class="dashboard-widget-mini ${automations.cardCloseReminder?'primary':''}" onclick="toggleAutomationPref('cardCloseReminder')">${automations.cardCloseReminder?'Activo':'Activar'}</button></div>
-  `;
+function toggleSettingsAdvanced(){
+  const panel = document.getElementById('settings-advanced-panel');
+  const arrow = document.getElementById('settings-advanced-arrow');
+  if(!panel || !arrow) return;
+  const opening = panel.style.display === 'none';
+  panel.style.display = opening ? 'flex' : 'none';
+  arrow.textContent = opening ? '⌄' : '›';
+  localStorage.setItem('fin_settings_advanced_open', opening ? '1' : '0');
 }
 
 function resetBankProfileEditor(){

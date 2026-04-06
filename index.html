@@ -668,97 +668,81 @@
           </button>
         </div>
 
-        <div class="settings-module-grid settings-module-grid-simple">
-          <div class="settings-card">
-            <div class="settings-kicker">Perfil de uso</div>
-            <div class="settings-title settings-title-sm">Plantillas rápidas</div>
-            <div id="settings-profile-shell" class="settings-template-grid"></div>
-          </div>
-
-          <div class="settings-card">
-            <div class="settings-kicker">Apariencia</div>
-            <div class="settings-title settings-title-sm">Cómo querés verla</div>
-            <div id="settings-appearance-shell" class="settings-list"></div>
-          </div>
-        </div>
-
-        <div class="settings-module-grid settings-module-grid-simple">
-          <div class="settings-card">
-            <div class="settings-kicker">Seguridad y respaldo</div>
-            <div class="settings-title settings-title-sm">Cuidá tus datos</div>
-            <div id="settings-safety-shell" class="settings-list"></div>
-          </div>
-
-          <div class="settings-card">
-            <div class="settings-kicker">Automatizaciones</div>
-            <div class="settings-title settings-title-sm">Alertas y hábitos</div>
-            <div id="settings-automations-shell" class="settings-list"></div>
-          </div>
+        <div class="settings-card settings-card-safety">
+          <div class="settings-kicker">Seguridad y respaldo</div>
+          <div class="settings-title settings-title-sm">Cuidá tus datos</div>
+          <div id="settings-safety-shell" class="settings-safety-grid"></div>
         </div>
       </section>
 
       <section class="settings-section settings-section-divider">
-        <div class="settings-section-head">
-          <div class="settings-kicker">Parte 2</div>
-          <div class="settings-title settings-title-sm">Inicio, sincronización y perfiles</div>
+        <button class="settings-collapse-btn" type="button" onclick="toggleSettingsAdvanced()">
+          <span>
+            <span class="settings-kicker">Parte 2</span>
+            <span class="settings-title settings-title-sm">Inicio, sincronización y perfiles</span>
+          </span>
+          <span id="settings-advanced-arrow" class="settings-collapse-arrow">›</span>
+        </button>
+
+        <div id="settings-advanced-panel" class="settings-advanced-panel" style="display:none;">
           <div class="settings-note">Todo lo que prepara la app para entrar con Google, importar gastos y usarla con distintos perfiles o bancos.</div>
-        </div>
 
-        <div class="settings-module-grid settings-module-grid-simple">
-          <div class="settings-card">
-            <div class="settings-kicker">Onboarding</div>
-            <div class="settings-title settings-title-sm">Puesta en marcha</div>
-            <div id="settings-onboarding-shell" class="settings-status-list"></div>
-          </div>
-
-          <div class="settings-card">
-            <div class="settings-kicker">Google y Gmail</div>
-            <div class="settings-title settings-title-sm">Cuenta y sincronización</div>
-            <div class="settings-module-actions settings-module-actions-tight">
-              <button class="btn btn-primary" onclick="openCloudSync(event)">Conectar Google</button>
-              <button class="btn btn-ghost" onclick="openGmailRuleManager()">Reglas Gmail</button>
+          <div class="settings-module-grid settings-module-grid-simple">
+            <div class="settings-card">
+              <div class="settings-kicker">Onboarding</div>
+              <div class="settings-title settings-title-sm">Puesta en marcha</div>
+              <div id="settings-onboarding-shell" class="settings-status-list"></div>
             </div>
-            <div id="settings-gmail-rules-shell" class="settings-rule-list"></div>
-          </div>
-        </div>
 
-        <div class="settings-module-grid settings-module-grid-simple">
-          <div class="settings-card">
-            <div class="settings-kicker">Importación</div>
-            <div class="settings-title settings-title-sm">Cómo entran los movimientos</div>
-            <div class="settings-module-actions settings-module-actions-tight">
-              <button class="btn btn-primary" onclick="openImportAssistant()">Asistente</button>
-              <button class="btn btn-ghost" onclick="nav('import')">Abrir importación</button>
+            <div class="settings-card">
+              <div class="settings-kicker">Google y Gmail</div>
+              <div class="settings-title settings-title-sm">Cuenta y sincronización</div>
+              <div class="settings-module-actions settings-module-actions-tight">
+                <button class="btn btn-primary" onclick="openCloudSync(event)">Conectar Google</button>
+                <button class="btn btn-ghost" onclick="openGmailRuleManager()">Reglas Gmail</button>
+              </div>
+              <div id="settings-gmail-rules-shell" class="settings-rule-list"></div>
             </div>
-            <div id="settings-import-shell" class="settings-method-list"></div>
           </div>
 
-          <div class="settings-card">
-            <div class="settings-kicker">Bancos y tarjetas</div>
-            <div class="settings-title settings-title-sm">Perfiles base</div>
-            <div class="settings-module-actions settings-module-actions-tight">
-              <button class="btn btn-primary" onclick="openBankProfileManager()">Agregar perfil</button>
-              <button class="btn btn-ghost" onclick="nav('credit-cards');ccSelectPageTab('config')">Abrir tarjetas</button>
+          <div class="settings-module-grid settings-module-grid-simple">
+            <div class="settings-card">
+              <div class="settings-kicker">Importación</div>
+              <div class="settings-title settings-title-sm">Cómo entran los movimientos</div>
+              <div class="settings-module-actions settings-module-actions-tight">
+                <button class="btn btn-primary" onclick="openImportAssistant()">Asistente</button>
+                <button class="btn btn-ghost" onclick="nav('import')">Abrir importación</button>
+              </div>
+              <div id="settings-import-shell" class="settings-method-list"></div>
             </div>
-            <div id="settings-bank-profiles-shell" class="settings-rule-list"></div>
-          </div>
-        </div>
 
-        <div class="settings-module-grid settings-module-grid-simple">
-          <div class="settings-card">
-            <div class="settings-kicker">Perfiles</div>
-            <div class="settings-title settings-title-sm">Usuarios y contextos</div>
-            <div class="settings-module-actions settings-module-actions-tight">
-              <button class="btn btn-primary" onclick="openUserProfileManager()">Gestionar perfiles</button>
-              <button class="btn btn-ghost" onclick="saveActiveUserProfile()">Guardar perfil activo</button>
+            <div class="settings-card">
+              <div class="settings-kicker">Bancos y tarjetas</div>
+              <div class="settings-title settings-title-sm">Perfiles base</div>
+              <div class="settings-module-actions settings-module-actions-tight">
+                <button class="btn btn-primary" onclick="openBankProfileManager()">Agregar perfil</button>
+                <button class="btn btn-ghost" onclick="nav('credit-cards');ccSelectPageTab('config')">Abrir tarjetas</button>
+              </div>
+              <div id="settings-bank-profiles-shell" class="settings-rule-list"></div>
             </div>
-            <div id="settings-user-profiles-shell" class="settings-rule-list"></div>
           </div>
 
-          <div class="settings-card">
-            <div class="settings-kicker">Estado del perfil activo</div>
-            <div class="settings-title settings-title-sm">Lo que hoy queda preparado</div>
-            <div id="settings-multiuser-shell" class="settings-list"></div>
+          <div class="settings-module-grid settings-module-grid-simple">
+            <div class="settings-card">
+              <div class="settings-kicker">Perfiles</div>
+              <div class="settings-title settings-title-sm">Usuarios y contextos</div>
+              <div class="settings-module-actions settings-module-actions-tight">
+                <button class="btn btn-primary" onclick="openUserProfileManager()">Gestionar perfiles</button>
+                <button class="btn btn-ghost" onclick="saveActiveUserProfile()">Guardar perfil activo</button>
+              </div>
+              <div id="settings-user-profiles-shell" class="settings-rule-list"></div>
+            </div>
+
+            <div class="settings-card">
+              <div class="settings-kicker">Estado del perfil activo</div>
+              <div class="settings-title settings-title-sm">Lo que hoy queda preparado</div>
+              <div id="settings-multiuser-shell" class="settings-list"></div>
+            </div>
           </div>
         </div>
       </section>
@@ -1298,6 +1282,7 @@
   </div>
 
   <div id="insights-content" style="display:none;flex-direction:column;gap:24px;">
+    <div id="insights-config-shell" class="fade-up d1 insights-panel-shell"></div>
     <div id="insights-general-shell" style="display:flex;flex-direction:column;gap:24px;">
       <!-- ── Score Hero ── -->
       <div class="fade-up d1 insights-score-shell">

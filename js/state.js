@@ -2,7 +2,7 @@
 let state={
   transactions:[],categories:[...DEFAULT_CATS],
   income:{ars:0,varArs:0,usd:0,varUsd:0},
-  savingsGoal:20,alertThreshold:80,spendPct:100,tendChartMode:'bar',
+  savingsGoal:20,alertThreshold:80,spendPct:100,insightsBufferMonths:3,tendChartMode:'bar',
   imports:[],compareMode:'month',repDesign:'executive',tendMode:'week',
   activeTendCats:null,
   _selectedTxns:new Set(),
@@ -52,7 +52,7 @@ function getStateSnapshot(){
   }
   return {
     transactions:state.transactions,categories:state.categories,income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'mes',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],
-    savingsGoal:state.savingsGoal,alertThreshold:state.alertThreshold,spendPct:state.spendPct||100,tendChartMode:state.tendChartMode||'bar',imports:state.imports,
+    savingsGoal:state.savingsGoal,alertThreshold:state.alertThreshold,spendPct:state.spendPct||100,insightsBufferMonths:state.insightsBufferMonths||3,tendChartMode:state.tendChartMode||'bar',imports:state.imports,
     cuotas:state.cuotas,autoCuotaConfig:state.autoCuotaConfig,subscriptions:state.subscriptions,fixedExpenses:state.fixedExpenses||[],
     incomeSources:state.incomeSources,incomeMonths:state.incomeMonths,
     savAccounts:state.savAccounts,savGoals:state.savGoals,savDeposits:state.savDeposits||[],tcConfig:state.tcConfig,
@@ -250,6 +250,7 @@ async function loadFromDrive(){
     state.savingsGoal=s.savingsGoal||20;
     state.alertThreshold=s.alertThreshold||80;
     state.spendPct=s.spendPct||100;
+    state.insightsBufferMonths=s.insightsBufferMonths||3;
     state.tendChartMode=s.tendChartMode||'bar';
     state.imports=s.imports||[];
     state.cuotas=s.cuotas||[];
@@ -313,7 +314,7 @@ function loadState(){
     const raw=localStorage.getItem('fin_state');if(!raw)return;const s=JSON.parse(raw);
     state.transactions=(s.transactions||[]).map(t=>({...t,date:new Date(t.date)}));
     state.categories=s.categories||[...DEFAULT_CATS];if(state.categories.length&&!state.categories[0].group){state.categories=[...DEFAULT_CATS];}state.income=s.income||state.income;
-    state.savingsGoal=s.savingsGoal||20;state.alertThreshold=s.alertThreshold||80;state.spendPct=s.spendPct||100;state.tendChartMode=s.tendChartMode||'bar';
+    state.savingsGoal=s.savingsGoal||20;state.alertThreshold=s.alertThreshold||80;state.spendPct=s.spendPct||100;state.insightsBufferMonths=s.insightsBufferMonths||3;state.tendChartMode=s.tendChartMode||'bar';
     state.imports=s.imports||[];state.cuotas=s.cuotas||[];state.autoCuotaConfig=s.autoCuotaConfig||{};
     state.subscriptions=s.subscriptions||[];
     state.fixedExpenses=s.fixedExpenses||[];

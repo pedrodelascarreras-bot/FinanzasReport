@@ -329,8 +329,12 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
   border-right: 1px solid var(--glass-border);
   padding: 22px 10px 20px;
   display: flex; flex-direction: column; gap: 1px;
-  position: sticky; top: 0; height: 100vh;
-  overflow-y: auto; z-index: 100;
+  position: relative;
+  top: auto;
+  height: auto;
+  min-height: 100%;
+  overflow: visible;
+  z-index: 100;
   box-shadow: inset -1px 0 0 rgba(255,255,255,0.03);
 }
 
@@ -487,7 +491,15 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
 }
 .header-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; flex-wrap: wrap; }
 .dashboard-header { display:flex; align-items:center; gap:12px; }
-.panel-heading { font-weight:700; }
+.panel-heading {
+  font-weight:700;
+  color: rgba(255,255,255,0.96);
+  text-shadow: 0 1px 8px rgba(0,0,0,0.18);
+}
+body.light-mode .panel-heading {
+  color: #1f2b3d;
+  text-shadow: none;
+}
 .link-inline-action {
   font-size: 11px;
   color: var(--text3);
@@ -5165,6 +5177,55 @@ body.ios-scroll-locked {
   grid-template-columns: repeat(auto-fill,minmax(260px,1fr));
   gap: 12px;
 }
+.insights-config-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+.insights-config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 15px;
+  border-radius: 18px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--surface-solid) 95%, white 5%);
+}
+.insights-config-item label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--text2);
+}
+.insights-config-item input {
+  min-width: 0;
+}
+.insights-config-help {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+.insights-config-help-card {
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--surface-solid) 96%, white 4%);
+  padding: 14px;
+}
+.insights-config-help-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.insights-config-help-body {
+  font-size: 11px;
+  line-height: 1.58;
+  color: var(--text3);
+  overflow-wrap: anywhere;
+}
 .savings-hero-shell {
   display: flex;
   flex-direction: column;
@@ -5551,6 +5612,30 @@ body.ios-scroll-locked {
   padding: 16px 18px;
   min-width: 0;
 }
+.settings-overview-card.profile {
+  background:
+    radial-gradient(circle at top right, rgba(255,159,10,0.16), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015)),
+    color-mix(in srgb, var(--surface-solid) 94%, white 6%);
+}
+.settings-overview-card.google {
+  background:
+    radial-gradient(circle at top right, rgba(52,199,89,0.16), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015)),
+    color-mix(in srgb, var(--surface-solid) 94%, white 6%);
+}
+.settings-overview-card.bank {
+  background:
+    radial-gradient(circle at top right, rgba(94,92,230,0.16), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015)),
+    color-mix(in srgb, var(--surface-solid) 94%, white 6%);
+}
+.settings-overview-card.backup {
+  background:
+    radial-gradient(circle at top right, rgba(255,59,48,0.13), transparent 48%),
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.015)),
+    color-mix(in srgb, var(--surface-solid) 94%, white 6%);
+}
 .settings-overview-kicker {
   font-size: 10px;
   font-weight: 800;
@@ -5677,6 +5762,22 @@ body.ios-scroll-locked {
   border: 1px solid var(--glass-border);
   flex: 0 0 auto;
 }
+.settings-grid .settings-nav-card:nth-child(1) .settings-nav-icon {
+  background: linear-gradient(180deg, rgba(94,92,230,0.2), rgba(94,92,230,0.08));
+  color: #8b86ff;
+}
+.settings-grid .settings-nav-card:nth-child(2) .settings-nav-icon {
+  background: linear-gradient(180deg, rgba(0,122,255,0.22), rgba(0,122,255,0.08));
+  color: #59a8ff;
+}
+.settings-grid .settings-nav-card:nth-child(3) .settings-nav-icon {
+  background: linear-gradient(180deg, rgba(48,209,88,0.22), rgba(48,209,88,0.08));
+  color: #59dc84;
+}
+.settings-grid .settings-nav-card:nth-child(4) .settings-nav-icon {
+  background: linear-gradient(180deg, rgba(255,159,10,0.22), rgba(255,159,10,0.08));
+  color: #ffb348;
+}
 .settings-nav-copy {
   min-width: 0;
   display: flex;
@@ -5721,6 +5822,82 @@ body.ios-scroll-locked {
   color: var(--text2);
   font-size: 12px;
   line-height: 1.6;
+}
+.settings-card-safety {
+  background:
+    radial-gradient(circle at top right, rgba(52,199,89,0.08), transparent 30%),
+    linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.015)),
+    var(--surface-solid);
+}
+.settings-safety-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.settings-safety-item {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--surface-solid) 95%, white 5%);
+  box-shadow: var(--shadow-xs);
+}
+.settings-safety-item.backup { border-top: 3px solid var(--green-sys); }
+.settings-safety-item.restore { border-top: 3px solid var(--accent); }
+.settings-safety-item.export { border-top: 3px solid var(--warning-sys); }
+.settings-safety-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--glass-border);
+  font-size: 18px;
+}
+.settings-safety-title {
+  font-size: 14px;
+  font-weight: 730;
+  color: var(--text);
+}
+.settings-safety-sub {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text3);
+}
+.settings-collapse-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 18px;
+  border-radius: 20px;
+  border: 1px solid var(--glass-border);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
+    color-mix(in srgb, var(--surface-solid) 95%, white 5%);
+  text-align: left;
+}
+.settings-collapse-btn > span:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.settings-collapse-arrow {
+  font-size: 22px;
+  line-height: 1;
+  color: var(--text3);
+}
+.settings-advanced-panel {
+  display: none;
+  flex-direction: column;
+  gap: 18px;
 }
 .settings-action-stack {
   display: flex;
@@ -6034,13 +6211,16 @@ body.ios-scroll-locked {
   transform-origin: left top;
 }
 @media (max-width: 1180px) {
+  .insights-config-grid,
+  .insights-config-help,
   .settings-overview-grid,
   .settings-grid,
   .settings-grid-simple,
   .settings-split,
   .settings-module-grid,
   .settings-module-grid-simple,
-  .settings-card-hero-compact {
+  .settings-card-hero-compact,
+  .settings-safety-grid {
     grid-template-columns: 1fr;
   }
   .onboarding-wizard-progress,
