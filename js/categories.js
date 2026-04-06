@@ -48,13 +48,13 @@ function renderRulesPanel(){
 
   // Stats
   const uncategorized=state.transactions.filter(t=>!t.category||t.category==='Procesando...'||t.category==='Uncategorized').length;
-  const tab=state._rulesTab||'rules';
+  const tab=(state._rulesTab==='suggest'?'suggest':'rules');
 
   panel.innerHTML=`
     <div class="rp-header">
       <div>
         <div class="rp-title">⚡ Reglas de categorización</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:3px;">${rules.length} reglas · ${histEntries.length} aprendidos${uncategorized>0?' · <span style="color:var(--danger);">'+uncategorized+' sin categoría</span>':''}</div>
+        <div style="font-size:11px;color:var(--text3);margin-top:3px;">${rules.length} reglas activas${uncategorized>0?' · <span style="color:var(--danger);">'+uncategorized+' sin categoría</span>':''}</div>
       </div>
       <button class="tdp-close" onclick="closeRulesPanel()">✕</button>
     </div>
@@ -62,7 +62,6 @@ function renderRulesPanel(){
       <!-- TABS -->
       <div style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px;">
         <button onclick="state._rulesTab='rules';renderRulesPanel();" style="padding:6px 14px;border-radius:6px 6px 0 0;border:none;cursor:pointer;font-size:11px;font-weight:700;font-family:var(--font);transition:all .12s;${tab==='rules'?'background:var(--accent);color:#fff;':'background:transparent;color:var(--text3);'}">📋 Mis reglas (${rules.length})</button>
-        <button onclick="state._rulesTab='learned';renderRulesPanel();" style="padding:6px 14px;border-radius:6px 6px 0 0;border:none;cursor:pointer;font-size:11px;font-weight:700;font-family:var(--font);transition:all .12s;${tab==='learned'?'background:var(--accent);color:#fff;':'background:transparent;color:var(--text3);'}">🧠 Aprendidas (${histEntries.length})</button>
         <button onclick="state._rulesTab='suggest';renderRulesPanel();" style="padding:6px 14px;border-radius:6px 6px 0 0;border:none;cursor:pointer;font-size:11px;font-weight:700;font-family:var(--font);transition:all .12s;${tab==='suggest'?'background:var(--accent);color:#fff;':'background:transparent;color:var(--text3);'}">💡 Sugeridas (${suggestions.length})</button>
       </div>
 
@@ -101,32 +100,6 @@ function renderRulesPanel(){
         </div>
       </div>
       <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px;" onclick="reApplySuggestionsAll()">↺ Re-aplicar reglas a movimientos sin categoría</button>
-      `:''}
-
-      ${tab==='learned'?`
-      <!-- ═══ TAB: APRENDIDAS ═══ -->
-      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Comercios que el sistema aprendió por tus asignaciones. Podés borrar los incorrectos.</div>
-      ${histEntries.length===0?'<div style="font-size:12px;color:var(--text3);text-align:center;padding:20px;background:var(--surface2);border-radius:8px;">Sin historial todavía. Se genera al asignar categorías manualmente.</div>':''}
-      ${histEntries.map(([comercio,catCounts])=>{
-        const best=Object.entries(catCounts).sort((a,b)=>b[1]-a[1])[0];
-        const cc=catColor(best[0]);
-        const total=Object.values(catCounts).reduce((s,v)=>s+v,0);
-        const allCats=Object.entries(catCounts).sort((a,b)=>b[1]-a[1]).map(([c,n])=>c+' ('+n+'x)').join(', ');
-        return '<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:var(--surface2);border-radius:8px;margin-bottom:4px;border:1px solid var(--border);">'
-          +'<div style="flex:1;min-width:0;">'
-            +'<div style="display:flex;align-items:center;gap:6px;">'
-              +'<span style="font-size:12px;font-weight:700;color:var(--text);">'+esc(comercio)+'</span>'
-              +'<span style="font-size:10px;color:var(--text3);">→</span>'
-              +'<span style="font-size:11px;font-weight:600;color:'+cc+';">'+esc(best[0])+'</span>'
-              +'<span style="font-size:10px;color:var(--text3);font-family:var(--font);">('+total+'x)</span>'
-            +'</div>'
-            +(Object.keys(catCounts).length>1?'<div style="font-size:9px;color:var(--text3);margin-top:2px;">También: '+esc(allCats)+'</div>':'')
-          +'</div>'
-          +'<button style="padding:4px 8px;border-radius:5px;border:1px solid var(--border);background:transparent;color:var(--text3);font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;" data-com="'+esc(comercio)+'" data-cat="'+esc(best[0])+'" onclick="convertLearnedToRule(this.dataset.com,this.dataset.cat)" title="Convertir en regla fija">→ Regla</button>'
-          +'<button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.5;" data-com="'+esc(comercio)+'" onclick="deleteLearned(this.dataset.com)" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'" title="Eliminar aprendizaje">✕</button>'
-        +'</div>';
-      }).join('')}
-      ${histEntries.length>0?'<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px;color:var(--danger);" onclick="clearAllLearned()">🗑 Borrar todo el historial de aprendizaje</button>':''}
       `:''}
 
       ${tab==='suggest'?`

@@ -1287,7 +1287,7 @@ function getCurrentProfileSnapshot(){
     dashMonth: state.dashMonth || null,
     dashTcCycle: state.dashTcCycle || null,
     chartMode: state.chartMode || 'bars',
-    tendMode: state.tendMode || 'week',
+    tendMode: state.tendMode || 'tc',
     activeTendCats: cloneDeepProfileValue(state.activeTendCats || null),
     compareMode: state.compareMode || 'month',
     repDesign: state.repDesign || 'executive',
@@ -1418,7 +1418,7 @@ function applyUserProfile(profileId){
   state.dashMonth = profile.dashMonth || null;
   state.dashTcCycle = profile.dashTcCycle || null;
   state.chartMode = profile.chartMode || state.chartMode || 'bars';
-  state.tendMode = profile.tendMode || state.tendMode || 'week';
+  state.tendMode = profile.tendMode || state.tendMode || 'tc';
   state.activeTendCats = cloneDeepProfileValue(profile.activeTendCats || null);
   state.compareMode = profile.compareMode || state.compareMode || 'month';
   state.repDesign = profile.repDesign || state.repDesign || 'executive';

@@ -160,7 +160,7 @@ function updateQrBadge(){
 
 // ══ NAV ══
 // Map page → which nav-section contains it (if any)
-const PAGE_SECTION={settings:null,'credit-cards':'ns-credit-cards','cc-compare':'ns-credit-cards'};
+const PAGE_SECTION={settings:null};
 
 function isMobileAppView(){
   return window.innerWidth <= 768;
@@ -233,21 +233,21 @@ function nav(page){
     showToast('Esa pantalla quedó disponible solo en desktop', 'info');
     page='dashboard';
   }
-  if(isMobileAppView() && page==='credit-cards'){
-    state.ccPageTab='resumen';
-  }
+  if(page==='credit-cards') state.ccPageTab='resumen';
+  if(page==='tendencia') state.tendMode='tc';
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item,.mob-nav-btn').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('.nav-section').forEach(s=>s.classList.remove('has-active'));
   document.getElementById('page-'+page).classList.add('active');
   // Activate nav item by id
-  const ni=document.getElementById('ni-'+page);
+  const navTarget = page==='cc-compare' ? 'credit-cards' : page;
+  const ni=document.getElementById('ni-'+navTarget);
   if(ni)ni.classList.add('active');
   // Open parent section if needed
   const secId=PAGE_SECTION[page];
   if(secId){openSection(secId);document.getElementById(secId)?.classList.add('has-active');}
   // Mobile nav
-  const mn=document.getElementById('mn-'+page);if(mn)mn.classList.add('active');
+  const mn=document.getElementById('mn-'+navTarget);if(mn)mn.classList.add('active');
   if(page==='compare'){renderCompareSelectors();renderCompare();}
   if(page==='insights'&&state.transactions.length)generateInsights();
   if(page==='categories'){renderCategoryManage();renderInlineColorPicker('');}

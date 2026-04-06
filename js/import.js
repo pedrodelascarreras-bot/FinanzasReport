@@ -741,7 +741,8 @@ function suggestCategory(desc){
 
 // Función legacy compatible
 function ruleBasedCategory(desc){
-  return suggestCategory(desc).category;
+  const sug = suggestCategory(desc);
+  return sug.source==='regla_usuario' ? sug.category : 'Procesando...';
 }
 
 // Enriquecer transacción con campos nuevos si no los tiene

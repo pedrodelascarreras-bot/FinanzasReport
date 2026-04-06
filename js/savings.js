@@ -1,4 +1,17 @@
 // ══ SAVINGS PAGE — 100% MANUAL ══
+function savSignedAmount(dep){
+  const raw = Math.abs(parseFloat(dep?.amount)||0);
+  return dep?.kind==='withdrawal' ? -raw : raw;
+}
+
+function applySavingsAccountDelta(accountId, currency, delta){
+  if(!accountId || !delta) return;
+  const acc = (state.savAccounts||[]).find(a=>a.id===accountId);
+  if(!acc) return;
+  if(currency && acc.currency!==currency) return;
+  acc.balance = (parseFloat(acc.balance)||0) + delta;
+}
+
 function renderSavingsPage(){
   const accounts = state.savAccounts;
   const goals    = state.savGoals;
@@ -59,17 +72,18 @@ function renderSavingsPage(){
   const thisYear    = new Date().getFullYear();
   const depsARS     = deps.filter(d=>d.currency==='ARS');
   const ytdDeps     = depsARS.filter(d=>d.month && d.month.startsWith(thisYear+''));
-  const ytdTotal    = ytdDeps.reduce((s,d)=>s+d.amount,0);
+  const ytdTotal    = ytdDeps.reduce((s,d)=>s+savSignedAmount(d),0);
   const allMonths   = [...new Set(depsARS.map(d=>d.month))].sort();
-  const monthTotals = allMonths.map(m=>depsARS.filter(d=>d.month===m).reduce((s,d)=>s+d.amount,0));
+  const monthTotals = allMonths.map(m=>depsARS.filter(d=>d.month===m).reduce((s,d)=>s+savSignedAmount(d),0));
   const avgDep      = monthTotals.length ? Math.round(monthTotals.reduce((s,v)=>s+v,0)/monthTotals.length) : 0;
+  const totalWithdrawals = depsARS.filter(d=>d.kind==='withdrawal').reduce((s,d)=>s+Math.abs(parseFloat(d.amount)||0),0);
 
   /* ─── Promedio % de ingresos ─── */
   // Para cada mes con depósito, buscamos el ingreso registrado en state.incomeMonths
   const incMonths = {};
   (state.incomeMonths||[]).forEach(m=>{ incMonths[m.month]={total:(m.sources?Object.values(m.sources).reduce((s,v)=>s+v,0):0)}; });
   const rateValues = allMonths.map(m=>{
-    const dep = depsARS.filter(d=>d.month===m).reduce((s,d)=>s+d.amount,0);
+    const dep = depsARS.filter(d=>d.month===m).reduce((s,d)=>s+savSignedAmount(d),0);
     const inc = incMonths[m]?.total || 0;
     return inc > 0 ? dep/inc*100 : null;
   }).filter(v=>v!==null);
@@ -104,13 +118,16 @@ function renderSavingsPage(){
 
   /* ─── Texto subtítulo ─── */
   const subEl = document.getElementById('sav-page-sub');
-  if(subEl) subEl.textContent = accounts.length+' cuenta'+(accounts.length!==1?'s':'')+' · '+allMonths.length+' mes'+(allMonths.length!==1?'es':'')+' con depósito'+(avgRate!==null?' · '+avgRate+'% tasa de ahorro promedio':'');
+  if(subEl){
+    const flowCopy = totalWithdrawals>0 ? ' · uso de ahorros: $'+fmtN(totalWithdrawals) : '';
+    subEl.textContent = accounts.length+' cuenta'+(accounts.length!==1?'s':'')+' · '+allMonths.length+' mes'+(allMonths.length!==1?'es':'')+' con movimientos'+(avgRate!==null?' · '+avgRate+'% tasa neta promedio':'')+flowCopy;
+  }
 
   /* ─── KPI cards ─── */
-  document.getElementById('sav-kpi-year').textContent     = ytdTotal>0 ? '$'+fmtN(ytdTotal) : '$0';
-  document.getElementById('sav-kpi-year-sub').textContent = ytdDeps.length+' depósito'+(ytdDeps.length!==1?'s':'')+' en '+thisYear;
-  document.getElementById('sav-kpi-avg').textContent      = avgDep>0 ? '$'+fmtN(avgDep) : '$0';
-  document.getElementById('sav-kpi-avg-sub').textContent  = monthTotals.length+' mes'+(monthTotals.length!==1?'es':'')+' con depósito'+(streak>=2?' · 🔥 '+streak+' racha':'');
+  document.getElementById('sav-kpi-year').textContent     = (ytdTotal>=0 ? '$'+fmtN(ytdTotal) : '-$'+fmtN(Math.abs(ytdTotal)));
+  document.getElementById('sav-kpi-year-sub').textContent = ytdDeps.length+' movimiento'+(ytdDeps.length!==1?'s':'')+' en '+thisYear;
+  document.getElementById('sav-kpi-avg').textContent      = (avgDep>=0 ? '$'+fmtN(avgDep) : '-$'+fmtN(Math.abs(avgDep)));
+  document.getElementById('sav-kpi-avg-sub').textContent  = monthTotals.length+' mes'+(monthTotals.length!==1?'es':'')+' con registro'+(streak>=2?' · 🔥 '+streak+' racha':'');
   const rateEl    = document.getElementById('sav-kpi-rate');
   const rateSubEl = document.getElementById('sav-kpi-rate-sub');
   if(avgRate!==null){
@@ -134,7 +151,8 @@ function renderSavingsPage(){
         ? '<div style="font-size:11px;font-family:var(--font);color:var(--text3);margin-top:2px;">≈ $'+fmtN(Math.round(a.balance*usdRate))+' ARS</div>' : '';
       const accDeps  = deps.filter(d=>d.accountId===a.id&&d.currency===a.currency);
       const depCount = accDeps.length;
-      const depInfo  = depCount ? '<div style="font-size:11px;font-family:var(--font);color:var(--text3);margin-top:3px;">'+depCount+' depósito'+(depCount!==1?'s':'')+' · $'+fmtN(accDeps.reduce((s,d)=>s+d.amount,0))+'</div>' : '';
+      const accNet   = accDeps.reduce((s,d)=>s+savSignedAmount(d),0);
+      const depInfo  = depCount ? '<div style="font-size:11px;font-family:var(--font);color:var(--text3);margin-top:3px;">'+depCount+' movimiento'+(depCount!==1?'s':'')+' · '+(accNet>=0?'+':'-')+(a.currency==='USD'?'U$D ':'$')+fmtN(Math.abs(accNet))+'</div>' : '';
       return '<div class="sav-account-card" onclick="editSavAccount(\''+a.id+'\')">'
         +'<div class="sav-account-accent" style="background:'+c+';"></div>'
         +'<div class="sav-account-header"><div class="sav-account-icon" style="background:'+c+'22;">'+esc(a.emoji||typeEmoji)+'</div>'
@@ -226,13 +244,14 @@ function renderSavingsPage(){
 
 // ── Depósitos CRUD ──
 function openSavDepositModal(){
-  document.getElementById('modal-dep-title').textContent='Registrar ahorro';
+  document.getElementById('modal-dep-title').textContent='Registrar movimiento';
   document.getElementById('modal-dep-editing').value='';
   document.getElementById('btn-del-dep').style.display='none';
   const now=new Date();
   document.getElementById('dep-month').value=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');
   document.getElementById('dep-amount').value='';
   document.getElementById('dep-currency').value='ARS';
+  document.getElementById('dep-kind').value='deposit';
   document.getElementById('dep-note').value='';
   const sel=document.getElementById('dep-account');
   sel.innerHTML='<option value="">Sin especificar</option>'+state.savAccounts.map(a=>'<option value="'+a.id+'">'+esc(a.name)+' ('+a.currency+')</option>').join('');
@@ -240,12 +259,13 @@ function openSavDepositModal(){
 }
 function editSavDeposit(id){
   const d=state.savDeposits.find(x=>x.id===id);if(!d)return;
-  document.getElementById('modal-dep-title').textContent='Editar depósito';
+  document.getElementById('modal-dep-title').textContent='Editar movimiento';
   document.getElementById('modal-dep-editing').value=id;
   document.getElementById('btn-del-dep').style.display='inline-flex';
   document.getElementById('dep-month').value=d.month;
-  document.getElementById('dep-amount').value=d.amount;
+  document.getElementById('dep-amount').value=Math.abs(parseFloat(d.amount)||0);
   document.getElementById('dep-currency').value=d.currency;
+  document.getElementById('dep-kind').value=d.kind||'deposit';
   document.getElementById('dep-note').value=d.note||'';
   const sel=document.getElementById('dep-account');
   sel.innerHTML='<option value="">Sin especificar</option>'+state.savAccounts.map(a=>'<option value="'+a.id+'"'+(a.id===d.accountId?' selected':'')+'>'+esc(a.name)+' ('+a.currency+')</option>').join('');
@@ -255,21 +275,32 @@ function saveSavDeposit(){
   const month=document.getElementById('dep-month').value;
   const amount=parseFloat(document.getElementById('dep-amount').value)||0;
   if(!month||amount<=0){showToast('⚠️ Completá mes y monto','error');return;}
+  const editingId=document.getElementById('modal-dep-editing').value||Date.now().toString(36);
+  const previous=state.savDeposits.find(x=>x.id===editingId)||null;
+  if(previous){
+    applySavingsAccountDelta(previous.accountId, previous.currency, -savSignedAmount(previous));
+  }
   const obj={
-    id:document.getElementById('modal-dep-editing').value||Date.now().toString(36),
+    id:editingId,
     month,amount,
+    kind:document.getElementById('dep-kind').value||'deposit',
     currency:document.getElementById('dep-currency').value,
     accountId:document.getElementById('dep-account').value||null,
     note:document.getElementById('dep-note').value.trim()
   };
+  applySavingsAccountDelta(obj.accountId, obj.currency, savSignedAmount(obj));
   const idx=state.savDeposits.findIndex(x=>x.id===obj.id);
   if(idx>=0)state.savDeposits[idx]=obj;else state.savDeposits.push(obj);
-  saveState();closeModal('modal-sav-deposit');renderSavingsPage();refreshAll();showToast('✓ Ahorro registrado','success');
+  saveState();closeModal('modal-sav-deposit');renderSavingsPage();refreshAll();showToast(obj.kind==='withdrawal'?'✓ Uso de ahorros registrado':'✓ Ahorro registrado','success');
 }
 function deleteSavDeposit(){
   const id=document.getElementById('modal-dep-editing').value;
+  const previous=state.savDeposits.find(d=>d.id===id);
+  if(previous){
+    applySavingsAccountDelta(previous.accountId, previous.currency, -savSignedAmount(previous));
+  }
   state.savDeposits=state.savDeposits.filter(d=>d.id!==id);
-  saveState();closeModal('modal-sav-deposit');renderSavingsPage();showToast('Depósito eliminado','info');
+  saveState();closeModal('modal-sav-deposit');renderSavingsPage();showToast('Movimiento eliminado','info');
 }
 
 // ── Savings account CRUD ──
@@ -347,4 +378,3 @@ function renderGenericColorPicker(containerId,sel){
   const el=document.getElementById(containerId);if(!el)return;
   el.innerHTML=PALETTE.map(c=>'<div class="color-swatch '+(c===sel?'selected':'')+'" style="background:'+c+'" onclick="selectSwatch(\''+c+'\',this,\''+containerId+'\')"></div>').join('');
 }
-

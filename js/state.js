@@ -3,7 +3,7 @@ let state={
   transactions:[],categories:[...DEFAULT_CATS],
   income:{ars:0,varArs:0,usd:0,varUsd:0},
   savingsGoal:20,alertThreshold:80,spendPct:100,insightsBufferMonths:3,tendChartMode:'bar',
-  imports:[],compareMode:'month',repDesign:'executive',tendMode:'week',
+  imports:[],compareMode:'month',repDesign:'executive',tendMode:'tc',
   activeTendCats:null,
   _selectedTxns:new Set(),
   cuotas:[],autoCuotaConfig:{},subscriptions:[],fixedExpenses:[],
@@ -12,7 +12,7 @@ let state={
   incomeMonths:[],       // [{id,month:'2025-03',sources:{srcId:amount},extraArs,extraUsd,note}]
   savAccounts:[],        // [{id,name,emoji,balance,currency,type,yieldPct,color}]
   savGoals:[],           // [{id,name,emoji,target,currency,current,deadline,accountId,color}]
-  savDeposits:[],        // [{id,month:'2025-03',accountId,amount,currency,note}] — 100% manual
+  savDeposits:[],        // [{id,month:'2025-03',accountId,amount,currency,note,kind}] — 100% manual
   incViewCurrency:'ARS',
   tcConfig:{cardName:'',closeDay:0,dueDay:0,limit:0,mixTarget:70},
   tcCycles:[],

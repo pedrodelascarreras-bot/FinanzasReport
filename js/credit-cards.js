@@ -119,9 +119,14 @@ function checkCreditCardAlerts(){
 // ── Tab de página: Resumen | Configuración ──
 function ccSelectPageTab(tab){
   if(!tab) tab='resumen';
+  if(tab==='compare'){
+    nav('cc-compare');
+    return;
+  }
   state.ccPageTab=tab;
   document.getElementById('cpt-resumen')?.classList.toggle('active',tab==='resumen');
   document.getElementById('cpt-config')?.classList.toggle('active',tab==='config');
+  document.getElementById('cpt-compare')?.classList.remove('active');
   const pr=document.getElementById('cc-panel-resumen');
   const pc=document.getElementById('cc-panel-config');
   if(pr) pr.style.display=tab==='resumen'?'':'none';
@@ -137,6 +142,7 @@ function renderCreditCards(){
   // Apply tab visibility
   document.getElementById('cpt-resumen')?.classList.toggle('active',tab==='resumen');
   document.getElementById('cpt-config')?.classList.toggle('active',tab==='config');
+  document.getElementById('cpt-compare')?.classList.remove('active');
   const pr=document.getElementById('cc-panel-resumen');
   const pc=document.getElementById('cc-panel-config');
   if(pr) pr.style.display=tab==='resumen'?'':'none';
