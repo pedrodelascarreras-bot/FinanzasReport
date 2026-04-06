@@ -10112,7 +10112,7 @@ body.light-mode .modal {
   overflow: hidden;
 }
 .sav-hero::before {
-  content: '';
+  content: none;
   position: absolute;
   top: 0; left: 0; right: 0; height: 2px;
   background: linear-gradient(90deg, var(--green-sys), var(--blue), rgba(255,255,255,0.08));

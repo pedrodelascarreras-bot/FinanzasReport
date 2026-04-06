@@ -13,6 +13,14 @@ function tendChartAnim(){
     easing: 'easeOutQuart'
   };
 }
+function animateTendCanvas(canvas){
+  if(!canvas || typeof gsap==='undefined') return;
+  gsap.killTweensOf(canvas);
+  gsap.fromTo(canvas,
+    { opacity: 0.72, scaleY: 0.92, y: 8, transformOrigin: '50% 100%' },
+    { opacity: 1, scaleY: 1, y: 0, duration: 0.55, ease: 'power3.out', clearProps: 'transform,opacity' }
+  );
+}
 function setTendMode(m){
   state.tendMode=m;
   const weekBtn=document.getElementById('tend-tog-week');
@@ -206,6 +214,7 @@ function renderTendencia(){
       },
       options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:ctx=>ctx.datasetIndex===1?' Promedio: $'+fmtN(ctx.parsed.x):' $'+fmtN(ctx.parsed.x)}}},scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.03)',drawBorder:false}},y:{ticks:{color:_chartTickColor(),font:{..._chartTickFont(),size:11,weight:'600'}},grid:{display:false}}}}
     });
+    animateTendCanvas(ctx1);
   } else if(tendMode==='line'&&ctx1){
     // VISTA 2: Evolución temporal por categoría
     chartTitle.textContent='Evolución por categoría';
@@ -221,6 +230,7 @@ function renderTendencia(){
       type:'line',data:{labels:lineLabels,datasets},
       options:{responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),plugins:{legend:{display:true,position:'bottom',labels:{color:'#a09a94',font:{size:10},boxWidth:10,padding:10,usePointStyle:true}},tooltip:{..._chartTooltip(),callbacks:{label:ctx=>' '+ctx.dataset.label+': $'+fmtN(ctx.parsed.y)}}},scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont()},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}}
     });
+    animateTendCanvas(ctx1);
   } else if(tendMode==='compare'&&ctx1){
     // VISTA 3: Comparación vs período anterior (barras agrupadas)
     chartTitle.textContent='Comparación vs período anterior';
@@ -237,6 +247,7 @@ function renderTendencia(){
       },
       options:{responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),plugins:{legend:{display:true,position:'bottom',labels:{color:'#a09a94',font:{size:10},boxWidth:10,padding:12,usePointStyle:true}},tooltip:{..._chartTooltip(),callbacks:{label:ctx=>' '+ctx.dataset.label+': $'+fmtN(ctx.parsed.y)}}},scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxRotation:45},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}}
     });
+    animateTendCanvas(ctx1);
   } else if(tendMode==='treemap'&&customEl){
     // VISTA 4: Composición (treemap visual con divs)
     chartTitle.textContent='Composición del gasto';
@@ -291,6 +302,7 @@ function renderTendencia(){
       const ctx=document.getElementById(sparkId);if(!ctx)return;
       const ch=new Chart(ctx,{type:'line',data:{labels:keys.map(k=>getTendPeriodLabel(k)),datasets:[{data:allVals,borderColor:c,backgroundColor:c+'18',borderWidth:1.5,fill:true,tension:0.4,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),plugins:{legend:{display:false},tooltip:{..._chartTooltip(),enabled:false}},scales:{x:{display:false},y:{display:false}}}});
       state.charts._sparklines.push(ch);
+      animateTendCanvas(ctx);
     },50);
     const subText=singlePeriod?'período seleccionado':'total \u00b7 prom $'+fmtN(totalVal/Math.max(activeVals.length,1))+'/per\u00edodo';
     return '<div class="tend-sparkline-card"><div class="tend-spark-header"><div class="tend-spark-cat" style="color:'+c+';">'+emoji+' '+parent+'</div><div class="tend-spark-delta '+deltaClass+'">'+deltaText+'</div></div><div class="tend-spark-amount" style="color:'+c+';">$'+fmtN(totalVal)+'</div><div class="tend-spark-sub">'+subText+'</div><div class="sparkline-wrap"><canvas id="'+sparkId+'"></canvas></div></div>';
@@ -498,4 +510,5 @@ function renderCompareLineChart(ka,kb,la,lb){
     ]},
     options:{...chartOpts('$',false),animation:tendChartAnim(),plugins:{...chartOpts('$',false).plugins,legend:{display:false}}}
   });
+  animateTendCanvas(ctx);
 }
