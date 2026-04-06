@@ -299,6 +299,9 @@ async function loadFromDrive(){
       localStorage.setItem('fin_state',JSON.stringify(s));
       if(state.gmailClientId) localStorage.setItem('fin_gmail_client_id', state.gmailClientId);
     }catch(e){}
+    if(typeof ensureActiveUserProfileBootstrap === 'function'){
+      try{ ensureActiveUserProfileBootstrap(); }catch(e){ console.warn('profile bootstrap error', e); }
+    }
     return true;
   }catch(e){
     console.warn('Drive load error:',e);
@@ -358,6 +361,9 @@ function loadState(){
     if(incSave)incSave.value=state.savingsGoal;if(incAlert)incAlert.value=state.alertThreshold;
     const incSpendPct=document.getElementById('inc-spend-pct');
     if(incSpendPct)incSpendPct.value=state.spendPct<100?state.spendPct:'';
+    if(typeof ensureActiveUserProfileBootstrap === 'function'){
+      try{ ensureActiveUserProfileBootstrap(); }catch(e){ console.warn('profile bootstrap error', e); }
+    }
 
   }catch(e){console.warn('loadState error',e);}
 }

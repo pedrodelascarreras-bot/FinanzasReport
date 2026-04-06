@@ -209,6 +209,7 @@ function setPayMethod(method){
 // ══ INIT ══
 window.addEventListener('DOMContentLoaded',()=>{
   loadState();
+  ensureActiveUserProfileBootstrap();
   ensureGmailImportRules();
   state.gmailClientId = getGmailClientId();
   localStorage.setItem('fin_gmail_client_id', state.gmailClientId);
@@ -1195,14 +1196,46 @@ function cloneDeepProfileValue(value){
   return JSON.parse(JSON.stringify(value));
 }
 
+function markOwnedItems(items, ownerProfileId){
+  if(!Array.isArray(items)) return [];
+  return items.map(item=>{
+    if(!item || typeof item !== 'object' || Array.isArray(item)) return item;
+    return { ...item, ownerProfileId: item.ownerProfileId || ownerProfileId };
+  });
+}
+
+function normalizeStateOwnership(ownerProfileId){
+  const profileId = ownerProfileId || state.activeUserProfileId || 'default-profile';
+  state.transactions = markOwnedItems(state.transactions, profileId);
+  state.imports = markOwnedItems(state.imports, profileId);
+  state.cuotas = markOwnedItems(state.cuotas, profileId);
+  state.subscriptions = markOwnedItems(state.subscriptions, profileId);
+  state.fixedExpenses = markOwnedItems(state.fixedExpenses, profileId);
+  state.gmailImportRules = markOwnedItems(state.gmailImportRules, profileId);
+  state.bankProfiles = markOwnedItems(state.bankProfiles, profileId);
+  state.incomeSources = markOwnedItems(state.incomeSources, profileId);
+  state.incomeMonths = markOwnedItems(state.incomeMonths, profileId);
+  state.ccCards = markOwnedItems(state.ccCards, profileId);
+  state.ccCycles = markOwnedItems(state.ccCycles, profileId);
+  state.savAccounts = markOwnedItems(state.savAccounts, profileId);
+  state.savGoals = markOwnedItems(state.savGoals, profileId);
+  state.savDeposits = markOwnedItems(state.savDeposits, profileId);
+  state.catRules = markOwnedItems(state.catRules, profileId);
+}
+
 function ensureActiveUserProfileBootstrap(){
   const profiles = ensureUserProfiles();
-  if(state.activeUserProfileId && profiles.some(profile => profile.id === state.activeUserProfileId)) return;
+  if(state.activeUserProfileId && profiles.some(profile => profile.id === state.activeUserProfileId)){
+    normalizeStateOwnership(state.activeUserProfileId);
+    return;
+  }
   if(profiles.length){
     state.activeUserProfileId = profiles[0].id;
+    applyUserProfile(profiles[0].id);
     return;
   }
   const newId = 'user-profile-' + Date.now().toString(36);
+  normalizeStateOwnership(newId);
   profiles.unshift({
     id:newId,
     name: state.userName || 'Perfil principal',
@@ -1211,39 +1244,40 @@ function ensureActiveUserProfileBootstrap(){
   });
   state.userProfiles = profiles;
   state.activeUserProfileId = newId;
+  saveState();
 }
 
 function getCurrentProfileSnapshot(){
   return {
     userName: state.userName || 'Usuario',
     profileTemplate: state.profileTemplate || 'personal',
-    transactions: cloneDeepProfileValue((state.transactions || []).map(txn => ({
+    transactions: cloneDeepProfileValue(markOwnedItems((state.transactions || []).map(txn => ({
       ...txn,
       date: txn.date instanceof Date ? txn.date.toISOString() : txn.date
-    }))),
-    imports: cloneDeepProfileValue(state.imports || []),
-    cuotas: cloneDeepProfileValue(state.cuotas || []),
+    })), state.activeUserProfileId || 'default-profile')),
+    imports: cloneDeepProfileValue(markOwnedItems(state.imports || [], state.activeUserProfileId || 'default-profile')),
+    cuotas: cloneDeepProfileValue(markOwnedItems(state.cuotas || [], state.activeUserProfileId || 'default-profile')),
     autoCuotaConfig: cloneDeepProfileValue(state.autoCuotaConfig || {}),
-    subscriptions: cloneDeepProfileValue(state.subscriptions || []),
-    fixedExpenses: cloneDeepProfileValue(state.fixedExpenses || []),
-    gmailImportRules: cloneDeepProfileValue(state.gmailImportRules || []),
-    bankProfiles: cloneDeepProfileValue(state.bankProfiles || []),
+    subscriptions: cloneDeepProfileValue(markOwnedItems(state.subscriptions || [], state.activeUserProfileId || 'default-profile')),
+    fixedExpenses: cloneDeepProfileValue(markOwnedItems(state.fixedExpenses || [], state.activeUserProfileId || 'default-profile')),
+    gmailImportRules: cloneDeepProfileValue(markOwnedItems(state.gmailImportRules || [], state.activeUserProfileId || 'default-profile')),
+    bankProfiles: cloneDeepProfileValue(markOwnedItems(state.bankProfiles || [], state.activeUserProfileId || 'default-profile')),
     importConfig: cloneDeepProfileValue(state.importConfig || {}),
     automationPrefs: cloneDeepProfileValue(state.automationPrefs || {}),
     income: cloneDeepProfileValue(state.income || {}),
-    incomeSources: cloneDeepProfileValue(state.incomeSources || []),
-    incomeMonths: cloneDeepProfileValue(state.incomeMonths || []),
+    incomeSources: cloneDeepProfileValue(markOwnedItems(state.incomeSources || [], state.activeUserProfileId || 'default-profile')),
+    incomeMonths: cloneDeepProfileValue(markOwnedItems(state.incomeMonths || [], state.activeUserProfileId || 'default-profile')),
     tcConfig: cloneDeepProfileValue(state.tcConfig || {}),
     tcCycles: cloneDeepProfileValue(state.tcCycles || []),
-    ccCards: cloneDeepProfileValue(state.ccCards || []),
-    ccCycles: cloneDeepProfileValue(state.ccCycles || []),
+    ccCards: cloneDeepProfileValue(markOwnedItems(state.ccCards || [], state.activeUserProfileId || 'default-profile')),
+    ccCycles: cloneDeepProfileValue(markOwnedItems(state.ccCycles || [], state.activeUserProfileId || 'default-profile')),
     ccActiveCard: state.ccActiveCard || null,
-    savAccounts: cloneDeepProfileValue(state.savAccounts || []),
-    savGoals: cloneDeepProfileValue(state.savGoals || []),
-    savDeposits: cloneDeepProfileValue(state.savDeposits || []),
+    savAccounts: cloneDeepProfileValue(markOwnedItems(state.savAccounts || [], state.activeUserProfileId || 'default-profile')),
+    savGoals: cloneDeepProfileValue(markOwnedItems(state.savGoals || [], state.activeUserProfileId || 'default-profile')),
+    savDeposits: cloneDeepProfileValue(markOwnedItems(state.savDeposits || [], state.activeUserProfileId || 'default-profile')),
     incViewCurrency: state.incViewCurrency || 'ARS',
     categories: cloneDeepProfileValue(state.categories || []),
-    catRules: cloneDeepProfileValue(state.catRules || []),
+    catRules: cloneDeepProfileValue(markOwnedItems(state.catRules || [], state.activeUserProfileId || 'default-profile')),
     catHistory: cloneDeepProfileValue(state.catHistory || {}),
     savingsGoal: state.savingsGoal || 20,
     alertThreshold: state.alertThreshold || 80,
