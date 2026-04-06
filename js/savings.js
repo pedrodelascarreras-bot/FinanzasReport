@@ -142,6 +142,10 @@ function renderSavingsPage(){
   /* ─── Cuentas ─── */
   const agEl = document.getElementById('sav-accounts-grid');
   if(accounts.length){
+    if(accounts.length===1) agEl.style.gridTemplateColumns='minmax(280px, 360px)';
+    else if(accounts.length===2) agEl.style.gridTemplateColumns='repeat(2, minmax(260px, 1fr))';
+    else if(accounts.length===3) agEl.style.gridTemplateColumns='repeat(3, minmax(220px, 1fr))';
+    else agEl.style.gridTemplateColumns='repeat(auto-fill,minmax(210px,1fr))';
     agEl.innerHTML = accounts.map(a=>{
       const c = a.color||'#888888';
       const typeEmoji = {banco:'🏦',billetera:'📱',efectivo:'💵',inversion:'📈',cripto:'🔷',otro:'💰'}[a.type]||'💰';
@@ -162,6 +166,7 @@ function renderSavingsPage(){
         +'<div class="sav-account-currency">'+a.currency+equivInfo+yieldInfo+depInfo+'</div></div>';
     }).join('');
   } else {
+    agEl.style.gridTemplateColumns='1fr';
     agEl.innerHTML = '<div class="empty-state" style="padding:40px;grid-column:1/-1;"><div class="empty-icon">🏦</div><div class="empty-title">Sin cuentas</div><div class="empty-sub">Agregá tus cuentas de ahorro</div></div>';
   }
 
@@ -170,6 +175,10 @@ function renderSavingsPage(){
   const _allAccARS = accounts.filter(a=>a.currency==='ARS').reduce((s,a)=>s+a.balance,0);
   const _allAccUSD = accounts.filter(a=>a.currency==='USD').reduce((s,a)=>s+a.balance,0);
   if(goals.length){
+    if(goals.length===1) ggEl.style.gridTemplateColumns='minmax(320px, 420px)';
+    else if(goals.length===2) ggEl.style.gridTemplateColumns='repeat(2, minmax(300px, 1fr))';
+    else if(goals.length===3) ggEl.style.gridTemplateColumns='repeat(3, minmax(240px, 1fr))';
+    else ggEl.style.gridTemplateColumns='repeat(auto-fill,minmax(250px,1fr))';
     ggEl.innerHTML = goals.map(g=>{
       const c   = g.color||'#34c759';
       const gCurrent = g.currency==='USD'
@@ -194,6 +203,7 @@ function renderSavingsPage(){
         +'<button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="event.stopPropagation();editSavGoal(\''+g.id+'\')">✎</button></div></div>';
     }).join('');
   } else {
+    ggEl.style.gridTemplateColumns='1fr';
     ggEl.innerHTML = '<div class="empty-state" style="padding:40px;grid-column:1/-1;"><div class="empty-icon">🎯</div><div class="empty-title">Sin metas</div><div class="empty-sub">Creá tu primera meta de ahorro</div></div>';
   }
 

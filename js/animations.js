@@ -21,16 +21,10 @@
   // ──────────────────────────────────────────────────────────
   function applyChartDefaults () {
     if (typeof Chart === 'undefined') { setTimeout(applyChartDefaults, 200); return; }
-    Chart.defaults.animation = false;
-
-    Chart.defaults.datasets.bar = Chart.defaults.datasets.bar || {};
-    Chart.defaults.datasets.bar.animation = false;
-
-    Chart.defaults.datasets.line = Chart.defaults.datasets.line || {};
-    Chart.defaults.datasets.line.animation = false;
-
-    Chart.defaults.datasets.doughnut = Chart.defaults.datasets.doughnut || {};
-    Chart.defaults.datasets.doughnut.animation = false;
+    Chart.defaults.animation = Chart.defaults.animation || {};
+    if (Chart.defaults.animation === false) {
+      Chart.defaults.animation = {};
+    }
   }
   applyChartDefaults();
 

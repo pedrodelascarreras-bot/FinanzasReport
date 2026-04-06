@@ -10260,21 +10260,30 @@ body.light-mode .notif-close:hover {
   color: #1f2b3d !important;
 }
 
-body.light-mode #page-savings .page-header {
+body.light-mode #page-savings .page-header,
+#page-savings .page-header {
   background: transparent !important;
   border-top: none !important;
   box-shadow: none !important;
 }
-body.light-mode #page-savings {
+body.light-mode #page-savings,
+#page-savings {
   background-image: none !important;
   border-top: none !important;
   box-shadow: none !important;
 }
 body.light-mode #page-savings .page-header::before,
-body.light-mode #page-savings::before {
+body.light-mode #page-savings .page-header::after,
+body.light-mode #page-savings::before,
+body.light-mode #page-savings::after,
+#page-savings .page-header::before,
+#page-savings .page-header::after,
+#page-savings::before,
+#page-savings::after {
   content: none !important;
 }
-body.light-mode #page-savings .chart-card::before {
+body.light-mode #page-savings .chart-card::before,
+#page-savings .chart-card::before {
   display: none !important;
 }
 
