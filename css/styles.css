@@ -9897,4 +9897,64 @@ body.light-mode .sub-icon {
 /* ═══ TOAST UPGRADE ═══ */
 .toast {
   border-radius: 18px;
+  will-change: transform, opacity;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GSAP ANIMATION SYSTEM — conflict resolution
+   GSAP owns transform/opacity on these elements.
+   Keep only box-shadow transitions in CSS.
+═══════════════════════════════════════════════════════════ */
+
+/* Remove CSS hover transforms — GSAP handles them via inline styles.
+   Do NOT use !important here — GSAP inline styles must win. */
+.kpi-card:hover,
+.dkpi:hover,
+.dash-hero-card:hover,
+.dw-card:hover,
+.chart-card:hover,
+.tend-spark-card:hover,
+.tend-sparkline-card:hover,
+.cuota-card:hover,
+.sub-card:hover,
+.sav-goal-card:hover,
+.sav-account-card:hover,
+.txn-summary-card:hover,
+.settings-nav-card:hover,
+.rep-design-card:hover,
+.global-search-item:hover,
+.decision-card:hover {
+  transform: none;
+}
+
+/* will-change for GPU compositing on animated cards */
+.kpi-card, .dkpi, .dash-hero-card, .dw-card,
+.chart-card, .tend-spark-card, .cuota-card, .sub-card,
+.txn-summary-card, .settings-nav-card, .rep-design-card {
+  will-change: transform;
+}
+
+/* Smooth CSS transitions only for shadow/border (not transform) */
+.kpi-card, .dkpi, .dw-card, .cuota-card, .sub-card,
+.sav-goal-card, .sav-account-card, .tend-spark-card,
+.settings-nav-card, .rep-design-card, .txn-summary-card {
+  transition: box-shadow 0.24s var(--ease-premium),
+              border-color 0.24s var(--ease-premium) !important;
+}
+
+/* Page transitions — GSAP overrides animatePageEnter; disable CSS pageEnter */
+.page.page-enter {
+  animation: none !important;
+}
+
+/* Button press — GSAP owns transform, just keep background transitions */
+.btn, .surface-toggle-btn, .eft-btn {
+  transition: background 0.18s var(--ease-premium),
+              box-shadow 0.18s var(--ease-premium),
+              color 0.18s var(--ease-premium) !important;
+}
+
+/* Nav item active pulse */
+.nav-item.active {
+  transition: background 0.2s var(--ease-premium) !important;
 }

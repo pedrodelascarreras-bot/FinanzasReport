@@ -3,9 +3,9 @@
   "configurations": [
     {
       "name": "FinanzasApp",
-      "runtimeExecutable": "/bin/bash",
-      "runtimeArgs": ["/Users/pedrodelascarreras/Desktop/FinanzasApp/.claude/serve.sh"],
-      "port": 8080,
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["/tmp/finanzas_serve.py"],
+      "port": 3000,
       "autoPort": true
     }
   ]
