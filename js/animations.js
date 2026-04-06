@@ -197,12 +197,12 @@
         const ni = document.getElementById('ni-' + page);
         if (ni) moveNavIndicator(ni);
 
-        // Animate page enter
+        // Animate page enter — fade suave, sin rebote
         const pageEl = document.getElementById('page-' + page);
         if (pageEl) {
           gsap.fromTo(pageEl,
-            { opacity: 0, y: 10 },
-            { opacity: 1, y: 0, duration: 0.35, ease: easeSoft, clearProps: 'transform' }
+            { opacity: 0, y: 6 },
+            { opacity: 1, y: 0, duration: 0.28, ease: 'power2.out', clearProps: 'transform' }
           );
         }
       });
@@ -217,11 +217,11 @@
     pageEl.classList.remove('page-enter');
 
     mm.add(`not ${reduced}`, () => {
-      const tl = gsap.timeline({ defaults: { ease, duration: 0.42 } });
+      const tl = gsap.timeline({ defaults: { ease: 'power2.out', duration: 0.36 } });
 
       tl.fromTo(pageEl,
-        { opacity: 0, y: 14, scale: 0.996 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.4, clearProps: 'transform' }
+        { opacity: 0, y: 8 },
+        { opacity: 1, y: 0, duration: 0.3, clearProps: 'transform' }
       );
 
       const kids = pageEl.querySelectorAll(
@@ -231,15 +231,15 @@
       );
       if (kids.length) {
         kids.forEach(el => { el.style.animation = 'none'; });
-        gsap.set(kids, { opacity: 0, y: 16 });
+        gsap.set(kids, { opacity: 0, y: 12 });
         tl.to(kids, {
           opacity: 1, y: 0,
-          stagger: { each: 0.04, ease: 'power1.out' },
-          duration: 0.4,
-          ease: easeSoft,
+          stagger: { each: 0.035, ease: 'power1.out' },
+          duration: 0.34,
+          ease: 'power2.out',
           clearProps: 'transform',
           onComplete() { kids.forEach(el => { el.style.animation = ''; }); }
-        }, '-=0.26');
+        }, '-=0.2');
       }
     });
   };
@@ -520,41 +520,30 @@
   // los KPIs hacen fade-out rápido y vuelven contando desde cero
   // ──────────────────────────────────────────────────────────
   function animatePeriodChange (origFn, args) {
+    // Llamar la función original INMEDIATAMENTE — sin delay de fade-out
+    origFn.apply(window, args);
+
     const page = document.getElementById('page-dashboard');
+    if (!page || window.matchMedia(reduced).matches) return;
 
-    if (!page || window.matchMedia(reduced).matches) {
-      origFn.apply(window, args);
-      return;
-    }
-
-    const targets = page.querySelectorAll(
-      '.dkpi, .kpi-card, .dash-hero-card, .dhc-amount, ' +
-      '.hero-mini-card, .hero-wide-card, .chart-card, .dw-card'
-    );
-
-    gsap.to(targets, {
-      opacity: 0.25,
-      y: 6,
-      scale: 0.984,
-      duration: 0.18,
-      ease: 'power2.in',
-      overwrite: 'auto',
-      onComplete () {
-        // Llamar la función original — actualiza el DOM
-        origFn.apply(window, args);
-
-        // Volver a animar todo hacia adentro con spring
-        gsap.to(targets, {
-          opacity: 1,
-          y: 0,
-          scale: 1,
-          duration: 0.44,
-          ease: 'back.out(1.5)',
-          stagger: { each: 0.03, ease: 'power1.out' },
+    // Animar la entrada de los elementos actualizados
+    requestAnimationFrame(() => {
+      const targets = page.querySelectorAll(
+        '.dkpi, .kpi-card, .dash-hero-card, .dhc-amount, ' +
+        '.hero-mini-card, .hero-wide-card, .chart-card, .dw-card'
+      );
+      if (!targets.length) return;
+      gsap.fromTo(targets,
+        { opacity: 0.4, y: 8, scale: 0.988 },
+        {
+          opacity: 1, y: 0, scale: 1,
+          duration: 0.38,
+          ease: 'power2.out',
+          stagger: { each: 0.025, ease: 'power1.out' },
           clearProps: 'transform',
           overwrite: 'auto'
-        });
-      }
+        }
+      );
     });
   }
 

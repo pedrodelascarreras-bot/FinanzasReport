@@ -312,7 +312,9 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
 .app {
   display: grid;
   grid-template-columns: var(--sidebar-w) 1fr;
-  min-height: 100vh;
+  height: 100vh;
+  max-height: 100vh;
+  overflow: hidden;
   position: relative;
   z-index: 1;
 }
@@ -460,7 +462,7 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
 /* ════════════════════════════════════════════════
    MAIN
 ════════════════════════════════════════════════ */
-.main { padding: 36px 44px; display: flex; flex-direction: column; gap: 22px; min-width: 0; position: relative; }
+.main { padding: 36px 44px; display: flex; flex-direction: column; gap: 22px; min-width: 0; position: relative; overflow-y: auto; height: 100vh; }
 .page { display: none; }
 .page.active { display: flex; flex-direction: column; gap: 22px; }
 .page.page-enter {
