@@ -60,11 +60,11 @@
   applyChartDefaults();
 
   const ease      = 'power3.out';
-  const easeBack  = 'back.out(1.7)';
-  const easeBackS = 'back.out(1.2)';
+  const easeBack  = 'power3.out';
+  const easeBackS = 'power2.out';
   const easeSoft  = 'power2.out';
   const easeIn    = 'power2.in';
-  const easeElastic = 'elastic.out(1, 0.5)';
+  const easeElastic = 'power3.out';
 
   // ──────────────────────────────────────────────────────────
   // OVERRIDE animateNumberText — GSAP-powered counter
@@ -254,18 +254,20 @@
     mm.add(`not ${reduced}`, () => {
       const tl = gsap.timeline({ defaults: { ease, duration: 0.5 } });
 
-      // Kill running animations on these elements
+      // Kill running animations on these elements — excluir panel de insights
       const allEls = page.querySelectorAll(
         '.dash-hero-card, .dhc-eyebrow, .dhc-amount, ' +
         '.hero-mini-card, .hero-wide-card, .dkpi, .chart-card, .dw-card, .fade-up'
       );
-      allEls.forEach(el => { el.style.animation = 'none'; });
+      const insightsPanel = document.getElementById('dash-insights-panel');
+      const filteredEls = Array.from(allEls).filter(el => !insightsPanel || !insightsPanel.contains(el));
+      filteredEls.forEach(el => { el.style.animation = 'none'; });
 
       // ── Hero card — dramatic spring entrance
       const hero = page.querySelector('.dash-hero-card');
       if (hero) {
-        gsap.set(hero, { opacity: 0, y: 28, scale: 0.97, rotateX: 4 });
-        tl.to(hero, { opacity: 1, y: 0, scale: 1, rotateX: 0, duration: 0.65, ease: easeBack }, 0);
+        gsap.set(hero, { opacity: 0, y: 22, scale: 0.98 });
+        tl.to(hero, { opacity: 1, y: 0, scale: 1, duration: 0.55, ease: easeBack, clearProps: 'transform' }, 0);
       }
 
       // ── Eyebrow + amount waterfall
@@ -312,8 +314,10 @@
         }, 0.42);
       }
 
-      // ── Fade-up elements
-      const fadeUps = page.querySelectorAll('.fade-up:not(.dkpi):not(.chart-card):not(.dw-card)');
+      // ── Fade-up elements — excluir insights panel
+      const fadeUps = Array.from(
+        page.querySelectorAll('.fade-up:not(.dkpi):not(.chart-card):not(.dw-card)')
+      ).filter(el => !insightsPanel || !insightsPanel.contains(el));
       if (fadeUps.length) {
         gsap.set(fadeUps, { opacity: 0, y: 12 });
         tl.to(fadeUps, {
@@ -323,7 +327,7 @@
         }, 0.35);
       }
 
-      tl.call(() => { allEls.forEach(el => { el.style.animation = ''; }); });
+      tl.call(() => { filteredEls.forEach(el => { el.style.animation = ''; }); });
     });
   }
 
