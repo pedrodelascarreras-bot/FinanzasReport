@@ -10265,13 +10265,17 @@ body.light-mode #page-savings .page-header {
   border-top: none !important;
   box-shadow: none !important;
 }
+body.light-mode #page-savings {
+  background-image: none !important;
+  border-top: none !important;
+  box-shadow: none !important;
+}
 body.light-mode #page-savings .page-header::before,
 body.light-mode #page-savings::before {
   content: none !important;
 }
 body.light-mode #page-savings .chart-card::before {
-  left: 28px;
-  right: 28px;
+  display: none !important;
 }
 
 /* ═══ GLOBAL SEARCH MODAL ITEMS ═══ */

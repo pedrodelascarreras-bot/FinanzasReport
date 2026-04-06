@@ -7,6 +7,12 @@ function toggleBreakdown(id){
   el.style.display=open?'none':'block';
   if(chev)chev.style.transform=open?'rotate(0deg)':'rotate(90deg)';
 }
+function tendChartAnim(){
+  return {
+    duration: 520,
+    easing: 'easeOutQuart'
+  };
+}
 function setTendMode(m){
   state.tendMode=m;
   const weekBtn=document.getElementById('tend-tog-week');
@@ -198,7 +204,7 @@ function renderTendencia(){
           {label:'Promedio',data:activeCatNames.map(()=>overallAvg),type:'line',borderColor:'rgba(160,154,148,0.6)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:1}
         ]
       },
-      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:ctx=>ctx.datasetIndex===1?' Promedio: $'+fmtN(ctx.parsed.x):' $'+fmtN(ctx.parsed.x)}}},scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.03)',drawBorder:false}},y:{ticks:{color:_chartTickColor(),font:{..._chartTickFont(),size:11,weight:'600'}},grid:{display:false}}}}
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:ctx=>ctx.datasetIndex===1?' Promedio: $'+fmtN(ctx.parsed.x):' $'+fmtN(ctx.parsed.x)}}},scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.03)',drawBorder:false}},y:{ticks:{color:_chartTickColor(),font:{..._chartTickFont(),size:11,weight:'600'}},grid:{display:false}}}}
     });
   } else if(tendMode==='line'&&ctx1){
     // VISTA 2: Evolución temporal por categoría
@@ -213,7 +219,7 @@ function renderTendencia(){
     });
     state.charts.tendMain=new Chart(ctx1,{
       type:'line',data:{labels:lineLabels,datasets},
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{color:'#a09a94',font:{size:10},boxWidth:10,padding:10,usePointStyle:true}},tooltip:{..._chartTooltip(),callbacks:{label:ctx=>' '+ctx.dataset.label+': $'+fmtN(ctx.parsed.y)}}},scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont()},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}}
+      options:{responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),plugins:{legend:{display:true,position:'bottom',labels:{color:'#a09a94',font:{size:10},boxWidth:10,padding:10,usePointStyle:true}},tooltip:{..._chartTooltip(),callbacks:{label:ctx=>' '+ctx.dataset.label+': $'+fmtN(ctx.parsed.y)}}},scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont()},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}}
     });
   } else if(tendMode==='compare'&&ctx1){
     // VISTA 3: Comparación vs período anterior (barras agrupadas)
@@ -229,7 +235,7 @@ function renderTendencia(){
           {label:lLabel,data:compCats.map(([p])=>parentDeltas[p].last),backgroundColor:compCats.map(([p])=>{const g=CATEGORY_GROUPS.find(x=>x.group===p);return(g?g.color:'#888')+'bb';}),borderColor:compCats.map(([p])=>{const g=CATEGORY_GROUPS.find(x=>x.group===p);return g?g.color:'#888';}),borderWidth:1.5,borderRadius:8,maxBarThickness:42}
         ]
       },
-      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{color:'#a09a94',font:{size:10},boxWidth:10,padding:12,usePointStyle:true}},tooltip:{..._chartTooltip(),callbacks:{label:ctx=>' '+ctx.dataset.label+': $'+fmtN(ctx.parsed.y)}}},scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxRotation:45},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}}
+      options:{responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),plugins:{legend:{display:true,position:'bottom',labels:{color:'#a09a94',font:{size:10},boxWidth:10,padding:12,usePointStyle:true}},tooltip:{..._chartTooltip(),callbacks:{label:ctx=>' '+ctx.dataset.label+': $'+fmtN(ctx.parsed.y)}}},scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxRotation:45},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}}
     });
   } else if(tendMode==='treemap'&&customEl){
     // VISTA 4: Composición (treemap visual con divs)
@@ -283,7 +289,7 @@ function renderTendencia(){
     const singlePeriod=activeKeys.length===1;
     setTimeout(()=>{
       const ctx=document.getElementById(sparkId);if(!ctx)return;
-      const ch=new Chart(ctx,{type:'line',data:{labels:keys.map(k=>getTendPeriodLabel(k)),datasets:[{data:allVals,borderColor:c,backgroundColor:c+'18',borderWidth:1.5,fill:true,tension:0.4,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{..._chartTooltip(),enabled:false}},scales:{x:{display:false},y:{display:false}}}});
+      const ch=new Chart(ctx,{type:'line',data:{labels:keys.map(k=>getTendPeriodLabel(k)),datasets:[{data:allVals,borderColor:c,backgroundColor:c+'18',borderWidth:1.5,fill:true,tension:0.4,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),plugins:{legend:{display:false},tooltip:{..._chartTooltip(),enabled:false}},scales:{x:{display:false},y:{display:false}}}});
       state.charts._sparklines.push(ch);
     },50);
     const subText=singlePeriod?'período seleccionado':'total \u00b7 prom $'+fmtN(totalVal/Math.max(activeVals.length,1))+'/per\u00edodo';
@@ -490,6 +496,6 @@ function renderCompareLineChart(ka,kb,la,lb){
       {label:la,data:dataA,borderColor:colA,backgroundColor:colA+'15',borderWidth:2,fill:true,tension:0.3,pointRadius:0,pointHoverRadius:4},
       {label:lb,data:dataB,borderColor:colB,backgroundColor:colB+'15',borderWidth:2,fill:true,tension:0.3,pointRadius:0,pointHoverRadius:4}
     ]},
-    options:{...chartOpts('$',false),plugins:{...chartOpts('$',false).plugins,legend:{display:false}}}
+    options:{...chartOpts('$',false),animation:tendChartAnim(),plugins:{...chartOpts('$',false).plugins,legend:{display:false}}}
   });
 }

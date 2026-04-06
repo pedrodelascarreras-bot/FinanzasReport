@@ -182,9 +182,9 @@ function renderSavingsPage(){
       if(rem>0&&avgDep>0){const mn=Math.ceil(rem/avgDep);etaText+=(etaText?' · ':'')+mn+' mes'+(mn!==1?'es':'')+' al ritmo actual';}
       else if(rem<=0) etaText='¡Meta alcanzada! 🎉';
       const motivMsg = pct>=100?'🎉 ¡Completada!':pct>=75?'🔥 ¡Casi llegás!':pct>=50?'💪 Vas a la mitad':pct>=25?'🚀 Buen inicio':'✨ Cada peso cuenta';
-      return '<div class="sav-goal-card" onclick="editSavGoal(\''+g.id+'\')">'
+      return '<div class="sav-goal-card" onclick="editSavGoal(\''+g.id+'\')" style="background:linear-gradient(180deg, '+c+'18, rgba(255,255,255,0.02)), var(--surface-solid);border-color:'+c+'33;">'
         +'<div class="sav-goal-accent" style="background:'+c+';"></div>'
-        +'<div class="sav-goal-body"><div class="sav-goal-emoji">'+esc(g.emoji||'🎯')+'</div>'
+        +'<div class="sav-goal-body"><div class="sav-goal-emoji" style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:14px;background:'+c+'18;">'+esc(g.emoji||'🎯')+'</div>'
         +'<div class="sav-goal-name">'+esc(g.name)+'</div>'
         +'<div class="sav-goal-target">Meta: '+(g.currency==='USD'?'U$D ':'$')+fmtN(g.target)+'</div>'
         +'<div class="sav-goal-amounts"><div class="sav-goal-current" style="color:'+c+';">'+(g.currency==='USD'?'U$D ':'$')+fmtN(Math.round(gCurrent))+'</div><div class="sav-goal-of">de '+(g.currency==='USD'?'U$D ':'$')+fmtN(g.target)+'</div></div>'
@@ -203,12 +203,12 @@ function renderSavingsPage(){
   if(ctx){
     if(allMonths.length){
       const labels = allMonths.map(m=>{const[y,mo]=m.split('-');return new Date(parseInt(y),parseInt(mo)-1,1).toLocaleDateString('es-AR',{month:'short',year:'2-digit'});});
-      const maxV   = Math.max(...monthTotals,1);
-      const bgColors = monthTotals.map(v=>v===maxV?'rgba(96,200,240,0.55)':'rgba(96,200,240,0.25)');
-      const bdColors = monthTotals.map(v=>v===maxV?'#34c759':'rgba(96,200,240,0.5)');
+      const maxV   = Math.max(...monthTotals.map(v=>Math.abs(v)),1);
+      const bgColors = monthTotals.map(v=>v<0?'rgba(255,107,107,0.38)':Math.abs(v)===maxV?'rgba(96,200,240,0.55)':'rgba(96,200,240,0.25)');
+      const bdColors = monthTotals.map(v=>v<0?'#ff6b6b':Math.abs(v)===maxV?'#34c759':'rgba(96,200,240,0.5)');
       state.charts.savHistory = new Chart(ctx,{type:'bar',data:{labels,datasets:[
         {label:'Ahorro ARS',data:monthTotals,backgroundColor:bgColors,borderColor:bdColors,borderWidth:2,borderRadius:8,maxBarThickness:42}
-      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>' $'+fmtN(c.parsed.y)+' ARS'+(c.parsed.y===maxV?' 🏆 mejor mes':'')}}},scales:{x:{grid:{display:false},ticks:{color:_chartTickColor(),font:_chartTickFont()}},y:{grid:_chartGridY(),ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)}}}}});
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>(c.parsed.y>=0?' $':' -$')+fmtN(Math.abs(c.parsed.y))+' ARS'+(Math.abs(c.parsed.y)===maxV?' 🏆 pico':'')}}},scales:{x:{grid:{display:false},ticks:{color:_chartTickColor(),font:_chartTickFont()}},y:{grid:_chartGridY(),ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>(v>=0?'$':'-$')+fmtN(Math.abs(v))}}}}});
     } else {
       const c2d = ctx.getContext('2d');
       ctx.height=80;
@@ -236,6 +236,31 @@ function renderSavingsPage(){
           +'<div style="flex:1;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(name)+'</div>'
           +'<div style="font-size:11px;font-family:var(--font);color:var(--text3);">'+pct+'%</div>'
           +'</div>';
+      }).join('');
+    }
+  }
+
+  const movesEl = document.getElementById('sav-movements-list');
+  if(movesEl){
+    const sortedMoves = [...deps].sort((a,b)=>(b.month||'').localeCompare(a.month||'') || String(b.id).localeCompare(String(a.id)));
+    if(!sortedMoves.length){
+      movesEl.innerHTML = '<div class="premium-empty-state" style="padding:32px 24px;"><div class="premium-empty-icon">💸</div><div class="empty-title">Sin movimientos registrados</div><div class="empty-sub">Acá vas a ver aportes y usos de ahorros en orden.</div></div>';
+    } else {
+      movesEl.innerHTML = sortedMoves.slice(0,18).map(d=>{
+        const signed = savSignedAmount(d);
+        const isOut = signed < 0;
+        const tone = isOut ? '#ff6b6b' : '#34c759';
+        const kindLabel = isOut ? 'Uso de ahorros' : 'Aporte';
+        const monthLabel = d.month ? new Date(d.month+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'}) : 'Sin mes';
+        const account = d.accountId ? state.savAccounts.find(a=>a.id===d.accountId) : null;
+        return '<button type="button" onclick="editSavDeposit(\''+d.id+'\')" style="width:100%;display:flex;align-items:flex-start;gap:14px;padding:16px 18px;border:none;border-bottom:1px solid var(--border);background:transparent;text-align:left;cursor:pointer;">'
+          +'<div style="width:40px;height:40px;border-radius:12px;background:'+tone+'18;color:'+tone+';display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">'+(isOut?'↘':'↗')+'</div>'
+          +'<div style="flex:1;min-width:0;">'
+            +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><div style="font-size:14px;font-weight:700;color:var(--text);">'+kindLabel+'</div><div style="font-size:11px;color:'+tone+';font-weight:700;">'+monthLabel+'</div></div>'
+            +'<div style="font-size:12px;color:var(--text2);margin-top:3px;">'+(d.note?esc(d.note):'Sin nota')+(account?' · '+esc(account.name):'')+'</div>'
+          +'</div>'
+          +'<div style="font-size:18px;font-weight:800;color:'+tone+';font-family:var(--font);flex-shrink:0;">'+(signed>=0?'+':'-')+(d.currency==='USD'?'U$D ':'$')+fmtN(Math.abs(signed))+'</div>'
+        +'</button>';
       }).join('');
     }
   }

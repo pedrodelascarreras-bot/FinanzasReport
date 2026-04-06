@@ -1741,6 +1741,14 @@
     </div>
   </div>
 
+  <div class="fade-up d4">
+    <div class="sav-section-head">
+      <div class="sav-section-kicker">Historial de movimientos</div>
+      <button class="btn btn-ghost btn-sm" onclick="openSavDepositModal()">+ Registrar movimiento</button>
+    </div>
+    <div id="sav-movements-list" class="section-card"></div>
+  </div>
+
 </div>
 
 <!-- IMPORT -->
@@ -1910,6 +1918,11 @@
   </div>
 
   <div id="cc-compare-content" class="fade-up d1">
+    <div class="cc-section-tabs">
+      <button class="cc-stab" onclick="nav('credit-cards');ccSelectPageTab('resumen')">Resumen</button>
+      <button class="cc-stab" onclick="nav('credit-cards');ccSelectPageTab('config')">Configuración</button>
+      <button class="cc-stab active">Comparar resúmenes</button>
+    </div>
     <div class="ccc-intro-band">
       <div class="ccc-intro-copy">
         <div class="ccc-intro-kicker">Cruce automático</div>
