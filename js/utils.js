@@ -81,24 +81,19 @@ function getFadeDelay(el,idx){
 }
 function replayFadeUp(scope){
   const root=typeof scope==='string'?document.querySelector(scope):scope;
-  if(!root||prefersReducedMotion())return;
+  if(!root)return;
   const nodes=[...root.querySelectorAll('.fade-up')];
   nodes.forEach((el,idx)=>{
     el.style.animation='none';
-    el.style.opacity='0';
+    el.style.opacity='1';
+    el.style.transform='none';
     el.style.setProperty('--stagger-delay',`${getFadeDelay(el,idx)}ms`);
-    void el.offsetWidth;
-    el.style.animation='fadeUp var(--dur-med) var(--ease-premium) forwards';
   });
 }
 function animatePageEnter(pageEl){
   if(!pageEl)return;
-  if(prefersReducedMotion())return;
   pageEl.classList.remove('page-enter');
-  void pageEl.offsetWidth;
-  pageEl.classList.add('page-enter');
   replayFadeUp(pageEl);
-  setTimeout(()=>pageEl.classList.remove('page-enter'),560);
 }
 /* iOS scroll-lock helpers */
 let _iosOvCnt=0,_iosSY=0;

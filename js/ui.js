@@ -601,7 +601,6 @@ function toggleNotifPanel() {
   panel.style.display = isShow ? 'flex' : 'none';
   if(isShow){
     renderNotifications();
-    requestAnimationFrame(()=>replayFadeUp(panel));
   }
 }
 

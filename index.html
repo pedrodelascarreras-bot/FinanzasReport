@@ -142,7 +142,11 @@
     <div id="notif-panel" class="notif-panel fade-up" style="display:none;">
       <div class="notif-panel-header">
         <div class="panel-heading">Centro de actividad</div>
-        <button class="notif-close" onclick="toggleNotifPanel()">✕</button>
+        <button class="notif-close" type="button" aria-label="Cerrar centro de actividad" title="Cerrar" onclick="toggleNotifPanel()">
+          <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+            <path d="M5 5l10 10M15 5L5 15" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/>
+          </svg>
+        </button>
       </div>
       <div id="notif-list" class="notif-list">
         <!-- Content injected by JS -->
@@ -598,178 +602,166 @@
   <div class="page-header fade-up">
     <div>
       <div class="page-title">Configuración</div>
-      <div class="page-subtitle">Prepará la app para vos, tu familia o cualquier persona con sus propios datos, banco y forma de uso.</div>
+      <div class="page-subtitle">Ordená la app, definí cómo se ve y prepará la sincronización para cada persona.</div>
     </div>
   </div>
 
   <div class="settings-shell fade-up d1">
     <div class="settings-main">
-      <div class="settings-card settings-card-hero">
+      <div class="settings-card settings-card-hero settings-card-hero-compact">
         <div class="settings-hero-copy">
-          <div class="settings-kicker">Centro de configuración</div>
-          <div class="settings-title">Todo lo importante para adaptar la app sin tocar la ingeniería.</div>
-          <div class="settings-note">Desde acá podés definir categorías, importaciones, tarjetas, sincronización y otras bases para que cada usuario configure la app a su medida.</div>
-          <div class="settings-module-actions" style="margin-top:14px;">
-            <button class="btn btn-primary" onclick="openOnboardingWizard()">Abrir onboarding guiado</button>
-            <button class="btn btn-ghost" onclick="openCloudSync(event)">Conectar Google</button>
-          </div>
+          <div class="settings-kicker">Configuración</div>
+          <div class="settings-title">Una base clara para usarla bien y compartirla mejor.</div>
+          <div class="settings-note">Acá definís cómo se ve la app, cómo entran los datos y qué necesita otra persona para usarla con su propio banco y su propia cuenta.</div>
         </div>
-        <div class="settings-hero-chips">
-          <span class="settings-chip">Google</span>
-          <span class="settings-chip">Gmail</span>
-          <span class="settings-chip">Tarjetas</span>
-          <span class="settings-chip">Importación</span>
-          <span class="settings-chip">Categorías</span>
+        <div class="settings-module-actions settings-module-actions-tight">
+          <button class="btn btn-primary" onclick="openOnboardingWizard()">Onboarding</button>
+          <button class="btn btn-ghost" onclick="openCloudSync(event)">Conectar Google</button>
+          <button class="btn btn-ghost" onclick="nav('dashboard-design')">Editar dashboard</button>
         </div>
       </div>
 
-      <div class="settings-grid">
-        <button class="settings-card settings-nav-card" onclick="nav('categories')">
-          <div class="settings-nav-icon">◑</div>
-          <div class="settings-nav-copy">
-            <div class="settings-nav-title">Categorías</div>
-            <div class="settings-nav-sub">Editá nombres, colores y emojis para que los movimientos se lean mejor y la app se adapte a tu criterio.</div>
-          </div>
-          <div class="settings-nav-cta">Abrir</div>
-        </button>
+      <div id="settings-overview-shell" class="settings-overview-grid"></div>
 
-        <button class="settings-card settings-nav-card" onclick="nav('import')">
-          <div class="settings-nav-icon">↑</div>
-          <div class="settings-nav-copy">
-            <div class="settings-nav-title">Importar datos</div>
-            <div class="settings-nav-sub">CSV, texto pegado, respaldo, historial y limpieza para cualquier flujo de carga.</div>
-          </div>
-          <div class="settings-nav-cta">Abrir</div>
-        </button>
-
-        <button class="settings-card settings-nav-card" onclick="nav('credit-cards');ccSelectPageTab('config')">
-          <div class="settings-nav-icon">💳</div>
-          <div class="settings-nav-copy">
-            <div class="settings-nav-title">Tarjetas y ciclos</div>
-            <div class="settings-nav-sub">Configurá apertura, cierre, vencimiento, nombre visible y comportamiento de cada tarjeta.</div>
-          </div>
-          <div class="settings-nav-cta">Abrir</div>
-        </button>
-
-        <button class="settings-card settings-nav-card" onclick="gmailSync()">
-          <div class="settings-nav-icon">✉️</div>
-          <div class="settings-nav-copy">
-            <div class="settings-nav-title">Gmail y sincronización</div>
-            <div class="settings-nav-sub">Conectá tu correo y Google para importar gastos y ver los mismos datos en distintos dispositivos.</div>
-          </div>
-          <div class="settings-nav-cta">Conectar</div>
-        </button>
-      </div>
-
-      <div class="settings-split">
-        <div class="settings-card">
-          <div class="settings-kicker">Listo para más gente</div>
-          <div class="settings-title settings-title-sm">Qué conviene dejar preparado</div>
-          <div class="settings-list">
-            <div class="settings-list-item"><strong>Banco y formato</strong><span>Resumen propio, nombres de columnas y estilo de importación.</span></div>
-            <div class="settings-list-item"><strong>Tarjetas</strong><span>Fechas clave, ciclos y reglas por banco o tarjeta.</span></div>
-            <div class="settings-list-item"><strong>Google y Gmail</strong><span>Conexión personal, sincronización y lectura de correos propios.</span></div>
-            <div class="settings-list-item"><strong>Personalización</strong><span>Nombre, vistas guardadas, dashboard y lectura visual de la app.</span></div>
-          </div>
+      <section class="settings-section">
+        <div class="settings-section-head">
+          <div class="settings-kicker">Parte 1</div>
+          <div class="settings-title settings-title-sm">Configuración de la app</div>
+          <div class="settings-note">Lo visual, lo cotidiano y lo que usás para adaptar la app a tu forma de mirar los datos.</div>
         </div>
 
-        <div class="settings-card">
-          <div class="settings-kicker">Accesos rápidos</div>
-          <div class="settings-title settings-title-sm">Cambios frecuentes</div>
-          <div class="settings-action-stack">
-            <button class="btn btn-ghost" onclick="nav('dashboard-design')">Editar diseño del dashboard</button>
-            <button class="btn btn-ghost" onclick="openCloudSync(event)">Conectar Google Drive</button>
-            <button class="btn btn-ghost" onclick="nav('income')">Revisar ingresos base</button>
-            <button class="btn btn-ghost" onclick="nav('savings')">Ajustar metas de ahorro</button>
+        <div class="settings-grid settings-grid-simple">
+          <button class="settings-card settings-nav-card" onclick="nav('categories')">
+            <div class="settings-nav-icon">◑</div>
+            <div class="settings-nav-copy">
+              <div class="settings-nav-title">Categorías</div>
+              <div class="settings-nav-sub">Nombres, colores y emojis.</div>
+            </div>
+            <div class="settings-nav-cta">Abrir</div>
+          </button>
+
+          <button class="settings-card settings-nav-card" onclick="nav('credit-cards');ccSelectPageTab('config')">
+            <div class="settings-nav-icon">💳</div>
+            <div class="settings-nav-copy">
+              <div class="settings-nav-title">Tarjetas y ciclos</div>
+              <div class="settings-nav-sub">Apertura, cierre y vencimiento.</div>
+            </div>
+            <div class="settings-nav-cta">Abrir</div>
+          </button>
+
+          <button class="settings-card settings-nav-card" onclick="nav('income')">
+            <div class="settings-nav-icon">＋</div>
+            <div class="settings-nav-copy">
+              <div class="settings-nav-title">Ingresos base</div>
+              <div class="settings-nav-sub">Lo que la app usa para leer tu mes.</div>
+            </div>
+            <div class="settings-nav-cta">Abrir</div>
+          </button>
+
+          <button class="settings-card settings-nav-card" onclick="nav('dashboard-design')">
+            <div class="settings-nav-icon">◫</div>
+            <div class="settings-nav-copy">
+              <div class="settings-nav-title">Diseño del dashboard</div>
+              <div class="settings-nav-sub">Widgets, orden y vistas guardadas.</div>
+            </div>
+            <div class="settings-nav-cta">Abrir</div>
+          </button>
+        </div>
+
+        <div class="settings-module-grid settings-module-grid-simple">
+          <div class="settings-card">
+            <div class="settings-kicker">Perfil de uso</div>
+            <div class="settings-title settings-title-sm">Plantillas rápidas</div>
+            <div id="settings-profile-shell" class="settings-template-grid"></div>
           </div>
-        </div>
-      </div>
 
-      <div class="settings-module-grid">
-        <div class="settings-card">
-          <div class="settings-kicker">Onboarding real</div>
-          <div class="settings-title settings-title-sm">Checklist de puesta en marcha</div>
-          <div class="settings-note">Lo mínimo para que cualquier persona pueda empezar a usar la app con sus propios datos.</div>
-          <div id="settings-onboarding-shell" class="settings-status-list"></div>
-        </div>
-
-        <div class="settings-card">
-          <div class="settings-kicker">Perfil de uso</div>
-          <div class="settings-title settings-title-sm">Plantillas para no empezar de cero</div>
-          <div class="settings-note">Aplican una orientación general sobre dashboard, foco de lectura y configuración base.</div>
-          <div id="settings-profile-shell" class="settings-template-grid"></div>
-        </div>
-      </div>
-
-      <div class="settings-module-grid">
-        <div class="settings-card">
-          <div class="settings-kicker">Fuentes de datos</div>
-          <div class="settings-title settings-title-sm">Google, Gmail y reglas de captura</div>
-          <div class="settings-note">Definí qué correos mirar, cómo identificarlos y a qué tarjeta o banco asociarlos.</div>
-          <div class="settings-module-actions">
-            <button class="btn btn-primary" onclick="openCloudSync(event)">Conectar Google</button>
-            <button class="btn btn-ghost" onclick="openGmailRuleManager()">Gestionar reglas Gmail</button>
-          </div>
-          <div id="settings-gmail-rules-shell" class="settings-rule-list"></div>
-        </div>
-
-        <div class="settings-card">
-          <div class="settings-kicker">Importación universal</div>
-          <div class="settings-title settings-title-sm">Distintos caminos para cargar movimientos</div>
-          <div class="settings-note">Pensado para bancos distintos, resúmenes pegados o archivos importados sin depender de un único formato.</div>
-          <div id="settings-import-shell" class="settings-method-list"></div>
-        </div>
-      </div>
-
-      <div class="settings-module-grid">
-        <div class="settings-card">
-          <div class="settings-kicker">Perfiles de usuario</div>
-          <div class="settings-title settings-title-sm">Alterná configuraciones personales</div>
-          <div class="settings-note">Cada perfil guarda su nombre, plantilla, reglas Gmail, perfiles bancarios y automatizaciones.</div>
-          <div class="settings-module-actions">
-            <button class="btn btn-primary" onclick="openUserProfileManager()">Gestionar perfiles</button>
-            <button class="btn btn-ghost" onclick="saveActiveUserProfile()">Guardar perfil activo</button>
-          </div>
-          <div id="settings-user-profiles-shell" class="settings-rule-list"></div>
-        </div>
-
-        <div class="settings-card">
-          <div class="settings-kicker">Bancos y tarjetas base</div>
-          <div class="settings-title settings-title-sm">Perfiles para distintos usuarios y bancos</div>
-          <div class="settings-note">Dejá guardado cómo se llama el banco, qué tarjeta usa, qué vía de importación preferís y qué ciclo maneja.</div>
-          <div class="settings-module-actions">
-            <button class="btn btn-primary" onclick="openBankProfileManager()">Agregar perfil</button>
-            <button class="btn btn-ghost" onclick="nav('credit-cards');ccSelectPageTab('config')">Abrir tarjetas y ciclos</button>
-          </div>
-          <div id="settings-bank-profiles-shell" class="settings-rule-list"></div>
-        </div>
-
-        <div class="settings-card">
-          <div class="settings-kicker">Multiusuario</div>
-          <div class="settings-title settings-title-sm">Base para amigos, familia y bancos distintos</div>
-          <div class="settings-note">Este bloque prepara la app para que cada persona pueda tener su propia configuración, sus propias reglas y sus propias fuentes de datos.</div>
-          <div id="settings-multiuser-shell" class="settings-list"></div>
-        </div>
-      </div>
-
-      <div class="settings-module-grid">
-        <div class="settings-card">
-          <div class="settings-kicker">Asistente de importación</div>
-          <div class="settings-title settings-title-sm">Elegí el mejor camino según tu banco</div>
-          <div class="settings-note">Guiá a cualquier persona para decidir si le conviene conectar Gmail, pegar el resumen o importar un archivo.</div>
-          <div class="settings-module-actions">
-            <button class="btn btn-primary" onclick="openImportAssistant()">Abrir asistente</button>
-            <button class="btn btn-ghost" onclick="nav('import')">Ir a importar datos</button>
+          <div class="settings-card">
+            <div class="settings-kicker">Apariencia</div>
+            <div class="settings-title settings-title-sm">Cómo querés verla</div>
+            <div id="settings-appearance-shell" class="settings-list"></div>
           </div>
         </div>
 
-        <div class="settings-card">
-          <div class="settings-kicker">Automatizaciones</div>
-          <div class="settings-title settings-title-sm">Alertas y envíos automáticos</div>
-          <div class="settings-note">Definí una base de alertas útiles para que la app se sienta viva sin bombardear.</div>
-          <div id="settings-automations-shell" class="settings-list"></div>
+        <div class="settings-module-grid settings-module-grid-simple">
+          <div class="settings-card">
+            <div class="settings-kicker">Seguridad y respaldo</div>
+            <div class="settings-title settings-title-sm">Cuidá tus datos</div>
+            <div id="settings-safety-shell" class="settings-list"></div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-kicker">Automatizaciones</div>
+            <div class="settings-title settings-title-sm">Alertas y hábitos</div>
+            <div id="settings-automations-shell" class="settings-list"></div>
+          </div>
         </div>
-      </div>
+      </section>
+
+      <section class="settings-section settings-section-divider">
+        <div class="settings-section-head">
+          <div class="settings-kicker">Parte 2</div>
+          <div class="settings-title settings-title-sm">Inicio, sincronización y perfiles</div>
+          <div class="settings-note">Todo lo que prepara la app para entrar con Google, importar gastos y usarla con distintos perfiles o bancos.</div>
+        </div>
+
+        <div class="settings-module-grid settings-module-grid-simple">
+          <div class="settings-card">
+            <div class="settings-kicker">Onboarding</div>
+            <div class="settings-title settings-title-sm">Puesta en marcha</div>
+            <div id="settings-onboarding-shell" class="settings-status-list"></div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-kicker">Google y Gmail</div>
+            <div class="settings-title settings-title-sm">Cuenta y sincronización</div>
+            <div class="settings-module-actions settings-module-actions-tight">
+              <button class="btn btn-primary" onclick="openCloudSync(event)">Conectar Google</button>
+              <button class="btn btn-ghost" onclick="openGmailRuleManager()">Reglas Gmail</button>
+            </div>
+            <div id="settings-gmail-rules-shell" class="settings-rule-list"></div>
+          </div>
+        </div>
+
+        <div class="settings-module-grid settings-module-grid-simple">
+          <div class="settings-card">
+            <div class="settings-kicker">Importación</div>
+            <div class="settings-title settings-title-sm">Cómo entran los movimientos</div>
+            <div class="settings-module-actions settings-module-actions-tight">
+              <button class="btn btn-primary" onclick="openImportAssistant()">Asistente</button>
+              <button class="btn btn-ghost" onclick="nav('import')">Abrir importación</button>
+            </div>
+            <div id="settings-import-shell" class="settings-method-list"></div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-kicker">Bancos y tarjetas</div>
+            <div class="settings-title settings-title-sm">Perfiles base</div>
+            <div class="settings-module-actions settings-module-actions-tight">
+              <button class="btn btn-primary" onclick="openBankProfileManager()">Agregar perfil</button>
+              <button class="btn btn-ghost" onclick="nav('credit-cards');ccSelectPageTab('config')">Abrir tarjetas</button>
+            </div>
+            <div id="settings-bank-profiles-shell" class="settings-rule-list"></div>
+          </div>
+        </div>
+
+        <div class="settings-module-grid settings-module-grid-simple">
+          <div class="settings-card">
+            <div class="settings-kicker">Perfiles</div>
+            <div class="settings-title settings-title-sm">Usuarios y contextos</div>
+            <div class="settings-module-actions settings-module-actions-tight">
+              <button class="btn btn-primary" onclick="openUserProfileManager()">Gestionar perfiles</button>
+              <button class="btn btn-ghost" onclick="saveActiveUserProfile()">Guardar perfil activo</button>
+            </div>
+            <div id="settings-user-profiles-shell" class="settings-rule-list"></div>
+          </div>
+
+          <div class="settings-card">
+            <div class="settings-kicker">Estado del perfil activo</div>
+            <div class="settings-title settings-title-sm">Lo que hoy queda preparado</div>
+            <div id="settings-multiuser-shell" class="settings-list"></div>
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </div>

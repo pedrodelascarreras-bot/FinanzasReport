@@ -1626,6 +1626,7 @@ function renderSettingsPage(){
   ensureBankProfiles();
   ensureUserProfiles();
   ensureAutomationPrefs();
+  updateLastBackupLabel();
   const onboardingEl = document.getElementById('settings-onboarding-shell');
   const profileEl = document.getElementById('settings-profile-shell');
   const rulesEl = document.getElementById('settings-gmail-rules-shell');
@@ -1634,7 +1635,38 @@ function renderSettingsPage(){
   const usersEl = document.getElementById('settings-user-profiles-shell');
   const multiEl = document.getElementById('settings-multiuser-shell');
   const automationEl = document.getElementById('settings-automations-shell');
-  if(!onboardingEl || !profileEl || !rulesEl || !importEl || !bankEl || !usersEl || !multiEl || !automationEl) return;
+  const overviewEl = document.getElementById('settings-overview-shell');
+  const appearanceEl = document.getElementById('settings-appearance-shell');
+  const safetyEl = document.getElementById('settings-safety-shell');
+  if(!onboardingEl || !profileEl || !rulesEl || !importEl || !bankEl || !usersEl || !multiEl || !automationEl || !overviewEl || !appearanceEl || !safetyEl) return;
+
+  const activeRules = getActiveGmailImportRules().length;
+  const backupRaw = localStorage.getItem('fin_last_backup');
+  const backupLabel = backupRaw ? new Date(backupRaw).toLocaleDateString('es-AR') : 'Pendiente';
+  const activeProfile = (state.userProfiles || []).find(profile => profile.id === state.activeUserProfileId);
+  const connectedGoogle = isGoogleConnected();
+  overviewEl.innerHTML = `
+    <div class="settings-overview-card">
+      <div class="settings-overview-kicker">Perfil activo</div>
+      <div class="settings-overview-value">${activeProfile?.name || state.userName || 'Sin perfil'}</div>
+      <div class="settings-overview-sub">${activeProfile?.profileTemplate || state.profileTemplate || 'personal'}</div>
+    </div>
+    <div class="settings-overview-card">
+      <div class="settings-overview-kicker">Google</div>
+      <div class="settings-overview-value">${connectedGoogle ? 'Conectado' : 'Pendiente'}</div>
+      <div class="settings-overview-sub">${activeRules} regla${activeRules===1?'':'s'} Gmail activa${activeRules===1?'':'s'}</div>
+    </div>
+    <div class="settings-overview-card">
+      <div class="settings-overview-kicker">Bancos</div>
+      <div class="settings-overview-value">${(state.bankProfiles || []).length}</div>
+      <div class="settings-overview-sub">perfil${(state.bankProfiles || []).length===1?'':'es'} bancario${(state.bankProfiles || []).length===1?'':'s'}</div>
+    </div>
+    <div class="settings-overview-card">
+      <div class="settings-overview-kicker">Backup</div>
+      <div class="settings-overview-value">${backupLabel}</div>
+      <div class="settings-overview-sub">${backupRaw ? 'última copia guardada' : 'sin respaldo reciente'}</div>
+    </div>
+  `;
 
   const checklist = getOnboardingChecklist();
   onboardingEl.innerHTML = checklist.map(step => `
@@ -1660,6 +1692,18 @@ function renderSettingsPage(){
       <div class="settings-template-sub">${profile.sub}</div>
     </button>
   `).join('');
+
+  appearanceEl.innerHTML = `
+    <div class="settings-list-item"><strong>Tema</strong><span>Cambiá entre modo claro y oscuro según cómo preferís leer la app.</span><button class="dashboard-widget-mini" onclick="toggleTheme()">Alternar</button></div>
+    <div class="settings-list-item"><strong>Color principal</strong><span>Elegí el tono general de la interfaz para que la app se sienta más tuya.</span><button class="dashboard-widget-mini" onclick="toggleColorThemePanel()">Cambiar</button></div>
+    <div class="settings-list-item"><strong>Dashboard</strong><span>Ordená widgets, tamaños y vistas guardadas para que el panel principal te sirva de verdad.</span><button class="dashboard-widget-mini primary" onclick="nav('dashboard-design')">Editar</button></div>
+  `;
+
+  safetyEl.innerHTML = `
+    <div class="settings-list-item"><strong>Descargar backup</strong><span>Guardá una copia completa de tus datos antes de importar, limpiar o probar cambios grandes.</span><button class="dashboard-widget-mini primary" onclick="exportBackupJSON()">Guardar</button></div>
+    <div class="settings-list-item"><strong>Restaurar backup</strong><span>Recuperá una copia previa si querés volver a un estado estable.</span><button class="dashboard-widget-mini" onclick="document.getElementById('restore-json-input')?.click()">Restaurar</button></div>
+    <div class="settings-list-item"><strong>Exportar movimientos</strong><span>Bajá tus transacciones en CSV para revisar, auditar o compartir por fuera de la app.</span><button class="dashboard-widget-mini" onclick="exportarCSV()">Exportar</button></div>
+  `;
 
   const rules = ensureGmailImportRules();
   rulesEl.innerHTML = rules.map(rule => `
@@ -1716,17 +1760,6 @@ function renderSettingsPage(){
       <div class="settings-method-actions">
         <button class="dashboard-widget-mini primary" onclick="openCloudSync(event)">Conectar Google</button>
         <button class="dashboard-widget-mini" onclick="openGmailRuleManager()">Ver reglas</button>
-      </div>
-    </div>
-    <div class="settings-method-item">
-      <div class="settings-method-head">
-        <div>
-          <div class="settings-method-title">Carga manual</div>
-          <div class="settings-method-sub">Para efectivo, gastos aislados o movimientos que no llegan por banco ni por correo.</div>
-        </div>
-      </div>
-      <div class="settings-method-actions">
-        <button class="dashboard-widget-mini primary" onclick="openUniversalImport('manual')">Registrar gasto</button>
       </div>
     </div>
   `;
@@ -1796,10 +1829,9 @@ function renderSettingsPage(){
   }
 
   multiEl.innerHTML = `
-    <div class="settings-list-item"><strong>Perfil activo</strong><span>${profiles.find(p=>p.id===state.profileTemplate)?.title || 'Personal'} · ahora cada perfil arrastra nombre, Gmail, bancos, tarjetas, ingresos base y automatizaciones.</span></div>
-    <div class="settings-list-item"><strong>Reglas por persona</strong><span>Las reglas Gmail se guardan dentro del perfil activo, así que cada usuario puede tener remitentes, queries y tarjetas distintas.</span></div>
-    <div class="settings-list-item"><strong>Base financiera</strong><span>También quedan encapsulados ingresos, fuentes de ingreso, tarjetas/ciclos y reglas de categorización para no rearmar todo a mano.</span></div>
-    <div class="settings-list-item"><strong>Captura universal</strong><span>La app ya queda preparada para Google, texto pegado e importación de archivos, sin depender de un único banco.</span></div>
+    <div class="settings-list-item"><strong>Perfil activo</strong><span>${activeProfile?.name || 'Sin perfil'} usa su propia configuración de Google, bancos, reglas e ingresos.</span></div>
+    <div class="settings-list-item"><strong>Datos aislados</strong><span>Movimientos, compromisos, importaciones, ahorros y layout del dashboard ya quedan asociados al perfil activo.</span></div>
+    <div class="settings-list-item"><strong>Preparada para otros</strong><span>Podés duplicar un perfil y armar rápidamente la base de un amigo o familiar sin mezclar su información con la tuya.</span></div>
   `;
 
   const automations = ensureAutomationPrefs();

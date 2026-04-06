@@ -71,6 +71,7 @@
 
   // ── Build dynamic content ────────────────────────────────
   function _buildContent(){
+    const isMobileSimple = window.innerWidth <= 768;
     const today    = new Date();
     const todayStr = today.toISOString().slice(0,10);
 
@@ -211,6 +212,25 @@
     // ── Inject ──
     const content = document.getElementById('sp-content');
     if(content){
+      if(isMobileSimple){
+        content.innerHTML = `
+        <div class="sp-mobile-simple fade-in">
+          <div class="sp-mobile-card">
+            <div class="sp-mobile-kicker">Finanzas</div>
+            <div class="sp-mobile-title">Bienvenido, ${state.userName || 'Pedro'}</div>
+            <div class="sp-mobile-sub">${dateStr}</div>
+            <div class="sp-mobile-auth-copy">
+              <div class="sp-mobile-auth-title">Entrá con Google para usar tu app</div>
+              <div class="sp-mobile-auth-body" id="sp-google-gate-inline">
+                Para entrar a la app y ver tus datos sincronizados, iniciá sesión con Google.
+              </div>
+            </div>
+            <button class="sp-cta sp-mobile-cta" id="splash-primary-cta" onclick="handleSplashPrimaryAction(event)">Iniciar sesión con Google &nbsp;→</button>
+          </div>
+        </div>
+        `;
+        return;
+      }
       content.innerHTML = `
       <div class="sp-presentation">
         <div class="sp-scene">
