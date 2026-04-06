@@ -1,4 +1,24 @@
 // ══ DASHBOARD ══
+function _chartTooltip(){
+  const l=_isL();
+  return {
+    backgroundColor:l?'rgba(255,255,255,0.96)':'rgba(15,22,34,0.95)',
+    titleColor:l?'#1d1d1f':'#f5f7fb',
+    bodyColor:l?'#425066':'#b5bece',
+    borderColor:l?'rgba(49,67,96,0.15)':'rgba(255,255,255,0.1)',
+    borderWidth:1,
+    padding:{top:10,bottom:10,left:14,right:14},
+    cornerRadius:12,
+    titleFont:{size:11,weight:'600',family:'-apple-system,SF Pro Display,sans-serif'},
+    bodyFont:{size:13,weight:'500',family:'-apple-system,SF Pro Display,sans-serif'},
+    displayColors:false,
+    caretSize:0,
+    boxPadding:4
+  };
+}
+function _chartTickColor(){return _isL()?'#748096':'#566172';}
+function _chartTickFont(){return {size:10,weight:'500',family:'-apple-system,SF Pro Display,sans-serif'};}
+function _chartGridY(){return {color:_isL()?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.03)',drawBorder:false};}
 let USD_TO_ARS = state.usdRate || 1420;
 async function fetchUsdRate(manual=false){
   const btn=document.getElementById('btn-refresh-usd');
@@ -1035,8 +1055,9 @@ function renderDashboard(){
   // Hidden compat
   document.getElementById('kpi-ars-d').textContent=cntMonth+' movimientos · $'+fmtN(cntMonth>0?totalGastoARS/cntMonth:0)+' promedio';
   // 3 totals breakdown
-  document.getElementById('kpi-total-ars').textContent='$'+fmtN(arsMonth);
-  document.getElementById('kpi-total-usd').textContent=usdMonth>0?'U$D '+fmtN(usdMonth):'—';
+  animateNumberText(document.getElementById('kpi-total-ars'),arsMonth,{prefix:'$',decimals:2,duration:760});
+  if(usdMonth>0)animateNumberText(document.getElementById('kpi-total-usd'),usdMonth,{prefix:'U$D ',decimals:2,duration:760});
+  else{const _usdTotalEl=document.getElementById('kpi-total-usd');if(_usdTotalEl)_usdTotalEl.textContent='—';}
 
   // Badge %
   const badge=document.getElementById('dhc-pct-badge');
@@ -1047,7 +1068,8 @@ function renderDashboard(){
     } else { badge.className='dhc-badge neutral';badge.textContent='Ingreso no configurado'; }
   }
 
-  document.getElementById('kpi-inc-total').textContent=incTotalARS>0?'$'+fmtN(incTotalARS):'—';
+  if(incTotalARS>0)animateNumberText(document.getElementById('kpi-inc-total'),incTotalARS,{prefix:'$',decimals:2,duration:760});
+  else{const _incEl=document.getElementById('kpi-inc-total');if(_incEl)_incEl.textContent='—';}
 
   // ── Balance (hidden compat) ──
   const balRow=document.getElementById('dhc-balance-row');
@@ -1137,7 +1159,8 @@ function renderDashboard(){
       payMethodSection.style.display='none';
     }
   }
-  document.getElementById('kpi-usd').textContent=usdMonth>0?'U$D '+fmtN(usdMonth):'—';
+  if(usdMonth>0)animateNumberText(document.getElementById('kpi-usd'),usdMonth,{prefix:'U$D ',decimals:2,duration:760});
+  else{const _kpiUsdEl=document.getElementById('kpi-usd');if(_kpiUsdEl)_kpiUsdEl.textContent='—';}
 
   const pFill=document.getElementById('dhc-progress-fill');
   const pLabel=document.getElementById('dhc-progress-label');
@@ -1195,7 +1218,7 @@ function renderDashboard(){
     cycleCaption.textContent=_currentTcCyc?.label?expandPeriodYearLabel(_currentTcCyc.label):'Sin ciclo activo';
   }
   // Hidden compat element
-  document.getElementById('kpi-tc').textContent=hasPayTagsWidget?'$'+fmtN(tcWidgetAmt+debWidgetAmt):'$'+fmtN(_tcWidgetTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0));
+  animateNumberText(document.getElementById('kpi-tc'),hasPayTagsWidget?(tcWidgetAmt+debWidgetAmt):_tcWidgetTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0),{prefix:'$',decimals:2,duration:760});
   // kpi-tc-d removed from HTML
 
   // ── KPI: Proyección ──
@@ -1372,12 +1395,12 @@ function renderWeeklyChart(monthTxns){
     if(legEl)legEl.innerHTML='';
 
     state.charts.weekly=new Chart(ctx,{type:'bar',data:{labels,datasets:[
-      {data:values,backgroundColor:barColors,borderColor:'rgba(200,240,96,0.3)',borderWidth:0,borderRadius:6,borderSkipped:false},
+      {data:values,backgroundColor:barColors,borderColor:'rgba(200,240,96,0.3)',borderWidth:0,borderRadius:8,maxBarThickness:42,borderSkipped:false},
       {type:'line',data:values.map(()=>avg),borderColor:'rgba(160,154,148,0.5)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:0}
     ]},options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1a18',titleColor:'#f0ebe6',bodyColor:'#a09a94',borderColor:'#2e2b28',borderWidth:1,padding:10,callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y)):' $'+fmtN(c.parsed.y)}}},
-      scales:{x:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:10}},grid:{display:false}},y:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:10},callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.04)'}}}
+      plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y)):' $'+fmtN(c.parsed.y)}}},
+      scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont()},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}
     }});
 
   } else if(mode==='week'){
@@ -1398,12 +1421,12 @@ function renderWeeklyChart(monthTxns){
     if(legEl)legEl.innerHTML='';
 
     state.charts.weekly=new Chart(ctx,{type:'bar',data:{labels,datasets:[
-      {data:values,backgroundColor:barColors,borderColor:'rgba(79,140,255,0.28)',borderWidth:0,borderRadius:6,borderSkipped:false},
+      {data:values,backgroundColor:barColors,borderColor:'rgba(79,140,255,0.28)',borderWidth:0,borderRadius:8,maxBarThickness:42,borderSkipped:false},
       {type:'line',data:values.map(()=>avg),borderColor:'rgba(160,154,148,0.5)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:0}
     ]},options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1a18',titleColor:'#f0ebe6',bodyColor:'#a09a94',borderColor:'#2e2b28',borderWidth:1,padding:10,callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y)):' $'+fmtN(c.parsed.y)}}},
-      scales:{x:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:9},maxRotation:0,minRotation:0},grid:{display:false}},y:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:10},callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.04)'}}}
+      plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y)):' $'+fmtN(c.parsed.y)}}},
+      scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxRotation:0,minRotation:0},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}
     }});
 
   } else if(mode==='daily'){
@@ -1424,12 +1447,12 @@ function renderWeeklyChart(monthTxns){
     if(legEl)legEl.innerHTML='';
 
     state.charts.weekly=new Chart(ctx,{type:'bar',data:{labels,datasets:[
-      {data:values,backgroundColor:values.map(v=>v>avg*1.5?'rgba(255,100,80,0.7)':v>avg?'rgba(255,200,80,0.6)':'rgba(200,240,96,0.6)'),borderWidth:0,borderRadius:4,borderSkipped:false},
+      {data:values,backgroundColor:values.map(v=>v>avg*1.5?'rgba(255,100,80,0.7)':v>avg?'rgba(255,200,80,0.6)':'rgba(200,240,96,0.6)'),borderWidth:0,borderRadius:8,maxBarThickness:42,borderSkipped:false},
       {type:'line',data:values.map(()=>avg),borderColor:'rgba(160,154,148,0.5)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:0}
     ]},options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{backgroundColor:'#1c1a18',titleColor:'#f0ebe6',bodyColor:'#a09a94',borderColor:'#2e2b28',borderWidth:1,padding:10,callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y)):' $'+fmtN(c.parsed.y)}}},
-      scales:{x:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:9},maxRotation:0},grid:{display:false}},y:{ticks:{color:_isL()?'#86868b':'#8a8480',font:{size:10},callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.04)'}}}
+      plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y)):' $'+fmtN(c.parsed.y)}}},
+      scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxRotation:0},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}
     }});
   }
 }

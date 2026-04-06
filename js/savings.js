@@ -189,8 +189,8 @@ function renderSavingsPage(){
       const bgColors = monthTotals.map(v=>v===maxV?'rgba(96,200,240,0.55)':'rgba(96,200,240,0.25)');
       const bdColors = monthTotals.map(v=>v===maxV?'#34c759':'rgba(96,200,240,0.5)');
       state.charts.savHistory = new Chart(ctx,{type:'bar',data:{labels,datasets:[
-        {label:'Ahorro ARS',data:monthTotals,backgroundColor:bgColors,borderColor:bdColors,borderWidth:2,borderRadius:6}
-      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:_isL()?'#1d1d1f':'#2c2c2e',titleColor:_isL()?'#fff':'#f5f5f7',bodyColor:'#8e8e93',borderColor:'rgba(0,0,0,0.08)',borderWidth:1,callbacks:{label:c=>' $'+fmtN(c.parsed.y)+' ARS'+(c.parsed.y===maxV?' 🏆 mejor mes':'')}}},scales:{x:{grid:{color:_isL()?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.06)'},ticks:{color:_isL()?'#86868b':'#6e6e73',font:{size:10}}},y:{grid:{color:_isL()?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.06)'},ticks:{color:_isL()?'#86868b':'#6e6e73',font:{size:10},callback:v=>'$'+fmtN(v)}}}}});
+        {label:'Ahorro ARS',data:monthTotals,backgroundColor:bgColors,borderColor:bdColors,borderWidth:2,borderRadius:8,maxBarThickness:42}
+      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>' $'+fmtN(c.parsed.y)+' ARS'+(c.parsed.y===maxV?' 🏆 mejor mes':'')}}},scales:{x:{grid:{display:false},ticks:{color:_chartTickColor(),font:_chartTickFont()}},y:{grid:_chartGridY(),ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)}}}}});
     } else {
       const c2d = ctx.getContext('2d');
       ctx.height=80;
@@ -207,7 +207,7 @@ function renderSavingsPage(){
     const accLabels = arsAccounts.map(a=>a.name);
     const accVals   = arsAccounts.map(a=>a.balance);
     const accColors = arsAccounts.map(a=>a.color||'#888888');
-    state.charts.savDonut = new Chart(ctxD,{type:'doughnut',data:{labels:accLabels,datasets:[{data:accVals,backgroundColor:accColors.map(c=>c+'cc'),borderColor:accColors,borderWidth:2,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{backgroundColor:_isL()?'#1d1d1f':'#2c2c2e',titleColor:_isL()?'#fff':'#f5f5f7',bodyColor:'#8e8e93',borderColor:'rgba(0,0,0,0.08)',borderWidth:1,callbacks:{label:c=>' $'+fmtN(c.parsed)+' ARS'}}},cutout:'62%'}});
+    state.charts.savDonut = new Chart(ctxD,{type:'doughnut',data:{labels:accLabels,datasets:[{data:accVals,backgroundColor:accColors.map(c=>c+'cc'),borderColor:accColors,borderWidth:2,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>' $'+fmtN(c.parsed)+' ARS'}}},cutout:'62%'}});
     const legEl = document.getElementById('sav-donut-legend');
     if(legEl){
       const total = accVals.reduce((s,v)=>s+v,0);

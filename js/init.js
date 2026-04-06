@@ -209,6 +209,7 @@ function setPayMethod(method){
 // ══ INIT ══
 window.addEventListener('DOMContentLoaded',()=>{
   loadState();
+  ensureGmailImportRules();
   state.gmailClientId = getGmailClientId();
   localStorage.setItem('fin_gmail_client_id', state.gmailClientId);
   // One-time cleanup: remove any "Cuota X de Y" standalone entries from old imports
@@ -260,7 +261,8 @@ function saveManualExpense(){
   const payMethodKey=method==='usd'?'ef':method;
   const txn={id,date,description:desc,amount:amountVal,currency,category:cat,
     payMethod:payMethodKey,week:getWeekKey(date),month:getMonthKey(date),manual:true,
-    origen_del_movimiento:'pegado_manualmente'};
+    origen_del_movimiento:'pegado_manualmente',
+    ownerProfileId:state.activeUserProfileId||'default-profile'};
   state.transactions.push(txn);
   // Add to a "manual" import entry or create one
   let manualImp=state.imports.find(i=>i.id==='manual');
@@ -405,7 +407,7 @@ function updateCSVExportCount() {
 }
 
 // ══════════════════════════════════════════════════════════
-// GMAIL INTEGRATION — Santander Río auto-import
+// GMAIL INTEGRATION — configurable auto-import
 // ══════════════════════════════════════════════════════════
 const GMAIL_SCOPES = 'https://www.googleapis.com/auth/gmail.readonly';
 const GMAIL_SENDER = 'mensajesyavisos@mails.santander.com.ar';
@@ -414,6 +416,40 @@ let gmailTokenClient = null;
 let gmailAccessToken = null;
 let pendingGmailTxns = [];
 let driveReconnectInFlight = false;
+
+function getDefaultGmailImportRules(){
+  return [{
+    id: 'gmail-rule-santander-default',
+    name: 'Santander · Compras',
+    bank: 'Santander Río',
+    sender: GMAIL_SENDER,
+    query: 'subject:Pagaste OR subject:"Tu pago fue anulado"',
+    cardType: 'auto',
+    processor: 'santander_email',
+    active: true
+  }];
+}
+
+function ensureGmailImportRules(){
+  if(!Array.isArray(state.gmailImportRules) || !state.gmailImportRules.length){
+    state.gmailImportRules = getDefaultGmailImportRules();
+  }
+  return state.gmailImportRules;
+}
+
+function getActiveGmailImportRules(){
+  return ensureGmailImportRules().filter(rule => rule.active !== false);
+}
+
+function buildGmailRuleQuery(rule, dateQuery){
+  const parts = [];
+  if(rule.sender) parts.push(`from:${rule.sender}`);
+  if(rule.query) parts.push(`(${rule.query})`);
+  if(!rule.query && rule.processor === 'santander_email'){
+    parts.push('(subject:Pagaste OR subject:"Tu pago fue anulado")');
+  }
+  return encodeURIComponent(`${parts.join(' ')}${dateQuery}`);
+}
 
 function isGoogleConnected() {
   return !!(driveReady && driveAccessToken);
@@ -440,6 +476,7 @@ function saveGmailClientId() {
   const id = sanitizeGoogleClientId(document.getElementById('gmail-client-id-input').value);
   if (!id) { showToast('Ingresá un Client ID válido', 'error'); return; }
   state.gmailClientId = id;
+  state.onboardingState = { ...(state.onboardingState || {}), google: true };
   localStorage.setItem('fin_gmail_client_id', id);
   saveState();
   closeModal('modal-gmail-setup');
@@ -605,9 +642,17 @@ function _getLastSyncTag() {
 async function fetchSantanderEmails(dateFrom, dateTo) {
   updateGmailBtn('syncing');
   try {
+    const now = new Date();
+    dateFrom = dateFrom || new Date(now.getFullYear(), now.getMonth(), 1);
+    dateTo = dateTo || now;
     const fmtGmail = d => d.toISOString().slice(0,10).replace(/-/g,'/');
     const beforeDate = new Date(dateTo); beforeDate.setDate(beforeDate.getDate()+1);
     const dateQuery = ` after:${fmtGmail(dateFrom)} before:${fmtGmail(beforeDate)}`;
+    const rules = getActiveGmailImportRules();
+    if(!rules.length){
+      showToast('Configurá al menos una regla Gmail activa', 'error');
+      updateGmailBtn('connected'); return;
+    }
     
     // Obtenemos los IDs de emails ya importados y anulados procesados
     const importedEmailIds = new Set([
@@ -615,17 +660,24 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
       ...(state.gmailAnulados || [])
     ]);
 
-    // Fetch ALL pages (paginación) para no limitar a los primeros 50
+    // Fetch ALL pages across active rules
     let allMessages = [];
-    let pageToken = null;
-    do {
-      const tokenParam = pageToken ? `&pageToken=${pageToken}` : '';
-      const query = encodeURIComponent(`from:${GMAIL_SENDER} (subject:Pagaste OR subject:"Tu pago fue anulado")${dateQuery}`);
-      const listRes = await gmailFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${query}&maxResults=500${tokenParam}`);
-      const data = await listRes.json();
-      if (data.messages) allMessages = allMessages.concat(data.messages);
-      pageToken = data.nextPageToken || null;
-    } while (pageToken);
+    const seenRuleMessages = new Set();
+    for (const rule of rules) {
+      let pageToken = null;
+      do {
+        const tokenParam = pageToken ? `&pageToken=${pageToken}` : '';
+        const query = buildGmailRuleQuery(rule, dateQuery);
+        const listRes = await gmailFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${query}&maxResults=500${tokenParam}`);
+        const data = await listRes.json();
+        (data.messages || []).forEach(m => {
+          if(seenRuleMessages.has(m.id)) return;
+          seenRuleMessages.add(m.id);
+          allMessages.push({ id:m.id, threadId:m.threadId, ruleId:rule.id });
+        });
+        pageToken = data.nextPageToken || null;
+      } while (pageToken);
+    }
 
     if (!allMessages.length) {
       showToast('No se encontraron correos en ese período', 'error');
@@ -640,10 +692,13 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
     // Fetch todos los correos nuevos en batches de 25 para evitar rate limiting
     const BATCH_SIZE = 25;
     const emails = [];
+    const ruleMap = Object.fromEntries(rules.map(rule => [rule.id, rule]));
     for (let i = 0; i < newMessages.length; i += BATCH_SIZE) {
       const batch = newMessages.slice(i, i + BATCH_SIZE);
       const batchResults = await Promise.all(
-        batch.map(m => gmailFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=full`).then(r => r.json()))
+        batch.map(m => gmailFetch(`https://gmail.googleapis.com/gmail/v1/users/me/messages/${m.id}?format=full`)
+          .then(r => r.json())
+          .then(email => ({ email, rule: ruleMap[m.ruleId] || null })))
       );
       emails.push(...batchResults);
       if (i + BATCH_SIZE < newMessages.length) await new Promise(r => setTimeout(r, 200));
@@ -651,8 +706,8 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
     
     const txns = [];
     const annulments = [];
-    for (const email of emails) { 
-        const txn = parseSantanderEmail(email, txns); 
+    for (const bundle of emails) { 
+        const txn = parseSantanderEmail(bundle.email, txns, bundle.rule); 
         if (txn) {
             if (txn.isAnulacion) annulments.push(txn);
             else txns.push(txn);
@@ -757,7 +812,7 @@ function getEmailBody(payload) {
   return '';
 }
 
-function parseSantanderEmail(email, currentBatch) {
+function parseSantanderEmail(email, currentBatch, rule) {
   try {
     const emailId = email.id;
     const headers = email.payload.headers || [];
@@ -771,7 +826,8 @@ function parseSantanderEmail(email, currentBatch) {
 
     // Auto-detect card type from email body (VISA termina en 3177, AMEX termina en 7262)
     let payMethod = null;
-    if (/terminada en 3177|tarjeta santander visa|visa cr[eé]dito/i.test(body)) payMethod = 'visa';
+    if (rule?.cardType && rule.cardType !== 'auto') payMethod = rule.cardType;
+    else if (/terminada en 3177|tarjeta santander visa|visa cr[eé]dito/i.test(body)) payMethod = 'visa';
     else if (/terminada en 7262|american express|amex/i.test(body)) payMethod = 'amex';
     // Also check state.ccCards for card name matching (fallback)
     if (!payMethod && state.ccCards?.length) {
@@ -883,6 +939,9 @@ function parseSantanderEmail(email, currentBatch) {
       week: getWeekKey(txnDate),
       month: getMonthKey(txnDate),
       source: 'gmail',
+      importRuleId: rule?.id || null,
+      importRuleName: rule?.name || 'Gmail',
+      sourceBank: rule?.bank || 'Gmail',
       ...(payMethod ? { payMethod } : {}),
       ...(cuotaTotal && cuotaTotal >= 2 ? {
         cuotaNum,
@@ -1054,11 +1113,1118 @@ function confirmGmailImport() {
   ];
 
   if (toImport.length > 0) {
-    finishImport(toImport, 'Gmail · Santander Río');
+    const labels = [...new Set(toImport.map(t => t.sourceBank || t.importRuleName || 'Gmail'))];
+    finishImport(toImport, 'Gmail · ' + labels.join(' + '));
   } else {
     showToast('No se importó ningún gasto', 'info');
   }
   pendingGmailTxns = [];
+}
+
+function getOnboardingChecklist(){
+  ensureGmailImportRules();
+  const activeRules = getActiveGmailImportRules().length;
+  const activeIncome = (state.incomeMonths||[]).length || (state.incomeSources||[]).length || (state.income?.ars||0) || (state.income?.usd||0);
+  return [
+    {
+      id:'google',
+      done:isGoogleConnected(),
+      icon:isGoogleConnected() ? '✓' : '1',
+      title:'Conectar Google',
+      sub:isGoogleConnected() ? 'La cuenta ya está lista para sincronizar datos entre dispositivos.' : 'Necesario para Drive, Gmail y sincronización de datos.',
+      action:isGoogleConnected() ? 'Revisar' : 'Conectar',
+      onclick:'openCloudSync(event)'
+    },
+    {
+      id:'gmail-rules',
+      done:activeRules > 0,
+      icon:activeRules > 0 ? '✓' : '2',
+      title:'Definir reglas Gmail',
+      sub:activeRules > 0 ? `${activeRules} regla${activeRules!==1?'s':''} activa${activeRules!==1?'s':''} para leer gastos desde correos.` : 'Elegí remitentes, consultas y tarjeta asociada para leer gastos automáticamente.',
+      action:'Configurar',
+      onclick:'openGmailRuleManager()'
+    },
+    {
+      id:'cards',
+      done:(state.ccCards||[]).length > 0 || (state.tcCycles||[]).length > 0,
+      icon:(state.ccCards||[]).length > 0 || (state.tcCycles||[]).length > 0 ? '✓' : '3',
+      title:'Configurar tarjetas y ciclos',
+      sub:(state.ccCards||[]).length > 0 || (state.tcCycles||[]).length > 0 ? 'Ya hay tarjetas o ciclos listos para usar en la app.' : 'Cierre, vencimiento, tarjeta y banco para calcular ciclos correctamente.',
+      action:'Abrir',
+      onclick:"nav('credit-cards');ccSelectPageTab('config')"
+    },
+    {
+      id:'income',
+      done:!!activeIncome,
+      icon:!!activeIncome ? '✓' : '4',
+      title:'Registrar ingresos base',
+      sub:!!activeIncome ? 'La app ya tiene una base de ingreso para métricas, ahorro y salud financiera.' : 'Necesario para ahorro, score financiero y proyecciones más realistas.',
+      action:'Abrir',
+      onclick:"nav('income')"
+    }
+  ];
+}
+
+function applyUsageProfile(profile){
+  state.profileTemplate = profile;
+  const presetMap = {
+    personal:'balanceado',
+    ahorro:'modo-ahorro',
+    familiar:'seguimiento',
+    freelance:'analitico'
+  };
+  const preset = presetMap[profile];
+  if(preset && typeof applyDashboardDesignPreset === 'function') applyDashboardDesignPreset(preset);
+  syncActiveUserProfileFromState(false);
+  saveState();
+  renderSettingsPage();
+  showToast('✓ Perfil aplicado', 'success');
+}
+
+function ensureBankProfiles(){
+  if(!Array.isArray(state.bankProfiles)) state.bankProfiles = [];
+  return state.bankProfiles;
+}
+
+function ensureUserProfiles(){
+  if(!Array.isArray(state.userProfiles)) state.userProfiles = [];
+  return state.userProfiles;
+}
+
+function cloneDeepProfileValue(value){
+  return JSON.parse(JSON.stringify(value));
+}
+
+function ensureActiveUserProfileBootstrap(){
+  const profiles = ensureUserProfiles();
+  if(state.activeUserProfileId && profiles.some(profile => profile.id === state.activeUserProfileId)) return;
+  if(profiles.length){
+    state.activeUserProfileId = profiles[0].id;
+    return;
+  }
+  const newId = 'user-profile-' + Date.now().toString(36);
+  profiles.unshift({
+    id:newId,
+    name: state.userName || 'Perfil principal',
+    note:'Perfil base creado automáticamente',
+    ...getCurrentProfileSnapshot()
+  });
+  state.userProfiles = profiles;
+  state.activeUserProfileId = newId;
+}
+
+function getCurrentProfileSnapshot(){
+  return {
+    userName: state.userName || 'Usuario',
+    profileTemplate: state.profileTemplate || 'personal',
+    transactions: cloneDeepProfileValue((state.transactions || []).map(txn => ({
+      ...txn,
+      date: txn.date instanceof Date ? txn.date.toISOString() : txn.date
+    }))),
+    imports: cloneDeepProfileValue(state.imports || []),
+    cuotas: cloneDeepProfileValue(state.cuotas || []),
+    autoCuotaConfig: cloneDeepProfileValue(state.autoCuotaConfig || {}),
+    subscriptions: cloneDeepProfileValue(state.subscriptions || []),
+    fixedExpenses: cloneDeepProfileValue(state.fixedExpenses || []),
+    gmailImportRules: cloneDeepProfileValue(state.gmailImportRules || []),
+    bankProfiles: cloneDeepProfileValue(state.bankProfiles || []),
+    importConfig: cloneDeepProfileValue(state.importConfig || {}),
+    automationPrefs: cloneDeepProfileValue(state.automationPrefs || {}),
+    income: cloneDeepProfileValue(state.income || {}),
+    incomeSources: cloneDeepProfileValue(state.incomeSources || []),
+    incomeMonths: cloneDeepProfileValue(state.incomeMonths || []),
+    tcConfig: cloneDeepProfileValue(state.tcConfig || {}),
+    tcCycles: cloneDeepProfileValue(state.tcCycles || []),
+    ccCards: cloneDeepProfileValue(state.ccCards || []),
+    ccCycles: cloneDeepProfileValue(state.ccCycles || []),
+    ccActiveCard: state.ccActiveCard || null,
+    savAccounts: cloneDeepProfileValue(state.savAccounts || []),
+    savGoals: cloneDeepProfileValue(state.savGoals || []),
+    savDeposits: cloneDeepProfileValue(state.savDeposits || []),
+    incViewCurrency: state.incViewCurrency || 'ARS',
+    categories: cloneDeepProfileValue(state.categories || []),
+    catRules: cloneDeepProfileValue(state.catRules || []),
+    catHistory: cloneDeepProfileValue(state.catHistory || {}),
+    savingsGoal: state.savingsGoal || 20,
+    alertThreshold: state.alertThreshold || 80,
+    spendPct: state.spendPct || 100,
+    dashView: state.dashView || 'mes',
+    dashMonth: state.dashMonth || null,
+    dashTcCycle: state.dashTcCycle || null,
+    chartMode: state.chartMode || 'bars',
+    tendMode: state.tendMode || 'week',
+    activeTendCats: cloneDeepProfileValue(state.activeTendCats || null),
+    compareMode: state.compareMode || 'month',
+    repDesign: state.repDesign || 'executive',
+    txnFilterMode: state.txnFilterMode || 'mes',
+    txnCardFilter: state.txnCardFilter || '',
+    lastGmailSync: state.lastGmailSync || null,
+    dismissedNotifs: cloneDeepProfileValue(state.dismissedNotifs || []),
+    decisionCenterCollapsed: !!state.decisionCenterCollapsed,
+    dismissedAutoCuotas: cloneDeepProfileValue(state.dismissedAutoCuotas || []),
+    gmailClientId: state.gmailClientId || localStorage.getItem('fin_gmail_client_id') || '',
+    onboardingState: cloneDeepProfileValue(state.onboardingState || {})
+  };
+}
+
+function syncActiveUserProfileFromState(saveNow=true){
+  if(!state.activeUserProfileId) return;
+  const profiles = ensureUserProfiles();
+  const idx = profiles.findIndex(profile => profile.id === state.activeUserProfileId);
+  if(idx < 0) return;
+  const current = profiles[idx];
+  profiles[idx] = {
+    ...current,
+    ...getCurrentProfileSnapshot(),
+    name: current.name || state.userName || 'Perfil',
+    note: current.note || ''
+  };
+  state.userProfiles = profiles;
+  if(saveNow) saveState();
+}
+
+function getUserProfileStats(profile){
+  const activeRules = (profile.gmailImportRules || []).filter(rule => rule.active !== false).length;
+  const bankProfiles = (profile.bankProfiles || []).length;
+  const cards = (profile.ccCards || []).length;
+  const incomeMonths = (profile.incomeMonths || []).length;
+  const txns = (profile.transactions || []).length;
+  return {
+    activeRules,
+    bankProfiles,
+    cards,
+    incomeMonths,
+    txns
+  };
+}
+
+function saveActiveUserProfile(){
+  const profiles = ensureUserProfiles();
+  if(!state.activeUserProfileId){
+    const newId = 'user-profile-' + Date.now().toString(36);
+    profiles.unshift({
+      id:newId,
+      name: state.userName || 'Perfil principal',
+      note:'Creado desde la configuración actual',
+      ...getCurrentProfileSnapshot()
+    });
+    state.activeUserProfileId = newId;
+  } else {
+    const idx = profiles.findIndex(p => p.id === state.activeUserProfileId);
+    if(idx >= 0){
+      profiles[idx] = {
+        ...profiles[idx],
+        ...getCurrentProfileSnapshot()
+      };
+    }
+  }
+  state.userProfiles = profiles;
+  saveState();
+  renderSettingsPage();
+  renderUserProfilesModal(state.activeUserProfileId);
+  showToast('✓ Perfil activo guardado', 'success');
+}
+
+function duplicateCurrentUserProfile(){
+  const payload = {
+    id:'user-profile-' + Date.now().toString(36),
+    name:`${state.userName || 'Perfil'} copia`,
+    note:'Duplicado desde la configuración actual',
+    ...getCurrentProfileSnapshot()
+  };
+  state.userProfiles = [payload, ...ensureUserProfiles()];
+  state.activeUserProfileId = payload.id;
+  saveState();
+  renderSettingsPage();
+  renderUserProfilesModal(payload.id);
+  openUserProfileManager(payload.id);
+  showToast('✓ Perfil duplicado', 'success');
+}
+
+function applyUserProfile(profileId){
+  const profile = ensureUserProfiles().find(p => p.id === profileId);
+  if(!profile) return;
+  state.activeUserProfileId = profile.id;
+  state.userName = profile.userName || profile.name || 'Usuario';
+  state.profileTemplate = profile.profileTemplate || 'personal';
+  state.transactions = (profile.transactions || []).map(txn => ({
+    ...txn,
+    date: txn.date ? new Date(txn.date) : new Date()
+  }));
+  state.imports = cloneDeepProfileValue(profile.imports || []);
+  state.cuotas = cloneDeepProfileValue(profile.cuotas || []);
+  state.autoCuotaConfig = cloneDeepProfileValue(profile.autoCuotaConfig || {});
+  state.subscriptions = cloneDeepProfileValue(profile.subscriptions || []);
+  state.fixedExpenses = cloneDeepProfileValue(profile.fixedExpenses || []);
+  state.gmailImportRules = cloneDeepProfileValue(profile.gmailImportRules || getDefaultGmailImportRules());
+  state.bankProfiles = cloneDeepProfileValue(profile.bankProfiles || []);
+  state.importConfig = cloneDeepProfileValue(profile.importConfig || state.importConfig || {});
+  state.automationPrefs = cloneDeepProfileValue(profile.automationPrefs || {});
+  state.income = cloneDeepProfileValue(profile.income || state.income || {});
+  state.incomeSources = cloneDeepProfileValue(profile.incomeSources || []);
+  state.incomeMonths = cloneDeepProfileValue(profile.incomeMonths || []);
+  state.tcConfig = { ...(state.tcConfig || {}), ...(profile.tcConfig || {}) };
+  state.tcCycles = cloneDeepProfileValue(profile.tcCycles || []);
+  state.ccCards = cloneDeepProfileValue(profile.ccCards || []);
+  state.ccCycles = cloneDeepProfileValue(profile.ccCycles || []);
+  state.ccActiveCard = profile.ccActiveCard || null;
+  state.savAccounts = cloneDeepProfileValue(profile.savAccounts || []);
+  state.savGoals = cloneDeepProfileValue(profile.savGoals || []);
+  state.savDeposits = cloneDeepProfileValue(profile.savDeposits || []);
+  state.incViewCurrency = profile.incViewCurrency || state.incViewCurrency || 'ARS';
+  state.categories = cloneDeepProfileValue(profile.categories || state.categories || []);
+  state.catRules = cloneDeepProfileValue(profile.catRules || []);
+  state.catHistory = cloneDeepProfileValue(profile.catHistory || {});
+  state.savingsGoal = profile.savingsGoal || state.savingsGoal || 20;
+  state.alertThreshold = profile.alertThreshold || state.alertThreshold || 80;
+  state.spendPct = profile.spendPct || state.spendPct || 100;
+  state.dashView = profile.dashView || state.dashView || 'mes';
+  state.dashMonth = profile.dashMonth || null;
+  state.dashTcCycle = profile.dashTcCycle || null;
+  state.chartMode = profile.chartMode || state.chartMode || 'bars';
+  state.tendMode = profile.tendMode || state.tendMode || 'week';
+  state.activeTendCats = cloneDeepProfileValue(profile.activeTendCats || null);
+  state.compareMode = profile.compareMode || state.compareMode || 'month';
+  state.repDesign = profile.repDesign || state.repDesign || 'executive';
+  state.txnFilterMode = profile.txnFilterMode || state.txnFilterMode || 'mes';
+  state.txnCardFilter = profile.txnCardFilter || '';
+  state.lastGmailSync = profile.lastGmailSync || null;
+  state.dismissedNotifs = cloneDeepProfileValue(profile.dismissedNotifs || []);
+  state.decisionCenterCollapsed = !!profile.decisionCenterCollapsed;
+  state.dismissedAutoCuotas = cloneDeepProfileValue(profile.dismissedAutoCuotas || []);
+  state.onboardingState = { ...(state.onboardingState || {}), ...(profile.onboardingState || {}) };
+  if(profile.gmailClientId){
+    state.gmailClientId = profile.gmailClientId;
+    localStorage.setItem('fin_gmail_client_id', profile.gmailClientId);
+  }
+  saveState();
+  if(typeof refreshAll === 'function') refreshAll();
+  renderSettingsPage();
+  renderUserProfilesModal(profile.id);
+  if(typeof renderOnboardingWizard === 'function') renderOnboardingWizard();
+  if(document.getElementById('page-insights')?.classList.contains('active') && typeof generateInsights === 'function') generateInsights();
+  showToast('✓ Perfil aplicado', 'success');
+}
+
+function ensureAutomationPrefs(){
+  if(!state.automationPrefs || typeof state.automationPrefs !== 'object') state.automationPrefs = {};
+  state.automationPrefs = {
+    weeklyReport: !!state.automationPrefs.weeklyReport,
+    spendingAlerts: state.automationPrefs.spendingAlerts !== false,
+    backupReminder: state.automationPrefs.backupReminder !== false,
+    cardCloseReminder: state.automationPrefs.cardCloseReminder !== false,
+    ...state.automationPrefs
+  };
+  return state.automationPrefs;
+}
+
+function resetUserProfileEditor(){
+  const idEl = document.getElementById('user-profile-id');
+  const delBtn = document.getElementById('user-profile-delete-btn');
+  if(idEl) idEl.value = '';
+  if(delBtn) delBtn.style.display = 'none';
+  const nameEl = document.getElementById('user-profile-name');
+  const templateEl = document.getElementById('user-profile-template');
+  const noteEl = document.getElementById('user-profile-note');
+  if(nameEl) nameEl.value = state.userName || 'Nuevo perfil';
+  if(templateEl) templateEl.value = state.profileTemplate || 'personal';
+  if(noteEl) noteEl.value = '';
+}
+
+function renderUserProfilesModal(editingId){
+  const listEl = document.getElementById('user-profiles-list');
+  if(!listEl) return;
+  const profiles = ensureUserProfiles();
+  if(!profiles.length){
+    listEl.innerHTML = `
+      <div class="settings-method-item">
+        <div class="settings-method-title">Todavía no hay perfiles guardados</div>
+        <div class="settings-method-sub">Guardá la configuración actual para empezar a alternar entre distintas personas o contextos.</div>
+      </div>
+    `;
+    return;
+  }
+  listEl.innerHTML = profiles.map(profile => `
+    <div class="settings-rule-row">
+      <div class="settings-rule-main">
+        <div class="settings-rule-title">${profile.name}${state.activeUserProfileId===profile.id ? ' · Activo' : ''}</div>
+        <div class="settings-rule-sub">${profile.note || 'Sin notas'} · ${profile.profileTemplate || 'personal'}</div>
+        <div class="settings-rule-meta">
+          <span class="settings-rule-chip">${getUserProfileStats(profile).activeRules} regla${getUserProfileStats(profile).activeRules===1?'':'s'} Gmail</span>
+          <span class="settings-rule-chip">${getUserProfileStats(profile).bankProfiles} banco${getUserProfileStats(profile).bankProfiles===1?'':'s'} / tarjeta${getUserProfileStats(profile).bankProfiles===1?'':'s'}</span>
+          <span class="settings-rule-chip">${getUserProfileStats(profile).cards} tarjeta${getUserProfileStats(profile).cards===1?'':'s'} configurada${getUserProfileStats(profile).cards===1?'':'s'}</span>
+          <span class="settings-rule-chip">${getUserProfileStats(profile).incomeMonths} mes${getUserProfileStats(profile).incomeMonths===1?'':'es'} con ingresos</span>
+        </div>
+      </div>
+      <div class="settings-rule-actions">
+        <button class="dashboard-widget-mini ${state.activeUserProfileId===profile.id?'primary':''}" onclick="applyUserProfile('${profile.id}')">${state.activeUserProfileId===profile.id?'Activo':'Aplicar'}</button>
+        <button class="dashboard-widget-mini" onclick="openUserProfileManager('${profile.id}')">${editingId===profile.id?'Editando':'Editar'}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openUserProfileManager(profileId){
+  ensureUserProfiles();
+  openModal('modal-user-profiles');
+  renderUserProfilesModal(profileId);
+  const profile = state.userProfiles.find(item => item.id === profileId);
+  if(!profile){
+    resetUserProfileEditor();
+    return;
+  }
+  document.getElementById('user-profile-id').value = profile.id;
+  document.getElementById('user-profile-name').value = profile.name || '';
+  document.getElementById('user-profile-template').value = profile.profileTemplate || 'personal';
+  document.getElementById('user-profile-note').value = profile.note || '';
+  document.getElementById('user-profile-delete-btn').style.display = 'inline-flex';
+}
+
+function saveUserProfile(){
+  const id = document.getElementById('user-profile-id')?.value || '';
+  const payload = {
+    id: id || 'user-profile-' + Date.now().toString(36),
+    name: (document.getElementById('user-profile-name')?.value || '').trim() || 'Perfil',
+    profileTemplate: document.getElementById('user-profile-template')?.value || 'personal',
+    note: (document.getElementById('user-profile-note')?.value || '').trim(),
+    ...getCurrentProfileSnapshot()
+  };
+  payload.userName = payload.name;
+  payload.profileTemplate = document.getElementById('user-profile-template')?.value || payload.profileTemplate || 'personal';
+  const profiles = [...ensureUserProfiles()];
+  const idx = profiles.findIndex(item => item.id === payload.id);
+  if(idx >= 0) profiles[idx] = { ...profiles[idx], ...payload };
+  else profiles.unshift(payload);
+  state.userProfiles = profiles;
+  state.activeUserProfileId = payload.id;
+  saveState();
+  if(typeof refreshAll === 'function') refreshAll();
+  renderSettingsPage();
+  renderUserProfilesModal(payload.id);
+  openUserProfileManager(payload.id);
+  showToast('✓ Perfil guardado', 'success');
+}
+
+function deleteCurrentUserProfile(){
+  const id = document.getElementById('user-profile-id')?.value;
+  if(!id) return;
+  if(!confirm('¿Eliminar este perfil de usuario?')) return;
+  state.userProfiles = ensureUserProfiles().filter(item => item.id !== id);
+  if(state.activeUserProfileId === id) state.activeUserProfileId = state.userProfiles[0]?.id || null;
+  saveState();
+  if(state.activeUserProfileId) applyUserProfile(state.activeUserProfileId);
+  resetUserProfileEditor();
+  renderSettingsPage();
+  renderUserProfilesModal();
+  showToast('Perfil eliminado', 'info');
+}
+
+function openUniversalImport(mode){
+  nav('import');
+  setTimeout(()=>{
+    if(mode==='paste'){
+      const textarea = document.getElementById('paste-input');
+      if(textarea) textarea.focus();
+    }else if(mode==='csv'){
+      const input = document.getElementById('csvInput');
+      if(input) input.click();
+    }else if(mode==='manual'){
+      if(typeof toggleManualForm === 'function'){
+        const body = document.getElementById('manual-form-body');
+        if(body && body.style.display==='none') toggleManualForm();
+      }
+      const desc = document.getElementById('mf-desc');
+      if(desc) desc.focus();
+    }
+  },120);
+}
+
+function openImportAssistant(){
+  renderImportAssistant();
+  openModal('modal-import-assistant');
+}
+
+function renderImportAssistant(){
+  const body = document.getElementById('import-assistant-body');
+  const actions = document.getElementById('import-assistant-actions');
+  if(!body || !actions) return;
+  const rules = getActiveGmailImportRules().length;
+  const profiles = ensureBankProfiles().length;
+  body.innerHTML = `
+    <div class="onboarding-wizard-shell">
+      <div class="onboarding-wizard-panel">
+        <div class="onboarding-wizard-title">¿Cómo te conviene cargar tus gastos?</div>
+        <div class="onboarding-wizard-sub">Elegí según cómo te informa tu banco y qué tan automática querés la experiencia. La app ya puede convivir con varios métodos a la vez.</div>
+        <div class="onboarding-wizard-grid">
+          <div class="onboarding-wizard-note"><strong>Gmail / alertas</strong><br>Mejor si tu banco manda mails por compra o resumen.<br><br><strong>Hoy:</strong> ${rules} regla${rules===1?'':'s'} activa${rules===1?'':'s'}.</div>
+          <div class="onboarding-wizard-note"><strong>Texto pegado</strong><br>Ideal para cualquier banco si copiás el resumen y querés revisar antes de importar.</div>
+          <div class="onboarding-wizard-note"><strong>Archivo / CSV</strong><br>Útil cuando el banco deja descargar movimientos. Hoy es la vía más limpia para formatos estructurados.</div>
+          <div class="onboarding-wizard-note"><strong>Perfiles bancarios</strong><br>Ya hay ${profiles} perfil${profiles===1?'':'es'} guardado${profiles===1?'':'s'} para bancos o tarjetas distintas.</div>
+        </div>
+        <div class="onboarding-wizard-bullets">
+          <div><strong>Si recibís alertas por mail:</strong> conectá Google y armá reglas Gmail.</div>
+          <div><strong>Si tu banco no manda alertas claras:</strong> usá texto pegado o archivo.</div>
+          <div><strong>Si querés compartir la app con otra persona:</strong> primero creá su perfil bancario y después definí su método preferido.</div>
+        </div>
+      </div>
+    </div>
+  `;
+  actions.innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal('modal-import-assistant')">Cerrar</button>
+    <button class="btn btn-ghost" onclick="openCloudSync(event)">Conectar Google</button>
+    <button class="btn btn-ghost" onclick="openGmailRuleManager()">Reglas Gmail</button>
+    <button class="btn btn-ghost" onclick="openUniversalImport('paste');closeModal('modal-import-assistant')">Texto pegado</button>
+    <button class="btn btn-primary" onclick="openUniversalImport('csv');closeModal('modal-import-assistant')">Archivo / CSV</button>
+  `;
+}
+
+function toggleAutomationPref(key){
+  ensureAutomationPrefs();
+  state.automationPrefs[key] = !state.automationPrefs[key];
+  syncActiveUserProfileFromState(false);
+  saveState();
+  renderSettingsPage();
+  showToast('✓ Automatización actualizada', 'success');
+}
+
+function renderSettingsPage(){
+  ensureGmailImportRules();
+  ensureBankProfiles();
+  ensureUserProfiles();
+  ensureAutomationPrefs();
+  const onboardingEl = document.getElementById('settings-onboarding-shell');
+  const profileEl = document.getElementById('settings-profile-shell');
+  const rulesEl = document.getElementById('settings-gmail-rules-shell');
+  const importEl = document.getElementById('settings-import-shell');
+  const bankEl = document.getElementById('settings-bank-profiles-shell');
+  const usersEl = document.getElementById('settings-user-profiles-shell');
+  const multiEl = document.getElementById('settings-multiuser-shell');
+  const automationEl = document.getElementById('settings-automations-shell');
+  if(!onboardingEl || !profileEl || !rulesEl || !importEl || !bankEl || !usersEl || !multiEl || !automationEl) return;
+
+  const checklist = getOnboardingChecklist();
+  onboardingEl.innerHTML = checklist.map(step => `
+    <div class="settings-status-row">
+      <div class="settings-status-badge">${step.icon}</div>
+      <div class="settings-status-copy">
+        <div class="settings-status-title">${step.title}</div>
+        <div class="settings-status-sub">${step.sub}</div>
+      </div>
+      <button class="dashboard-widget-mini ${step.done ? 'primary' : ''}" onclick="${step.onclick}">${step.action}</button>
+    </div>
+  `).join('');
+
+  const profiles = [
+    {id:'personal', title:'Personal', sub:'Balanceado y general, para uso diario.'},
+    {id:'ahorro', title:'Modo ahorro', sub:'Prioriza control, recortes y lectura financiera.'},
+    {id:'familiar', title:'Familiar', sub:'Seguimiento más ordenado para varios compromisos.'},
+    {id:'freelance', title:'Freelance', sub:'Más foco en ingreso variable y estabilidad.'}
+  ];
+  profileEl.innerHTML = profiles.map(profile => `
+    <button class="settings-template-btn ${state.profileTemplate===profile.id?'active':''}" onclick="applyUsageProfile('${profile.id}')">
+      <div class="settings-template-title">${profile.title}</div>
+      <div class="settings-template-sub">${profile.sub}</div>
+    </button>
+  `).join('');
+
+  const rules = ensureGmailImportRules();
+  rulesEl.innerHTML = rules.map(rule => `
+    <div class="settings-rule-row">
+      <div class="settings-rule-main">
+        <div class="settings-rule-title">${rule.name}</div>
+        <div class="settings-rule-sub">${rule.sender || 'sin remitente'} · ${rule.query || 'sin consulta'} </div>
+        <div class="settings-rule-meta">
+          <span class="settings-rule-chip">${rule.bank || 'Sin banco'}</span>
+          <span class="settings-rule-chip">${rule.cardType==='auto'?'Auto detectar':(rule.cardType||'Sin tarjeta')}</span>
+          <span class="settings-rule-chip">${rule.active!==false?'Activa':'Pausada'}</span>
+        </div>
+      </div>
+      <div class="settings-rule-actions">
+        <button class="dashboard-widget-mini" onclick="toggleGmailRule('${rule.id}')">${rule.active!==false?'Pausar':'Activar'}</button>
+        <button class="dashboard-widget-mini primary" onclick="openGmailRuleManager('${rule.id}')">Editar</button>
+      </div>
+    </div>
+  `).join('');
+
+  importEl.innerHTML = `
+    <div class="settings-method-item">
+      <div class="settings-method-head">
+        <div>
+          <div class="settings-method-title">Pegar resumen</div>
+          <div class="settings-method-sub">Ideal para cualquier banco. Copiás el resumen, lo pegás y la app intenta interpretarlo antes de importar.</div>
+        </div>
+      </div>
+      <div class="settings-method-actions">
+        <button class="dashboard-widget-mini primary" onclick="openUniversalImport('paste')">Pegar ahora</button>
+        <button class="dashboard-widget-mini" onclick="nav('import')">Abrir importación</button>
+      </div>
+    </div>
+    <div class="settings-method-item">
+      <div class="settings-method-head">
+        <div>
+          <div class="settings-method-title">Importar archivo</div>
+          <div class="settings-method-sub">CSV, backup o archivo estructurado cuando el banco ya te deja descargar movimientos.</div>
+        </div>
+      </div>
+      <div class="settings-method-actions">
+        <button class="dashboard-widget-mini primary" onclick="openUniversalImport('csv')">Subir archivo</button>
+        <button class="dashboard-widget-mini" onclick="nav('import')">Ver opciones</button>
+      </div>
+      <div class="settings-inline-note">Hoy la lectura más afinada está orientada a CSV compatibles y backups; después podemos sumar asistentes por banco.</div>
+    </div>
+    <div class="settings-method-item">
+      <div class="settings-method-head">
+        <div>
+          <div class="settings-method-title">Gmail / alertas bancarias</div>
+          <div class="settings-method-sub">Lee emails configurados por regla y transforma compras en movimientos revisables antes de importar.</div>
+        </div>
+      </div>
+      <div class="settings-method-actions">
+        <button class="dashboard-widget-mini primary" onclick="openCloudSync(event)">Conectar Google</button>
+        <button class="dashboard-widget-mini" onclick="openGmailRuleManager()">Ver reglas</button>
+      </div>
+    </div>
+    <div class="settings-method-item">
+      <div class="settings-method-head">
+        <div>
+          <div class="settings-method-title">Carga manual</div>
+          <div class="settings-method-sub">Para efectivo, gastos aislados o movimientos que no llegan por banco ni por correo.</div>
+        </div>
+      </div>
+      <div class="settings-method-actions">
+        <button class="dashboard-widget-mini primary" onclick="openUniversalImport('manual')">Registrar gasto</button>
+      </div>
+    </div>
+  `;
+
+  const bankProfiles = ensureBankProfiles();
+  const userProfiles = ensureUserProfiles();
+
+  if(userProfiles.length){
+    usersEl.innerHTML = userProfiles.map(profile => `
+      <div class="settings-rule-row">
+        <div class="settings-rule-main">
+          <div class="settings-rule-title">${profile.name}${state.activeUserProfileId===profile.id ? ' · Activo' : ''}</div>
+          <div class="settings-rule-sub">${profile.note || 'Sin notas'} · ${profile.profileTemplate || 'personal'}</div>
+          <div class="settings-rule-meta">
+            <span class="settings-rule-chip">${getUserProfileStats(profile).activeRules} regla${getUserProfileStats(profile).activeRules===1?'':'s'} Gmail</span>
+            <span class="settings-rule-chip">${getUserProfileStats(profile).bankProfiles} banco${getUserProfileStats(profile).bankProfiles===1?'':'s'} / tarjeta${getUserProfileStats(profile).bankProfiles===1?'':'s'}</span>
+            <span class="settings-rule-chip">${getUserProfileStats(profile).cards} tarjeta${getUserProfileStats(profile).cards===1?'':'s'} configurada${getUserProfileStats(profile).cards===1?'':'s'}</span>
+            <span class="settings-rule-chip">${getUserProfileStats(profile).incomeMonths} mes${getUserProfileStats(profile).incomeMonths===1?'':'es'} con ingresos</span>
+            <span class="settings-rule-chip">${getUserProfileStats(profile).txns} movimiento${getUserProfileStats(profile).txns===1?'':'s'}</span>
+          </div>
+        </div>
+        <div class="settings-rule-actions">
+          <button class="dashboard-widget-mini ${state.activeUserProfileId===profile.id?'primary':''}" onclick="applyUserProfile('${profile.id}')">${state.activeUserProfileId===profile.id?'Activo':'Aplicar'}</button>
+          <button class="dashboard-widget-mini" onclick="openUserProfileManager('${profile.id}')">Editar</button>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    usersEl.innerHTML = `
+      <div class="settings-method-item">
+        <div class="settings-method-title">Solo está la configuración actual</div>
+        <div class="settings-method-sub">Guardala como perfil para empezar a alternar entre distintas personas o contextos.</div>
+        <div class="settings-method-actions">
+          <button class="dashboard-widget-mini primary" onclick="saveActiveUserProfile()">Guardar como perfil</button>
+        </div>
+      </div>
+    `;
+  }
+
+  if(bankProfiles.length){
+    bankEl.innerHTML = bankProfiles.map(profile => `
+      <div class="settings-rule-row">
+        <div class="settings-rule-main">
+          <div class="settings-rule-title">${profile.name}</div>
+          <div class="settings-rule-sub">${profile.bank || 'Sin banco'} · ${profile.card || 'Sin tarjeta'}${profile.note ? ' · ' + profile.note : ''}</div>
+          <div class="settings-rule-meta">
+            <span class="settings-rule-chip">${profile.methodLabel || 'Sin método'}</span>
+            ${profile.closeDay ? `<span class="settings-rule-chip">Cierre ${profile.closeDay}</span>` : ''}
+            ${profile.dueDay ? `<span class="settings-rule-chip">Vence ${profile.dueDay}</span>` : ''}
+          </div>
+        </div>
+        <div class="settings-rule-actions">
+          <button class="dashboard-widget-mini" onclick="openBankProfileManager('${profile.id}')">Editar</button>
+        </div>
+      </div>
+    `).join('');
+  } else {
+    bankEl.innerHTML = `
+      <div class="settings-method-item">
+        <div class="settings-method-title">Todavía no hay perfiles guardados</div>
+        <div class="settings-method-sub">Creá uno para dejar preparado el banco, la tarjeta, el cierre y la vía de importación preferida de cada persona.</div>
+        <div class="settings-method-actions">
+          <button class="dashboard-widget-mini primary" onclick="openBankProfileManager()">Crear primer perfil</button>
+        </div>
+      </div>
+    `;
+  }
+
+  multiEl.innerHTML = `
+    <div class="settings-list-item"><strong>Perfil activo</strong><span>${profiles.find(p=>p.id===state.profileTemplate)?.title || 'Personal'} · ahora cada perfil arrastra nombre, Gmail, bancos, tarjetas, ingresos base y automatizaciones.</span></div>
+    <div class="settings-list-item"><strong>Reglas por persona</strong><span>Las reglas Gmail se guardan dentro del perfil activo, así que cada usuario puede tener remitentes, queries y tarjetas distintas.</span></div>
+    <div class="settings-list-item"><strong>Base financiera</strong><span>También quedan encapsulados ingresos, fuentes de ingreso, tarjetas/ciclos y reglas de categorización para no rearmar todo a mano.</span></div>
+    <div class="settings-list-item"><strong>Captura universal</strong><span>La app ya queda preparada para Google, texto pegado e importación de archivos, sin depender de un único banco.</span></div>
+  `;
+
+  const automations = ensureAutomationPrefs();
+  automationEl.innerHTML = `
+    <div class="settings-list-item"><strong>Reporte semanal</strong><span>${automations.weeklyReport ? 'Activo para usarlo como hábito de seguimiento.' : 'Apagado por ahora. Ideal si querés una rutina de revisión.'}</span><button class="dashboard-widget-mini ${automations.weeklyReport?'primary':''}" onclick="toggleAutomationPref('weeklyReport')">${automations.weeklyReport?'Activo':'Activar'}</button></div>
+    <div class="settings-list-item"><strong>Alertas de gasto</strong><span>${automations.spendingAlerts ? 'La app puede resaltar desvíos importantes y concentración de gasto.' : 'Hoy no se marcan alertas relevantes de gasto.'}</span><button class="dashboard-widget-mini ${automations.spendingAlerts?'primary':''}" onclick="toggleAutomationPref('spendingAlerts')">${automations.spendingAlerts?'Activas':'Activar'}</button></div>
+    <div class="settings-list-item"><strong>Recordatorio de backup</strong><span>${automations.backupReminder ? 'Útil para no olvidarte del resguardo antes de cambios grandes.' : 'Desactivado. Podés activarlo si querés cuidar mejor el historial.'}</span><button class="dashboard-widget-mini ${automations.backupReminder?'primary':''}" onclick="toggleAutomationPref('backupReminder')">${automations.backupReminder?'Activo':'Activar'}</button></div>
+    <div class="settings-list-item"><strong>Cierre de tarjeta</strong><span>${automations.cardCloseReminder ? 'Pensado para avisarte cuando el ciclo esté por cerrar.' : 'Sin recordatorio de cierre por ahora.'}</span><button class="dashboard-widget-mini ${automations.cardCloseReminder?'primary':''}" onclick="toggleAutomationPref('cardCloseReminder')">${automations.cardCloseReminder?'Activo':'Activar'}</button></div>
+  `;
+}
+
+function resetBankProfileEditor(){
+  const idEl = document.getElementById('bank-profile-id');
+  const delBtn = document.getElementById('bank-profile-delete-btn');
+  if(idEl) idEl.value = '';
+  if(delBtn) delBtn.style.display = 'none';
+  const defaults = {
+    name:'Nuevo perfil',
+    bank:'Banco',
+    card:'Tarjeta o cuenta',
+    method:'gmail',
+    close:'',
+    due:'',
+    note:''
+  };
+  const map = {
+    'bank-profile-name':defaults.name,
+    'bank-profile-bank':defaults.bank,
+    'bank-profile-card':defaults.card,
+    'bank-profile-method':defaults.method,
+    'bank-profile-close':defaults.close,
+    'bank-profile-due':defaults.due,
+    'bank-profile-note':defaults.note
+  };
+  Object.entries(map).forEach(([id,val])=>{ const el=document.getElementById(id); if(el) el.value = val; });
+}
+
+function renderBankProfilesModal(editingId){
+  const listEl = document.getElementById('bank-profiles-list');
+  if(!listEl) return;
+  const profiles = ensureBankProfiles();
+  if(!profiles.length){
+    listEl.innerHTML = `
+      <div class="settings-method-item">
+        <div class="settings-method-title">Sin perfiles todavía</div>
+        <div class="settings-method-sub">Creá uno para dejar guardado el banco, la tarjeta y el método de importación recomendado.</div>
+      </div>
+    `;
+    return;
+  }
+  listEl.innerHTML = profiles.map(profile => `
+    <div class="settings-rule-row">
+      <div class="settings-rule-main">
+        <div class="settings-rule-title">${profile.name}</div>
+        <div class="settings-rule-sub">${profile.bank || 'Sin banco'} · ${profile.card || 'Sin tarjeta'}${profile.note ? ' · ' + profile.note : ''}</div>
+        <div class="settings-rule-meta">
+          <span class="settings-rule-chip">${profile.methodLabel || 'Sin método'}</span>
+          ${profile.closeDay ? `<span class="settings-rule-chip">Cierre ${profile.closeDay}</span>` : ''}
+          ${profile.dueDay ? `<span class="settings-rule-chip">Vence ${profile.dueDay}</span>` : ''}
+        </div>
+      </div>
+      <div class="settings-rule-actions">
+        <button class="dashboard-widget-mini primary" onclick="openBankProfileManager('${profile.id}')">${editingId===profile.id?'Editando':'Editar'}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openBankProfileManager(profileId){
+  ensureBankProfiles();
+  openModal('modal-bank-profiles');
+  renderBankProfilesModal(profileId);
+  const profile = state.bankProfiles.find(item => item.id === profileId);
+  if(!profile){
+    resetBankProfileEditor();
+    return;
+  }
+  document.getElementById('bank-profile-id').value = profile.id;
+  document.getElementById('bank-profile-name').value = profile.name || '';
+  document.getElementById('bank-profile-bank').value = profile.bank || '';
+  document.getElementById('bank-profile-card').value = profile.card || '';
+  document.getElementById('bank-profile-method').value = profile.method || 'gmail';
+  document.getElementById('bank-profile-close').value = profile.closeDay || '';
+  document.getElementById('bank-profile-due').value = profile.dueDay || '';
+  document.getElementById('bank-profile-note').value = profile.note || '';
+  document.getElementById('bank-profile-delete-btn').style.display = 'inline-flex';
+}
+
+function saveBankProfile(){
+  ensureBankProfiles();
+  const id = document.getElementById('bank-profile-id')?.value || '';
+  const method = document.getElementById('bank-profile-method')?.value || 'gmail';
+  const labels = { gmail:'Gmail', paste:'Texto pegado', csv:'Archivo / CSV', manual:'Manual' };
+  const payload = {
+    id: id || 'bank-profile-' + Date.now().toString(36),
+    name: (document.getElementById('bank-profile-name')?.value || '').trim() || 'Perfil bancario',
+    bank: (document.getElementById('bank-profile-bank')?.value || '').trim() || 'Banco',
+    card: (document.getElementById('bank-profile-card')?.value || '').trim() || 'Tarjeta o cuenta',
+    method,
+    methodLabel: labels[method] || 'Manual',
+    closeDay: parseInt(document.getElementById('bank-profile-close')?.value || '', 10) || null,
+    dueDay: parseInt(document.getElementById('bank-profile-due')?.value || '', 10) || null,
+    note: (document.getElementById('bank-profile-note')?.value || '').trim()
+  };
+  const profiles = [...ensureBankProfiles()];
+  const idx = profiles.findIndex(item => item.id === payload.id);
+  if(idx >= 0) profiles[idx] = { ...profiles[idx], ...payload };
+  else profiles.unshift(payload);
+  state.bankProfiles = profiles;
+  syncActiveUserProfileFromState(false);
+  saveState();
+  renderSettingsPage();
+  renderOnboardingWizard();
+  renderBankProfilesModal(payload.id);
+  openBankProfileManager(payload.id);
+  showToast('✓ Perfil bancario guardado', 'success');
+}
+
+function deleteCurrentBankProfile(){
+  const id = document.getElementById('bank-profile-id')?.value;
+  if(!id) return;
+  if(!confirm('¿Eliminar este perfil bancario?')) return;
+  state.bankProfiles = ensureBankProfiles().filter(item => item.id !== id);
+  syncActiveUserProfileFromState(false);
+  saveState();
+  resetBankProfileEditor();
+  renderSettingsPage();
+  renderBankProfilesModal();
+  showToast('Perfil bancario eliminado', 'info');
+}
+
+function getOnboardingWizardSteps(){
+  return [
+    {
+      id:'welcome',
+      kicker:'Paso 1',
+      title:'Base personal',
+      done:!!state.userName && !!state.profileTemplate
+    },
+    {
+      id:'google',
+      kicker:'Paso 2',
+      title:'Google',
+      done:isGoogleConnected()
+    },
+    {
+      id:'capture',
+      kicker:'Paso 3',
+      title:'Captura',
+      done:getActiveGmailImportRules().length > 0
+    },
+    {
+      id:'banking',
+      kicker:'Paso 4',
+      title:'Banco y tarjeta',
+      done:ensureBankProfiles().length > 0 || (state.ccCards||[]).length > 0 || (state.tcCycles||[]).length > 0
+    },
+    {
+      id:'income',
+      kicker:'Paso 5',
+      title:'Ingresos',
+      done:!!((state.incomeMonths||[]).length || (state.incomeSources||[]).length || (state.income?.ars||0) || (state.income?.usd||0))
+    }
+  ];
+}
+
+function getOnboardingCurrentStep(){
+  const saved = Number(state.onboardingState?.currentStep || 0);
+  return Math.max(0, Math.min(saved, getOnboardingWizardSteps().length - 1));
+}
+
+function setOnboardingCurrentStep(step){
+  state.onboardingState = { ...(state.onboardingState || {}), currentStep: step };
+  saveState();
+}
+
+function openOnboardingWizard(step){
+  if(typeof step === 'number') setOnboardingCurrentStep(step);
+  renderOnboardingWizard();
+  openModal('modal-onboarding-wizard');
+}
+
+function onboardingPrevStep(){
+  const next = Math.max(0, getOnboardingCurrentStep() - 1);
+  setOnboardingCurrentStep(next);
+  renderOnboardingWizard();
+}
+
+function onboardingNextStep(){
+  const next = Math.min(getOnboardingWizardSteps().length - 1, getOnboardingCurrentStep() + 1);
+  setOnboardingCurrentStep(next);
+  renderOnboardingWizard();
+}
+
+function saveOnboardingIdentity(){
+  const name = (document.getElementById('onboarding-user-name')?.value || '').trim();
+  const profile = document.getElementById('onboarding-profile')?.value || state.profileTemplate || 'personal';
+  if(name) state.userName = name;
+  state.profileTemplate = profile;
+  state.onboardingState = { ...(state.onboardingState || {}), welcome: true };
+  syncActiveUserProfileFromState(false);
+  saveState();
+  renderSettingsPage();
+  renderOnboardingWizard();
+  showToast('✓ Base personal guardada', 'success');
+}
+
+function completeOnboardingWizard(){
+  state.onboardingState = {
+    ...(state.onboardingState || {}),
+    completed: true,
+    completedAt: new Date().toISOString(),
+    currentStep: getOnboardingWizardSteps().length - 1
+  };
+  saveState();
+  renderSettingsPage();
+  closeModal('modal-onboarding-wizard');
+  showToast('✓ Onboarding completado', 'success');
+}
+
+function renderOnboardingWizard(){
+  const body = document.getElementById('onboarding-wizard-body');
+  const actions = document.getElementById('onboarding-wizard-actions');
+  if(!body || !actions) return;
+
+  const steps = getOnboardingWizardSteps();
+  const stepIndex = getOnboardingCurrentStep();
+  const step = steps[stepIndex];
+  const progress = steps.map((item, idx) => `
+    <div class="onboarding-wizard-step ${idx===stepIndex?'active':''} ${item.done?'done':''}">
+      <div class="onboarding-wizard-step-kicker">${item.kicker}</div>
+      <div class="onboarding-wizard-step-title">${item.title}</div>
+    </div>
+  `).join('');
+
+  let panel = '';
+  if(step.id === 'welcome'){
+    panel = `
+      <div class="onboarding-wizard-panel">
+        <div class="onboarding-wizard-title">Arranquemos por la base</div>
+        <div class="onboarding-wizard-sub">Definí cómo se llama la persona que usa la app y qué perfil le conviene. Esto orienta dashboard, lectura y configuración inicial sin encasillarlo.</div>
+        <div class="onboarding-wizard-grid">
+          <div>
+            <label class="field-label-premium">Nombre</label>
+            <input id="onboarding-user-name" type="text" class="field-control-premium" value="${esc(state.userName || '')}" placeholder="Ej: Pedro">
+          </div>
+          <div>
+            <label class="field-label-premium">Perfil de uso</label>
+            <select id="onboarding-profile" class="field-control-premium">
+              <option value="personal" ${state.profileTemplate==='personal'?'selected':''}>Personal</option>
+              <option value="ahorro" ${state.profileTemplate==='ahorro'?'selected':''}>Modo ahorro</option>
+              <option value="familiar" ${state.profileTemplate==='familiar'?'selected':''}>Familiar</option>
+              <option value="freelance" ${state.profileTemplate==='freelance'?'selected':''}>Freelance</option>
+            </select>
+          </div>
+        </div>
+        <div class="onboarding-wizard-note">No es definitivo. Después se puede cambiar desde Configuración sin perder datos.</div>
+      </div>
+    `;
+  } else if(step.id === 'google'){
+    panel = `
+      <div class="onboarding-wizard-panel">
+        <div class="onboarding-wizard-title">Conectá Google una sola vez</div>
+        <div class="onboarding-wizard-sub">Esto habilita sincronización entre dispositivos, respaldo en Drive y lectura de Gmail para importar gastos automáticamente.</div>
+        <div class="onboarding-wizard-bullets">
+          <div>Drive mantiene los datos sincronizados y recuperables.</div>
+          <div>Gmail permite leer correos bancarios y convertirlos en movimientos revisables.</div>
+          <div>La conexión es personal: cada usuario usa su propia cuenta.</div>
+        </div>
+        <div class="onboarding-wizard-actions">
+          <button class="btn btn-primary" onclick="openCloudSync(event)">Conectar Google</button>
+          <button class="btn btn-ghost" onclick="nav('settings');closeModal('modal-onboarding-wizard')">Abrir configuración</button>
+        </div>
+      </div>
+    `;
+  } else if(step.id === 'capture'){
+    panel = `
+      <div class="onboarding-wizard-panel">
+        <div class="onboarding-wizard-title">Elegí cómo capturar gastos</div>
+        <div class="onboarding-wizard-sub">La app ya queda preparada para distintos bancos y distintos hábitos. Lo importante es elegir por dónde van a entrar los movimientos.</div>
+        <div class="onboarding-wizard-grid">
+          <div class="onboarding-wizard-note"><strong>Gmail</strong><br>Ideal si el banco manda alertas por compra o resumen. Podés definir remitente, búsqueda y tarjeta asociada.</div>
+          <div class="onboarding-wizard-note"><strong>Texto pegado / archivo</strong><br>Sirve para cualquier banco cuando copiás el resumen o descargás un archivo.</div>
+        </div>
+        <div class="onboarding-wizard-actions">
+          <button class="btn btn-primary" onclick="openGmailRuleManager()">Configurar reglas Gmail</button>
+          <button class="btn btn-ghost" onclick="openUniversalImport('paste');closeModal('modal-onboarding-wizard')">Probar texto pegado</button>
+          <button class="btn btn-ghost" onclick="openUniversalImport('csv');closeModal('modal-onboarding-wizard')">Probar archivo</button>
+        </div>
+      </div>
+    `;
+  } else if(step.id === 'banking'){
+    panel = `
+      <div class="onboarding-wizard-panel">
+        <div class="onboarding-wizard-title">Prepará banco, tarjeta y ciclo</div>
+        <div class="onboarding-wizard-sub">Este paso deja guardado cómo funciona el banco o la tarjeta de cada persona: nombre visible, cierre, vencimiento y vía de importación preferida.</div>
+        <div class="onboarding-wizard-bullets">
+          <div>Si una persona usa Santander y otra Galicia, cada una puede tener su propia base.</div>
+          <div>Los perfiles bancarios complementan la configuración más profunda de tarjetas y ciclos.</div>
+          <div>Esto es clave para volver la app realmente multiusuario.</div>
+        </div>
+        <div class="onboarding-wizard-actions">
+          <button class="btn btn-primary" onclick="openBankProfileManager()">Crear perfil bancario</button>
+          <button class="btn btn-ghost" onclick="nav('credit-cards');ccSelectPageTab('config');closeModal('modal-onboarding-wizard')">Ir a tarjetas y ciclos</button>
+        </div>
+      </div>
+    `;
+  } else {
+    panel = `
+      <div class="onboarding-wizard-panel">
+        <div class="onboarding-wizard-title">Definí ingresos y cerrá la base</div>
+        <div class="onboarding-wizard-sub">Con ingresos cargados, la app ya puede calcular ahorro, proyecciones, score y salud financiera con más sentido para cada usuario.</div>
+        <div class="onboarding-wizard-bullets">
+          <div>El ingreso base sirve para porcentaje de uso, modo ahorro, compromisos y score financiero.</div>
+          <div>Podés cargar pesos, dólares o fuentes distintas según cada caso.</div>
+          <div>Después de esto, la app ya queda lista para crecer con automatizaciones y multiusuario real.</div>
+        </div>
+        <div class="onboarding-wizard-actions">
+          <button class="btn btn-primary" onclick="nav('income');closeModal('modal-onboarding-wizard')">Abrir ingresos</button>
+          <button class="btn btn-ghost" onclick="completeOnboardingWizard()">Marcar como completo</button>
+        </div>
+      </div>
+    `;
+  }
+
+  body.innerHTML = `
+    <div class="onboarding-wizard-shell">
+      <div class="onboarding-wizard-progress">${progress}</div>
+      ${panel}
+    </div>
+  `;
+
+  actions.innerHTML = `
+    <button class="btn btn-ghost" onclick="closeModal('modal-onboarding-wizard')">Cerrar</button>
+    ${stepIndex>0 ? `<button class="btn btn-ghost" onclick="onboardingPrevStep()">← Anterior</button>` : ''}
+    ${step.id==='welcome' ? `<button class="btn btn-primary" onclick="saveOnboardingIdentity()">Guardar base</button>` : ''}
+    ${stepIndex<steps.length-1 ? `<button class="btn btn-primary" onclick="onboardingNextStep()">Siguiente →</button>` : `<button class="btn btn-primary" onclick="completeOnboardingWizard()">Finalizar</button>`}
+  `;
+}
+
+function resetGmailRuleEditor(){
+  const idEl = document.getElementById('gmail-rule-id');
+  const delBtn = document.getElementById('gmail-rule-delete-btn');
+  if(idEl) idEl.value = '';
+  if(delBtn) delBtn.style.display = 'none';
+  const defaults = getDefaultGmailImportRules()[0];
+  const values = {
+    name:'Nueva regla Gmail',
+    bank:'Banco / tarjeta',
+    sender:defaults.sender,
+    query:defaults.query,
+    card:'auto',
+    processor:'santander_email'
+  };
+  const map = {
+    'gmail-rule-name':values.name,
+    'gmail-rule-bank':values.bank,
+    'gmail-rule-sender':values.sender,
+    'gmail-rule-query':values.query,
+    'gmail-rule-card':values.card,
+    'gmail-rule-processor':values.processor
+  };
+  Object.entries(map).forEach(([id,val])=>{ const el=document.getElementById(id); if(el) el.value = val; });
+}
+
+function renderGmailRulesModal(editingId){
+  const listEl = document.getElementById('gmail-rules-list');
+  if(!listEl) return;
+  const rules = ensureGmailImportRules();
+  listEl.innerHTML = rules.map(rule => `
+    <div class="settings-rule-row">
+      <div class="settings-rule-main">
+        <div class="settings-rule-title">${rule.name}</div>
+        <div class="settings-rule-sub">${rule.sender || 'sin remitente'} · ${rule.query || 'sin consulta'}</div>
+        <div class="settings-rule-meta">
+          <span class="settings-rule-chip">${rule.bank || 'Sin banco'}</span>
+          <span class="settings-rule-chip">${rule.cardType==='auto'?'Auto detectar':(rule.cardType||'Sin tarjeta')}</span>
+          <span class="settings-rule-chip">${rule.active!==false?'Activa':'Pausada'}</span>
+        </div>
+      </div>
+      <div class="settings-rule-actions">
+        <button class="dashboard-widget-mini" onclick="toggleGmailRule('${rule.id}', true)">${rule.active!==false?'Pausar':'Activar'}</button>
+        <button class="dashboard-widget-mini primary" onclick="openGmailRuleManager('${rule.id}')">${editingId===rule.id?'Editando':'Editar'}</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function openGmailRuleManager(ruleId){
+  ensureGmailImportRules();
+  openModal('modal-gmail-rules');
+  renderGmailRulesModal(ruleId);
+  const rule = (state.gmailImportRules||[]).find(r => r.id === ruleId);
+  if(!rule){
+    resetGmailRuleEditor();
+    return;
+  }
+  document.getElementById('gmail-rule-id').value = rule.id;
+  document.getElementById('gmail-rule-name').value = rule.name || '';
+  document.getElementById('gmail-rule-bank').value = rule.bank || '';
+  document.getElementById('gmail-rule-sender').value = rule.sender || '';
+  document.getElementById('gmail-rule-query').value = rule.query || '';
+  document.getElementById('gmail-rule-card').value = rule.cardType || 'auto';
+  document.getElementById('gmail-rule-processor').value = rule.processor || 'santander_email';
+  document.getElementById('gmail-rule-delete-btn').style.display = 'inline-flex';
+}
+
+function saveGmailRule(){
+  ensureGmailImportRules();
+  const id = document.getElementById('gmail-rule-id')?.value || '';
+  const payload = {
+    id: id || 'gmail-rule-' + Date.now().toString(36),
+    name: (document.getElementById('gmail-rule-name')?.value || '').trim() || 'Regla Gmail',
+    bank: (document.getElementById('gmail-rule-bank')?.value || '').trim() || 'Banco / tarjeta',
+    sender: (document.getElementById('gmail-rule-sender')?.value || '').trim(),
+    query: (document.getElementById('gmail-rule-query')?.value || '').trim(),
+    cardType: document.getElementById('gmail-rule-card')?.value || 'auto',
+    processor: document.getElementById('gmail-rule-processor')?.value || 'santander_email',
+    active: true
+  };
+  if(!payload.sender && !payload.query){
+    showToast('Definí al menos remitente o consulta', 'error');
+    return;
+  }
+  const rules = [...ensureGmailImportRules()];
+  const idx = rules.findIndex(rule => rule.id === payload.id);
+  if(idx >= 0) rules[idx] = { ...rules[idx], ...payload };
+  else rules.unshift(payload);
+  state.gmailImportRules = rules;
+  state.onboardingState = { ...(state.onboardingState||{}), gmailRules:true };
+  syncActiveUserProfileFromState(false);
+  saveState();
+  renderSettingsPage();
+  renderOnboardingWizard();
+  renderGmailRulesModal(payload.id);
+  openGmailRuleManager(payload.id);
+  showToast('✓ Regla Gmail guardada', 'success');
+}
+
+function toggleGmailRule(ruleId, keepModalOpen){
+  ensureGmailImportRules();
+  state.gmailImportRules = state.gmailImportRules.map(rule => rule.id === ruleId ? { ...rule, active: rule.active === false } : rule);
+  syncActiveUserProfileFromState(false);
+  saveState();
+  renderSettingsPage();
+  if(keepModalOpen) renderGmailRulesModal(ruleId);
+}
+
+function deleteCurrentGmailRule(){
+  const id = document.getElementById('gmail-rule-id')?.value;
+  if(!id) return;
+  if(!confirm('¿Eliminar esta regla Gmail?')) return;
+  state.gmailImportRules = ensureGmailImportRules().filter(rule => rule.id !== id);
+  syncActiveUserProfileFromState(false);
+  saveState();
+  resetGmailRuleEditor();
+  renderSettingsPage();
+  renderGmailRulesModal();
+  showToast('Regla eliminada', 'info');
 }
 
 // Auto-sync DESACTIVADO — sync solo manual via botón Gmail

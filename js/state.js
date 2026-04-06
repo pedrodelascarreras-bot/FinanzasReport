@@ -35,10 +35,21 @@ let state={
   ccCards: [],           // [{id,name,type,color,...}]
   ccCycles: [],          // [{id,cardId,tcCycleId,status,manualExpenses,excludedIds,...}]
   ccActiveCard: null,    // currently selected card ID for CC compare
+  gmailImportRules: [],
+  bankProfiles: [],
+  importConfig: {},
+  automationPrefs: {},
+  userProfiles: [],
+  activeUserProfileId: null,
+  profileTemplate: 'personal',
+  onboardingState: {},
 };
 
 // ══ PERSIST ══
 function getStateSnapshot(){
+  if(typeof syncActiveUserProfileFromState === 'function'){
+    try{ syncActiveUserProfileFromState(false); }catch(e){ console.warn('profile sync error', e); }
+  }
   return {
     transactions:state.transactions,categories:state.categories,income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'mes',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],
     savingsGoal:state.savingsGoal,alertThreshold:state.alertThreshold,spendPct:state.spendPct||100,tendChartMode:state.tendChartMode||'bar',imports:state.imports,
@@ -48,6 +59,14 @@ function getStateSnapshot(){
     usdRate:state.usdRate||1420,usdRateBuy:state.usdRateBuy||state.usdRate||1420,usdRateSell:state.usdRateSell||state.usdRate||1420,usdRateSource:state.usdRateSource||'blue',usdRateUpdated:state.usdRateUpdated||null,
     catRules:state.catRules||[],catHistory:state.catHistory||{},
     ccCards:state.ccCards||[],ccCycles:state.ccCycles||[],ccActiveCard:state.ccActiveCard||null,
+    gmailImportRules:state.gmailImportRules||[],
+    bankProfiles:state.bankProfiles||[],
+    importConfig:state.importConfig||{},
+    automationPrefs:state.automationPrefs||{},
+    userProfiles:state.userProfiles||[],
+    activeUserProfileId:state.activeUserProfileId||null,
+    profileTemplate:state.profileTemplate||'personal',
+    onboardingState:state.onboardingState||{},
     lastGmailSync:state.lastGmailSync||null,
     gmailClientId:state.gmailClientId||localStorage.getItem('fin_gmail_client_id')||'',
     userName:state.userName||'Pedro',
@@ -91,6 +110,8 @@ function initDriveClient(autoSync){
         if(resp.error){console.warn('Drive auth error:',resp.error);return;}
         driveAccessToken = resp.access_token;
         gmailAccessToken = resp.access_token;
+        state.onboardingState = { ...(state.onboardingState || {}), google: true };
+        try{localStorage.setItem('fin_state',JSON.stringify(getStateSnapshot()));}catch(e){}
         updateGmailBtn('connected');
         driveReady = true;
         loadFromDrive().then(loaded=>{
@@ -98,6 +119,8 @@ function initDriveClient(autoSync){
             if(state.transactions.length){document.getElementById('dash-empty').style.display='none';document.getElementById('dash-content').style.display='flex';}
             updateSidebarStats();renderDashboard();renderTransactions();renderCuotas();
           }
+          if(typeof renderSettingsPage === 'function') renderSettingsPage();
+          if(typeof renderOnboardingWizard === 'function') renderOnboardingWizard();
           if(typeof refreshSplashGoogleState === 'function') refreshSplashGoogleState(true);
           // Auto-sync DESACTIVADO — nunca sincronizar automáticamente
           if(autoSync||window._gmailSyncPending){window._gmailSyncPending=false;openGmailPeriodModal();}
@@ -254,6 +277,14 @@ async function loadFromDrive(){
     state.ccCards=s.ccCards||[];
     state.ccCycles=s.ccCycles||[];
     state.ccActiveCard=s.ccActiveCard||null;
+    state.gmailImportRules=s.gmailImportRules||[];
+    state.bankProfiles=s.bankProfiles||[];
+    state.importConfig=s.importConfig||{};
+    state.automationPrefs=s.automationPrefs||{};
+    state.userProfiles=s.userProfiles||[];
+    state.activeUserProfileId=s.activeUserProfileId||null;
+    state.profileTemplate=s.profileTemplate||'personal';
+    state.onboardingState=s.onboardingState||{};
     state.lastGmailSync=s.lastGmailSync||null;
     state.gmailClientId=s.gmailClientId||'';
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
@@ -301,6 +332,14 @@ function loadState(){
     state.ccCards=s.ccCards||[];
     state.ccCycles=s.ccCycles||[];
     state.ccActiveCard=s.ccActiveCard||null;
+    state.gmailImportRules=s.gmailImportRules||[];
+    state.bankProfiles=s.bankProfiles||[];
+    state.importConfig=s.importConfig||{};
+    state.automationPrefs=s.automationPrefs||{};
+    state.userProfiles=s.userProfiles||[];
+    state.activeUserProfileId=s.activeUserProfileId||null;
+    state.profileTemplate=s.profileTemplate||'personal';
+    state.onboardingState=s.onboardingState||{};
     state.lastGmailSync=s.lastGmailSync||null;
     state.gmailClientId=s.gmailClientId||localStorage.getItem('fin_gmail_client_id')||'';
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;

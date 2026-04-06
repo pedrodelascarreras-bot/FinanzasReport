@@ -8,6 +8,7 @@ function generateInsights() {
   const contentEl = document.getElementById('insights-content');
   const generalShell = document.getElementById('insights-general-shell');
   const savingsShell = document.getElementById('insights-savings-shell');
+  const wealthShell = document.getElementById('insights-wealth-shell');
   if(!txns.length) {
     if(emptyEl)  emptyEl.style.display = 'flex';
     if(contentEl) contentEl.style.display = 'none';
@@ -20,13 +21,18 @@ function generateInsights() {
   const view = state.insightsView || 'general';
   const generalBtn = document.getElementById('insights-tab-general');
   const savingsBtn = document.getElementById('insights-tab-ahorro');
+  const wealthBtn = document.getElementById('insights-tab-salud');
   if(generalBtn) generalBtn.classList.toggle('active', view === 'general');
   if(savingsBtn) savingsBtn.classList.toggle('active', view === 'ahorro');
+  if(wealthBtn) wealthBtn.classList.toggle('active', view === 'salud');
   if(generalShell) generalShell.style.display = view === 'general' ? 'flex' : 'none';
   if(savingsShell) savingsShell.style.display = view === 'ahorro' ? 'flex' : 'none';
+  if(wealthShell) wealthShell.style.display = view === 'salud' ? 'flex' : 'none';
 
   if(view === 'ahorro'){
     _renderSavingsMode(data);
+  } else if(view === 'salud'){
+    _renderWealthMode(data);
   } else {
     _renderScoreCard(data);
     _renderChallenges(data);
@@ -38,7 +44,7 @@ function generateInsights() {
 
 // Legacy stub kept for any old callers
 function setInsightTab(tab) {
-  state.insightsView = tab === 'ahorro' ? 'ahorro' : 'general';
+  state.insightsView = tab === 'ahorro' ? 'ahorro' : tab === 'salud' ? 'salud' : 'general';
   saveState();
   generateInsights();
 }
@@ -204,6 +210,131 @@ function _computeInsightsData() {
     largestTxn,
     nextCuotasTotal,nextMonthCuotas:nextMonthCuotas.length
   };
+}
+
+function _renderWealthMode(data){
+  const el = document.getElementById('insights-wealth-shell');
+  if(!el) return;
+  const health = _getHealthScore(data);
+  const savAccounts = state.savAccounts || [];
+  const savGoals = state.savGoals || [];
+  const totalSavingsARS = savAccounts.reduce((sum, acc) => sum + (acc.currency==='USD' ? (acc.balance||0)*(USD_TO_ARS||1500) : (acc.balance||0)), 0);
+  const totalGoalsARS = savGoals.reduce((sum, goal) => sum + (goal.currency==='USD' ? (goal.target||0)*(USD_TO_ARS||1500) : (goal.target||0)), 0);
+  const totalGoalsCurrentARS = savGoals.reduce((sum, goal) => sum + (goal.currency==='USD' ? (goal.current||0)*(USD_TO_ARS||1500) : (goal.current||0)), 0);
+  const autoGroups = typeof detectAutoCuotas === 'function' ? detectAutoCuotas() : [];
+  const autoDebt = autoGroups.reduce((sum,g)=>{
+    const snap = typeof getAutoCuotaSnapshot==='function' ? getAutoCuotaSnapshot(g) : null;
+    if(!snap) return sum;
+    const remaining = Math.max(0, (snap.total - snap.paid) * (snap.amountPerCuota || 0));
+    return sum + ((g.currency==='USD') ? remaining*(USD_TO_ARS||1500) : remaining);
+  },0);
+  const manualDebt = (state.cuotas||[]).reduce((sum,c)=>{
+    const remaining = Math.max(0, ((c.total||0) - (c.paid||0)) * (c.amount||0));
+    return sum + ((c.currency==='USD') ? remaining*(USD_TO_ARS||1500) : remaining);
+  },0);
+  const totalDebtARS = autoDebt + manualDebt;
+  const projectedSavings = data.incomeARS > 0 ? Math.max(0, data.incomeARS - data.projectedMonth) : 0;
+  const netPatrimony = totalSavingsARS + projectedSavings - totalDebtARS;
+  const liquidityMonths = data.avgMonthly > 0 ? ((totalSavingsARS + projectedSavings) / data.avgMonthly) : 0;
+  const goalProgressPct = totalGoalsARS > 0 ? Math.round((totalGoalsCurrentARS / totalGoalsARS) * 100) : 0;
+
+  const patrimonySeries = data.monthlyData.slice(-6).map((m, idx)=>{
+    const cumulativeSpend = data.monthlyData.slice(0, data.monthlyData.findIndex(x=>x.month===m.month)+1).reduce((s,item)=>s+item.total,0);
+    const estimatedBase = totalSavingsARS - (data.arsThis - m.total);
+    return {
+      label: m.label,
+      value: Math.max(0, estimatedBase - Math.max(0, cumulativeSpend * 0.02) + (idx===data.monthlyData.slice(-6).length-1 ? projectedSavings : 0))
+    };
+  });
+
+  const healthFactors = [
+    `Score actual: <strong>${health.score}</strong> · ${health.label}`,
+    `Patrimonio neto estimado: <strong>$${fmtN(Math.round(netPatrimony))}</strong>`,
+    `Deuda activa restante: <strong>$${fmtN(Math.round(totalDebtARS))}</strong>`,
+    `Liquidez estimada: <strong>${liquidityMonths ? liquidityMonths.toFixed(1) : '0.0'} meses</strong> de gasto promedio`
+  ];
+
+  el.innerHTML = `
+    <div class="fade-up d1 savings-hero-shell">
+      <div class="insights-panel-kicker">Salud y patrimonio</div>
+      <div class="savings-hero-title">Cómo está tu estructura financiera hoy</div>
+      <div class="savings-hero-copy">Esta vista junta score financiero, ahorro acumulado, deuda activa y liquidez para que entiendas tu posición con más profundidad.</div>
+      <div class="savings-metric-grid">
+        <div class="savings-metric-card">
+          <div class="savings-metric-label">Patrimonio neto estimado</div>
+          <div class="savings-metric-value ${netPatrimony < 0 ? 'bad' : ''}">$${fmtN(Math.round(netPatrimony))}</div>
+          <div class="savings-metric-sub">ahorro + proyección - deuda activa</div>
+        </div>
+        <div class="savings-metric-card">
+          <div class="savings-metric-label">Ahorro líquido</div>
+          <div class="savings-metric-value">$${fmtN(Math.round(totalSavingsARS))}</div>
+          <div class="savings-metric-sub">saldos registrados en ahorro</div>
+        </div>
+        <div class="savings-metric-card">
+          <div class="savings-metric-label">Deuda activa</div>
+          <div class="savings-metric-value ${totalDebtARS > 0 ? 'bad' : ''}">$${fmtN(Math.round(totalDebtARS))}</div>
+          <div class="savings-metric-sub">cuotas pendientes por delante</div>
+        </div>
+        <div class="savings-metric-card">
+          <div class="savings-metric-label">Liquidez estimada</div>
+          <div class="savings-metric-value">${liquidityMonths ? liquidityMonths.toFixed(1) : '0.0'}x</div>
+          <div class="savings-metric-sub">meses de gasto promedio cubiertos</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fade-up d2 savings-split-grid">
+      <div class="insights-panel-shell">
+        <div class="insights-panel-kicker">Lectura patrimonial</div>
+        <div class="insights-panel-sub">Las variables que hoy mejor describen tu situación</div>
+        <div class="savings-week-plan">
+          ${healthFactors.map((item, idx)=>`
+            <div class="savings-week-step">
+              <div class="savings-week-index">0${idx+1}</div>
+              <div class="savings-week-copy">${item}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+      <div class="insights-panel-shell">
+        <div class="insights-panel-kicker">Metas y cobertura</div>
+        <div class="insights-panel-sub">Qué tan respaldado está tu plan financiero</div>
+        <div class="savings-advice-grid">
+          <div class="savings-advice-card savings-advice-good">
+            <div class="savings-advice-title">Progreso de metas</div>
+            <div class="savings-advice-body">${totalGoalsARS > 0 ? `Llevás cubierto <strong>${goalProgressPct}%</strong> del total de tus metas registradas.` : 'Todavía no definiste metas de ahorro en la app.'}</div>
+          </div>
+          <div class="savings-advice-card savings-advice-info">
+            <div class="savings-advice-title">Cobertura operativa</div>
+            <div class="savings-advice-body">${liquidityMonths >= 3 ? `Tenés una cobertura razonable para absorber meses más pesados.` : `Tu colchón todavía es corto: conviene priorizar liquidez antes de sumar más compromisos.`}</div>
+          </div>
+          <div class="savings-advice-card savings-advice-${health.score >= 70 ? 'good' : 'warn'}">
+            <div class="savings-advice-title">Salud financiera</div>
+            <div class="savings-advice-body">${health.desc}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="fade-up d3 insights-panel-shell">
+      <div class="insights-panel-kicker">Historial patrimonial</div>
+      <div class="insights-panel-sub">Una lectura simple de cómo viene tu posición en los últimos meses</div>
+      <div class="savings-scenario-grid">
+        ${patrimonySeries.length ? patrimonySeries.map(point=>`
+          <div class="savings-scenario-card">
+            <div class="savings-scenario-top">
+              <span class="savings-scenario-label">${point.label}</span>
+              <span class="savings-scenario-chip">Patrimonio</span>
+            </div>
+            <div class="savings-scenario-value">$${fmtN(Math.round(point.value))}</div>
+            <div class="savings-scenario-sub">estimación histórica</div>
+          </div>
+        `).join('') : `<div class="savings-scenario-card"><div class="savings-scenario-value">—</div><div class="savings-scenario-sub">Necesitás más historial para esta lectura</div></div>`}
+      </div>
+    </div>
+  `;
+  const subEl = document.getElementById('insights-subtitle');
+  if(subEl) subEl.textContent = 'Salud financiera y patrimonio · liquidez, deuda y posición estimada';
 }
 
 function getSavingsDeviationAlerts(dataArg){
@@ -652,7 +783,7 @@ function _renderInsightsChart(data) {
     data:{
       labels,
       datasets:[
-        {label:'Gasto ARS', data:values, backgroundColor:barColors, borderRadius:5, borderSkipped:false, order:2},
+        {label:'Gasto ARS', data:values, backgroundColor:barColors, borderRadius:8, maxBarThickness:42, borderSkipped:false, order:2},
         {label:'Promedio', data:values.map(()=>avg), type:'line', borderColor:'rgba(160,154,148,0.5)', borderWidth:1.5,
          borderDash:[5,4], pointRadius:0, fill:false, tension:0, order:1}
       ]
@@ -661,13 +792,13 @@ function _renderInsightsChart(data) {
       responsive:true, maintainAspectRatio:false,
       plugins:{
         legend:{display:false},
-        tooltip:{backgroundColor:'#1c1a18',titleColor:'#f0ebe6',bodyColor:'#a09a94',borderColor:'#2e2b28',borderWidth:1,padding:10,
+        tooltip:{..._chartTooltip(),
           callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y)):' $'+fmtN(Math.round(c.parsed.y))}}
       },
       scales:{
-        x:{ticks:{color:isL?'#86868b':'#7a7470',font:{size:10}}, grid:{display:false}},
-        y:{ticks:{color:isL?'#86868b':'#7a7470',font:{size:10},callback:v=>'$'+fmtN(v)},
-           grid:{color:isL?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.05)'}}
+        x:{ticks:{color:_chartTickColor(),font:_chartTickFont()}, grid:{display:false}},
+        y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},
+           grid:_chartGridY()}
       }
     }
   });

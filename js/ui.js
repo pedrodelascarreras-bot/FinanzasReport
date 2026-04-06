@@ -224,6 +224,7 @@ function refreshAll(){
   if(document.getElementById('page-income').classList.contains('active')) renderIncomePage();
   if(document.getElementById('page-savings').classList.contains('active')) renderSavingsPage();
   if(document.getElementById('page-credit-cards')&&document.getElementById('page-credit-cards').classList.contains('active')) renderCreditCards();
+  if(document.getElementById('page-import')?.classList.contains('active') && typeof renderImportConfigPanel === 'function') renderImportConfigPanel();
 }
 
 function nav(page){
@@ -251,13 +252,14 @@ function nav(page){
   if(page==='insights'&&state.transactions.length)generateInsights();
   if(page==='categories'){renderCategoryManage();renderInlineColorPicker('');}
   if(page==='transactions')renderTransactions();
-  if(page==='import'){renderImportHistory();updateLastBackupLabel();}
+  if(page==='import'){renderImportHistory();updateLastBackupLabel();if(typeof renderImportConfigPanel==='function')renderImportConfigPanel();}
   if(page==='tendencia')renderTendencia();
   if(page==='cuotas'){renderCuotas();renderSubs();renderFixed();renderCompromisosSummary();}
   if(page==='suscripciones'){nav('cuotas');return;}
   if(page==='income')renderIncomePage();
   if(page==='savings')renderSavingsPage();
   if(page==='reportes')renderReportesPage();
+  if(page==='settings' && typeof renderSettingsPage==='function')renderSettingsPage();
   if(page==='dashboard')renderDashboard();
   if(page==='dashboard-design')renderDashboardDesignPage();
   if(page==='credit-cards')renderCreditCards();
@@ -333,11 +335,16 @@ window.addEventListener('scroll',()=>{
 
 const LAYOUT_KEY = 'finanzas_layout_v1';
 
+function getLayoutStorageKey(){
+  const profileId = state?.activeUserProfileId || 'default-profile';
+  return `${LAYOUT_KEY}__${profileId}`;
+}
+
 function loadLayoutState() {
-  try { return JSON.parse(localStorage.getItem(LAYOUT_KEY)) || {}; } catch(e) { return {}; }
+  try { return JSON.parse(localStorage.getItem(getLayoutStorageKey())) || {}; } catch(e) { return {}; }
 }
 function saveLayoutState(ls) {
-  localStorage.setItem(LAYOUT_KEY, JSON.stringify(ls));
+  localStorage.setItem(getLayoutStorageKey(), JSON.stringify(ls));
 }
 
 // Apply saved layout on page nav

@@ -54,53 +54,53 @@
 
   <nav class="nav-group">
     <button class="nav-item active" id="ni-dashboard" onclick="nav('dashboard')">
-      <span class="nav-icon">▦</span><span>Dashboard</span>
+      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span><span>Dashboard</span>
     </button>
     <button class="nav-item" id="ni-tendencia" onclick="nav('tendencia')">
-      <span class="nav-icon">◫</span><span>Tendencias</span>
+      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span><span>Tendencias</span>
     </button>
     <button class="nav-item" id="ni-transactions" onclick="nav('transactions')">
-      <span class="nav-icon">≡</span><span>Movimientos</span>
+      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg></span><span>Movimientos</span>
     </button>
     <button class="nav-item" id="ni-cuotas" onclick="nav('cuotas')">
-      <span class="nav-icon">⬡</span><span>Compromisos</span>
+      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M12 15l2 2 3-3"/></svg></span><span>Compromisos</span>
     </button>
     <button class="nav-item" id="ni-income" onclick="nav('income')">
-      <span class="nav-icon">◎</span><span>Ingresos</span>
+      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="14" r="1" fill="currentColor"/></svg></span><span>Ingresos</span>
     </button>
     <button class="nav-item" id="ni-savings" onclick="nav('savings')">
-      <span class="nav-icon">◐</span><span>Ahorros</span>
+      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-0.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9.5a2 2 0 0 1 2-2"/></svg></span><span>Ahorros</span>
     </button>
     <button class="nav-item" id="ni-insights" onclick="nav('insights')">
-      <span class="nav-icon">◈</span><span>Insights</span>
+      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/><path d="M19 15l.5 2 2 .5-2 .5-.5 2-.5-2-2-.5 2-.5.5-2z"/></svg></span><span>Insights</span>
     </button>
     <button class="nav-item" id="ni-compare" onclick="nav('compare')">
-      <span class="nav-icon">⇄</span><span>Mes vs Mes</span>
+      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg></span><span>Mes vs Mes</span>
     </button>
     
     <!-- Tarjeta de Crédito — colapsable -->
     <div class="nav-section" id="ns-credit-cards" style="margin-top:0;">
       <button class="nav-section-header" onclick="toggleSection('ns-credit-cards')">
-        <span class="ns-icon">💳</span>
+        <span class="ns-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span>
         <span class="ns-label">Tarjeta de Crédito</span>
         <span class="ns-arrow">›</span>
       </button>
       <div class="nav-section-body">
         <button class="nav-item sub" id="ni-credit-cards" onclick="nav('credit-cards')">
-          <span class="nav-icon">📊</span><span>Resumen del ciclo</span>
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg></span><span>Resumen del ciclo</span>
         </button>
         <button class="nav-item sub" id="ni-cc-compare" onclick="nav('cc-compare')">
-          <span class="nav-icon">⇄</span><span>Comparar resúmenes</span>
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg></span><span>Comparar resúmenes</span>
         </button>
       </div>
     </div>
     <button class="nav-item" id="ni-reportes" onclick="nav('reportes')">
-      <span class="nav-icon">⬕</span><span>Reportes</span>
+      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span><span>Reportes</span>
     </button>
   </nav>
 
   <button class="nav-item" id="ni-settings" onclick="nav('settings')">
-    <span class="nav-icon">⚙</span><span>Configuración</span>
+    <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span>Configuración</span>
   </button>
 
   <div style="margin-top:auto;padding-top:12px;display:flex;flex-direction:column;gap:6px;">
@@ -608,6 +608,10 @@
           <div class="settings-kicker">Centro de configuración</div>
           <div class="settings-title">Todo lo importante para adaptar la app sin tocar la ingeniería.</div>
           <div class="settings-note">Desde acá podés definir categorías, importaciones, tarjetas, sincronización y otras bases para que cada usuario configure la app a su medida.</div>
+          <div class="settings-module-actions" style="margin-top:14px;">
+            <button class="btn btn-primary" onclick="openOnboardingWizard()">Abrir onboarding guiado</button>
+            <button class="btn btn-ghost" onclick="openCloudSync(event)">Conectar Google</button>
+          </div>
         </div>
         <div class="settings-hero-chips">
           <span class="settings-chip">Google</span>
@@ -677,6 +681,92 @@
             <button class="btn btn-ghost" onclick="nav('income')">Revisar ingresos base</button>
             <button class="btn btn-ghost" onclick="nav('savings')">Ajustar metas de ahorro</button>
           </div>
+        </div>
+      </div>
+
+      <div class="settings-module-grid">
+        <div class="settings-card">
+          <div class="settings-kicker">Onboarding real</div>
+          <div class="settings-title settings-title-sm">Checklist de puesta en marcha</div>
+          <div class="settings-note">Lo mínimo para que cualquier persona pueda empezar a usar la app con sus propios datos.</div>
+          <div id="settings-onboarding-shell" class="settings-status-list"></div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-kicker">Perfil de uso</div>
+          <div class="settings-title settings-title-sm">Plantillas para no empezar de cero</div>
+          <div class="settings-note">Aplican una orientación general sobre dashboard, foco de lectura y configuración base.</div>
+          <div id="settings-profile-shell" class="settings-template-grid"></div>
+        </div>
+      </div>
+
+      <div class="settings-module-grid">
+        <div class="settings-card">
+          <div class="settings-kicker">Fuentes de datos</div>
+          <div class="settings-title settings-title-sm">Google, Gmail y reglas de captura</div>
+          <div class="settings-note">Definí qué correos mirar, cómo identificarlos y a qué tarjeta o banco asociarlos.</div>
+          <div class="settings-module-actions">
+            <button class="btn btn-primary" onclick="openCloudSync(event)">Conectar Google</button>
+            <button class="btn btn-ghost" onclick="openGmailRuleManager()">Gestionar reglas Gmail</button>
+          </div>
+          <div id="settings-gmail-rules-shell" class="settings-rule-list"></div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-kicker">Importación universal</div>
+          <div class="settings-title settings-title-sm">Distintos caminos para cargar movimientos</div>
+          <div class="settings-note">Pensado para bancos distintos, resúmenes pegados o archivos importados sin depender de un único formato.</div>
+          <div id="settings-import-shell" class="settings-method-list"></div>
+        </div>
+      </div>
+
+      <div class="settings-module-grid">
+        <div class="settings-card">
+          <div class="settings-kicker">Perfiles de usuario</div>
+          <div class="settings-title settings-title-sm">Alterná configuraciones personales</div>
+          <div class="settings-note">Cada perfil guarda su nombre, plantilla, reglas Gmail, perfiles bancarios y automatizaciones.</div>
+          <div class="settings-module-actions">
+            <button class="btn btn-primary" onclick="openUserProfileManager()">Gestionar perfiles</button>
+            <button class="btn btn-ghost" onclick="saveActiveUserProfile()">Guardar perfil activo</button>
+          </div>
+          <div id="settings-user-profiles-shell" class="settings-rule-list"></div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-kicker">Bancos y tarjetas base</div>
+          <div class="settings-title settings-title-sm">Perfiles para distintos usuarios y bancos</div>
+          <div class="settings-note">Dejá guardado cómo se llama el banco, qué tarjeta usa, qué vía de importación preferís y qué ciclo maneja.</div>
+          <div class="settings-module-actions">
+            <button class="btn btn-primary" onclick="openBankProfileManager()">Agregar perfil</button>
+            <button class="btn btn-ghost" onclick="nav('credit-cards');ccSelectPageTab('config')">Abrir tarjetas y ciclos</button>
+          </div>
+          <div id="settings-bank-profiles-shell" class="settings-rule-list"></div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-kicker">Multiusuario</div>
+          <div class="settings-title settings-title-sm">Base para amigos, familia y bancos distintos</div>
+          <div class="settings-note">Este bloque prepara la app para que cada persona pueda tener su propia configuración, sus propias reglas y sus propias fuentes de datos.</div>
+          <div id="settings-multiuser-shell" class="settings-list"></div>
+        </div>
+      </div>
+
+      <div class="settings-module-grid">
+        <div class="settings-card">
+          <div class="settings-kicker">Asistente de importación</div>
+          <div class="settings-title settings-title-sm">Elegí el mejor camino según tu banco</div>
+          <div class="settings-note">Guiá a cualquier persona para decidir si le conviene conectar Gmail, pegar el resumen o importar un archivo.</div>
+          <div class="settings-module-actions">
+            <button class="btn btn-primary" onclick="openImportAssistant()">Abrir asistente</button>
+            <button class="btn btn-ghost" onclick="nav('import')">Ir a importar datos</button>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <div class="settings-kicker">Automatizaciones</div>
+          <div class="settings-title settings-title-sm">Alertas y envíos automáticos</div>
+          <div class="settings-note">Definí una base de alertas útiles para que la app se sienta viva sin bombardear.</div>
+          <div id="settings-automations-shell" class="settings-list"></div>
         </div>
       </div>
     </div>
@@ -1202,6 +1292,7 @@
       <div class="insights-view-switch">
         <button id="insights-tab-general" class="insights-view-btn active" onclick="setInsightTab('general')">Vista general</button>
         <button id="insights-tab-ahorro" class="insights-view-btn" onclick="setInsightTab('ahorro')">Modo ahorro</button>
+        <button id="insights-tab-salud" class="insights-view-btn" onclick="setInsightTab('salud')">Salud y patrimonio</button>
       </div>
       <button class="btn btn-primary" onclick="generateInsights()">⚡ Actualizar</button>
     </div>
@@ -1251,6 +1342,7 @@
     </div>
 
     <div id="insights-savings-shell" style="display:none;flex-direction:column;gap:22px;"></div>
+    <div id="insights-wealth-shell" style="display:none;flex-direction:column;gap:22px;"></div>
 
   </div>
 </div>
@@ -1716,6 +1808,7 @@
       <button class="btn btn-primary" onclick="processPasteText()">Procesar texto</button>
     </div>
     <div class="section-card-body">
+      <div id="import-config-shell" class="field-grid-2" style="margin-bottom:14px;"></div>
       <textarea id="paste-input" class="textarea-premium" placeholder="* 04 de marzo&#10;   * Rappi&#10;$&#10;10.920,00"></textarea>
     </div>
   </div>
@@ -1890,17 +1983,17 @@
 <!-- MOBILE NAV -->
 <nav class="mob-nav">
   <div class="mob-nav-inner">
-    <button class="mob-nav-btn active" id="mn-dashboard" onclick="nav('dashboard')"><span class="mn-icon">▦</span>Inicio</button>
-    <button class="mob-nav-btn" id="mn-transactions" onclick="nav('transactions')"><span class="mn-icon">≡</span>Gastos</button>
-    <button class="mob-nav-btn" id="mn-cuotas" onclick="nav('cuotas')"><span class="mn-icon">⬡</span>Fijos</button>
-    <button class="mob-nav-btn" id="mn-credit-cards" onclick="nav('credit-cards')"><span class="mn-icon">💳</span>Tarjeta</button>
-    <button class="mob-nav-btn" id="mn-more" onclick="toggleMobMore()"><span class="mn-icon">⋯</span>Más</button>
+    <button class="mob-nav-btn active" id="mn-dashboard" onclick="nav('dashboard')"><span class="mn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg></span>Inicio</button>
+    <button class="mob-nav-btn" id="mn-transactions" onclick="nav('transactions')"><span class="mn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg></span>Gastos</button>
+    <button class="mob-nav-btn" id="mn-cuotas" onclick="nav('cuotas')"><span class="mn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M12 15l2 2 3-3"/></svg></span>Fijos</button>
+    <button class="mob-nav-btn" id="mn-credit-cards" onclick="nav('credit-cards')"><span class="mn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span>Tarjeta</button>
+    <button class="mob-nav-btn" id="mn-more" onclick="toggleMobMore()"><span class="mn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg></span>Más</button>
   </div>
   <div id="mob-more-menu" style="display:none;padding:8px 12px 4px;border-top:1px solid var(--border);background:var(--glass);">
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
-      <button class="mob-nav-btn" id="mn-tendencia" onclick="nav('tendencia');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">◫</span>Tend.</button>
-      <button class="mob-nav-btn" id="mn-income" onclick="nav('income');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">💰</span>Ingresos</button>
-      <button class="mob-nav-btn" id="mn-savings" onclick="nav('savings');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">🏦</span>Ahorros</button>
+      <button class="mob-nav-btn" id="mn-tendencia" onclick="nav('tendencia');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span>Tend.</button>
+      <button class="mob-nav-btn" id="mn-income" onclick="nav('income');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="14" r="1" fill="currentColor"/></svg></span>Ingresos</button>
+      <button class="mob-nav-btn" id="mn-savings" onclick="nav('savings');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-0.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9.5a2 2 0 0 1 2-2"/></svg></span>Ahorros</button>
       <button class="mob-nav-btn" id="mn-google-sync" onclick="openCloudSync(event);closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">☁</span>Google</button>
     </div>
   </div>
@@ -2551,6 +2644,204 @@
       <button class="btn btn-ghost" onclick="document.querySelectorAll('#gmail-result-body input[type=checkbox]').forEach(cb=>{cb.checked=false;const r=cb.closest('[id]');if(r)r.style.opacity='0.4';});gmailUpdateCounter();" style="font-size:11px;">Ninguno</button>
       <button class="btn btn-primary" id="gmail-result-confirm-btn" onclick="confirmGmailImport()" style="display:none;min-width:160px;">✓ Importar</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-gmail-rules">
+  <div class="modal modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Reglas Gmail</div>
+        <div class="modal-sub">Elegí qué correos mirar y cómo transformarlos en gastos importables.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-gmail-rules')">✕</button>
+    </div>
+    <div class="modal-body modal-stack">
+      <div id="gmail-rules-list" class="settings-rule-list"></div>
+      <div class="settings-rule-editor">
+        <input type="hidden" id="gmail-rule-id">
+        <div class="field-grid-2">
+          <div>
+            <label class="field-label-premium">Nombre visible</label>
+            <input id="gmail-rule-name" type="text" class="field-control-premium" placeholder="Santander · Compras">
+          </div>
+          <div>
+            <label class="field-label-premium">Banco o fuente</label>
+            <input id="gmail-rule-bank" type="text" class="field-control-premium" placeholder="Santander Río">
+          </div>
+        </div>
+        <div class="field-grid-2">
+          <div>
+            <label class="field-label-premium">Remitente</label>
+            <input id="gmail-rule-sender" type="text" class="field-control-premium" placeholder="mensajesyavisos@mails.santander.com.ar">
+          </div>
+          <div>
+            <label class="field-label-premium">Consulta Gmail</label>
+            <input id="gmail-rule-query" type="text" class="field-control-premium" placeholder='subject:Pagaste OR subject:"Tu pago fue anulado"'>
+          </div>
+        </div>
+        <div class="field-grid-2">
+          <div>
+            <label class="field-label-premium">Tarjeta / medio</label>
+            <select id="gmail-rule-card" class="field-control-premium">
+              <option value="auto">Auto detectar</option>
+              <option value="visa">Visa</option>
+              <option value="amex">Amex</option>
+              <option value="deb">Débito</option>
+              <option value="ef">Efectivo</option>
+            </select>
+          </div>
+          <div>
+            <label class="field-label-premium">Procesador</label>
+            <select id="gmail-rule-processor" class="field-control-premium">
+              <option value="santander_email">Email Santander</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="resetGmailRuleEditor()">Nueva regla</button>
+      <button class="btn btn-ghost" id="gmail-rule-delete-btn" style="display:none;" onclick="deleteCurrentGmailRule()">Eliminar</button>
+      <button class="btn btn-primary" onclick="saveGmailRule()">Guardar regla</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-bank-profiles">
+  <div class="modal modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Perfiles de banco y tarjeta</div>
+        <div class="modal-sub">Dejá preparada la app para distintos bancos, tarjetas y métodos de importación.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-bank-profiles')">✕</button>
+    </div>
+    <div class="modal-body modal-stack">
+      <div id="bank-profiles-list" class="settings-rule-list"></div>
+      <div class="settings-rule-editor">
+        <input type="hidden" id="bank-profile-id">
+        <div class="field-grid-2">
+          <div>
+            <label class="field-label-premium">Nombre visible</label>
+            <input id="bank-profile-name" type="text" class="field-control-premium" placeholder="Santander personal">
+          </div>
+          <div>
+            <label class="field-label-premium">Banco</label>
+            <input id="bank-profile-bank" type="text" class="field-control-premium" placeholder="Santander Río">
+          </div>
+        </div>
+        <div class="field-grid-2">
+          <div>
+            <label class="field-label-premium">Tarjeta o cuenta</label>
+            <input id="bank-profile-card" type="text" class="field-control-premium" placeholder="Visa, Amex, Débito, Cuenta sueldo">
+          </div>
+          <div>
+            <label class="field-label-premium">Método preferido</label>
+            <select id="bank-profile-method" class="field-control-premium">
+              <option value="gmail">Gmail</option>
+              <option value="paste">Texto pegado</option>
+              <option value="csv">Archivo / CSV</option>
+              <option value="manual">Manual</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-grid-2">
+          <div>
+            <label class="field-label-premium">Cierre</label>
+            <input id="bank-profile-close" type="number" min="1" max="31" class="field-control-premium" placeholder="23">
+          </div>
+          <div>
+            <label class="field-label-premium">Vencimiento</label>
+            <input id="bank-profile-due" type="number" min="1" max="31" class="field-control-premium" placeholder="1">
+          </div>
+        </div>
+        <div>
+          <label class="field-label-premium">Notas</label>
+          <input id="bank-profile-note" type="text" class="field-control-premium" placeholder="Resumen llega por mail, se usa para gastos del ciclo actual">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="resetBankProfileEditor()">Nuevo perfil</button>
+      <button class="btn btn-ghost" id="bank-profile-delete-btn" style="display:none;" onclick="deleteCurrentBankProfile()">Eliminar</button>
+      <button class="btn btn-primary" onclick="saveBankProfile()">Guardar perfil</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-user-profiles">
+  <div class="modal modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Perfiles de usuario</div>
+        <div class="modal-sub">Guardá configuraciones distintas para cambiar de persona o de contexto sin rearmar todo.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-user-profiles')">✕</button>
+    </div>
+    <div class="modal-body modal-stack">
+      <div id="user-profiles-list" class="settings-rule-list"></div>
+      <div class="settings-rule-editor">
+        <input type="hidden" id="user-profile-id">
+        <div class="field-grid-2">
+          <div>
+            <label class="field-label-premium">Nombre del perfil</label>
+            <input id="user-profile-name" type="text" class="field-control-premium" placeholder="Pedro · Personal">
+          </div>
+          <div>
+            <label class="field-label-premium">Perfil de uso</label>
+            <select id="user-profile-template" class="field-control-premium">
+              <option value="personal">Personal</option>
+              <option value="ahorro">Modo ahorro</option>
+              <option value="familiar">Familiar</option>
+              <option value="freelance">Freelance</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="field-label-premium">Notas</label>
+          <input id="user-profile-note" type="text" class="field-control-premium" placeholder="Ej: usa Gmail, tarjeta Visa, foco en ahorro">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="resetUserProfileEditor()">Nuevo perfil</button>
+      <button class="btn btn-ghost" onclick="duplicateCurrentUserProfile()">Duplicar actual</button>
+      <button class="btn btn-ghost" id="user-profile-delete-btn" style="display:none;" onclick="deleteCurrentUserProfile()">Eliminar</button>
+      <button class="btn btn-primary" onclick="saveUserProfile()">Guardar perfil</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-onboarding-wizard">
+  <div class="modal modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Onboarding guiado</div>
+        <div class="modal-sub">Dejá la app lista para vos o para cualquier otra persona en pocos pasos.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-onboarding-wizard')">✕</button>
+    </div>
+    <div class="modal-body modal-stack">
+      <div id="onboarding-wizard-body"></div>
+    </div>
+    <div class="modal-footer" id="onboarding-wizard-actions"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-import-assistant">
+  <div class="modal modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title">Asistente de importación</div>
+        <div class="modal-sub">Elegí el método más cómodo según el banco, el formato y tus hábitos.</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-import-assistant')">✕</button>
+    </div>
+    <div class="modal-body modal-stack">
+      <div id="import-assistant-body"></div>
+    </div>
+    <div class="modal-footer" id="import-assistant-actions"></div>
   </div>
 </div>
 

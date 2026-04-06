@@ -3,16 +3,200 @@ function handleDragOver(e){e.preventDefault();e.currentTarget.classList.add('dra
 function handleDragLeave(e){e.currentTarget.classList.remove('drag-over');}
 function handleDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)processFile(f);}
 function handleFileSelect(e){const f=e.target.files[0];if(f)processFile(f);e.target.value='';}
+
+function ensureImportConfig(){
+  if(!state.importConfig || typeof state.importConfig !== 'object') state.importConfig = {};
+  state.importConfig = {
+    bankProfileId: state.importConfig.bankProfileId || '',
+    parserMode: state.importConfig.parserMode || 'santander_auto',
+    ...state.importConfig
+  };
+  return state.importConfig;
+}
+
+function getImportProfileOptions(){
+  const config = ensureImportConfig();
+  const bankProfiles = Array.isArray(state.bankProfiles) ? state.bankProfiles : [];
+  return {
+    config,
+    bankProfiles,
+    selectedProfile: bankProfiles.find(profile => profile.id === config.bankProfileId) || null
+  };
+}
+
+function renderImportConfigPanel(){
+  const shell = document.getElementById('import-config-shell');
+  if(!shell) return;
+  const { config, bankProfiles, selectedProfile } = getImportProfileOptions();
+  const parserLabel = {
+    santander_auto: 'Santander / tarjetas conocidas',
+    generic_text: 'Genérico por texto',
+    generic_csv: 'Genérico por archivo'
+  };
+  shell.innerHTML = `
+    <div class="input-group">
+      <label class="input-label">Perfil bancario activo</label>
+      <select id="import-bank-profile-select" class="input-field" onchange="setImportBankProfile(this.value)">
+        <option value="">Sin perfil específico</option>
+        ${bankProfiles.map(profile => `<option value="${profile.id}" ${config.bankProfileId===profile.id?'selected':''}>${profile.name}</option>`).join('')}
+      </select>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Modo de lectura</label>
+      <select id="import-parser-mode-select" class="input-field" onchange="setImportParserMode(this.value)">
+        <option value="santander_auto" ${config.parserMode==='santander_auto'?'selected':''}>Santander / tarjetas conocidas</option>
+        <option value="generic_text" ${config.parserMode==='generic_text'?'selected':''}>Texto genérico</option>
+        <option value="generic_csv" ${config.parserMode==='generic_csv'?'selected':''}>CSV genérico</option>
+      </select>
+    </div>
+    <div class="input-group" style="grid-column:1/-1;">
+      <div class="settings-inline-note">
+        ${selectedProfile
+          ? `Perfil activo: <strong>${selectedProfile.name}</strong> · ${selectedProfile.bank || 'Banco'} · ${selectedProfile.card || 'Tarjeta'} · método preferido ${selectedProfile.methodLabel || 'manual'}.`
+          : `Elegí un perfil bancario si querés dejar la importación orientada a una tarjeta o banco concreto. Si no, podés usar un modo genérico.`}
+        <br>Lectura actual: <strong>${parserLabel[config.parserMode] || 'Automática'}</strong>.
+      </div>
+    </div>
+  `;
+}
+
+function setImportBankProfile(profileId){
+  ensureImportConfig();
+  state.importConfig.bankProfileId = profileId || '';
+  const profile = (state.bankProfiles || []).find(item => item.id === profileId);
+  if(profile){
+    if(profile.method === 'gmail') state.importConfig.parserMode = 'santander_auto';
+    else if(profile.method === 'csv') state.importConfig.parserMode = 'generic_csv';
+    else if(profile.method === 'paste') state.importConfig.parserMode = 'generic_text';
+  }
+  if(typeof syncActiveUserProfileFromState === 'function') syncActiveUserProfileFromState(false);
+  saveState();
+  renderImportConfigPanel();
+}
+
+function setImportParserMode(mode){
+  ensureImportConfig();
+  state.importConfig.parserMode = mode || 'santander_auto';
+  if(typeof syncActiveUserProfileFromState === 'function') syncActiveUserProfileFromState(false);
+  saveState();
+  renderImportConfigPanel();
+}
+
+function parseAmountLoose(value){
+  return parseFloat(String(value || '').replace(/[^\d.,-]/g,'').replace(/\./g,'').replace(',','.')) || 0;
+}
+
+function parseGenericCSV(rows){
+  const txns = [];
+  for(const row of rows){
+    const values = Object.values(row || {}).map(value => String(value || '').trim()).filter(Boolean);
+    if(!values.length) continue;
+    const keys = Object.keys(row || {});
+    const findKey = pattern => keys.find(key => pattern.test(String(key).trim()));
+    const dateRaw = findKey(/fecha|date/i) ? row[findKey(/fecha|date/i)] : values[0];
+    const descRaw = findKey(/descrip|detalle|concept|movim|comercio/i) ? row[findKey(/descrip|detalle|concept|movim|comercio/i)] : values[1];
+    const amountKey = findKey(/monto|importe|amount|pesos|debito|consumo/i);
+    const currencyKey = findKey(/moneda|currency|divisa/i);
+    const date = parseDate(dateRaw);
+    const description = String(descRaw || '').trim();
+    const currencyGuess = String(currencyKey ? row[currencyKey] : '').toUpperCase();
+    let amount = amountKey ? parseAmountLoose(row[amountKey]) : 0;
+    if(!amount && values.length >= 3) amount = parseAmountLoose(values[values.length-1]);
+    const currency = currencyGuess.includes('USD') || currencyGuess.includes('U$S') ? 'USD' : 'ARS';
+    if(!date || !description || !amount) continue;
+    const id = Math.random().toString(36).substr(2,9);
+    txns.push({
+      id,
+      date:new Date(date),
+      description,
+      amount:Math.abs(amount),
+      currency,
+      category:'Procesando...',
+      week:getWeekKey(date),
+      month:getMonthKey(date)
+    });
+  }
+  return txns;
+}
+
+function parseGenericTextWithReview(text){
+  const lines = text.split('\n').map(line => line.trim()).filter(Boolean);
+  const txns = [];
+  const issues = [];
+  let currentDate = null;
+
+  const dateOnlyRegex = /^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)$/;
+  const inlineRegex = /^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)\s+(.+?)\s+(-?[\$UuSsD\d][\d\s.,-]*)$/;
+
+  for(let i=0;i<lines.length;i++){
+    const line = lines[i];
+    if(dateOnlyRegex.test(line)){
+      currentDate = parseDate(line);
+      continue;
+    }
+
+    const inlineMatch = line.match(inlineRegex);
+    if(inlineMatch){
+      const date = parseDate(inlineMatch[1]);
+      const description = inlineMatch[2].trim();
+      const amount = Math.abs(parseAmountLoose(inlineMatch[3]));
+      const currency = /U\$S|USD/i.test(inlineMatch[3]) ? 'USD' : 'ARS';
+      if(date && description && amount){
+        const id = Math.random().toString(36).substr(2,9);
+        txns.push({id,date:new Date(date),description,amount,currency,category:'Procesando...',week:getWeekKey(date),month:getMonthKey(date)});
+        continue;
+      }
+    }
+
+    if(currentDate && i+1 < lines.length){
+      const next = lines[i+1];
+      if(/^[\$UuSsD\d][\d\s.,-]*$/.test(next)){
+        const amount = Math.abs(parseAmountLoose(next));
+        if(amount){
+          const currency = /U\$S|USD/i.test(next) ? 'USD' : 'ARS';
+          const id = Math.random().toString(36).substr(2,9);
+          txns.push({id,date:new Date(currentDate),description:line,amount,currency,category:'Procesando...',week:getWeekKey(currentDate),month:getMonthKey(currentDate)});
+          i += 1;
+          continue;
+        }
+      }
+    }
+
+    if(line.length > 4){
+      issues.push({
+        type:'parse_error',
+        desc:line,
+        rawNext:lines[i+1] || '',
+        lastDate:currentDate ? new Date(currentDate) : null,
+        resolved:false,
+        id:'iss_'+Math.random().toString(36).substr(2,6)
+      });
+    }
+  }
+  return { txns, issues, detectedPayMethod:null };
+}
+
 function processFile(file){
   showToast('⏳ Procesando...','info');
   const reader=new FileReader();
-  reader.onload=e=>{Papa.parse(e.target.result,{header:true,skipEmptyLines:true,delimiter:';',complete:r=>{const txns=parseSantander(r.data);if(!txns.length){showToast('⚠️ No se encontraron transacciones','error');return;}finishImport(txns,file.name,'csv');},error:()=>showToast('Error al parsear','error')});};
+  reader.onload=e=>{
+    const config = ensureImportConfig();
+    const papaOptions = {header:true,skipEmptyLines:true,complete:r=>{
+      const txns = config.parserMode === 'generic_csv' ? parseGenericCSV(r.data) : parseSantander(r.data);
+      if(!txns.length){showToast('⚠️ No se encontraron transacciones','error');return;}
+      finishImport(txns,file.name,'csv');
+    },error:()=>showToast('Error al parsear','error')};
+    if(config.parserMode !== 'generic_csv') papaOptions.delimiter=';';
+    Papa.parse(e.target.result,papaOptions);
+  };
   reader.readAsText(file,'ISO-8859-1');
 }
 function processPasteText(){
   const text=document.getElementById('paste-input').value.trim();
   if(!text){showToast('⚠️ Pegá texto primero','error');return;}
-  const{txns,issues,detectedPayMethod}=parsePasteTextWithReview(text);
+  const config = ensureImportConfig();
+  const parser = config.parserMode === 'generic_text' ? parseGenericTextWithReview : parsePasteTextWithReview;
+  const{txns,issues,detectedPayMethod}=parser(text);
   if(!txns.length&&!issues.length){showToast('⚠️ No se encontraron movimientos','error');return;}
   // Detect if this is a Gmail email (VISA or AMEX detected) → use correct origin
   window._pendingIsGmail=!!detectedPayMethod;
@@ -295,12 +479,20 @@ function autoCreateGmailCuotas(txns){
 function finishImport(txns,source,origen){
   const origenVal = origen || (source==='gmail'?'importado_desde_gmail': source==='paste'?'pegado_manualmente':'importado_desde_resumen');
   const isGmail = origenVal === 'importado_desde_gmail';
+  const config = ensureImportConfig();
+  const bankProfile = (state.bankProfiles || []).find(profile => profile.id === config.bankProfileId) || null;
   txns.forEach(t=>{
     // Gmail imports: skip auto-categorization, leave for manual review
     if(!isGmail && (t.category==='Procesando...' || !t.category)) t.category=ruleBasedCategory(t.description);
     enrichTransaction(t, origenVal);
     // Gmail imports stay as pending
     if(isGmail) t.estado_revision='pendiente_de_revision';
+    t.ownerProfileId = state.activeUserProfileId || t.ownerProfileId || 'default-profile';
+    if(bankProfile){
+      t.importBankProfileId = bankProfile.id;
+      t.importBankName = bankProfile.bank || null;
+      if(!t.payMethod && bankProfile.card) t.importBankCard = bankProfile.card;
+    }
   });
   const before=state.transactions.length;
   const existingIds=new Set(state.transactions.map(t=>t.id));
@@ -311,7 +503,7 @@ function finishImport(txns,source,origen){
   const added=state.transactions.length-before;
   const duplicates=txns.length-added;
   const pi=detectPeriod(txns);
-  const imp={id:Date.now().toString(36),label:pi.label,weekKey:pi.weekKey,monthKey:pi.monthKey,date:new Date().toLocaleDateString('es-AR'),count:added,source,txnIds:txns.map(t=>t.id)};
+  const imp={id:Date.now().toString(36),label:pi.label,weekKey:pi.weekKey,monthKey:pi.monthKey,date:new Date().toLocaleDateString('es-AR'),count:added,source,txnIds:txns.map(t=>t.id),ownerProfileId:state.activeUserProfileId||'default-profile',bankProfileId:bankProfile?.id||null,parserMode:config.parserMode||'santander_auto'};
   state.imports.unshift(imp);
   if(pi.monthKey) state.dashMonth=pi.monthKey;
   saveState();
@@ -325,6 +517,11 @@ function finishImport(txns,source,origen){
     Promise.resolve(categorizeWithAI()).then(()=>{saveState();renderDashboard();renderTransactions();});
   }
 }
+
+window.addEventListener('DOMContentLoaded',()=>{
+  ensureImportConfig();
+  setTimeout(renderImportConfigPanel,0);
+});
 function detectPeriod(txns){
   if(!txns.length)return{label:'Sin fecha',weekKey:'',monthKey:''};
   const dates=txns.map(t=>new Date(t.date)).filter(d=>!isNaN(d));
@@ -714,4 +911,3 @@ function afterDataLoad(){
   // CC alerts
   if(typeof checkCreditCardAlerts==='function') checkCreditCardAlerts();
 }
-

@@ -253,10 +253,10 @@ function renderIncomeChart(){
   if(state.charts.incEvo)state.charts.incEvo.destroy();
   const ctx=document.getElementById('chart-income-evo');if(!ctx)return;
   state.charts.incEvo=new Chart(ctx,{type:'bar',data:{labels,datasets:[
-    {label:'Ingreso combinado',data:incData,backgroundColor:'rgba(200,240,96,0.25)',borderColor:'#007aff',borderWidth:2,borderRadius:5,order:2},
-    {label:'Gasto combinado',data:spendData,backgroundColor:'rgba(240,96,96,0.2)',borderColor:'#ff3b30',borderWidth:2,borderRadius:5,order:2},
+    {label:'Ingreso combinado',data:incData,backgroundColor:'rgba(200,240,96,0.25)',borderColor:'#007aff',borderWidth:2,borderRadius:8,maxBarThickness:42,order:2},
+    {label:'Gasto combinado',data:spendData,backgroundColor:'rgba(240,96,96,0.2)',borderColor:'#ff3b30',borderWidth:2,borderRadius:8,maxBarThickness:42,order:2},
     {label:'Ahorro neto',data:saveData,type:'line',borderColor:'#34c759',backgroundColor:'rgba(96,200,240,0.1)',borderWidth:2.5,fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:'#34c759',order:1}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#8e8e93',font:{size:11},boxWidth:12,padding:14}},tooltip:{backgroundColor:_isL()?'#1d1d1f':'#2c2c2e',titleColor:_isL()?'#fff':'#f5f5f7',bodyColor:'#8e8e93',borderColor:'rgba(0,0,0,0.08)',borderWidth:1,callbacks:{label:c=>' $'+fmtN(c.parsed.y)+' (ARS+USD×TC)'}}},scales:{x:{grid:{color:_isL()?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.06)'},ticks:{color:_isL()?'#86868b':'#6e6e73',font:{size:10}}},y:{grid:{color:_isL()?'rgba(0,0,0,0.06)':'rgba(255,255,255,0.06)'},ticks:{color:_isL()?'#86868b':'#6e6e73',font:{size:10},callback:v=>'$'+fmtN(v)}}}}});
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#8e8e93',font:{size:11},boxWidth:12,padding:14}},tooltip:{..._chartTooltip(),callbacks:{label:c=>' $'+fmtN(c.parsed.y)+' (ARS+USD×TC)'}}},scales:{x:{grid:{display:false},ticks:{color:_chartTickColor(),font:_chartTickFont()}},y:{grid:_chartGridY(),ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)}}}}});
 }
 function setIncChartMode(m){
   state.incChartMode=m;
