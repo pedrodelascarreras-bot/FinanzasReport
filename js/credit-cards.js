@@ -70,7 +70,11 @@ function ccGetCycleExpenses(cardId, tcCycleId){
     return d>=openDate && d<=cycle.closeDate;
   }).map(t=>({
     id:t.id, date:dateToYMD(t.date), description:t.description, category:t.category||'Sin categoría',
-    amountARS:t.currency==='ARS'?t.amount:0, amountUSD:t.currency==='USD'?t.amount:0, source:'txn'
+    amountARS:t.currency==='ARS'?t.amount:0,
+    amountUSD:t.currency==='USD'?t.amount:0,
+    isPendingCuota:!!t.isPendingCuota,
+    isPendingSubscription:!!t.isPendingSubscription,
+    source:'txn'
   }));
 
   const manualExpenses=(ccState.manualExpenses||[]).map(e=>({...e,source:'manual'}));

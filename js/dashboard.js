@@ -726,6 +726,11 @@ function renderDashboard(){
     const ymd=dateToYMD(value);
     return !!ymd && ymd<=_todayYmd;
   };
+  const isCountableCycleExpense=expense=>{
+    if(!expense) return false;
+    if(!expense.isPendingCuota && !expense.isPendingSubscription) return true;
+    return _hasReachedChargeDate(expense.date);
+  };
   const billableTxns=monthTxns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription&&(_tcModeActive?!_isNonCC(t):true));
   let arsMonth=billableTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   let usdMonth=billableTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
@@ -839,7 +844,7 @@ function renderDashboard(){
   const dashboardCards=(state.ccCards||[]);
   if(dashboardCycleForCards&&dashboardCards.length&&typeof ccGetCycleExpenses==='function'&&typeof ccGetTotals==='function'){
     dashboardCards.forEach(card=>{
-      const expenses=ccGetCycleExpenses(card.id,dashboardCycleForCards.id).filter(e=>!e.isPendingCuota&&!e.isPendingSubscription);
+      const expenses=ccGetCycleExpenses(card.id,dashboardCycleForCards.id).filter(isCountableCycleExpense);
       const totals=ccGetTotals(expenses);
       dashboardCardTotals[card.payMethodKey||card.id]={ars:totals.ars||0,usd:totals.usd||0,count:totals.count||0};
       dashboardCardsArs+=totals.ars||0;

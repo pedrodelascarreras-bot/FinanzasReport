@@ -674,14 +674,18 @@ function renderTransactions(){
     entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
     renderTxnCycleCommitmentsPanel(wrap, entries);
 
-    const maturedVirtual=entries.filter(e=>e.includeInTotal);
     if(mainEl && !searchVal){
       let totalARS=0;
       let totalUSD=0;
       if(typeof ccGetCycleExpenses==='function' && typeof ccGetTotals==='function'){
         ccInit();
+        const isCountableCycleExpense=expense=>{
+          if(!expense) return false;
+          if(!expense.isPendingCuota && !expense.isPendingSubscription) return true;
+          return hasReachedChargeDate(expense.date);
+        };
         (state.ccCards||[]).forEach(card=>{
-          const totals=ccGetTotals(ccGetCycleExpenses(card.id, activeCycleMeta.cycle.id));
+          const totals=ccGetTotals(ccGetCycleExpenses(card.id, activeCycleMeta.cycle.id).filter(isCountableCycleExpense));
           totalARS+=totals.ars||0;
           totalUSD+=totals.usd||0;
         });
