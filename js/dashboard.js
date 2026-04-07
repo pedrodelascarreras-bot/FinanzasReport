@@ -754,6 +754,9 @@ function renderDashboard(){
     let extraARS=0;
     let extraUSD=0;
     let extraCount=0;
+    let syntheticARS=0;
+    let syntheticUSD=0;
+    let syntheticCount=0;
     const extraKeys=new Set();
     const addExtra=(key,currency,amount)=>{
       if(!key||extraKeys.has(key)) return;
@@ -761,6 +764,12 @@ function renderDashboard(){
       if((currency||'ARS')==='USD') extraUSD+=Number(amount)||0;
       else extraARS+=Number(amount)||0;
       extraCount++;
+    };
+    const addSyntheticExtra=(key,currency,amount)=>{
+      addExtra(key,currency,amount);
+      if((currency||'ARS')==='USD') syntheticUSD+=Number(amount)||0;
+      else syntheticARS+=Number(amount)||0;
+      syntheticCount++;
     };
     (state.transactions||[]).filter(t=>(t.isPendingCuota||t.isPendingSubscription)).forEach(t=>{
       if(!_hasReachedChargeDate(t.date)) return;
@@ -782,7 +791,7 @@ function renderDashboard(){
         if(!dueDay) return;
         _getRecurringDatesInRange(dueDay,_openDate,_closeDate).forEach(dueDate=>{
           if(!_hasReachedChargeDate(dueDate)) return;
-          addExtra(`auto-${g.key}-${dateToYMD(dueDate)}`,'ARS',snap.amountPerCuota);
+          addSyntheticExtra(`auto-${g.key}-${dateToYMD(dueDate)}`,'ARS',snap.amountPerCuota);
         });
       });
     }
@@ -790,7 +799,7 @@ function renderDashboard(){
       if(c.paid>=c.total||!c.day) return;
       _getRecurringDatesInRange(c.day,_openDate,_closeDate).forEach(dueDate=>{
         if(!_hasReachedChargeDate(dueDate)) return;
-        addExtra(`manual-${c.id}-${dateToYMD(dueDate)}`,'ARS',c.amount);
+        addSyntheticExtra(`manual-${c.id}-${dateToYMD(dueDate)}`,'ARS',c.amount);
       });
     });
     (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
@@ -798,13 +807,13 @@ function renderDashboard(){
         if(!_hasReachedChargeDate(dueDate)) return;
         const monthKey=getMonthKey(dueDate);
         if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
-        addExtra(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,s.currency||'ARS',s.price);
+        addSyntheticExtra(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,s.currency||'ARS',s.price);
       });
     });
     (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
       _getRecurringDatesInRange(f.day,_openDate,_closeDate).forEach(dueDate=>{
         if(!_hasReachedChargeDate(dueDate)) return;
-        addExtra(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,f.currency||'ARS',f.amount);
+        addSyntheticExtra(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,f.currency||'ARS',f.amount);
       });
     });
     arsMonth+=extraARS;
@@ -853,9 +862,9 @@ function renderDashboard(){
     });
   }
   if(isTcView&&dashboardCycleForCards&&dashboardCards.length){
-    arsMonth=dashboardCardsArs;
-    usdMonth=dashboardCardsUsd;
-    cntMonth=dashboardCardsCount;
+    arsMonth=dashboardCardsArs+syntheticARS;
+    usdMonth=dashboardCardsUsd+syntheticUSD;
+    cntMonth=dashboardCardsCount+syntheticCount;
   }
 
   // ── Ingresos ──

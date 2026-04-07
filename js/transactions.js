@@ -585,6 +585,7 @@ function renderTransactions(){
         kind:t.isPendingCuota?'Cuota proyectada':'Suscripción proyectada',
         meta:t.isPendingCuota?`Cuota ${t.cuotaNum}/${t.cuotaTotal}`:'Próximo cobro',
         includeInTotal:hasReachedChargeDate(t.date),
+        synthetic:false,
         tone:getCommitmentTone(hasReachedChargeDate(t.date))
       });
     });
@@ -609,6 +610,7 @@ function renderTransactions(){
             kind:'Cuota del ciclo',
             meta:`Cuota ${cuotaIndex}/${snap.total}`,
             includeInTotal:matured,
+            synthetic:true,
             tone:getCommitmentTone(matured)
           });
         });
@@ -629,6 +631,7 @@ function renderTransactions(){
           kind:'Cuota manual',
           meta:`Cuota ${cuotaIndex}/${c.total}`,
           includeInTotal:matured,
+          synthetic:true,
           tone:getCommitmentTone(matured)
         });
       });
@@ -649,6 +652,7 @@ function renderTransactions(){
             kind:'Suscripción',
             meta:`Cobro mensual · día ${s.day}`,
             includeInTotal:matured,
+            synthetic:true,
             tone:getCommitmentTone(matured)
           });
         });
@@ -665,7 +669,8 @@ function renderTransactions(){
             kind:'Gasto fijo',
             meta:`Débito mensual · día ${f.day}`,
             tone:'#34c759',
-            includeInTotal:matured
+            includeInTotal:matured,
+            synthetic:true
           });
         });
       });
@@ -688,6 +693,10 @@ function renderTransactions(){
           const totals=ccGetTotals(ccGetCycleExpenses(card.id, activeCycleMeta.cycle.id).filter(isCountableCycleExpense));
           totalARS+=totals.ars||0;
           totalUSD+=totals.usd||0;
+        });
+        entries.filter(e=>e.synthetic&&e.includeInTotal).forEach(e=>{
+          if((e.currency||'ARS')==='USD') totalUSD+=Number(e.amount)||0;
+          else totalARS+=Number(e.amount)||0;
         });
       } else {
         const actualVisibleTxns=txns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
