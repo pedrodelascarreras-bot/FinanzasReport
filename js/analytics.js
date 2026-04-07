@@ -86,6 +86,26 @@ function getTcCycleTrendTxns(cycle, cycles){
     extras.push(obj);
   };
 
+  (state.transactions||[]).filter(t=>(t.isPendingCuota||t.isPendingSubscription)).forEach(t=>{
+    if(!hasReachedChargeDate(t.date)) return;
+    const d=new Date(String(t.date).includes('T')?t.date:(String(t.date)+'T12:00:00'));
+    if(d<openDate||d>closeDate) return;
+    if(t.isPendingSubscription && t.sourceSubscriptionId){
+      const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
+      const monthKey=getMonthKey(t.date);
+      if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
+    }
+    const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
+    pushExtra(key,{
+      id:`trend-pending-${key}`,
+      date:t.date,
+      amount:t.amount,
+      currency:t.currency||'ARS',
+      category:t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized'?t.category:'Finanzas',
+      isSyntheticCommitment:true
+    });
+  });
+
   if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
     detectAutoCuotas().forEach(g=>{
       const snap=getAutoCuotaSnapshot(g, new Date(Math.min(todayRef.getTime(), closeDate.getTime())));
