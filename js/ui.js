@@ -227,6 +227,11 @@ function refreshAll(){
   if(document.getElementById('page-import')?.classList.contains('active') && typeof renderImportConfigPanel === 'function') renderImportConfigPanel();
 }
 
+function syncActivePageState(page){
+  if(!document.body) return;
+  document.body.setAttribute('data-active-page', page || '');
+}
+
 function nav(page){
   closeMobMore();
   if(isMobileBlockedPage(page)){
@@ -240,6 +245,7 @@ function nav(page){
   document.querySelectorAll('.nav-item,.mob-nav-btn').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('.nav-section').forEach(s=>s.classList.remove('has-active'));
   document.getElementById('page-'+page).classList.add('active');
+  syncActivePageState(page);
   // Activate nav item by id
   const navTarget = page==='cc-compare' ? 'credit-cards' : page;
   const ni=document.getElementById('ni-'+navTarget);
@@ -269,6 +275,8 @@ function nav(page){
   setTimeout(()=>applyLayout(page), 0);
   requestAnimationFrame(()=>animatePageEnter(document.getElementById('page-'+page)));
 }
+
+syncActivePageState(document.querySelector('.page.active')?.id?.replace('page-','') || 'dashboard');
 
 // ══ CAT HELPERS ══
 function _resolveCat(n){

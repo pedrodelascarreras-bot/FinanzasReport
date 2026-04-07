@@ -105,7 +105,8 @@ function applyFixedSectionVisibility(){
   if(!card)return;
   const hidden=isFixedSectionHidden();
   card.style.minHeight=hidden?'auto':'120px';
-  if(empty) empty.style.display=hidden?'none':empty.style.display;
+  card.dataset.collapsed=hidden?'1':'0';
+  if(empty) empty.style.display=hidden?'none':'';
   if(grid) grid.style.display=hidden?'none':'flex';
   if(btn)btn.textContent=hidden?'Mostrar':'Ocultar';
 }
@@ -356,6 +357,12 @@ function renderFixed(){
   const grid=document.getElementById('fixed-grid');
   const empty=document.getElementById('fixed-empty');
   if(!grid)return;
+  const hidden=isFixedSectionHidden();
+  if(hidden){
+    grid.innerHTML='';
+    if(empty) empty.style.display='none';
+    return;
+  }
   if(!state.fixedExpenses||!state.fixedExpenses.length){
     if(empty)empty.style.display='block';
     grid.innerHTML='';return;

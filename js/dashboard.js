@@ -714,10 +714,84 @@ function renderDashboard(){
   // En ambos modos: excluir cuotas proyectadas (isPendingCuota) — son gastos futuros, no actuales
   const _tcModeActive=isTcView&&activeTcCycle;
   const _isNonCC=(t)=>t.payMethod==='deb'||t.payMethod==='ef';
-  const billableTxns=monthTxns.filter(t=>!t.isPendingCuota&&(_tcModeActive?!_isNonCC(t):true));
-  const arsMonth=billableTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const usdMonth=billableTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-  const cntMonth=billableTxns.length;
+  const _todayYmd=dateToYMD(today);
+  const _hasReachedChargeDate=(value)=>{
+    const ymd=dateToYMD(value);
+    return !!ymd && ymd<=_todayYmd;
+  };
+  const billableTxns=monthTxns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription&&(_tcModeActive?!_isNonCC(t):true));
+  let arsMonth=billableTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  let usdMonth=billableTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+  let cntMonth=billableTxns.length;
+  if(_tcModeActive){
+    const _openDate=new Date((getTcCycleOpen(getTcCycles(), getTcCycles().findIndex(c=>c.id===activeTcCycle.id))||activeTcCycle.closeDate)+'T00:00:00');
+    const _closeDate=new Date(activeTcCycle.closeDate+'T23:59:59');
+    const _getRecurringDatesInRange=(day,start,end)=>{
+      if(!day||!start||!end) return [];
+      const dates=[];
+      const cursor=new Date(start.getFullYear(), start.getMonth(), 1);
+      const limit=new Date(end.getFullYear(), end.getMonth(), 1);
+      while(cursor<=limit){
+        const maxDay=new Date(cursor.getFullYear(), cursor.getMonth()+1, 0).getDate();
+        const date=new Date(cursor.getFullYear(), cursor.getMonth(), Math.min(day, maxDay));
+        if(date>=start&&date<=end) dates.push(date);
+        cursor.setMonth(cursor.getMonth()+1);
+      }
+      return dates;
+    };
+    let extraARS=0;
+    let extraUSD=0;
+    let extraCount=0;
+    const extraKeys=new Set();
+    const addExtra=(key,currency,amount)=>{
+      if(!key||extraKeys.has(key)) return;
+      extraKeys.add(key);
+      if((currency||'ARS')==='USD') extraUSD+=Number(amount)||0;
+      else extraARS+=Number(amount)||0;
+      extraCount++;
+    };
+    (state.transactions||[]).filter(t=>(t.isPendingCuota||t.isPendingSubscription)).forEach(t=>{
+      if(!_hasReachedChargeDate(t.date)) return;
+      const d=new Date(String(t.date).includes('T')?t.date:(String(t.date)+'T12:00:00'));
+      if(d<_openDate||d>_closeDate) return;
+      const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
+      addExtra(key,t.currency,t.amount);
+    });
+    if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
+      detectAutoCuotas().forEach(g=>{
+        const snap=getAutoCuotaSnapshot(g, new Date(Math.min(today.getTime(), _closeDate.getTime())));
+        if(!snap || snap.rem<=0) return;
+        const dueDay=snap.cfg?.day||snap.scheduleDay||null;
+        if(!dueDay) return;
+        _getRecurringDatesInRange(dueDay,_openDate,_closeDate).forEach(dueDate=>{
+          if(!_hasReachedChargeDate(dueDate)) return;
+          addExtra(`auto-${g.key}-${dateToYMD(dueDate)}`,'ARS',snap.amountPerCuota);
+        });
+      });
+    }
+    (state.cuotas||[]).forEach(c=>{
+      if(c.paid>=c.total||!c.day) return;
+      _getRecurringDatesInRange(c.day,_openDate,_closeDate).forEach(dueDate=>{
+        if(!_hasReachedChargeDate(dueDate)) return;
+        addExtra(`manual-${c.id}-${dateToYMD(dueDate)}`,'ARS',c.amount);
+      });
+    });
+    (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
+      _getRecurringDatesInRange(s.day,_openDate,_closeDate).forEach(dueDate=>{
+        if(!_hasReachedChargeDate(dueDate)) return;
+        addExtra(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,s.currency||'ARS',s.price);
+      });
+    });
+    (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
+      _getRecurringDatesInRange(f.day,_openDate,_closeDate).forEach(dueDate=>{
+        if(!_hasReachedChargeDate(dueDate)) return;
+        addExtra(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,f.currency||'ARS',f.amount);
+      });
+    });
+    arsMonth+=extraARS;
+    usdMonth+=extraUSD;
+    cntMonth+=extraCount;
+  }
   const arsCnt=billableTxns.filter(t=>t.currency==='ARS').length;
   const uncategorizedCount=billableTxns.filter(t=>!t.category||t.category==='Uncategorized'||t.category==='Procesando...').length;
   const catTotals={};
@@ -1667,7 +1741,20 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
   const histDailySub=document.getElementById('kpi-hist-daily-sub');
   const histMonthlyEl=document.getElementById('kpi-hist-monthly');
   const histMonthlySub=document.getElementById('kpi-hist-monthly-sub');
-  const historyTxns=(state.transactions||[]).filter(t=>Number(t.amount)>0);
+  const historyWrap=document.querySelector('.dash-history-row[data-widget-key="history-kpis"]');
+  const _layoutState=typeof loadLayoutState==='function'?loadLayoutState():{};
+  const _hiddenWidgets=_layoutState.dashboard?.widgetHidden||[];
+  if(historyWrap){
+    const shouldHide=_hiddenWidgets.includes('history-kpis');
+    historyWrap.hidden=shouldHide;
+    historyWrap.style.display=shouldHide?'none':'';
+  }
+  const historyTxns=(state.transactions||[]).filter(t=>
+    Number(t.amount)>0 &&
+    !t.isPendingCuota &&
+    !t.isPendingSubscription &&
+    t.estado_revision!=='duplicado_sospechoso'
+  );
   if(histDailyEl&&histMonthlyEl&&historyTxns.length){
     const totalHistoryARS=historyTxns.reduce((sum,t)=>sum+((t.currency==='USD'?t.amount*USD_TO_ARS:t.amount)||0),0);
     const dateKeys=[...new Set(historyTxns.map(t=>dateToYMD(t.date)).filter(Boolean))].sort();
@@ -1806,7 +1893,12 @@ function ensureDashboardCustomWidgets(){
 }
 
 function getDashboardHistoryAverages(){
-  const historyTxns=(state.transactions||[]).filter(t=>Number(t.amount)>0);
+  const historyTxns=(state.transactions||[]).filter(t=>
+    Number(t.amount)>0 &&
+    !t.isPendingCuota &&
+    !t.isPendingSubscription &&
+    t.estado_revision!=='duplicado_sospechoso'
+  );
   if(!historyTxns.length)return{dailyAvg:0,monthlyAvg:0,daySpan:0,monthSpan:0};
   const totalHistoryARS=historyTxns.reduce((sum,t)=>sum+((t.currency==='USD'?t.amount*USD_TO_ARS:t.amount)||0),0);
   const dateKeys=[...new Set(historyTxns.map(t=>dateToYMD(t.date)).filter(Boolean))].sort();

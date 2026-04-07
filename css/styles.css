@@ -7175,6 +7175,11 @@ body.ios-scroll-locked {
   overflow-wrap: anywhere;
 }
 .dw-card.dw-custom .dw-sub,
+.layout-widget[hidden],
+.dash-history-row[hidden] {
+  display: none !important;
+}
+
 .dw-card.dw-custom .dw-footer,
 .dw-card.dw-custom .widget-microcopy {
   overflow-wrap: anywhere;
@@ -10493,6 +10498,30 @@ body.light-mode #page-savings::after,
 body.light-mode #page-savings .chart-card::before,
 #page-savings .chart-card::before {
   display: none !important;
+}
+
+/* Savings page still inherits a thin top accent from the global layout stack in
+   some light-mode renders. Mask that strip only while Savings is the active page. */
+body[data-active-page="savings"] .main {
+  isolation: isolate;
+}
+body[data-active-page="savings"] .main::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 44px;
+  right: 44px;
+  height: 4px;
+  background: linear-gradient(180deg, rgba(245,248,252,0.98), rgba(245,248,252,0.82));
+  border-radius: 999px;
+  pointer-events: none;
+  z-index: 30;
+}
+@media (max-width: 768px) {
+  body[data-active-page="savings"] .main::before {
+    left: 12px;
+    right: 12px;
+  }
 }
 
 /* ═══ GLOBAL SEARCH MODAL ITEMS ═══ */
