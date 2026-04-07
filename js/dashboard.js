@@ -721,7 +721,11 @@ function renderDashboard(){
   // En ambos modos: excluir cuotas proyectadas (isPendingCuota) — son gastos futuros, no actuales
   const _tcModeActive=isTcView&&activeTcCycle;
   const _isNonCC=(t)=>t.payMethod==='deb'||t.payMethod==='ef';
-  const _hasReachedChargeDate=(value)=>cycleHasReachedChargeDate(value,today);
+  const _todayYmd=dateToYMD(today);
+  const _hasReachedChargeDate=(value)=>{
+    const ymd=dateToYMD(value);
+    return !!ymd && ymd<=_todayYmd;
+  };
   const isCountableCycleExpense=expense=>{
     if(!expense) return false;
     if(!expense.isPendingCuota && !expense.isPendingSubscription) return true;
@@ -731,8 +735,89 @@ function renderDashboard(){
   let arsMonth=billableTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   let usdMonth=billableTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
   let cntMonth=billableTxns.length;
+  if(_tcModeActive){
+    const _openDate=new Date((getTcCycleOpen(getTcCycles(), getTcCycles().findIndex(c=>c.id===activeTcCycle.id))||activeTcCycle.closeDate)+'T00:00:00');
+    const _closeDate=new Date(activeTcCycle.closeDate+'T23:59:59');
+    const _getRecurringDatesInRange=(day,start,end)=>{
+      if(!day||!start||!end) return [];
+      const dates=[];
+      const cursor=new Date(start.getFullYear(), start.getMonth(), 1);
+      const limit=new Date(end.getFullYear(), end.getMonth(), 1);
+      while(cursor<=limit){
+        const maxDay=new Date(cursor.getFullYear(), cursor.getMonth()+1, 0).getDate();
+        const date=new Date(cursor.getFullYear(), cursor.getMonth(), Math.min(day, maxDay));
+        if(date>=start&&date<=end) dates.push(date);
+        cursor.setMonth(cursor.getMonth()+1);
+      }
+      return dates;
+    };
+    let extraARS=0;
+    let extraUSD=0;
+    let extraCount=0;
+    const extraKeys=new Set();
+    const addExtra=(key,currency,amount)=>{
+      if(!key||extraKeys.has(key)) return;
+      extraKeys.add(key);
+      if((currency||'ARS')==='USD') extraUSD+=Number(amount)||0;
+      else extraARS+=Number(amount)||0;
+      extraCount++;
+    };
+    (state.transactions||[]).filter(t=>(t.isPendingCuota||t.isPendingSubscription)).forEach(t=>{
+      if(!_hasReachedChargeDate(t.date)) return;
+      const d=new Date(String(t.date).includes('T')?t.date:(String(t.date)+'T12:00:00'));
+      if(d<_openDate||d>_closeDate) return;
+      if(t.isPendingSubscription && t.sourceSubscriptionId){
+        const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
+        const monthKey=getMonthKey(t.date);
+        if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
+      }
+      const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
+      addExtra(key,t.currency,t.amount);
+    });
+    if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
+      detectAutoCuotas().forEach(g=>{
+        const snap=getAutoCuotaSnapshot(g, new Date(Math.min(today.getTime(), _closeDate.getTime())));
+        if(!snap || snap.rem<=0) return;
+        const dueDay=snap.cfg?.day||snap.scheduleDay||null;
+        if(!dueDay) return;
+        _getRecurringDatesInRange(dueDay,_openDate,_closeDate).forEach(dueDate=>{
+          if(!_hasReachedChargeDate(dueDate)) return;
+          addExtra(`auto-${g.key}-${dateToYMD(dueDate)}`,'ARS',snap.amountPerCuota);
+        });
+      });
+    }
+    (state.cuotas||[]).forEach(c=>{
+      if(c.paid>=c.total||!c.day) return;
+      _getRecurringDatesInRange(c.day,_openDate,_closeDate).forEach(dueDate=>{
+        if(!_hasReachedChargeDate(dueDate)) return;
+        addExtra(`manual-${c.id}-${dateToYMD(dueDate)}`,'ARS',c.amount);
+      });
+    });
+    (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
+      _getRecurringDatesInRange(s.day,_openDate,_closeDate).forEach(dueDate=>{
+        if(!_hasReachedChargeDate(dueDate)) return;
+        const monthKey=getMonthKey(dueDate);
+        if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
+        addExtra(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,s.currency||'ARS',s.price);
+      });
+    });
+    (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
+      _getRecurringDatesInRange(f.day,_openDate,_closeDate).forEach(dueDate=>{
+        if(!_hasReachedChargeDate(dueDate)) return;
+        addExtra(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,f.currency||'ARS',f.amount);
+      });
+    });
+    arsMonth+=extraARS;
+    usdMonth+=extraUSD;
+    cntMonth+=extraCount;
+  }
   const arsCnt=billableTxns.filter(t=>t.currency==='ARS').length;
   const uncategorizedCount=billableTxns.filter(t=>!t.category||t.category==='Uncategorized'||t.category==='Procesando...').length;
+  const catTotals={};
+  billableTxns.filter(t=>t.currency==='ARS').forEach(t=>{catTotals[t.category||'Sin categoría']=(catTotals[t.category||'Sin categoría']||0)+t.amount;});
+  const topCategories=Object.entries(catTotals)
+    .sort((a,b)=>b[1]-a[1])
+    .map(([name,amount])=>({name,amount,pct:arsMonth>0?Math.round(amount/arsMonth*100):0}));
 
   // TC del mes
   const tcMonth=monthTxns.filter(t=>t.currency==='ARS'&&t.payMethod==='tc').reduce((s,t)=>s+t.amount,0);
@@ -767,38 +852,11 @@ function renderDashboard(){
       dashboardCardsCount+=totals.count||0;
     });
   }
-  if(isTcView&&dashboardCycleForCards&&dashboardCards.length&&typeof getCycleSyntheticCommitmentEntries==='function'){
-    const ownerCard=dashboardCards.find(card=>card.id===state.ccActiveCard)||dashboardCards.find(card=>card.payMethodKey==='visa')||dashboardCards[0]||null;
-    const ownerKey=ownerCard?(ownerCard.payMethodKey||ownerCard.id):null;
-    getCycleSyntheticCommitmentEntries(dashboardCycleForCards,today)
-      .filter(entry=>entry.includeInTotal)
-      .forEach(entry=>{
-        if(ownerKey){
-          if(!dashboardCardTotals[ownerKey]) dashboardCardTotals[ownerKey]={ars:0,usd:0,count:0};
-          if((entry.currency||'ARS')==='USD') dashboardCardTotals[ownerKey].usd+=(Number(entry.amount)||0);
-          else dashboardCardTotals[ownerKey].ars+=(Number(entry.amount)||0);
-          dashboardCardTotals[ownerKey].count+=1;
-        }
-        if((entry.currency||'ARS')==='USD') dashboardCardsUsd+=(Number(entry.amount)||0);
-        else dashboardCardsArs+=(Number(entry.amount)||0);
-        dashboardCardsCount+=1;
-      });
-  }
   if(isTcView&&dashboardCycleForCards&&dashboardCards.length){
     arsMonth=dashboardCardsArs;
     usdMonth=dashboardCardsUsd;
     cntMonth=dashboardCardsCount;
-  } else if(isTcView&&activeTcCycle&&typeof getCycleDisplayedTotals==='function'){
-    const cycleTotals=getCycleDisplayedTotals(activeTcCycle,today);
-    arsMonth=cycleTotals.ars||0;
-    usdMonth=cycleTotals.usd||0;
-    cntMonth=cycleTotals.count||0;
   }
-  const catTotals={};
-  billableTxns.filter(t=>t.currency==='ARS').forEach(t=>{catTotals[t.category||'Sin categoría']=(catTotals[t.category||'Sin categoría']||0)+t.amount;});
-  const topCategories=Object.entries(catTotals)
-    .sort((a,b)=>b[1]-a[1])
-    .map(([name,amount])=>({name,amount,pct:arsMonth>0?Math.round(amount/arsMonth*100):0}));
 
   // ── Ingresos ──
   // Priority: 1) income month linked to active TC cycle open month  2) exact active month
@@ -1244,16 +1302,7 @@ function renderDashboard(){
     cycleCaption.textContent=dashboardCycleForCards?.label?expandPeriodYearLabel(dashboardCycleForCards.label):'Sin ciclo activo';
   }
   // Hidden compat element
-  let compatCycleTotal;
-  if(isTcView){
-    compatCycleTotal=arsMonth;
-  } else if(dashboardCycleForCards&&dashboardCards.length){
-    compatCycleTotal=dashboardCardsArs;
-  } else if(hasPayTagsWidget){
-    compatCycleTotal=tcWidgetAmt+debWidgetAmt;
-  } else {
-    compatCycleTotal=_tcWidgetTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  }
+  const compatCycleTotal=(dashboardCycleForCards&&dashboardCards.length)?dashboardCardsArs:(hasPayTagsWidget?(tcWidgetAmt+debWidgetAmt):_tcWidgetTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0));
   animateNumberText(document.getElementById('kpi-tc'),compatCycleTotal,{prefix:'$',decimals:2,duration:760});
   // kpi-tc-d removed from HTML
 
