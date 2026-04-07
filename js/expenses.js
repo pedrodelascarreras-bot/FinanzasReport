@@ -94,6 +94,91 @@ function getNextCuotaDate(day){
   if(next<=today)next.setMonth(next.getMonth()+1);
   return next;
 }
+function getSubscriptionMerchantKey(name=''){
+  return String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+function getImportedSubscriptionByKey(key, ruleId){
+  const normalizedKey=getSubscriptionMerchantKey(key);
+  return (state.subscriptions||[]).find(s=>
+    (s.autoManaged&&s.merchantKey&&s.merchantKey===normalizedKey)||
+    (ruleId&&s.autoManaged&&s.sourceRuleId===ruleId&&getSubscriptionMerchantKey(s.name)===normalizedKey)
+  )||null;
+}
+function upsertImportedSubscriptionFromTxn(txn){
+  if(!txn||!txn.isAutoDebit||!txn.subscriptionName)return null;
+  if(!state.subscriptions)state.subscriptions=[];
+  const merchantKey=txn.merchantKey||getSubscriptionMerchantKey(txn.subscriptionName);
+  const existing=getImportedSubscriptionByKey(merchantKey,txn.importRuleId);
+  const nextObj={
+    id:existing?.id||('sub_auto_'+merchantKey+'_'+(txn.importRuleId||'gmail')),
+    name:txn.subscriptionName,
+    emoji:existing?.emoji||'🔁',
+    price:txn.amount,
+    currency:txn.currency||'ARS',
+    freq:'monthly',
+    day:txn.subscriptionDay||new Date(txn.date).getDate(),
+    cat:existing?.cat||'Suscripciones',
+    color:existing?.color||'#5ac8fa',
+    active:true,
+    autoManaged:true,
+    merchantKey,
+    sourceRuleId:txn.importRuleId||null,
+    sourceBank:txn.sourceBank||'Gmail',
+    lastChargeDate:dateToYMD(txn.date),
+    payMethod:txn.payMethod||existing?.payMethod||null,
+    ownerProfileId:txn.ownerProfileId||state.activeUserProfileId||existing?.ownerProfileId||'default-profile'
+  };
+  const idx=state.subscriptions.findIndex(s=>s.id===nextObj.id);
+  if(idx>=0)state.subscriptions[idx]={...state.subscriptions[idx],...nextObj};
+  else state.subscriptions.unshift(nextObj);
+  return nextObj;
+}
+function syncProjectedSubscriptionTransactions(){
+  const today=new Date();
+  today.setHours(0,0,0,0);
+  const activeSubs=(state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day);
+  state.transactions=(state.transactions||[]).filter(t=>!t.isPendingSubscription);
+  const projections=[];
+  activeSubs.forEach(sub=>{
+    const merchantKey=sub.merchantKey||getSubscriptionMerchantKey(sub.name);
+    const start=sub.lastChargeDate?new Date(sub.lastChargeDate+'T12:00:00'):today;
+    for(let offset=0;offset<6;offset++){
+      const candidate=new Date(start.getFullYear(),start.getMonth()+1+offset,1);
+      const maxDay=new Date(candidate.getFullYear(),candidate.getMonth()+1,0).getDate();
+      const chargeDay=Math.min(parseInt(sub.day,10)||1,maxDay);
+      const chargeDate=new Date(candidate.getFullYear(),candidate.getMonth(),chargeDay);
+      if(chargeDate<today)continue;
+      const monthKey=getMonthKey(chargeDate);
+      const realExists=(state.transactions||[]).some(t=>
+        !t.isPendingSubscription&&(
+          t.sourceSubscriptionId===sub.id||
+          ((t.isAutoDebit||t.importKind==='subscription')&&((t.merchantKey||getSubscriptionMerchantKey(t.subscriptionName||t._baseDesc||t.description))===merchantKey))
+        )&&getMonthKey(t.date)===monthKey
+      );
+      if(realExists)continue;
+      projections.push({
+        id:`proj_sub_${sub.id}_${monthKey}`,
+        date:chargeDate,
+        description:`${sub.name} (suscripción)`,
+        _baseDesc:sub.name,
+        amount:sub.price,
+        currency:sub.currency||'ARS',
+        category:'Suscripciones',
+        week:getWeekKey(chargeDate),
+        month:monthKey,
+        source:'subscription',
+        sourceSubscriptionId:sub.id,
+        merchantKey,
+        isPendingSubscription:true,
+        origen_del_movimiento:'suscripcion_proyectada',
+        estado_revision:'detectado_automaticamente',
+        payMethod:sub.payMethod||null,
+        ownerProfileId:sub.ownerProfileId||state.activeUserProfileId||'default-profile'
+      });
+    }
+  });
+  if(projections.length)state.transactions=[...state.transactions,...projections];
+}
 function fmtCuotaNextDate(d){
   if(!d)return null;
   const today=new Date();
@@ -452,11 +537,13 @@ function saveSub(){
   const editing=document.getElementById('modal-sub-editing').value;
   if(editing){const i=state.subscriptions.findIndex(x=>x.id===editing);if(i>=0)state.subscriptions[i]={...state.subscriptions[i],...obj,id:editing};}
   else state.subscriptions.push(obj);
+  syncProjectedSubscriptionTransactions();
   saveState();closeModal('modal-sub');renderSubs();refreshAll();showToast('✓ Suscripción guardada','success');
 }
 function deleteSub(){
   const id=document.getElementById('modal-sub-editing').value;
   state.subscriptions=state.subscriptions.filter(s=>s.id!==id);
+  syncProjectedSubscriptionTransactions();
   saveState();closeModal('modal-sub');renderSubs();refreshAll();showToast('Suscripción eliminada','info');
 }
 

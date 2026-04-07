@@ -105,6 +105,7 @@ function resolveDupInline(groupIdx, action){
 
 function renderTransactions(){
   const mode=state.txnFilterMode||'mes';
+  let activeCycleMeta=null;
 
   // ── Poblar selects ──
   const months=[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))].sort().reverse();
@@ -181,6 +182,7 @@ function renderTransactions(){
     if(activeCycle){
       const i2=allCycles.findIndex(c=>c.id===activeCycle.id);
       const openStr=getTcCycleOpen(allCycles,i2);
+      activeCycleMeta={cycle:activeCycle,openStr,closeStr:activeCycle.closeDate};
       txns=txns.filter(t=>{const d=dateToYMD(t.date);return d>=openStr&&d<=activeCycle.closeDate;});
       const openD=new Date(openStr+'T12:00:00');const closeD=new Date(activeCycle.closeDate+'T12:00:00');
       periodoLabel=activeCycle.label+' ('+openD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' → '+closeD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+')';
@@ -313,12 +315,17 @@ function renderTransactions(){
     importado_desde_resumen: {cls:'origen-resumen', label:'📄 Resumen'},
     pegado_manualmente:       {cls:'origen-manual',  label:'✎ Manual'},
     importado_desde_gmail:    {cls:'origen-gmail',   label:'✉ Gmail'},
+    suscripcion_proyectada:   {cls:'origen-gmail',   label:'🔁 Suscripción'},
   };
   function cuotaProjectedChip(t){
     if(!t.isPendingCuota) return '';
     const _crd=t.payMethod==='visa'?'<span style="background:rgba(230,57,70,0.12);color:#e63946;border:1px solid rgba(230,57,70,0.25);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700;letter-spacing:.03em;margin-left:3px;vertical-align:middle;">VISA</span>'
       :t.payMethod==='amex'?'<span style="background:rgba(69,123,157,0.12);color:#457b9d;border:1px solid rgba(69,123,157,0.25);border-radius:4px;padding:1px 5px;font-size:9px;font-weight:700;letter-spacing:.03em;margin-left:3px;vertical-align:middle;">AMEX</span>':'';
     return '<span class="origen-chip" style="background:rgba(255,149,0,0.12);color:var(--accent3);border:1px solid rgba(255,149,0,0.3);">📋 Cuota '+t.cuotaNum+'/'+t.cuotaTotal+_crd+'</span>';
+  }
+  function subscriptionProjectedChip(t){
+    if(!t.isPendingSubscription) return '';
+    return '<span class="origen-chip" style="background:rgba(90,200,250,0.12);color:#5ac8fa;border:1px solid rgba(90,200,250,0.28);">🔁 Próximo cobro</span>';
   }
 
   function estadoBadge(t){
@@ -412,8 +419,8 @@ function renderTransactions(){
           const _isSelected=state._detailTxnId===t.id?'selected':'';
           const amtColor=t.currency==='USD'?'color:var(--accent2)':t.isPendingCuota?'color:var(--accent3)':'';
           const comercioHtml=t.comercio_detectado&&t.comercio_detectado.toLowerCase()!==t.description.toLowerCase()
-            ?'<span class="td-desc-secondary"><span class="comercio-detected">'+esc(t.comercio_detectado)+'</span>'+origenChip(t)+cuotaProjectedChip(t)+sugerenciaBadge(t)+'</span>'
-            :'<span class="td-desc-secondary">'+origenChip(t)+cuotaProjectedChip(t)+sugerenciaBadge(t)+'</span>';
+            ?'<span class="td-desc-secondary"><span class="comercio-detected">'+esc(t.comercio_detectado)+'</span>'+origenChip(t)+cuotaProjectedChip(t)+subscriptionProjectedChip(t)+sugerenciaBadge(t)+'</span>'
+            :'<span class="td-desc-secondary">'+origenChip(t)+cuotaProjectedChip(t)+subscriptionProjectedChip(t)+sugerenciaBadge(t)+'</span>';
           const _checked=state._selectedTxns&&state._selectedTxns.has(t.id)?' checked':'';
           const _projStyle=t.isPendingCuota?'border-left:3px solid var(--accent3);':'';
           return '<tr class="txn-row-v2 '+_isSelected+(_checked?' multi-selected':'')+'" data-txnid="'+t.id+'" style="'+_dupBg+_projStyle+'">'
@@ -466,6 +473,129 @@ function renderTransactions(){
       openTxnDetail(row.dataset.txnid);
     }
   };
+
+  if(mode==='tc' && activeCycleMeta && !searchVal){
+    const openDate=new Date(activeCycleMeta.openStr+'T00:00:00');
+    const closeDate=new Date(activeCycleMeta.closeStr+'T23:59:59');
+    const inCycle=d=>{
+      const dt=d instanceof Date?new Date(d):new Date(String(d).includes('T')?d:(String(d)+'T12:00:00'));
+      return dt>=openDate&&dt<=closeDate;
+    };
+    const entries=[];
+    const entryKeys=new Set();
+    const pushEntry=(key,obj)=>{
+      if(!key||entryKeys.has(key)) return;
+      entryKeys.add(key);
+      entries.push(obj);
+    };
+
+    (state.transactions||[]).filter(t=>(t.isPendingCuota||t.isPendingSubscription)&&inCycle(t.date)).forEach(t=>{
+      const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
+      pushEntry(key,{
+        date:t.date,
+        title:t._baseDesc||t.description,
+        amount:t.amount,
+        currency:t.currency,
+        kind:t.isPendingCuota?'Cuota proyectada':'Suscripción proyectada',
+        meta:t.isPendingCuota?`Cuota ${t.cuotaNum}/${t.cuotaTotal}`:'Próximo cobro',
+        tone:t.isPendingCuota?'#ff9500':'#5ac8fa'
+      });
+    });
+
+    if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
+      detectAutoCuotas().forEach(g=>{
+        const snap=getAutoCuotaSnapshot(g, closeDate);
+        if(!snap || snap.rem<=0) return;
+        const dueDay=snap.cfg?.day||snap.scheduleDay||null;
+        if(!dueDay) return;
+        const dueDate=new Date(openDate.getFullYear(), openDate.getMonth(), Math.min(dueDay, new Date(openDate.getFullYear(), openDate.getMonth()+1, 0).getDate()));
+        if(!inCycle(dueDate)) return;
+        const key=`auto-${g.key}-${snap.paid+1}`;
+        pushEntry(key,{
+          date:dueDate,
+          title:g.displayName||g.name,
+          amount:snap.amountPerCuota,
+          currency:g.currency||'ARS',
+          kind:'Cuota del ciclo',
+          meta:`Cuota ${Math.min(snap.total, snap.paid+1)}/${snap.total}`,
+          tone:'#ff9500'
+        });
+      });
+    }
+
+    (state.cuotas||[]).forEach(c=>{
+      if(c.paid>=c.total || !c.day || typeof getNextCuotaDate!=='function') return;
+      const dueDate=new Date(openDate.getFullYear(), openDate.getMonth(), Math.min(c.day, new Date(openDate.getFullYear(), openDate.getMonth()+1, 0).getDate()));
+      if(!inCycle(dueDate)) return;
+      pushEntry(`manual-${c.id}-${c.paid+1}`,{
+        date:dueDate,
+        title:c.name,
+        amount:c.amount,
+        currency:'ARS',
+        kind:'Cuota manual',
+        meta:`Cuota ${Math.min(c.total, c.paid+1)}/${c.total}`,
+        tone:'#ff9500'
+      });
+    });
+
+    if(typeof getNextCuotaDate==='function'){
+      (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
+        const dueDate=new Date(openDate.getFullYear(), openDate.getMonth(), Math.min(s.day, new Date(openDate.getFullYear(), openDate.getMonth()+1, 0).getDate()));
+        if(!inCycle(dueDate)) return;
+        pushEntry(`sub-cycle-${s.id}-${getMonthKey(dueDate)}`,{
+          date:dueDate,
+          title:s.name,
+          amount:s.price,
+          currency:s.currency||'ARS',
+          kind:'Suscripción',
+          meta:`Cobro mensual · día ${s.day}`,
+          tone:'#5ac8fa'
+        });
+      });
+      (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
+        const dueDate=new Date(openDate.getFullYear(), openDate.getMonth(), Math.min(f.day, new Date(openDate.getFullYear(), openDate.getMonth()+1, 0).getDate()));
+        if(!inCycle(dueDate)) return;
+        pushEntry(`fixed-cycle-${f.id||f.name}-${getMonthKey(dueDate)}`,{
+          date:dueDate,
+          title:f.name,
+          amount:f.amount,
+          currency:f.currency||'ARS',
+          kind:'Gasto fijo',
+          meta:`Débito mensual · día ${f.day}`,
+          tone:'#34c759'
+        });
+      });
+    }
+
+    entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
+    const oldPanel=document.getElementById('txn-cycle-commitments');
+    if(oldPanel) oldPanel.remove();
+    if(entries.length){
+      const panel=document.createElement('div');
+      panel.id='txn-cycle-commitments';
+      panel.style.cssText='margin-top:16px;padding:16px 18px;border-radius:18px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--shadow-xs);';
+      panel.innerHTML=
+        '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">'
+        +'<div><div style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);">Cuotas y compromisos del ciclo</div>'
+        +'<div style="margin-top:4px;font-size:13px;line-height:1.55;color:var(--text2);">Esto te muestra lo que cae dentro del ciclo actual aunque el banco no mande un mail nuevo todos los meses.</div></div>'
+        +`<div style="font-size:11px;font-weight:700;color:var(--text3);">${entries.length} item${entries.length!==1?'s':''}</div>`
+        +'</div>'
+        +entries.map(item=>{
+          const amount=(item.currency==='USD'?'U$D ':'$')+fmtN(item.amount);
+          return '<div style="display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;'+(item!==entries[0]?'border-top:1px solid var(--border);':'')+'">'
+            +`<div style="width:10px;height:10px;border-radius:999px;background:${item.tone};box-shadow:0 0 0 4px color-mix(in srgb, ${item.tone} 18%, transparent);"></div>`
+            +'<div style="min-width:0;">'
+              +`<div style="font-size:13px;font-weight:700;color:var(--text);">${esc(item.title)}</div>`
+              +`<div style="margin-top:3px;font-size:11px;line-height:1.5;color:var(--text3);">${esc(item.kind)} · ${esc(item.meta)} · ${fmtDate(item.date)}</div>`
+            +'</div>'
+            +`<div style="font-size:14px;font-weight:800;color:${item.tone};white-space:nowrap;">${amount}</div>`
+          +'</div>';
+        }).join('');
+      wrap.appendChild(panel);
+    }
+  } else {
+    document.getElementById('txn-cycle-commitments')?.remove();
+  }
 }
 
 // ══ MULTI-SELECT ══
@@ -1141,4 +1271,3 @@ function saveNewExpense(){
   closeModal('modal-new-expense');
   showToast('Gasto agregado: '+desc,'success');
 }
-

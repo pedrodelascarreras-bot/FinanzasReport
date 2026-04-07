@@ -494,12 +494,23 @@ function finishImport(txns,source,origen){
       if(!t.payMethod && bankProfile.card) t.importBankCard = bankProfile.card;
     }
   });
+  const importedSubscriptions = [];
+  txns.forEach(t=>{
+    if(t.importKind === 'subscription' && typeof upsertImportedSubscriptionFromTxn === 'function'){
+      const sub = upsertImportedSubscriptionFromTxn(t);
+      if(sub){
+        t.sourceSubscriptionId = sub.id;
+        importedSubscriptions.push(sub.id);
+      }
+    }
+  });
   const before=state.transactions.length;
   const existingIds=new Set(state.transactions.map(t=>t.id));
   state.transactions=[...state.transactions,...txns];
   deduplicateTransactions();
   // Auto-generate projected installment transactions for Gmail cuota purchases
   if(isGmail) autoCreateGmailCuotas(txns);
+  if(importedSubscriptions.length && typeof syncProjectedSubscriptionTransactions === 'function') syncProjectedSubscriptionTransactions();
   const added=state.transactions.length-before;
   const duplicates=txns.length-added;
   const pi=detectPeriod(txns);
@@ -894,6 +905,7 @@ async function autoCategorizeAll(){
 
 // ══ AFTER IMPORT ══
 function afterDataLoad(){
+  if(typeof syncProjectedSubscriptionTransactions === 'function') syncProjectedSubscriptionTransactions();
   // Update month selector in dashboard to reflect current dashMonth
   const sel=document.getElementById('dash-month-select');
   if(sel){

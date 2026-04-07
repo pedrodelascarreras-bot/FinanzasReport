@@ -2644,7 +2644,7 @@
     <div class="modal-body modal-stack">
       <div class="gmail-rule-template-row">
         <button class="settings-chip gmail-template-btn" onclick="applyGmailRuleTemplate('santander-compras')">Santander compras</button>
-        <button class="settings-chip gmail-template-btn" onclick="applyGmailRuleTemplate('santander-pagos')">Pago anulado</button>
+        <button class="settings-chip gmail-template-btn" onclick="applyGmailRuleTemplate('santander-pagos')">Débito automático</button>
         <button class="settings-chip gmail-template-btn" onclick="applyGmailRuleTemplate('custom')">Personalizada</button>
       </div>
       <div id="gmail-rules-list" class="settings-rule-list"></div>
@@ -2687,6 +2687,13 @@
           <div class="gmail-rule-step-sub">Esto ayuda a que el gasto entre mejor clasificado cuando lo importás.</div>
           <div class="field-grid-2">
             <div>
+              <label class="field-label-premium">Importar como</label>
+              <select id="gmail-rule-import-kind" class="field-control-premium">
+                <option value="transaction">Movimiento normal</option>
+                <option value="subscription">Suscripción recurrente</option>
+              </select>
+            </div>
+            <div>
               <label class="field-label-premium">Tarjeta / medio</label>
               <select id="gmail-rule-card" class="field-control-premium">
                 <option value="auto">Auto detectar</option>
@@ -2696,6 +2703,8 @@
                 <option value="ef">Efectivo</option>
               </select>
             </div>
+          </div>
+          <div class="field-grid-2">
             <div>
               <label class="field-label-premium">Procesador</label>
               <select id="gmail-rule-processor" class="field-control-premium">

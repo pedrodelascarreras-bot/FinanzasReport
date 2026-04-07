@@ -20,7 +20,7 @@ let state={
   dashView:'mes',
   chartMode:'bars',
   dashMonth:null,
-  txnFilterMode:'mes',
+  txnFilterMode:'tc',
   charts:{},_assigningTxnId:null,apiKey:'',
   catRules:[],           // [{id, keyword, category, active, priority}]
   catHistory:{},         // {comercio_normalized: {cat: count}} — aprendizaje local

@@ -449,11 +449,17 @@ function formatGmailRuleCardType(cardType){
   return map[cardType] || cardType || 'Sin asignar';
 }
 
+function getGmailRuleImportKind(rule){
+  if(rule?.importKind) return rule.importKind;
+  const hint = `${rule?.name||''} ${rule?.query||''}`.toLowerCase();
+  return /d[eé]bito autom[aá]tico|aviso de d[eé]bito/i.test(hint) ? 'subscription' : 'transaction';
+}
+
 function summarizeGmailRule(rule){
   return {
     sender: rule.sender ? `Lee correos de ${rule.sender}` : 'Lee correos según la consulta',
     query: rule.query ? `Filtra por ${rule.query}` : 'Sin filtro extra',
-    assign: `Los asigna a ${rule.bank || 'tu banco'} · ${formatGmailRuleCardType(rule.cardType)}`
+    assign: `${getGmailRuleImportKind(rule)==='subscription'?'Crea o actualiza una suscripción en':'Los asigna a'} ${rule.bank || 'tu banco'} · ${formatGmailRuleCardType(rule.cardType)}`
   };
 }
 
@@ -465,14 +471,16 @@ function applyGmailRuleTemplate(templateId){
       bank:'Santander Río',
       sender:defaults.sender,
       query:'subject:Pagaste OR subject:"Tu pago fue anulado"',
+      importKind:'transaction',
       card:'auto',
       processor:'santander_email'
     },
     'santander-pagos': {
-      name:'Santander · Pago anulado',
+      name:'Débito Automático',
       bank:'Santander Río',
       sender:defaults.sender,
-      query:'subject:"Tu pago fue anulado"',
+      query:'subject:"Aviso de débito automático"',
+      importKind:'subscription',
       card:'auto',
       processor:'santander_email'
     },
@@ -481,6 +489,7 @@ function applyGmailRuleTemplate(templateId){
       bank:'Banco / tarjeta',
       sender:'',
       query:'',
+      importKind:'transaction',
       card:'auto',
       processor:'santander_email'
     }
@@ -491,6 +500,7 @@ function applyGmailRuleTemplate(templateId){
     'gmail-rule-bank':values.bank,
     'gmail-rule-sender':values.sender,
     'gmail-rule-query':values.query,
+    'gmail-rule-import-kind':values.importKind,
     'gmail-rule-card':values.card,
     'gmail-rule-processor':values.processor
   };
@@ -880,6 +890,8 @@ function parseSantanderEmail(email, currentBatch, rule) {
     const dateHeader = headers.find(h => h.name === 'Date')?.value || '';
 
     const isAnulacion = /anulado/i.test(subject);
+    const importKind = getGmailRuleImportKind(rule);
+    const isAutoDebit = importKind === 'subscription' || /d[eé]bito autom[aá]tico/i.test(subject);
 
     // Parse email body early to extract amount if necessary
     const body = getEmailBody(email.payload);
@@ -912,8 +924,18 @@ function parseSantanderEmail(email, currentBatch, rule) {
       } else {
         subjectMatch = subject.match(/Pagaste\s*\$?([\d.,]+)/i);
       }
-      if (!subjectMatch) return null;
-      amount = parseFloat(subjectMatch[1].replace(/\./g, '').replace(',', '.'));
+      if(!subjectMatch && isAutoDebit){
+        subjectMatch = body.match(/Monto[\s\S]*?(U\$S|US\$|\$)\s*([\d.,]+)/i);
+        if(subjectMatch){
+          if(/U\$S|US\$/i.test(subjectMatch[1])) txnCurrency = 'USD';
+          amount = parseFloat(subjectMatch[2].replace(/\./g, '').replace(',', '.'));
+        }
+      }
+      if (!subjectMatch && !isAutoDebit) return null;
+      if (!amount && subjectMatch) {
+        const rawAmount = subjectMatch[2] || subjectMatch[1];
+        amount = parseFloat(String(rawAmount || '').replace(/\./g, '').replace(',', '.'));
+      }
     }
     
     if (!amount || amount <= 0) return null;
@@ -929,6 +951,8 @@ function parseSantanderEmail(email, currentBatch, rule) {
       const ptMatch = body.replace(/<[^>]+>/g, '\n').match(/Comercio\s*\n+([^\n]+)/i);
       if (ptMatch) comercio = ptMatch[1].trim();
     }
+    comercio = comercio.replace(/\s*\*[A-Z0-9]+$/i, '').replace(/\s{2,}/g, ' ').trim();
+    const merchantKey = comercio.toLowerCase().replace(/[^a-z0-9]/g,'');
 
     // Extract Fecha (DD/MM/YYYY)
     let txnDate = new Date();
@@ -1002,6 +1026,11 @@ function parseSantanderEmail(email, currentBatch, rule) {
       importRuleId: rule?.id || null,
       importRuleName: rule?.name || 'Gmail',
       sourceBank: rule?.bank || 'Gmail',
+      importKind,
+      isAutoDebit,
+      merchantKey,
+      subscriptionName: isAutoDebit ? baseDesc : null,
+      subscriptionDay: isAutoDebit ? txnDate.getDate() : null,
       ...(payMethod ? { payMethod } : {}),
       ...(cuotaTotal && cuotaTotal >= 2 ? {
         cuotaNum,
@@ -1350,7 +1379,7 @@ function getCurrentProfileSnapshot(){
     activeTendCats: cloneDeepProfileValue(state.activeTendCats || null),
     compareMode: state.compareMode || 'month',
     repDesign: state.repDesign || 'executive',
-    txnFilterMode: state.txnFilterMode || 'mes',
+    txnFilterMode: state.txnFilterMode || 'tc',
     txnCardFilter: state.txnCardFilter || '',
     lastGmailSync: state.lastGmailSync || null,
     dismissedNotifs: cloneDeepProfileValue(state.dismissedNotifs || []),
@@ -1481,7 +1510,7 @@ function applyUserProfile(profileId){
   state.activeTendCats = cloneDeepProfileValue(profile.activeTendCats || null);
   state.compareMode = profile.compareMode || state.compareMode || 'month';
   state.repDesign = profile.repDesign || state.repDesign || 'executive';
-  state.txnFilterMode = profile.txnFilterMode || state.txnFilterMode || 'mes';
+  state.txnFilterMode = profile.txnFilterMode || state.txnFilterMode || 'tc';
   state.txnCardFilter = profile.txnCardFilter || '';
   state.lastGmailSync = profile.lastGmailSync || null;
   state.dismissedNotifs = cloneDeepProfileValue(profile.dismissedNotifs || []);
@@ -1795,6 +1824,7 @@ function renderSettingsPage(){
             </div>
             <div class="settings-rule-meta">
               <span class="settings-rule-chip">${rule.active!==false?'Activa':'Pausada'}</span>
+              <span class="settings-rule-chip">${getGmailRuleImportKind(rule)==='subscription'?'Suscripción':'Movimiento'}</span>
               <span class="settings-rule-chip">${rule.bank || 'Sin banco'}</span>
               <span class="settings-rule-chip">${formatGmailRuleCardType(rule.cardType)}</span>
             </div>
@@ -2278,11 +2308,12 @@ function renderGmailRulesModal(editingId){
           <div class="settings-rule-title">${rule.name}</div>
           <div class="gmail-rule-summary-list">
             <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Mira</span><span>${summary.sender}</span></div>
-            <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Filtro</span><span>${summary.query}</span></div>
-            <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Asigna</span><span>${summary.assign}</span></div>
+              <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Filtro</span><span>${summary.query}</span></div>
+              <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Asigna</span><span>${summary.assign}</span></div>
           </div>
           <div class="settings-rule-meta">
             <span class="settings-rule-chip">${rule.active!==false?'Activa':'Pausada'}</span>
+            <span class="settings-rule-chip">${getGmailRuleImportKind(rule)==='subscription'?'Suscripción':'Movimiento'}</span>
             <span class="settings-rule-chip">${rule.bank || 'Sin banco'}</span>
             <span class="settings-rule-chip">${formatGmailRuleCardType(rule.cardType)}</span>
           </div>
@@ -2310,6 +2341,7 @@ function openGmailRuleManager(ruleId){
   document.getElementById('gmail-rule-bank').value = rule.bank || '';
   document.getElementById('gmail-rule-sender').value = rule.sender || '';
   document.getElementById('gmail-rule-query').value = rule.query || '';
+  document.getElementById('gmail-rule-import-kind').value = getGmailRuleImportKind(rule);
   document.getElementById('gmail-rule-card').value = rule.cardType || 'auto';
   document.getElementById('gmail-rule-processor').value = rule.processor || 'santander_email';
   document.getElementById('gmail-rule-delete-btn').style.display = 'inline-flex';
@@ -2324,6 +2356,7 @@ function saveGmailRule(){
     bank: (document.getElementById('gmail-rule-bank')?.value || '').trim() || 'Banco / tarjeta',
     sender: (document.getElementById('gmail-rule-sender')?.value || '').trim(),
     query: (document.getElementById('gmail-rule-query')?.value || '').trim(),
+    importKind: document.getElementById('gmail-rule-import-kind')?.value || 'transaction',
     cardType: document.getElementById('gmail-rule-card')?.value || 'auto',
     processor: document.getElementById('gmail-rule-processor')?.value || 'santander_email',
     active: true
