@@ -1514,6 +1514,117 @@ body.light-mode .panel-heading {
   font-size: 17px; font-weight: 600; letter-spacing: -0.02em;
 }
 .table-wrap { overflow-x: auto; }
+.txn-cycle-panel {
+  margin-top: 16px;
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.015)),
+    var(--surface);
+  box-shadow: var(--shadow-xs);
+}
+.txn-cycle-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.txn-cycle-panel-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+.txn-cycle-panel-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text2);
+  max-width: 780px;
+}
+.txn-cycle-panel-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  white-space: nowrap;
+}
+.txn-cycle-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.txn-cycle-tab {
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--text2);
+  border-radius: 999px;
+  padding: 8px 12px;
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.txn-cycle-tab span {
+  font-size: 10px;
+  color: var(--text3);
+}
+.txn-cycle-tab.active {
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--border));
+  color: var(--text);
+}
+.txn-cycle-list {
+  display: flex;
+  flex-direction: column;
+}
+.txn-cycle-entry {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.txn-cycle-entry:first-child {
+  border-top: none;
+}
+.txn-cycle-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: var(--entry-tone);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--entry-tone) 18%, transparent);
+}
+.txn-cycle-copy {
+  min-width: 0;
+}
+.txn-cycle-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.txn-cycle-meta {
+  margin-top: 3px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--text3);
+}
+.txn-cycle-amount {
+  font-size: 14px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+.txn-cycle-empty {
+  padding: 10px 4px 2px;
+  font-size: 12px;
+  color: var(--text3);
+}
 
 /* Tables */
 table { width: 100%; border-collapse: collapse; }

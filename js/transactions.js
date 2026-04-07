@@ -65,6 +65,64 @@ function showDeleteConfirm(id, label, amount, currency, date){
   setTimeout(()=>{const b=document.getElementById('del-confirm-bar');if(b)b.remove();},6000);
 }
 
+function getTxnCycleCommitmentsTab(){
+  return localStorage.getItem('fin_txn_cycle_commitments_tab') || 'all';
+}
+
+function setTxnCycleCommitmentsTab(tab){
+  localStorage.setItem('fin_txn_cycle_commitments_tab', tab || 'all');
+  renderTransactions();
+}
+
+function renderTxnCycleCommitmentsPanel(wrap, entries){
+  const oldPanel=document.getElementById('txn-cycle-commitments');
+  if(oldPanel) oldPanel.remove();
+  if(!wrap || !entries.length) return;
+
+  const activeTab=getTxnCycleCommitmentsTab();
+  const tabs=[
+    {key:'all', label:'Todo'},
+    {key:'cuotas', label:'Cuotas'},
+    {key:'suscripciones', label:'Suscripciones'},
+    {key:'fijos', label:'Fijos'}
+  ];
+  const counts=tabs.reduce((acc,tab)=>{
+    acc[tab.key]=tab.key==='all'?entries.length:entries.filter(e=>e.group===tab.key).length;
+    return acc;
+  },{});
+  const visible=activeTab==='all'?entries:entries.filter(e=>e.group===activeTab);
+  const panel=document.createElement('div');
+  panel.id='txn-cycle-commitments';
+  panel.className='txn-cycle-panel';
+  panel.innerHTML=
+    '<div class="txn-cycle-panel-head">'
+      +'<div>'
+        +'<div class="txn-cycle-panel-kicker">Cuotas y compromisos del ciclo</div>'
+        +'<div class="txn-cycle-panel-sub">Acá ves lo que cae dentro del ciclo actual aunque el banco no mande un mail nuevo todos los meses.</div>'
+      +'</div>'
+      +`<div class="txn-cycle-panel-count">${entries.length} item${entries.length!==1?'s':''}</div>`
+    +'</div>'
+    +'<div class="txn-cycle-tabs">'
+      +tabs.map(tab=>`<button class="txn-cycle-tab ${activeTab===tab.key?'active':''}" onclick="setTxnCycleCommitmentsTab('${tab.key}')">${tab.label} <span>${counts[tab.key]||0}</span></button>`).join('')
+    +'</div>'
+    +(
+      visible.length
+        ? '<div class="txn-cycle-list">'+visible.map(item=>{
+            const amount=(item.currency==='USD'?'U$D ':'$')+fmtN(item.amount);
+            return '<div class="txn-cycle-entry">'
+              +`<div class="txn-cycle-dot" style="--entry-tone:${item.tone};"></div>`
+              +'<div class="txn-cycle-copy">'
+                +`<div class="txn-cycle-title">${esc(item.title)}</div>`
+                +`<div class="txn-cycle-meta">${esc(item.kind)} · ${esc(item.meta)} · ${fmtDate(item.date)}</div>`
+              +'</div>'
+              +`<div class="txn-cycle-amount" style="color:${item.tone};">${amount}</div>`
+            +'</div>';
+          }).join('')+'</div>'
+        : '<div class="txn-cycle-empty">No hay elementos para esta vista dentro del ciclo actual.</div>'
+    );
+  wrap.appendChild(panel);
+}
+
 // ── Duplicate filter in transactions list ──
 state._dupFilterOn = state._dupFilterOn || false;
 // toggleDupFilter removed — legacy, f-dup-toggle element no longer exists
@@ -496,6 +554,7 @@ function renderTransactions(){
         title:t._baseDesc||t.description,
         amount:t.amount,
         currency:t.currency,
+        group:t.isPendingCuota?'cuotas':'suscripciones',
         kind:t.isPendingCuota?'Cuota proyectada':'Suscripción proyectada',
         meta:t.isPendingCuota?`Cuota ${t.cuotaNum}/${t.cuotaTotal}`:'Próximo cobro',
         tone:t.isPendingCuota?'#ff9500':'#5ac8fa'
@@ -516,6 +575,7 @@ function renderTransactions(){
           title:g.displayName||g.name,
           amount:snap.amountPerCuota,
           currency:g.currency||'ARS',
+          group:'cuotas',
           kind:'Cuota del ciclo',
           meta:`Cuota ${Math.min(snap.total, snap.paid+1)}/${snap.total}`,
           tone:'#ff9500'
@@ -532,6 +592,7 @@ function renderTransactions(){
         title:c.name,
         amount:c.amount,
         currency:'ARS',
+        group:'cuotas',
         kind:'Cuota manual',
         meta:`Cuota ${Math.min(c.total, c.paid+1)}/${c.total}`,
         tone:'#ff9500'
@@ -547,6 +608,7 @@ function renderTransactions(){
           title:s.name,
           amount:s.price,
           currency:s.currency||'ARS',
+          group:'suscripciones',
           kind:'Suscripción',
           meta:`Cobro mensual · día ${s.day}`,
           tone:'#5ac8fa'
@@ -560,6 +622,7 @@ function renderTransactions(){
           title:f.name,
           amount:f.amount,
           currency:f.currency||'ARS',
+          group:'fijos',
           kind:'Gasto fijo',
           meta:`Débito mensual · día ${f.day}`,
           tone:'#34c759'
@@ -568,31 +631,7 @@ function renderTransactions(){
     }
 
     entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
-    const oldPanel=document.getElementById('txn-cycle-commitments');
-    if(oldPanel) oldPanel.remove();
-    if(entries.length){
-      const panel=document.createElement('div');
-      panel.id='txn-cycle-commitments';
-      panel.style.cssText='margin-top:16px;padding:16px 18px;border-radius:18px;border:1px solid var(--border);background:var(--surface);box-shadow:var(--shadow-xs);';
-      panel.innerHTML=
-        '<div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px;">'
-        +'<div><div style="font-size:11px;font-weight:800;letter-spacing:.12em;text-transform:uppercase;color:var(--text3);">Cuotas y compromisos del ciclo</div>'
-        +'<div style="margin-top:4px;font-size:13px;line-height:1.55;color:var(--text2);">Esto te muestra lo que cae dentro del ciclo actual aunque el banco no mande un mail nuevo todos los meses.</div></div>'
-        +`<div style="font-size:11px;font-weight:700;color:var(--text3);">${entries.length} item${entries.length!==1?'s':''}</div>`
-        +'</div>'
-        +entries.map(item=>{
-          const amount=(item.currency==='USD'?'U$D ':'$')+fmtN(item.amount);
-          return '<div style="display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 0;'+(item!==entries[0]?'border-top:1px solid var(--border);':'')+'">'
-            +`<div style="width:10px;height:10px;border-radius:999px;background:${item.tone};box-shadow:0 0 0 4px color-mix(in srgb, ${item.tone} 18%, transparent);"></div>`
-            +'<div style="min-width:0;">'
-              +`<div style="font-size:13px;font-weight:700;color:var(--text);">${esc(item.title)}</div>`
-              +`<div style="margin-top:3px;font-size:11px;line-height:1.5;color:var(--text3);">${esc(item.kind)} · ${esc(item.meta)} · ${fmtDate(item.date)}</div>`
-            +'</div>'
-            +`<div style="font-size:14px;font-weight:800;color:${item.tone};white-space:nowrap;">${amount}</div>`
-          +'</div>';
-        }).join('');
-      wrap.appendChild(panel);
-    }
+    renderTxnCycleCommitmentsPanel(wrap, entries);
   } else {
     document.getElementById('txn-cycle-commitments')?.remove();
   }
