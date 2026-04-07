@@ -329,13 +329,16 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
   border-right: 1px solid var(--glass-border);
   padding: 22px 10px 20px;
   display: flex; flex-direction: column; gap: 1px;
-  position: relative;
-  top: auto;
-  height: auto;
-  min-height: 100%;
-  overflow: visible;
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  min-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   z-index: 100;
   box-shadow: inset -1px 0 0 rgba(255,255,255,0.03);
+  scrollbar-gutter: stable;
 }
 
 .logo {
@@ -357,8 +360,7 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
   display: flex;
   flex-direction: column;
   gap: 6px;
-  position: sticky;
-  bottom: 12px;
+  position: static;
   z-index: 2;
 }
 .nav-item {
@@ -10501,26 +10503,31 @@ body.light-mode #page-savings .chart-card::before,
 }
 
 /* Savings page still inherits a thin top accent from the global layout stack in
-   some light-mode renders. Mask that strip only while Savings is the active page. */
-body[data-active-page="savings"] .main {
+   some light-mode renders. Mask that strip inside the Savings page itself. */
+body[data-active-page="savings"] #page-savings {
+  position: relative;
   isolation: isolate;
+  z-index: 1;
 }
-body[data-active-page="savings"] .main::before {
+body[data-active-page="savings"] #page-savings::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 44px;
-  right: 44px;
-  height: 4px;
-  background: linear-gradient(180deg, rgba(245,248,252,0.98), rgba(245,248,252,0.82));
-  border-radius: 999px;
+  top: -14px;
+  left: 0;
+  right: 0;
+  height: 20px;
+  background: linear-gradient(180deg, rgba(246,249,253,1), rgba(246,249,253,0.98));
   pointer-events: none;
-  z-index: 30;
+  z-index: 4;
+}
+body[data-active-page="savings"] #page-savings > * {
+  position: relative;
+  z-index: 5;
 }
 @media (max-width: 768px) {
-  body[data-active-page="savings"] .main::before {
-    left: 12px;
-    right: 12px;
+  body[data-active-page="savings"] #page-savings::before {
+    top: -10px;
+    height: 16px;
   }
 }
 

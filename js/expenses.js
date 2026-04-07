@@ -100,15 +100,21 @@ function isFixedSectionHidden(){
 function applyFixedSectionVisibility(){
   const card=document.getElementById('fixed-section-card');
   const btn=document.getElementById('fixed-toggle-btn');
+  const subsCard=document.getElementById('subs-section-card');
+  const subsShowBtn=document.getElementById('subs-show-fixed-btn');
   const empty=document.getElementById('fixed-empty');
   const grid=document.getElementById('fixed-grid');
   if(!card)return;
   const hidden=isFixedSectionHidden();
-  card.style.minHeight=hidden?'auto':'120px';
+  card.hidden=hidden;
+  card.style.display=hidden?'none':'';
+  card.style.minHeight='120px';
   card.dataset.collapsed=hidden?'1':'0';
   if(empty) empty.style.display=hidden?'none':'';
   if(grid) grid.style.display=hidden?'none':'flex';
-  if(btn)btn.textContent=hidden?'Mostrar':'Ocultar';
+  if(btn)btn.textContent='Ocultar';
+  if(subsCard) subsCard.style.gridColumn=hidden?'1 / -1':'';
+  if(subsShowBtn) subsShowBtn.style.display=hidden?'inline-flex':'none';
 }
 function toggleFixedSectionVisibility(){
   const next=isFixedSectionHidden()?'0':'1';
@@ -118,6 +124,44 @@ function toggleFixedSectionVisibility(){
 }
 function getSubscriptionMerchantKey(name=''){
   return String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+function getTxnSubscriptionMatchKeys(txn){
+  if(!txn) return [];
+  const keys = [
+    txn.merchantKey,
+    txn.subscriptionName,
+    txn._baseDesc,
+    txn.comercio_detectado,
+    txn.description
+  ].map(getSubscriptionMerchantKey).filter(Boolean);
+  return [...new Set(keys)];
+}
+function subscriptionKeysMatch(a='', b=''){
+  if(!a || !b) return false;
+  if(a===b) return true;
+  if(a.length>=6 && b.length>=6){
+    if(a.includes(b) || b.includes(a)) return true;
+    if(a.slice(0,8)===b.slice(0,8)) return true;
+  }
+  return false;
+}
+function txnMatchesSubscription(txn, sub){
+  if(!txn || !sub || txn.isPendingSubscription) return false;
+  if(txn.sourceSubscriptionId && txn.sourceSubscriptionId===sub.id) return true;
+  const subKeys = [
+    sub.merchantKey,
+    sub.name
+  ].map(getSubscriptionMerchantKey).filter(Boolean);
+  const txnKeys = getTxnSubscriptionMatchKeys(txn);
+  return txnKeys.some(txnKey => subKeys.some(subKey => subscriptionKeysMatch(txnKey, subKey)));
+}
+function hasRealSubscriptionChargeInMonth(sub, monthKey, txns=state.transactions||[]){
+  if(!sub || !monthKey) return false;
+  return txns.some(txn=>
+    !txn.isPendingSubscription &&
+    getMonthKey(txn.date)===monthKey &&
+    txnMatchesSubscription(txn, sub)
+  );
 }
 function getImportedSubscriptionByKey(key, ruleId){
   const normalizedKey=getSubscriptionMerchantKey(key);
@@ -171,12 +215,7 @@ function syncProjectedSubscriptionTransactions(){
       const chargeDate=new Date(candidate.getFullYear(),candidate.getMonth(),chargeDay);
       if(chargeDate<today)continue;
       const monthKey=getMonthKey(chargeDate);
-      const realExists=(state.transactions||[]).some(t=>
-        !t.isPendingSubscription&&(
-          t.sourceSubscriptionId===sub.id||
-          ((t.isAutoDebit||t.importKind==='subscription')&&((t.merchantKey||getSubscriptionMerchantKey(t.subscriptionName||t._baseDesc||t.description))===merchantKey))
-        )&&getMonthKey(t.date)===monthKey
-      );
+      const realExists=hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[]);
       if(realExists)continue;
       projections.push({
         id:`proj_sub_${sub.id}_${monthKey}`,

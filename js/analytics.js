@@ -370,11 +370,19 @@ function setCompareMode(m){
   if(tcBtn)tcBtn.classList.toggle('active',m==='tc');
   renderCompareSelectors();renderCompare();
 }
+function getCompareMonthTxns(){
+  const currentMonthKey=getMonthKey(new Date());
+  return (state.transactions||[]).filter(t=>{
+    if(t.isPendingCuota || t.isPendingSubscription) return false;
+    const monthKey=t.month||getMonthKey(t.date);
+    return monthKey && monthKey<=currentMonthKey;
+  });
+}
 function getPeriodKeys(){
   if(state.compareMode==='tc'){
     return getTcCycles().slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate)).map(c=>c.id);
   }
-  return[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))].sort();
+  return [...new Set(getCompareMonthTxns().map(t=>t.month||getMonthKey(t.date)))].sort();
 }
 function periodLabel(key){
   if(state.compareMode==='tc'){
@@ -387,7 +395,29 @@ function renderCompareSelectors(){
   const keys=getPeriodKeys();if(keys.length<2){document.getElementById('compare-empty').style.display='block';document.getElementById('compare-content').style.display='none';return;}
   document.getElementById('compare-empty').style.display='none';document.getElementById('compare-content').style.display='flex';
   const opts=keys.map(k=>'<option value="'+k+'">'+periodLabel(k)+'</option>').join('');
-  const sa=document.getElementById('cmp-a'),sb=document.getElementById('cmp-b');sa.innerHTML=opts;sb.innerHTML=opts;if(keys.length>=2){sa.value=keys[keys.length-2];sb.value=keys[keys.length-1];}
+  const sa=document.getElementById('cmp-a'),sb=document.getElementById('cmp-b');
+  const prevA=sa?.value||'';
+  const prevB=sb?.value||'';
+  sa.innerHTML=opts;
+  sb.innerHTML=opts;
+  if(keys.length>=2){
+    const currentMonthKey=getMonthKey(new Date());
+    const previousMonthDate=new Date();
+    previousMonthDate.setMonth(previousMonthDate.getMonth()-1);
+    const previousMonthKey=getMonthKey(previousMonthDate);
+    const hasDefaultPair=state.compareMode==='month' && keys.includes(previousMonthKey) && keys.includes(currentMonthKey);
+    if(hasDefaultPair){
+      sa.value=previousMonthKey;
+      sb.value=currentMonthKey;
+    } else {
+      sa.value=keys.includes(prevA)?prevA:keys[keys.length-2];
+      sb.value=keys.includes(prevB)?prevB:keys[keys.length-1];
+      if(sa.value===sb.value){
+        sa.value=keys[keys.length-2];
+        sb.value=keys[keys.length-1];
+      }
+    }
+  }
 }
 function getTxnsFor(key){
   if(state.compareMode==='tc'){
@@ -395,7 +425,7 @@ function getTxnsFor(key){
     const cycle=cycles.find(c=>c.id===key);
     return cycle?getTcCycleTxns(cycle,cycles):[];
   }
-  return state.transactions.filter(t=>(t.month||getMonthKey(t.date))===key);
+  return getCompareMonthTxns().filter(t=>(t.month||getMonthKey(t.date))===key);
 }
 function renderCompare(){
   const ka=document.getElementById('cmp-a')?.value,kb=document.getElementById('cmp-b')?.value;

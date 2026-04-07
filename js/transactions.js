@@ -168,6 +168,7 @@ function renderTransactions(){
   const todayRef=new Date();
   todayRef.setHours(23,59,59,999);
   const todayYmd=dateToYMD(todayRef);
+  const getCommitmentTone=settled=>settled ? '#34c759' : '#ff9500';
   const hasReachedChargeDate=value=>{
     const ymd=dateToYMD(value);
     return !!ymd && ymd<=todayYmd;
@@ -569,6 +570,11 @@ function renderTransactions(){
     };
 
     (state.transactions||[]).filter(t=>(t.isPendingCuota||t.isPendingSubscription)&&inCycle(t.date)).forEach(t=>{
+      if(t.isPendingSubscription && t.sourceSubscriptionId){
+        const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
+        const monthKey=getMonthKey(t.date);
+        if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
+      }
       const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
       pushEntry(key,{
         date:t.date,
@@ -579,7 +585,7 @@ function renderTransactions(){
         kind:t.isPendingCuota?'Cuota proyectada':'Suscripción proyectada',
         meta:t.isPendingCuota?`Cuota ${t.cuotaNum}/${t.cuotaTotal}`:'Próximo cobro',
         includeInTotal:hasReachedChargeDate(t.date),
-        tone:hasReachedChargeDate(t.date)?'#34c759':(t.isPendingCuota?'#ff9500':'#5ac8fa')
+        tone:getCommitmentTone(hasReachedChargeDate(t.date))
       });
     });
 
@@ -603,7 +609,7 @@ function renderTransactions(){
             kind:'Cuota del ciclo',
             meta:`Cuota ${cuotaIndex}/${snap.total}`,
             includeInTotal:matured,
-            tone:matured?'#34c759':'#ff9500'
+            tone:getCommitmentTone(matured)
           });
         });
       });
@@ -623,7 +629,7 @@ function renderTransactions(){
           kind:'Cuota manual',
           meta:`Cuota ${cuotaIndex}/${c.total}`,
           includeInTotal:matured,
-          tone:matured?'#34c759':'#ff9500'
+          tone:getCommitmentTone(matured)
         });
       });
     });
@@ -631,6 +637,8 @@ function renderTransactions(){
     if(typeof getNextCuotaDate==='function'){
       (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
         getRecurringDatesInRange(s.day, openDate, closeDate).forEach(dueDate=>{
+          const monthKey=getMonthKey(dueDate);
+          if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
           const matured=hasReachedChargeDate(dueDate);
           pushEntry(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,{
             date:dueDate,
@@ -641,7 +649,7 @@ function renderTransactions(){
             kind:'Suscripción',
             meta:`Cobro mensual · día ${s.day}`,
             includeInTotal:matured,
-            tone:matured?'#34c759':'#5ac8fa'
+            tone:getCommitmentTone(matured)
           });
         });
       });

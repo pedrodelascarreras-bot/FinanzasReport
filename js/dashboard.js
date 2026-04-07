@@ -754,6 +754,11 @@ function renderDashboard(){
       if(!_hasReachedChargeDate(t.date)) return;
       const d=new Date(String(t.date).includes('T')?t.date:(String(t.date)+'T12:00:00'));
       if(d<_openDate||d>_closeDate) return;
+      if(t.isPendingSubscription && t.sourceSubscriptionId){
+        const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
+        const monthKey=getMonthKey(t.date);
+        if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
+      }
       const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
       addExtra(key,t.currency,t.amount);
     });
@@ -779,6 +784,8 @@ function renderDashboard(){
     (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
       _getRecurringDatesInRange(s.day,_openDate,_closeDate).forEach(dueDate=>{
         if(!_hasReachedChargeDate(dueDate)) return;
+        const monthKey=getMonthKey(dueDate);
+        if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
         addExtra(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,s.currency||'ARS',s.price);
       });
     });
