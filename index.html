@@ -1365,12 +1365,15 @@
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;" id="comp-sections-grid">
 
     <!-- GASTOS FIJOS -->
-    <div class="fade-up d1" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;min-height:120px;">
+    <div class="fade-up d1" id="fixed-section-card" style="background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;min-height:120px;">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
         <div style="font-size:13px;font-weight:700;color:var(--text);display:flex;align-items:center;gap:6px;">
           <span style="width:8px;height:8px;border-radius:50%;background:var(--accent2);"></span> Gastos Fijos
         </div>
-        <button class="btn btn-ghost btn-sm" onclick="openNewFixedModal()" style="font-size:11px;padding:3px 10px;">+ Agregar</button>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="btn btn-ghost btn-sm" id="fixed-toggle-btn" onclick="toggleFixedSectionVisibility()" style="font-size:11px;padding:3px 10px;">Ocultar</button>
+          <button class="btn btn-ghost btn-sm" onclick="openNewFixedModal()" style="font-size:11px;padding:3px 10px;">+ Agregar</button>
+        </div>
       </div>
       <div id="fixed-empty" style="display:none;color:var(--text3);font-size:12px;padding:8px 0;">Sin gastos fijos registrados</div>
       <div id="fixed-grid" style="display:flex;flex-direction:column;gap:8px;"></div>

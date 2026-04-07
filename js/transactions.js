@@ -109,11 +109,12 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
       visible.length
         ? '<div class="txn-cycle-list">'+visible.map(item=>{
             const amount=(item.currency==='USD'?'U$D ':'$')+fmtN(item.amount);
+            const settled=item.includeInTotal===true;
             return '<div class="txn-cycle-entry">'
               +`<div class="txn-cycle-dot" style="--entry-tone:${item.tone};"></div>`
               +'<div class="txn-cycle-copy">'
                 +`<div class="txn-cycle-title">${esc(item.title)}</div>`
-                +`<div class="txn-cycle-meta">${esc(item.kind)} · ${esc(item.meta)} · ${fmtDate(item.date)}</div>`
+                +`<div class="txn-cycle-meta">${esc(item.kind)} · ${esc(item.meta)} · ${fmtDate(item.date)}${settled?' · Cobrado':' · Pendiente'}</div>`
               +'</div>'
               +`<div class="txn-cycle-amount" style="color:${item.tone};">${amount}</div>`
             +'</div>';
@@ -166,6 +167,11 @@ function renderTransactions(){
   let activeCycleMeta=null;
   const todayRef=new Date();
   todayRef.setHours(23,59,59,999);
+  const todayYmd=dateToYMD(todayRef);
+  const hasReachedChargeDate=value=>{
+    const ymd=dateToYMD(value);
+    return !!ymd && ymd<=todayYmd;
+  };
   const getRecurringDatesInRange=(day,start,end)=>{
     if(!day||!start||!end) return [];
     const dates=[];
@@ -572,8 +578,8 @@ function renderTransactions(){
         group:t.isPendingCuota?'cuotas':'suscripciones',
         kind:t.isPendingCuota?'Cuota proyectada':'Suscripción proyectada',
         meta:t.isPendingCuota?`Cuota ${t.cuotaNum}/${t.cuotaTotal}`:'Próximo cobro',
-        tone:t.isPendingCuota?'#ff9500':'#5ac8fa',
-        includeInTotal:new Date(t.date)<=todayRef
+        includeInTotal:hasReachedChargeDate(t.date),
+        tone:hasReachedChargeDate(t.date)?'#34c759':(t.isPendingCuota?'#ff9500':'#5ac8fa')
       });
     });
 
@@ -585,7 +591,8 @@ function renderTransactions(){
         if(!dueDay) return;
         const cycleDates=getRecurringDatesInRange(dueDay, openDate, closeDate);
         cycleDates.forEach(dueDate=>{
-          const cuotaIndex=Math.min(snap.total, Math.max(1, dueDate<=todayRef ? snap.paid : snap.paid+1));
+          const matured=hasReachedChargeDate(dueDate);
+          const cuotaIndex=Math.min(snap.total, Math.max(1, matured ? snap.paid : snap.paid+1));
           const key=`auto-${g.key}-${dateToYMD(dueDate)}`;
           pushEntry(key,{
             date:dueDate,
@@ -595,8 +602,8 @@ function renderTransactions(){
             group:'cuotas',
             kind:'Cuota del ciclo',
             meta:`Cuota ${cuotaIndex}/${snap.total}`,
-            tone:'#ff9500',
-            includeInTotal:dueDate<=todayRef
+            includeInTotal:matured,
+            tone:matured?'#34c759':'#ff9500'
           });
         });
       });
@@ -605,7 +612,8 @@ function renderTransactions(){
     (state.cuotas||[]).forEach(c=>{
       if(c.paid>=c.total || !c.day || typeof getNextCuotaDate!=='function') return;
       getRecurringDatesInRange(c.day, openDate, closeDate).forEach(dueDate=>{
-        const cuotaIndex=Math.min(c.total, Math.max(1, dueDate<=todayRef ? c.paid : c.paid+1));
+        const matured=hasReachedChargeDate(dueDate);
+        const cuotaIndex=Math.min(c.total, Math.max(1, matured ? c.paid : c.paid+1));
         pushEntry(`manual-${c.id}-${dateToYMD(dueDate)}`,{
           date:dueDate,
           title:c.name,
@@ -614,8 +622,8 @@ function renderTransactions(){
           group:'cuotas',
           kind:'Cuota manual',
           meta:`Cuota ${cuotaIndex}/${c.total}`,
-          tone:'#ff9500',
-          includeInTotal:dueDate<=todayRef
+          includeInTotal:matured,
+          tone:matured?'#34c759':'#ff9500'
         });
       });
     });
@@ -623,6 +631,7 @@ function renderTransactions(){
     if(typeof getNextCuotaDate==='function'){
       (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
         getRecurringDatesInRange(s.day, openDate, closeDate).forEach(dueDate=>{
+          const matured=hasReachedChargeDate(dueDate);
           pushEntry(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,{
             date:dueDate,
             title:s.name,
@@ -631,13 +640,14 @@ function renderTransactions(){
             group:'suscripciones',
             kind:'Suscripción',
             meta:`Cobro mensual · día ${s.day}`,
-            tone:'#5ac8fa',
-            includeInTotal:dueDate<=todayRef
+            includeInTotal:matured,
+            tone:matured?'#34c759':'#5ac8fa'
           });
         });
       });
       (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
         getRecurringDatesInRange(f.day, openDate, closeDate).forEach(dueDate=>{
+          const matured=hasReachedChargeDate(dueDate);
           pushEntry(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,{
             date:dueDate,
             title:f.name,
@@ -647,7 +657,7 @@ function renderTransactions(){
             kind:'Gasto fijo',
             meta:`Débito mensual · día ${f.day}`,
             tone:'#34c759',
-            includeInTotal:dueDate<=todayRef
+            includeInTotal:matured
           });
         });
       });

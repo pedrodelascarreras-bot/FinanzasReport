@@ -94,6 +94,27 @@ function getNextCuotaDate(day){
   if(next<=today)next.setMonth(next.getMonth()+1);
   return next;
 }
+function isFixedSectionHidden(){
+  return localStorage.getItem('fin_commitments_hide_fixed')==='1';
+}
+function applyFixedSectionVisibility(){
+  const card=document.getElementById('fixed-section-card');
+  const btn=document.getElementById('fixed-toggle-btn');
+  const empty=document.getElementById('fixed-empty');
+  const grid=document.getElementById('fixed-grid');
+  if(!card)return;
+  const hidden=isFixedSectionHidden();
+  card.style.minHeight=hidden?'auto':'120px';
+  if(empty) empty.style.display=hidden?'none':empty.style.display;
+  if(grid) grid.style.display=hidden?'none':'flex';
+  if(btn)btn.textContent=hidden?'Mostrar':'Ocultar';
+}
+function toggleFixedSectionVisibility(){
+  const next=isFixedSectionHidden()?'0':'1';
+  localStorage.setItem('fin_commitments_hide_fixed',next);
+  applyFixedSectionVisibility();
+  showToast(next==='1'?'Gastos fijos ocultos':'Gastos fijos visibles','info');
+}
 function getSubscriptionMerchantKey(name=''){
   return String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
 }
@@ -331,6 +352,7 @@ function saveAutoCuota(){
 
 // ══ GASTOS FIJOS ══
 function renderFixed(){
+  applyFixedSectionVisibility();
   const grid=document.getElementById('fixed-grid');
   const empty=document.getElementById('fixed-empty');
   if(!grid)return;
@@ -497,9 +519,12 @@ function renderSubs(){
   const freqLabel={monthly:'Mensual',annual:'Anual',weekly:'Semanal'};
   document.getElementById('subs-grid').innerHTML=state.subscriptions.map(s=>{
     const c=s.color||'#888888';const monthly=toMonthly(s);
-    const day=s.day;const daysUntil=getDaysUntilNext(day);
-    const nextText=daysUntil!==null?'Próximo cobro en <span>'+daysUntil+' días (día '+day+')</span>':'Día de cobro no configurado';
-    return'<div class="sub-card"><div class="sub-card-accent" style="background:'+c+';"></div><div class="sub-header"><div class="sub-icon" style="background:'+c+'22;color:'+c+'">'+esc(s.emoji||'●')+'</div><div><div class="sub-name">'+esc(s.name)+'</div><div class="sub-cat">'+esc(s.cat||'Plataformas')+'</div></div><button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="editSub(\''+s.id+'\')">✎</button></div><div class="sub-price-row"><div class="sub-price" style="color:'+c+';">'+(s.currency==='USD'?'U$D ':'$')+fmtN(s.price)+'</div><div class="sub-freq">'+freqLabel[s.freq||'monthly']+(s.freq==='annual'?' · $'+fmtN(monthly)+'/mes':'')+' · '+s.currency+'</div></div><div class="sub-next">'+nextText+'</div></div>';
+    const day=s.day;
+    const nextPayDate=day?getNextCuotaDate(day):null;
+    const nextBadge=nextPayDate
+      ?'<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;background:var(--surface3);border-radius:6px;padding:4px 10px;border:1px solid var(--border2);">📅 Próximo pago '+fmtCuotaNextDate(nextPayDate)+'</span>'
+      :'<button class="btn btn-ghost btn-sm" onclick="editSub(\''+s.id+'\')">⚙ Config fecha</button>';
+    return'<div class="sub-card"><div class="sub-card-accent" style="background:'+c+';"></div><div class="sub-header"><div class="sub-icon" style="background:'+c+'22;color:'+c+'">'+esc(s.emoji||'●')+'</div><div><div class="sub-name">'+esc(s.name)+'</div><div class="sub-cat">'+esc(s.cat||'Plataformas')+'</div></div><button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="editSub(\''+s.id+'\')">✎</button></div><div class="sub-price-row"><div class="sub-price" style="color:'+c+';">'+(s.currency==='USD'?'U$D ':'$')+fmtN(s.price)+'</div><div class="sub-freq">'+freqLabel[s.freq||'monthly']+(s.freq==='annual'?' · $'+fmtN(monthly)+'/mes':'')+' · '+s.currency+'</div></div><div class="sub-next">'+nextBadge+'</div></div>';
   }).join('');
   renderSubsAnnual();
 }

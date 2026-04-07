@@ -10205,6 +10205,29 @@ body.light-mode .dhc-badge.warn {
   background: rgba(255,149,0,0.12) !important;
   border: 1px solid rgba(255,149,0,0.2);
 }
+
+/* Transactions: keep interaction stable, no bounce or blur */
+#page-transactions .table-card,
+#page-transactions .table-wrap,
+#page-transactions table,
+#page-transactions tbody,
+#page-transactions tr,
+#page-transactions td {
+  transform: none !important;
+  filter: none !important;
+}
+#page-transactions .table-card:hover {
+  transform: none !important;
+  box-shadow: var(--shadow-sm) !important;
+}
+#page-transactions .txn-row-v2,
+#page-transactions .txn-row-v2 td {
+  transition: background-color .12s ease, border-color .12s ease, color .12s ease !important;
+}
+#page-transactions .txn-row-v2:hover td,
+body.light-mode #page-transactions .txn-row-v2:hover td {
+  background: rgba(0,113,227,0.02) !important;
+}
 body.light-mode .dhc-badge.danger {
   background: rgba(255,59,48,0.12) !important;
   border: 1px solid rgba(255,59,48,0.2);
