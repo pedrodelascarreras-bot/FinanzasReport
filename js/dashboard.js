@@ -836,26 +836,14 @@ function renderDashboard(){
   let dashboardCardsUsd=0;
   let dashboardCardsCount=0;
   const dashboardCards=(state.ccCards||[]);
-  if(dashboardCycleForCards&&dashboardCards.length){
-    const cycleId=dashboardCycleForCards.id;
+  if(dashboardCycleForCards&&dashboardCards.length&&typeof ccGetCycleExpenses==='function'&&typeof ccGetTotals==='function'){
     dashboardCards.forEach(card=>{
-      const pmKey=card?.payMethodKey||null;
-      const ccState=(state.ccCycles||[]).find(c=>c.cardId===card.id&&c.tcCycleId===cycleId);
-      const excluded=new Set(ccState?.excludedIds||[]);
-      const expenses=(state.transactions||[]).filter(t=>{
-        if(excluded.has(t.id)) return false;
-        if(t.isPendingCuota||t.isPendingSubscription) return false;
-        if(pmKey&&t.payMethod!==pmKey) return false;
-        const d=dateToYMD(t.date);
-        return d>=getTcCycleOpen(_tcCycles,_tcCycles.findIndex(c=>c.id===cycleId))&&d<=dashboardCycleForCards.closeDate;
-      });
-      const ars=expenses.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0)+(ccState?.manualExpenses||[]).reduce((s,e)=>s+(e.amountARS||0),0);
-      const usd=expenses.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0)+(ccState?.manualExpenses||[]).reduce((s,e)=>s+(e.amountUSD||0),0);
-      const count=expenses.length+((ccState?.manualExpenses||[]).length||0);
-      dashboardCardTotals[card.payMethodKey||card.id]={ars,usd,count};
-      dashboardCardsArs+=ars;
-      dashboardCardsUsd+=usd;
-      dashboardCardsCount+=count;
+      const expenses=ccGetCycleExpenses(card.id,dashboardCycleForCards.id).filter(e=>!e.isPendingCuota&&!e.isPendingSubscription);
+      const totals=ccGetTotals(expenses);
+      dashboardCardTotals[card.payMethodKey||card.id]={ars:totals.ars||0,usd:totals.usd||0,count:totals.count||0};
+      dashboardCardsArs+=totals.ars||0;
+      dashboardCardsUsd+=totals.usd||0;
+      dashboardCardsCount+=totals.count||0;
     });
   }
   if(isTcView&&dashboardCycleForCards&&dashboardCards.length){
@@ -1062,16 +1050,19 @@ function renderDashboard(){
   // ── Selector y fecha ──
   updateMonthPicker();
   const MNAMES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const _spendLabel = totalGastoARS>0 ? ' · $'+fmtN(totalGastoARS)+' gastados' : '';
   document.getElementById('dash-date').textContent=isTcView
     ?tcPeriodLabel
     :(isCurrentMonth
-      ?today.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
-      :MNAMES[pM-1]+' '+pY+' · mes cerrado');
+      ?today.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+_spendLabel
+      :MNAMES[pM-1]+' '+pY+' · mes cerrado'+_spendLabel);
 
   // ── Título dinámico del dashboard ──
   const _titleEl=document.getElementById('dash-page-title');
   if(_titleEl){
-    _titleEl.textContent='Inicio';
+    const _h=today.getHours();
+    const _greeting=_h<12?'Buenos días':_h<20?'Buenas tardes':'Buenas noches';
+    _titleEl.textContent=_greeting+', '+(state.userName||'Pedro');
   }
   const timelineData=getDashboardTimelineData(today);
   const backupHealth=getBackupHealth(today);
@@ -1148,45 +1139,7 @@ function renderDashboard(){
     timelinePill.textContent=visibleCount===1?'1 evento':`${visibleCount||3} eventos`;
   }
 
-
   // ── Hero ──
-  const userName=(state.userName||'Pedro').trim()||'Pedro';
-  const currentHour=today.getHours();
-  const heroGreeting=currentHour<12?'Buenos días':currentHour<20?'Buenas tardes':'Buenas noches';
-  const welcomeGreetingEl=document.getElementById('dash-welcome-greeting');
-  if(welcomeGreetingEl) welcomeGreetingEl.textContent=`${heroGreeting}, ${userName}`;
-  const welcomeDateEl=document.getElementById('dash-welcome-date');
-  if(welcomeDateEl){
-    const rawDate=today.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
-    const prettyDate=rawDate.charAt(0).toUpperCase()+rawDate.slice(1);
-    welcomeDateEl.textContent=prettyDate;
-  }
-  const welcomeCycleEl=document.getElementById('dash-welcome-cycle');
-  if(welcomeCycleEl){
-    if(currentTcCycle?.closeDate){
-      const closeDate=new Date(currentTcCycle.closeDate+'T12:00:00');
-      const daysToClose=Math.max(0,Math.round((closeDate-today)/86400000));
-      const closeLabel=closeDate.toLocaleDateString('es-AR',{day:'numeric',month:'long'});
-      let cycleCopy='';
-      if(daysToClose===0) cycleCopy=`Tu tarjeta cierra hoy, ${closeLabel}.`;
-      else if(daysToClose===1) cycleCopy=`Falta 1 día para el cierre de tu tarjeta, el ${closeLabel}.`;
-      else cycleCopy=`Faltan ${daysToClose} días para el cierre de tu tarjeta, el ${closeLabel}.`;
-      welcomeCycleEl.textContent=cycleCopy;
-    } else {
-      welcomeCycleEl.textContent='Agregá el cierre de tu tarjeta para verlo acá todos los días.';
-    }
-  }
-  const googleTitleEl=document.getElementById('dash-google-banner-title');
-  const googleSubEl=document.getElementById('dash-google-banner-sub');
-  const googleBtnEl=document.getElementById('dash-google-banner-btn');
-  const googleConnected=typeof isGoogleConnected==='function'&&isGoogleConnected();
-  if(googleTitleEl) googleTitleEl.textContent=googleConnected?'Google ya está conectado':'Conectá Google';
-  if(googleSubEl){
-    googleSubEl.textContent=googleConnected
-      ?'Tu cuenta está lista para seguir sincronizando movimientos y respaldos.'
-      :'Sincronizá la app para usar los mismos datos en todos tus dispositivos.';
-  }
-  if(googleBtnEl) googleBtnEl.textContent=googleConnected?'Revisar conexión':'Conectar Google';
   const dhcML=document.getElementById('dhc-month-label');
   if(dhcML)dhcML.textContent=isTcView&&activeTcCycle?expandPeriodYearLabel(activeTcCycle.label||'').toUpperCase():(MNAMES[pM-1]+' '+pY).toUpperCase();
   animateNumberText(document.getElementById('kpi-ars'),totalGastoARS,{prefix:'$',decimals:2,duration:920});
