@@ -847,6 +847,7 @@ function renderDashboard(){
   const hasPayTagsWidget=_tcWidgetTxns.some(t=>t.payMethod);
 
   const dashboardCardTotals={};
+  const dashboardCardDisplayTotals={};
   let dashboardCardsArs=0;
   let dashboardCardsUsd=0;
   let dashboardCardsCount=0;
@@ -856,10 +857,24 @@ function renderDashboard(){
       const expenses=ccGetCycleExpenses(card.id,dashboardCycleForCards.id).filter(isCountableCycleExpense);
       const totals=ccGetTotals(expenses);
       dashboardCardTotals[card.payMethodKey||card.id]={ars:totals.ars||0,usd:totals.usd||0,count:totals.count||0};
+      dashboardCardDisplayTotals[card.payMethodKey||card.id]={ars:totals.ars||0,usd:totals.usd||0,count:totals.count||0};
       dashboardCardsArs+=totals.ars||0;
       dashboardCardsUsd+=totals.usd||0;
       dashboardCardsCount+=totals.count||0;
     });
+  }
+  if(isTcView&&dashboardCycleForCards&&dashboardCards.length){
+    const cycleOwnerCardId=state.ccActiveCard||dashboardCards.find(c=>c.payMethodKey==='visa')?.id||dashboardCards[0]?.id||null;
+    const cycleOwnerCard=dashboardCards.find(c=>c.id===cycleOwnerCardId)||dashboardCards[0]||null;
+    const cycleOwnerKey=cycleOwnerCard?.payMethodKey||cycleOwnerCard?.id||null;
+    if(cycleOwnerKey){
+      const ownerTotals=dashboardCardDisplayTotals[cycleOwnerKey]||{ars:0,usd:0,count:0};
+      dashboardCardDisplayTotals[cycleOwnerKey]={
+        ars:(ownerTotals.ars||0)+syntheticARS,
+        usd:(ownerTotals.usd||0)+syntheticUSD,
+        count:(ownerTotals.count||0)+syntheticCount
+      };
+    }
   }
   if(isTcView&&dashboardCycleForCards&&dashboardCards.length){
     arsMonth=dashboardCardsArs+syntheticARS;
@@ -1291,7 +1306,7 @@ function renderDashboard(){
   ccInit();
   const _ccCards=state.ccCards||[];
   _ccCards.forEach(card=>{
-    const cardTotals=dashboardCardTotals[card.payMethodKey||card.id]||{ars:0,usd:0};
+    const cardTotals=(isTcView?dashboardCardDisplayTotals:dashboardCardTotals)[card.payMethodKey||card.id]||{ars:0,usd:0};
     const cardArs=cardTotals.ars||0;
     const cardUsd=cardTotals.usd||0;
     const prefix=card.payMethodKey==='visa'?'visa':'amex';
