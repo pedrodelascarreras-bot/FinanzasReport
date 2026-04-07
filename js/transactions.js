@@ -169,23 +169,8 @@ function renderTransactions(){
   todayRef.setHours(23,59,59,999);
   const todayYmd=dateToYMD(todayRef);
   const getCommitmentTone=settled=>settled ? '#34c759' : '#ff9500';
-  const hasReachedChargeDate=value=>{
-    const ymd=dateToYMD(value);
-    return !!ymd && ymd<=todayYmd;
-  };
-  const getRecurringDatesInRange=(day,start,end)=>{
-    if(!day||!start||!end) return [];
-    const dates=[];
-    const cursor=new Date(start.getFullYear(), start.getMonth(), 1);
-    const limit=new Date(end.getFullYear(), end.getMonth(), 1);
-    while(cursor<=limit){
-      const maxDay=new Date(cursor.getFullYear(), cursor.getMonth()+1, 0).getDate();
-      const date=new Date(cursor.getFullYear(), cursor.getMonth(), Math.min(day, maxDay));
-      if(date>=start&&date<=end) dates.push(date);
-      cursor.setMonth(cursor.getMonth()+1);
-    }
-    return dates;
-  };
+  const hasReachedChargeDate=value=>cycleHasReachedChargeDate(value,todayRef);
+  const getRecurringDatesInRange=(day,start,end)=>getRecurringDatesInRangeShared(day,start,end);
 
   // ── Poblar selects ──
   const months=[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))].sort().reverse();
@@ -589,87 +574,12 @@ function renderTransactions(){
       });
     });
 
-    if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
-      detectAutoCuotas().forEach(g=>{
-        const snap=getAutoCuotaSnapshot(g, new Date(Math.min(todayRef.getTime(), closeDate.getTime())));
-        if(!snap || snap.rem<=0) return;
-        const dueDay=snap.cfg?.day||snap.scheduleDay||null;
-        if(!dueDay) return;
-        const cycleDates=getRecurringDatesInRange(dueDay, openDate, closeDate);
-        cycleDates.forEach(dueDate=>{
-          const matured=hasReachedChargeDate(dueDate);
-          const cuotaIndex=Math.min(snap.total, Math.max(1, matured ? snap.paid : snap.paid+1));
-          const key=`auto-${g.key}-${dateToYMD(dueDate)}`;
-          pushEntry(key,{
-            date:dueDate,
-            title:g.displayName||g.name,
-            amount:snap.amountPerCuota,
-            currency:g.currency||'ARS',
-            group:'cuotas',
-            kind:'Cuota del ciclo',
-            meta:`Cuota ${cuotaIndex}/${snap.total}`,
-            includeInTotal:matured,
-            tone:getCommitmentTone(matured)
-          });
-        });
-      });
-    }
-
-    (state.cuotas||[]).forEach(c=>{
-      if(c.paid>=c.total || !c.day || typeof getNextCuotaDate!=='function') return;
-      getRecurringDatesInRange(c.day, openDate, closeDate).forEach(dueDate=>{
-        const matured=hasReachedChargeDate(dueDate);
-        const cuotaIndex=Math.min(c.total, Math.max(1, matured ? c.paid : c.paid+1));
-        pushEntry(`manual-${c.id}-${dateToYMD(dueDate)}`,{
-          date:dueDate,
-          title:c.name,
-          amount:c.amount,
-          currency:'ARS',
-          group:'cuotas',
-          kind:'Cuota manual',
-          meta:`Cuota ${cuotaIndex}/${c.total}`,
-          includeInTotal:matured,
-          tone:getCommitmentTone(matured)
-        });
+    getCycleSyntheticCommitmentEntries(activeCycleMeta.cycle,todayRef).forEach(entry=>{
+      pushEntry(`${entry.group}-${entry.title}-${dateToYMD(entry.date)}-${entry.amount}-${entry.currency}`,{
+        ...entry,
+        tone:entry.group==='fijos' ? '#34c759' : getCommitmentTone(entry.includeInTotal===true)
       });
     });
-
-    if(typeof getNextCuotaDate==='function'){
-      (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
-        getRecurringDatesInRange(s.day, openDate, closeDate).forEach(dueDate=>{
-          const monthKey=getMonthKey(dueDate);
-          if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
-          const matured=hasReachedChargeDate(dueDate);
-          pushEntry(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,{
-            date:dueDate,
-            title:s.name,
-            amount:s.price,
-            currency:s.currency||'ARS',
-            group:'suscripciones',
-            kind:'Suscripción',
-            meta:`Cobro mensual · día ${s.day}`,
-            includeInTotal:matured,
-            tone:getCommitmentTone(matured)
-          });
-        });
-      });
-      (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
-        getRecurringDatesInRange(f.day, openDate, closeDate).forEach(dueDate=>{
-          const matured=hasReachedChargeDate(dueDate);
-          pushEntry(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,{
-            date:dueDate,
-            title:f.name,
-            amount:f.amount,
-            currency:f.currency||'ARS',
-            group:'fijos',
-            kind:'Gasto fijo',
-            meta:`Débito mensual · día ${f.day}`,
-            tone:'#34c759',
-            includeInTotal:matured
-          });
-        });
-      });
-    }
 
     entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
     renderTxnCycleCommitmentsPanel(wrap, entries);
@@ -677,18 +587,10 @@ function renderTransactions(){
     if(mainEl && !searchVal){
       let totalARS=0;
       let totalUSD=0;
-      if(typeof ccGetCycleExpenses==='function' && typeof ccGetTotals==='function'){
-        ccInit();
-        const isCountableCycleExpense=expense=>{
-          if(!expense) return false;
-          if(!expense.isPendingCuota && !expense.isPendingSubscription) return true;
-          return hasReachedChargeDate(expense.date);
-        };
-        (state.ccCards||[]).forEach(card=>{
-          const totals=ccGetTotals(ccGetCycleExpenses(card.id, activeCycleMeta.cycle.id).filter(isCountableCycleExpense));
-          totalARS+=totals.ars||0;
-          totalUSD+=totals.usd||0;
-        });
+      if(typeof getCycleDisplayedTotals==='function'){
+        const totals=getCycleDisplayedTotals(activeCycleMeta.cycle,todayRef);
+        totalARS=totals.ars||0;
+        totalUSD=totals.usd||0;
       } else {
         const actualVisibleTxns=txns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
         totalARS=actualVisibleTxns.filter(t=>t.currency!=='USD').reduce((s,t)=>s+t.amount,0);
