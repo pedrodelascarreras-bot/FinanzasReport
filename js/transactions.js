@@ -164,6 +164,21 @@ function resolveDupInline(groupIdx, action){
 function renderTransactions(){
   const mode=state.txnFilterMode||'mes';
   let activeCycleMeta=null;
+  const todayRef=new Date();
+  todayRef.setHours(23,59,59,999);
+  const getRecurringDatesInRange=(day,start,end)=>{
+    if(!day||!start||!end) return [];
+    const dates=[];
+    const cursor=new Date(start.getFullYear(), start.getMonth(), 1);
+    const limit=new Date(end.getFullYear(), end.getMonth(), 1);
+    while(cursor<=limit){
+      const maxDay=new Date(cursor.getFullYear(), cursor.getMonth()+1, 0).getDate();
+      const date=new Date(cursor.getFullYear(), cursor.getMonth(), Math.min(day, maxDay));
+      if(date>=start&&date<=end) dates.push(date);
+      cursor.setMonth(cursor.getMonth()+1);
+    }
+    return dates;
+  };
 
   // ── Poblar selects ──
   const months=[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))].sort().reverse();
@@ -557,81 +572,111 @@ function renderTransactions(){
         group:t.isPendingCuota?'cuotas':'suscripciones',
         kind:t.isPendingCuota?'Cuota proyectada':'Suscripción proyectada',
         meta:t.isPendingCuota?`Cuota ${t.cuotaNum}/${t.cuotaTotal}`:'Próximo cobro',
-        tone:t.isPendingCuota?'#ff9500':'#5ac8fa'
+        tone:t.isPendingCuota?'#ff9500':'#5ac8fa',
+        includeInTotal:new Date(t.date)<=todayRef
       });
     });
 
     if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
       detectAutoCuotas().forEach(g=>{
-        const snap=getAutoCuotaSnapshot(g, closeDate);
+        const snap=getAutoCuotaSnapshot(g, new Date(Math.min(todayRef.getTime(), closeDate.getTime())));
         if(!snap || snap.rem<=0) return;
         const dueDay=snap.cfg?.day||snap.scheduleDay||null;
         if(!dueDay) return;
-        const dueDate=new Date(openDate.getFullYear(), openDate.getMonth(), Math.min(dueDay, new Date(openDate.getFullYear(), openDate.getMonth()+1, 0).getDate()));
-        if(!inCycle(dueDate)) return;
-        const key=`auto-${g.key}-${snap.paid+1}`;
-        pushEntry(key,{
-          date:dueDate,
-          title:g.displayName||g.name,
-          amount:snap.amountPerCuota,
-          currency:g.currency||'ARS',
-          group:'cuotas',
-          kind:'Cuota del ciclo',
-          meta:`Cuota ${Math.min(snap.total, snap.paid+1)}/${snap.total}`,
-          tone:'#ff9500'
+        const cycleDates=getRecurringDatesInRange(dueDay, openDate, closeDate);
+        cycleDates.forEach(dueDate=>{
+          const cuotaIndex=Math.min(snap.total, Math.max(1, dueDate<=todayRef ? snap.paid : snap.paid+1));
+          const key=`auto-${g.key}-${dateToYMD(dueDate)}`;
+          pushEntry(key,{
+            date:dueDate,
+            title:g.displayName||g.name,
+            amount:snap.amountPerCuota,
+            currency:g.currency||'ARS',
+            group:'cuotas',
+            kind:'Cuota del ciclo',
+            meta:`Cuota ${cuotaIndex}/${snap.total}`,
+            tone:'#ff9500',
+            includeInTotal:dueDate<=todayRef
+          });
         });
       });
     }
 
     (state.cuotas||[]).forEach(c=>{
       if(c.paid>=c.total || !c.day || typeof getNextCuotaDate!=='function') return;
-      const dueDate=new Date(openDate.getFullYear(), openDate.getMonth(), Math.min(c.day, new Date(openDate.getFullYear(), openDate.getMonth()+1, 0).getDate()));
-      if(!inCycle(dueDate)) return;
-      pushEntry(`manual-${c.id}-${c.paid+1}`,{
-        date:dueDate,
-        title:c.name,
-        amount:c.amount,
-        currency:'ARS',
-        group:'cuotas',
-        kind:'Cuota manual',
-        meta:`Cuota ${Math.min(c.total, c.paid+1)}/${c.total}`,
-        tone:'#ff9500'
+      getRecurringDatesInRange(c.day, openDate, closeDate).forEach(dueDate=>{
+        const cuotaIndex=Math.min(c.total, Math.max(1, dueDate<=todayRef ? c.paid : c.paid+1));
+        pushEntry(`manual-${c.id}-${dateToYMD(dueDate)}`,{
+          date:dueDate,
+          title:c.name,
+          amount:c.amount,
+          currency:'ARS',
+          group:'cuotas',
+          kind:'Cuota manual',
+          meta:`Cuota ${cuotaIndex}/${c.total}`,
+          tone:'#ff9500',
+          includeInTotal:dueDate<=todayRef
+        });
       });
     });
 
     if(typeof getNextCuotaDate==='function'){
       (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
-        const dueDate=new Date(openDate.getFullYear(), openDate.getMonth(), Math.min(s.day, new Date(openDate.getFullYear(), openDate.getMonth()+1, 0).getDate()));
-        if(!inCycle(dueDate)) return;
-        pushEntry(`sub-cycle-${s.id}-${getMonthKey(dueDate)}`,{
-          date:dueDate,
-          title:s.name,
-          amount:s.price,
-          currency:s.currency||'ARS',
-          group:'suscripciones',
-          kind:'Suscripción',
-          meta:`Cobro mensual · día ${s.day}`,
-          tone:'#5ac8fa'
+        getRecurringDatesInRange(s.day, openDate, closeDate).forEach(dueDate=>{
+          pushEntry(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,{
+            date:dueDate,
+            title:s.name,
+            amount:s.price,
+            currency:s.currency||'ARS',
+            group:'suscripciones',
+            kind:'Suscripción',
+            meta:`Cobro mensual · día ${s.day}`,
+            tone:'#5ac8fa',
+            includeInTotal:dueDate<=todayRef
+          });
         });
       });
       (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
-        const dueDate=new Date(openDate.getFullYear(), openDate.getMonth(), Math.min(f.day, new Date(openDate.getFullYear(), openDate.getMonth()+1, 0).getDate()));
-        if(!inCycle(dueDate)) return;
-        pushEntry(`fixed-cycle-${f.id||f.name}-${getMonthKey(dueDate)}`,{
-          date:dueDate,
-          title:f.name,
-          amount:f.amount,
-          currency:f.currency||'ARS',
-          group:'fijos',
-          kind:'Gasto fijo',
-          meta:`Débito mensual · día ${f.day}`,
-          tone:'#34c759'
+        getRecurringDatesInRange(f.day, openDate, closeDate).forEach(dueDate=>{
+          pushEntry(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,{
+            date:dueDate,
+            title:f.name,
+            amount:f.amount,
+            currency:f.currency||'ARS',
+            group:'fijos',
+            kind:'Gasto fijo',
+            meta:`Débito mensual · día ${f.day}`,
+            tone:'#34c759',
+            includeInTotal:dueDate<=todayRef
+          });
         });
       });
     }
 
     entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
     renderTxnCycleCommitmentsPanel(wrap, entries);
+
+    const maturedVirtual=entries.filter(e=>e.includeInTotal);
+    const extraARS=maturedVirtual.filter(e=>e.currency!=='USD').reduce((s,e)=>s+e.amount,0);
+    const extraUSD=maturedVirtual.filter(e=>e.currency==='USD').reduce((s,e)=>s+e.amount,0);
+    const actualVisibleTxns=txns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
+    const actualARS=actualVisibleTxns.filter(t=>t.currency!=='USD').reduce((s,t)=>s+t.amount,0);
+    const actualUSD=actualVisibleTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+    if(mainEl && !searchVal){
+      const totalARS=actualARS+extraARS;
+      const totalUSD=actualUSD+extraUSD;
+      const grandTotal=totalARS+(totalUSD*USD_TO_ARS);
+      mainEl.textContent='$'+fmtN(grandTotal);
+      if(arsEl) arsEl.textContent=totalARS>0?'$'+fmtN(totalARS):'—';
+      if(usdEl) usdEl.textContent=totalUSD>0?'U$D '+fmtN(totalUSD):'—';
+      const extraCount=maturedVirtual.length;
+      if(detailEl){
+        const baseParts=[periodoLabel||'Ciclo actual',`Mostrando ${txns.length} de ${state.transactions.length} movimientos`];
+        if(extraCount>0) baseParts.push(`+ ${extraCount} compromiso${extraCount!==1?'s':''} ya imputado${extraCount!==1?'s':''}`);
+        if(cfv) baseParts.push(cfv);
+        detailEl.textContent=baseParts.join(' · ');
+      }
+    }
   } else {
     document.getElementById('txn-cycle-commitments')?.remove();
   }
@@ -852,7 +897,7 @@ function openTxnDetail(txnId){
     </div>
   `;
   panel.classList.add('open');
-  _iosLock();
+  if(window.innerWidth<=768)_iosLock();
   // Marcar fila seleccionada
   document.querySelectorAll('.txn-row-v2').forEach(r=>r.classList.toggle('selected',r.dataset.txnid===txnId));
   setTimeout(()=>{ document.addEventListener('click', _closePanelsOnOutside); }, 50);
@@ -861,7 +906,10 @@ function openTxnDetail(txnId){
 function closeTxnDetail(){
   state._detailTxnId=null;
   const panel=document.getElementById('txn-detail-panel');
-  if(panel&&panel.classList.contains('open')){panel.classList.remove('open');_iosUnlock();}
+  if(panel&&panel.classList.contains('open')){
+    panel.classList.remove('open');
+    if(window.innerWidth<=768)_iosUnlock();
+  }
   document.querySelectorAll('.txn-row-v2').forEach(r=>r.classList.remove('selected'));
   document.removeEventListener('click', _closePanelsOnOutside);
 }
