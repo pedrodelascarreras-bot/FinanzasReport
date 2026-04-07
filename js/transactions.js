@@ -680,29 +680,13 @@ function renderTransactions(){
     renderTxnCycleCommitmentsPanel(wrap, entries);
 
     if(mainEl && !searchVal){
-      let totalARS=0;
-      let totalUSD=0;
-      if(typeof ccGetCycleExpenses==='function' && typeof ccGetTotals==='function'){
-        ccInit();
-        const isCountableCycleExpense=expense=>{
-          if(!expense) return false;
-          if(!expense.isPendingCuota && !expense.isPendingSubscription) return true;
-          return hasReachedChargeDate(expense.date);
-        };
-        (state.ccCards||[]).forEach(card=>{
-          const totals=ccGetTotals(ccGetCycleExpenses(card.id, activeCycleMeta.cycle.id).filter(isCountableCycleExpense));
-          totalARS+=totals.ars||0;
-          totalUSD+=totals.usd||0;
-        });
-        entries.filter(e=>e.synthetic&&e.includeInTotal).forEach(e=>{
-          if((e.currency||'ARS')==='USD') totalUSD+=Number(e.amount)||0;
-          else totalARS+=Number(e.amount)||0;
-        });
-      } else {
-        const actualVisibleTxns=txns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
-        totalARS=actualVisibleTxns.filter(t=>t.currency!=='USD').reduce((s,t)=>s+t.amount,0);
-        totalUSD=actualVisibleTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-      }
+      const actualVisibleTxns=txns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
+      let totalARS=actualVisibleTxns.filter(t=>t.currency!=='USD').reduce((s,t)=>s+t.amount,0);
+      let totalUSD=actualVisibleTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+      entries.filter(e=>e.synthetic&&e.includeInTotal).forEach(e=>{
+        if((e.currency||'ARS')==='USD') totalUSD+=Number(e.amount)||0;
+        else totalARS+=Number(e.amount)||0;
+      });
       const grandTotal=totalARS+(totalUSD*USD_TO_ARS);
       mainEl.textContent='$'+fmtN(grandTotal);
       if(arsEl) arsEl.textContent=totalARS>0?'$'+fmtN(totalARS):'—';
