@@ -53,12 +53,113 @@ function getTendPeriodLabel(k){
   }
   const[y,m]=k.split('-');return new Date(parseInt(y),parseInt(m)-1,1).toLocaleDateString('es-AR',{month:'short',year:'2-digit'});
 }
+function getTcCycleTrendTxns(cycle, cycles){
+  if(!cycle) return [];
+  const baseTxns=getTcCycleTxns(cycle,cycles);
+  const todayRef=new Date();
+  todayRef.setHours(23,59,59,999);
+  const todayYmd=dateToYMD(todayRef);
+  const hasReachedChargeDate=value=>{
+    const ymd=dateToYMD(value);
+    return !!ymd && ymd<=todayYmd;
+  };
+  const getRecurringDatesInRange=(day,start,end)=>{
+    if(!day||!start||!end) return [];
+    const dates=[];
+    const cursor=new Date(start.getFullYear(), start.getMonth(), 1);
+    const limit=new Date(end.getFullYear(), end.getMonth(), 1);
+    while(cursor<=limit){
+      const maxDay=new Date(cursor.getFullYear(), cursor.getMonth()+1, 0).getDate();
+      const date=new Date(cursor.getFullYear(), cursor.getMonth(), Math.min(day, maxDay));
+      if(date>=start&&date<=end) dates.push(date);
+      cursor.setMonth(cursor.getMonth()+1);
+    }
+    return dates;
+  };
+  const openDate=new Date((getTcCycleOpen(cycles, cycles.findIndex(c=>c.id===cycle.id))||cycle.closeDate)+'T00:00:00');
+  const closeDate=new Date(cycle.closeDate+'T23:59:59');
+  const extras=[];
+  const extraKeys=new Set();
+  const pushExtra=(key,obj)=>{
+    if(!key||extraKeys.has(key)) return;
+    extraKeys.add(key);
+    extras.push(obj);
+  };
+
+  if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
+    detectAutoCuotas().forEach(g=>{
+      const snap=getAutoCuotaSnapshot(g, new Date(Math.min(todayRef.getTime(), closeDate.getTime())));
+      if(!snap || snap.rem<=0) return;
+      const dueDay=snap.cfg?.day||snap.scheduleDay||null;
+      if(!dueDay) return;
+      const fallbackCategory=g.transactions?.find(t=>t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized')?.category||'Finanzas';
+      getRecurringDatesInRange(dueDay, openDate, closeDate).forEach(dueDate=>{
+        if(!hasReachedChargeDate(dueDate)) return;
+        pushExtra(`auto-${g.key}-${dateToYMD(dueDate)}`,{
+          id:`trend-auto-${g.key}-${dateToYMD(dueDate)}`,
+          date:dueDate,
+          amount:snap.amountPerCuota,
+          currency:g.currency||'ARS',
+          category:fallbackCategory,
+          isSyntheticCommitment:true
+        });
+      });
+    });
+  }
+
+  (state.cuotas||[]).forEach(c=>{
+    if(c.paid>=c.total || !c.day) return;
+    getRecurringDatesInRange(c.day, openDate, closeDate).forEach(dueDate=>{
+      if(!hasReachedChargeDate(dueDate)) return;
+      pushExtra(`manual-${c.id}-${dateToYMD(dueDate)}`,{
+        id:`trend-manual-${c.id}-${dateToYMD(dueDate)}`,
+        date:dueDate,
+        amount:c.amount,
+        currency:'ARS',
+        category:'Finanzas',
+        isSyntheticCommitment:true
+      });
+    });
+  });
+
+  (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
+    getRecurringDatesInRange(s.day, openDate, closeDate).forEach(dueDate=>{
+      if(!hasReachedChargeDate(dueDate)) return;
+      const monthKey=getMonthKey(dueDate);
+      if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
+      pushExtra(`sub-${s.id}-${dateToYMD(dueDate)}`,{
+        id:`trend-sub-${s.id}-${dateToYMD(dueDate)}`,
+        date:dueDate,
+        amount:s.price,
+        currency:s.currency||'ARS',
+        category:'Finanzas',
+        isSyntheticCommitment:true
+      });
+    });
+  });
+
+  (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
+    getRecurringDatesInRange(f.day, openDate, closeDate).forEach(dueDate=>{
+      if(!hasReachedChargeDate(dueDate)) return;
+      pushExtra(`fixed-${f.id||f.name}-${dateToYMD(dueDate)}`,{
+        id:`trend-fixed-${f.id||f.name}-${dateToYMD(dueDate)}`,
+        date:dueDate,
+        amount:f.amount,
+        currency:f.currency||'ARS',
+        category:'Finanzas',
+        isSyntheticCommitment:true
+      });
+    });
+  });
+
+  return [...baseTxns, ...extras];
+}
 function getTxnsForTendPeriod(k){
   if(state.tendMode==='week')return state.transactions.filter(t=>(t.week||getWeekKey(t.date))===k);
   if(state.tendMode==='tc'){
     const cycles=getTcCycles();
     const cycle=cycles.find(c=>c.id===k);
-    return cycle?getTcCycleTxns(cycle,cycles):[];
+    return cycle?getTcCycleTrendTxns(cycle,cycles):[];
   }
   return state.transactions.filter(t=>(t.month||getMonthKey(t.date))===k);
 }
