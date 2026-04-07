@@ -65,7 +65,8 @@ function getSourceBaseIncome(rawData) {
   }, { ars: 0, usd: 0 });
 }
 
-function buildReport(rawData) {
+function buildReport(rawData, options = {}) {
+  void options;
   const now = new Date();
   const usdRate = rawData.usdRate || 1420;
   const transactions = (rawData.transactions || []).map(t => ({
@@ -283,8 +284,8 @@ function buildReport(rawData) {
 
       const closeD = new Date(closeDate + 'T12:00:00');
       const todayD = new Date(todayStr + 'T12:00:00');
-      const daysLeft = Math.max(0, Math.round((closeD - todayD) / (1000 * 60 * 60 * 24)));
-      const daysElapsed = Math.max(1, Math.round((todayD - new Date(openDate + 'T12:00:00')) / (1000 * 60 * 60 * 24)));
+      const daysLeft = Math.max(0, Math.round((closeD.getTime() - todayD.getTime()) / (1000 * 60 * 60 * 24)));
+      const daysElapsed = Math.max(1, Math.round((todayD.getTime() - new Date(openDate + 'T12:00:00').getTime()) / (1000 * 60 * 60 * 24)));
       const totalCycleDays = daysElapsed + daysLeft;
       const dailyAvgCycle = cycleTotalARS / daysElapsed;
       const projectedClose = Math.round(dailyAvgCycle * totalCycleDays);

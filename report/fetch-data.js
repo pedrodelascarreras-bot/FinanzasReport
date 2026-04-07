@@ -29,7 +29,7 @@ function parseServiceAccountEnv() {
       if (parsed && typeof parsed === 'object' && parsed.client_email && parsed.private_key) {
         return parsed;
       }
-    } catch (_) {}
+    } catch {}
   }
 
   throw new Error(
@@ -70,7 +70,7 @@ async function fetchFinanceData() {
     { responseType: 'json' }
   );
 
-  const data = content.data;
+  const data = /** @type {Record<string, any>} */ (content.data);
 
   if (!data.transactions || !Array.isArray(data.transactions)) {
     throw new Error('El archivo no contiene transacciones válidas');

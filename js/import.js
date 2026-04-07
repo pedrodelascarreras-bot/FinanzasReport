@@ -125,8 +125,8 @@ function parseGenericTextWithReview(text){
   const issues = [];
   let currentDate = null;
 
-  const dateOnlyRegex = /^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)$/;
-  const inlineRegex = /^(\d{1,2}[\/\-]\d{1,2}(?:[\/\-]\d{2,4})?)\s+(.+?)\s+(-?[\$UuSsD\d][\d\s.,-]*)$/;
+  const dateOnlyRegex = /^(\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)$/;
+  const inlineRegex = /^(\d{1,2}[/-]\d{1,2}(?:[/-]\d{2,4})?)\s+(.+?)\s+(-?[$UuSsD\d][\d\s.,-]*)$/;
 
   for(let i=0;i<lines.length;i++){
     const line = lines[i];
@@ -150,7 +150,7 @@ function parseGenericTextWithReview(text){
 
     if(currentDate && i+1 < lines.length){
       const next = lines[i+1];
-      if(/^[\$UuSsD\d][\d\s.,-]*$/.test(next)){
+      if(/^[$UuSsD\d][\d\s.,-]*$/.test(next)){
         const amount = Math.abs(parseAmountLoose(next));
         if(amount){
           const currency = /U\$S|USD/i.test(next) ? 'USD' : 'ARS';
@@ -710,7 +710,7 @@ function detectComercio(desc){
     if(entry.patterns.some(p=>d.includes(p))) return entry.name;
   }
   // Capitalizar primer token limpio como fallback
-  const tokens = clean.split(/[\s\*\-\/]+/).filter(Boolean);
+  const tokens = clean.split(/[\s*/-]+/).filter(Boolean);
   if(tokens.length) return tokens[0].charAt(0).toUpperCase()+tokens[0].slice(1);
   return null;
 }

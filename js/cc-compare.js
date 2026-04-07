@@ -327,12 +327,12 @@ function parseSantanderText(text) {
       // and the ARS column is actually 0 (the arsStr value IS the USD value in disguise)
       let amountARS = parseAmt(arsStr);
       let amountUSD = usdStr ? parseAmt(usdStr) : 0;
-      const usdInDesc = desc.match(/\s+USD\s+([\d\.]+,\d{2})$/i);
+      const usdInDesc = desc.match(/\s+USD\s+([\d.]+,\d{2})$/i);
       if(usdInDesc && !usdStr) {
         // ARS column was empty; arsStr holds the USD amount, description had "USD XX,XX"
         amountUSD = parseAmt(usdInDesc[1]);
         amountARS = 0;
-        desc = desc.replace(/\s+USD\s+[\d\.]+,\d{2}$/i,'').trim();
+        desc = desc.replace(/\s+USD\s+[\d.]+,\d{2}$/i,'').trim();
       }
 
       txns.push({
@@ -366,15 +366,15 @@ function extractSaldoActual(text) {
 
   // Last page format: "SALDO ACTUAL $1928.358,40 U $ S 391,18"
   // Also: "SALDO ACTUAL $1928.358,40 U$S 391,18"
-  let m = text.match(/SALDO ACTUAL\s*\$?\s*([\d\.]+,\d{2})\s*U[\s\$]*S\s*([\d\.]+,\d{2})/i);
+  let m = text.match(/SALDO ACTUAL\s*\$?\s*([\d.]+,\d{2})\s*U[\s$]*S\s*([\d.]+,\d{2})/i);
   if(m) return { ars: parseArgAmt(m[1]), usd: parseArgAmt(m[2]) };
 
   // Only ARS: "SALDO ACTUAL $1928.358,40"
-  m = text.match(/SALDO ACTUAL\s*\$?\s*([\d\.]+,\d{2})/i);
+  m = text.match(/SALDO ACTUAL\s*\$?\s*([\d.]+,\d{2})/i);
   if(m) return { ars: parseArgAmt(m[1]), usd: 0 };
 
   // DEBITAREMOS format (page 11): "LA SUMA DE $ 1928358,40 + U$S 391,18"
-  m = text.match(/LA SUMA DE\s*\$\s*([\d\.]+,\d{2})\s*\+\s*U\$S\s*([\d\.]+,\d{2})/i);
+  m = text.match(/LA SUMA DE\s*\$\s*([\d.]+,\d{2})\s*\+\s*U\$S\s*([\d.]+,\d{2})/i);
   if(m) return { ars: parseArgAmt(m[1]), usd: parseArgAmt(m[2]) };
 
   return null;

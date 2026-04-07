@@ -62,7 +62,7 @@ async function runReportPipeline(options = {}) {
   console.log(`  ✓ PDF generado: ${pdfPath}`);
 
   // 5. Email
-  const result = await sendReportEmail(report, aiInsights, pdfPath, {
+  await sendReportEmail(report, aiInsights, pdfPath, {
     include,
     period,
     previewAttachment: options.previewAttachment || null,
@@ -91,7 +91,7 @@ const server = http.createServer(async (req, res) => {
     req.on('data', chunk => body += chunk.toString());
     req.on('end', async () => {
       let options = {};
-      try { options = JSON.parse(body); } catch(_) {}
+      try { options = JSON.parse(body); } catch {}
 
       try {
         const result = await runReportPipeline(options);
@@ -118,7 +118,8 @@ server.listen(PORT, () => {
 });
 
 server.on('error', err => {
-  if(err.code === 'EADDRINUSE') {
+  const serverError = /** @type {NodeJS.ErrnoException} */ (err);
+  if(serverError.code === 'EADDRINUSE') {
     console.error(`\n✕ Puerto ${PORT} ya está en uso.`);
     console.error(`  Detené el proceso anterior o cambiá PORT= variable de entorno.\n`);
   } else {

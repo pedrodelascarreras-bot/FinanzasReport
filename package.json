@@ -1,0 +1,20 @@
+{
+  "name": "finanzas-app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tooling de validacion para la app de finanzas personales",
+  "scripts": {
+    "build": "node scripts/build-static.mjs",
+    "lint": "eslint js/**/*.js report/*.js",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:report": "npm --prefix report test",
+    "validate": "npm run lint && npm run typecheck && npm run test:report && npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.24.0",
+    "@types/node": "^24.5.2",
+    "eslint": "^9.24.0",
+    "globals": "^16.0.0",
+    "typescript": "^5.9.2"
+  }
+}

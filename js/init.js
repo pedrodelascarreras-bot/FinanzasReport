@@ -1246,10 +1246,10 @@ function getOnboardingChecklist(){
     },
     {
       id:'income',
-      done:!!activeIncome,
-      icon:!!activeIncome ? '✓' : '4',
+      done:Boolean(activeIncome),
+      icon:activeIncome ? '✓' : '4',
       title:'Registrar ingresos base',
-      sub:!!activeIncome ? 'La app ya tiene una base de ingreso para métricas, ahorro y salud financiera.' : 'Necesario para ahorro, score financiero y proyecciones más realistas.',
+      sub:activeIncome ? 'La app ya tiene una base de ingreso para métricas, ahorro y salud financiera.' : 'Necesario para ahorro, score financiero y proyecciones más realistas.',
       action:'Abrir',
       onclick:"nav('income')"
     }

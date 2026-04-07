@@ -33,7 +33,8 @@ function shortDate(iso) {
   return new Date(iso).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' });
 }
 
-async function generatePDF(report, aiInsights, outputPath) {
+async function generatePDF(report, aiInsights, outputPath, options = {}) {
+  void options;
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
       size: 'A4',
@@ -70,7 +71,6 @@ async function generatePDF(report, aiInsights, outputPath) {
     const col3W = (W - COL_GAP * 2) / 3;
 
     y = drawWidgetCard(doc, MX, y, col3W, 68, 'Gasto Semanal', `$${fmtN(report.week.totalARS)}`, `${report.week.txCount} movimientos`, C.accent);
-    const y1 = y;
 
     // Segundo widget: Gasto del Ciclo TC (o gasto mensual si no hay ciclo)
     const ccVal = report.ccCycle ? report.ccCycle.totalARS : report.month.totalARS;

@@ -126,7 +126,7 @@ async function sendReportNow() {
   try {
     const previewBlob = await renderPreviewPdfBlob();
     options.previewAttachment = {
-      filename: `reporte-vista-previa-${String(getRepPeriodLabel() || 'periodo').replace(/[^\w\-]+/g, '_')}.pdf`,
+      filename: `reporte-vista-previa-${String(getRepPeriodLabel() || 'periodo').replace(/[^\w-]+/g, '_')}.pdf`,
       contentBase64: await blobToBase64(previewBlob),
     };
   } catch(err) {
@@ -980,7 +980,7 @@ async function exportRepPDF(){
   try {
     showToast('Generando PDF…', 'info');
     const blob = await renderPreviewPdfBlob();
-    const safeLabel = String(label || 'reporte').replace(/[^\w\-]+/g, '_');
+    const safeLabel = String(label || 'reporte').replace(/[^\w-]+/g, '_');
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

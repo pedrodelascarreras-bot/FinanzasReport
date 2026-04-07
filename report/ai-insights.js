@@ -6,9 +6,6 @@
  */
 
 const Anthropic = require('@anthropic-ai/sdk').default;
-const fs = require('fs');
-const path = require('path');
-
 // Prompt del sistema — separado para fácil edición
 const SYSTEM_PROMPT = `Sos un asesor financiero personal argentino. Tu cliente es una persona joven que trackea sus finanzas personales en pesos argentinos (ARS) y dólares (USD).
 
