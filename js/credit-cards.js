@@ -47,6 +47,7 @@ function ccGetCycleExpenses(cardId, tcCycleId){
   if(!state.ccCards) state.ccCards=[];
   const card=state.ccCards.find(c=>c.id===cardId);
   const pmKey=card?.payMethodKey||null;
+  const genericOwnerId=state.ccActiveCard||state.ccCards.find(c=>c.payMethodKey==='visa')?.id||state.ccCards[0]?.id||null;
   const tcCycles=getTcCycles();
   const idx=tcCycles.findIndex(c=>c.id===tcCycleId);
   if(idx<0)return[];
@@ -61,8 +62,8 @@ function ccGetCycleExpenses(cardId, tcCycleId){
   const txnExpenses=(state.transactions||[]).filter(t=>{
     if(excluded.has(t.id))return false;
     if(pmKey){
-      // Accept: exact card match (visa/amex), OR generic TC ('tc','Tarjeta de Crédito')
-      const _match=t.payMethod===pmKey||_tcGeneric.includes(t.payMethod);
+      // Exact card match always counts. Generic TC tags count only once on the owner card.
+      const _match=t.payMethod===pmKey||(_tcGeneric.includes(t.payMethod)&&cardId===genericOwnerId);
       if(!_match)return false;
     }
     const d=dateToYMD(t.date);
@@ -220,25 +221,7 @@ function renderCcActiveCycle(){
     // No lo pusheamos al state real a menos que se modifique algo (pago, gasto manual, etc) para evitar engrosar el state innecesariamente
   }
 
-  // Rango del ciclo
-  const idx=tcCycles.findIndex(c=>c.id===activeTcCycle.id);
-  const openDate=getTcCycleOpen(tcCycles, idx);
-  
-  // Gastos
-  const pmKey=card?.payMethodKey||null;
-  const excluded=new Set(ccState.excludedIds||[]);
-  const txnExpenses=(state.transactions||[]).filter(t=>{
-    if(excluded.has(t.id))return false;
-    if(pmKey && t.payMethod!==pmKey)return false;
-    const d=dateToYMD(t.date);
-    return d>=openDate && d<=activeTcCycle.closeDate;
-  }).map(t=>({
-    id:t.id, date:dateToYMD(t.date), description:t.description, category:t.category||'Sin categoría',
-    amountARS:t.currency==='ARS'?t.amount:0, amountUSD:t.currency==='USD'?t.amount:0, source:'txn'
-  }));
-
-  const manualExpenses=(ccState.manualExpenses||[]).map(e=>({...e,source:'manual'}));
-  const expenses = [...txnExpenses,...manualExpenses].sort((a,b)=>b.date.localeCompare(a.date));
+  const expenses = ccGetCycleExpenses(cardId, activeTcCycle.id);
   const totals=ccGetTotals(expenses);
   const catSummary=ccGetCatSummary(expenses);
   const isPaid=ccState.status==='paid';

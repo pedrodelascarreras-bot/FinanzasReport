@@ -645,6 +645,7 @@ function renderDashNotifications() {
 
 function renderDashboard(){
   renderDashNotifications();
+  if(typeof ccInit==='function') ccInit();
   const today=new Date();
   const todayYmd=dateToYMD(today);
   const allTcCycles=typeof getTcCycles==='function'?getTcCycles():[];
