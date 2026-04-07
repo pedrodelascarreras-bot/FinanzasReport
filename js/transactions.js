@@ -675,22 +675,27 @@ function renderTransactions(){
     renderTxnCycleCommitmentsPanel(wrap, entries);
 
     const maturedVirtual=entries.filter(e=>e.includeInTotal);
-    const extraARS=maturedVirtual.filter(e=>e.currency!=='USD').reduce((s,e)=>s+e.amount,0);
-    const extraUSD=maturedVirtual.filter(e=>e.currency==='USD').reduce((s,e)=>s+e.amount,0);
-    const actualVisibleTxns=txns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
-    const actualARS=actualVisibleTxns.filter(t=>t.currency!=='USD').reduce((s,t)=>s+t.amount,0);
-    const actualUSD=actualVisibleTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
     if(mainEl && !searchVal){
-      const totalARS=actualARS+extraARS;
-      const totalUSD=actualUSD+extraUSD;
+      let totalARS=0;
+      let totalUSD=0;
+      if(typeof ccGetCycleExpenses==='function' && typeof ccGetTotals==='function'){
+        ccInit();
+        (state.ccCards||[]).forEach(card=>{
+          const totals=ccGetTotals(ccGetCycleExpenses(card.id, activeCycleMeta.cycle.id));
+          totalARS+=totals.ars||0;
+          totalUSD+=totals.usd||0;
+        });
+      } else {
+        const actualVisibleTxns=txns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
+        totalARS=actualVisibleTxns.filter(t=>t.currency!=='USD').reduce((s,t)=>s+t.amount,0);
+        totalUSD=actualVisibleTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+      }
       const grandTotal=totalARS+(totalUSD*USD_TO_ARS);
       mainEl.textContent='$'+fmtN(grandTotal);
       if(arsEl) arsEl.textContent=totalARS>0?'$'+fmtN(totalARS):'—';
       if(usdEl) usdEl.textContent=totalUSD>0?'U$D '+fmtN(totalUSD):'—';
-      const extraCount=maturedVirtual.length;
       if(detailEl){
         const baseParts=[periodoLabel||'Ciclo actual',`Mostrando ${txns.length} de ${state.transactions.length} movimientos`];
-        if(extraCount>0) baseParts.push(`+ ${extraCount} compromiso${extraCount!==1?'s':''} ya imputado${extraCount!==1?'s':''}`);
         if(cfv) baseParts.push(cfv);
         detailEl.textContent=baseParts.join(' · ');
       }

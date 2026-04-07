@@ -10773,3 +10773,28 @@ body.light-mode .sp-simple-close {
     font-size: 14px;
   }
 }
+
+@media (min-width: 769px) {
+  .app {
+    display: block;
+    min-height: 100vh;
+  }
+  .main {
+    margin-left: var(--sidebar-w);
+    width: calc(100% - var(--sidebar-w));
+    min-height: 100vh;
+  }
+  .app.sidebar-collapsed .main {
+    margin-left: 0;
+    width: 100%;
+    padding-left: 44px;
+  }
+  .app.sidebar-collapsed {
+    grid-template-columns: none;
+  }
+  .app.sidebar-collapsed .sidebar {
+    width: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}

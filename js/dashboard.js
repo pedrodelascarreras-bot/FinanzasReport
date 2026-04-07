@@ -1304,6 +1304,12 @@ function renderDashboard(){
   const projEl=document.getElementById('kpi-proj');
   const projD=document.getElementById('kpi-proj-d');
   const projTitle=document.getElementById('kpi-proj-title');
+  const getProjectionColor=value=>{
+    if(!(incTotalARS>0)) return 'var(--text)';
+    if(value>incTotalARS) return 'var(--danger)';
+    if(value>=incTotalARS*0.85) return 'var(--accent3)';
+    return 'var(--green-sys)';
+  };
   if(projEl){
     if(isTcView && activeTcCycle){
       // TC mode: project to cycle close date
@@ -1313,7 +1319,7 @@ function renderDashboard(){
       } else {
         animateNumberText(projEl,projected,{prefix:'$',decimals:2,duration:860});
         const overBudget=incTotalARS>0&&projected>incTotalARS;
-        projEl.style.color=overBudget?'var(--danger)':projected>incTotalARS*0.85?'var(--accent3)':'var(--text)';
+        projEl.style.color=getProjectionColor(projected);
         const closeLabel=projPeriodClose?projPeriodClose.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}):'cierre';
         if(projD)projD.textContent=overBudget?'Exige ajuste antes del '+closeLabel:'Estimación activa hasta '+closeLabel;
         const _dailyEl=document.getElementById('kpi-proj-daily');
@@ -1329,7 +1335,7 @@ function renderDashboard(){
       if(isCurrentMonth){
         animateNumberText(projEl,projected,{prefix:'$',decimals:2,duration:860});
         const overBudget=incTotalARS>0&&projected>incTotalARS;
-        projEl.style.color=overBudget?'var(--danger)':projected>incTotalARS*0.85?'var(--accent3)':'var(--text)';
+        projEl.style.color=getProjectionColor(projected);
         if(projD)projD.textContent=overBudget?'Ritmo alto para este mes':'Ritmo estimado al cierre mensual';
         const _dailyEl2=document.getElementById('kpi-proj-daily');
         if(_dailyEl2)animateNumberText(_dailyEl2,Math.round(dailyRate),{prefix:'$',decimals:2,duration:720});
