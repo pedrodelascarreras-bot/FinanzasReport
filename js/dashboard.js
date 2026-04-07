@@ -1244,7 +1244,16 @@ function renderDashboard(){
     cycleCaption.textContent=dashboardCycleForCards?.label?expandPeriodYearLabel(dashboardCycleForCards.label):'Sin ciclo activo';
   }
   // Hidden compat element
-  const compatCycleTotal=(isTcView?arsMonth:(dashboardCycleForCards&&dashboardCards.length)?dashboardCardsArs:(hasPayTagsWidget?(tcWidgetAmt+debWidgetAmt):_tcWidgetTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0));
+  let compatCycleTotal;
+  if(isTcView){
+    compatCycleTotal=arsMonth;
+  } else if(dashboardCycleForCards&&dashboardCards.length){
+    compatCycleTotal=dashboardCardsArs;
+  } else if(hasPayTagsWidget){
+    compatCycleTotal=tcWidgetAmt+debWidgetAmt;
+  } else {
+    compatCycleTotal=_tcWidgetTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  }
   animateNumberText(document.getElementById('kpi-tc'),compatCycleTotal,{prefix:'$',decimals:2,duration:760});
   // kpi-tc-d removed from HTML
 
