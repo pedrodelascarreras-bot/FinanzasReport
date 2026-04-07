@@ -6012,6 +6012,16 @@ body.ios-scroll-locked {
   gap: 10px;
   margin-top: 12px;
 }
+.gmail-rules-shell-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 6px;
+}
+.gmail-rules-shell-copy {
+  min-width: 0;
+}
 .settings-rule-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -6021,6 +6031,13 @@ body.ios-scroll-locked {
   border-radius: 16px;
   border: 1px solid var(--glass-border);
   background: color-mix(in srgb, var(--surface-solid) 95%, white 5%);
+}
+.gmail-rule-row-rich {
+  align-items: flex-start;
+}
+.gmail-rule-row-rich.is-editing {
+  border-color: color-mix(in srgb, var(--accent) 42%, var(--glass-border));
+  box-shadow: var(--shadow-sm);
 }
 .settings-rule-main {
   min-width: 0;
@@ -6051,6 +6068,31 @@ body.ios-scroll-locked {
   font-size: 10px;
   font-weight: 700;
   color: var(--text2);
+}
+.gmail-rule-summary-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+.gmail-rule-summary-item {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  align-items: start;
+  font-size: 11px;
+  line-height: 1.55;
+  color: var(--text2);
+}
+.gmail-rule-summary-item span:last-child {
+  overflow-wrap: anywhere;
+}
+.gmail-rule-summary-label {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text3);
 }
 .settings-rule-actions {
   display: flex;
@@ -6106,6 +6148,40 @@ body.ios-scroll-locked {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
+.gmail-rule-template-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.gmail-template-btn {
+  cursor: pointer;
+  background: color-mix(in srgb, var(--surface-solid) 94%, white 6%);
+}
+.gmail-rule-step {
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--surface-solid) 96%, white 4%);
+}
+.gmail-rule-step-kicker {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+.gmail-rule-step-title {
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 740;
+  color: var(--text);
+}
+.gmail-rule-step-sub {
+  margin: 6px 0 12px;
+  font-size: 11px;
+  line-height: 1.6;
+  color: var(--text3);
 }
 .onboarding-wizard-shell {
   display: flex;

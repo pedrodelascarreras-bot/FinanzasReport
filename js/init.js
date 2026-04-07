@@ -438,6 +438,65 @@ function ensureGmailImportRules(){
   return state.gmailImportRules;
 }
 
+function formatGmailRuleCardType(cardType){
+  const map = {
+    auto: 'Auto detectar',
+    visa: 'Visa',
+    amex: 'Amex',
+    deb: 'Débito',
+    ef: 'Efectivo'
+  };
+  return map[cardType] || cardType || 'Sin asignar';
+}
+
+function summarizeGmailRule(rule){
+  return {
+    sender: rule.sender ? `Lee correos de ${rule.sender}` : 'Lee correos según la consulta',
+    query: rule.query ? `Filtra por ${rule.query}` : 'Sin filtro extra',
+    assign: `Los asigna a ${rule.bank || 'tu banco'} · ${formatGmailRuleCardType(rule.cardType)}`
+  };
+}
+
+function applyGmailRuleTemplate(templateId){
+  const defaults = getDefaultGmailImportRules()[0];
+  const templates = {
+    'santander-compras': {
+      name:'Santander · Compras',
+      bank:'Santander Río',
+      sender:defaults.sender,
+      query:'subject:Pagaste OR subject:"Tu pago fue anulado"',
+      card:'auto',
+      processor:'santander_email'
+    },
+    'santander-pagos': {
+      name:'Santander · Pago anulado',
+      bank:'Santander Río',
+      sender:defaults.sender,
+      query:'subject:"Tu pago fue anulado"',
+      card:'auto',
+      processor:'santander_email'
+    },
+    custom: {
+      name:'Nueva regla Gmail',
+      bank:'Banco / tarjeta',
+      sender:'',
+      query:'',
+      card:'auto',
+      processor:'santander_email'
+    }
+  };
+  const values = templates[templateId] || templates.custom;
+  const map = {
+    'gmail-rule-name':values.name,
+    'gmail-rule-bank':values.bank,
+    'gmail-rule-sender':values.sender,
+    'gmail-rule-query':values.query,
+    'gmail-rule-card':values.card,
+    'gmail-rule-processor':values.processor
+  };
+  Object.entries(map).forEach(([id,val])=>{ const el=document.getElementById(id); if(el) el.value = val; });
+}
+
 function getActiveGmailImportRules(){
   return ensureGmailImportRules().filter(rule => rule.active !== false);
 }
@@ -1713,23 +1772,41 @@ function renderSettingsPage(){
   `;
 
   const rules = ensureGmailImportRules();
-  rulesEl.innerHTML = rules.map(rule => `
-    <div class="settings-rule-row">
-      <div class="settings-rule-main">
-        <div class="settings-rule-title">${rule.name}</div>
-        <div class="settings-rule-sub">${rule.sender || 'sin remitente'} · ${rule.query || 'sin consulta'} </div>
-        <div class="settings-rule-meta">
-          <span class="settings-rule-chip">${rule.bank || 'Sin banco'}</span>
-          <span class="settings-rule-chip">${rule.cardType==='auto'?'Auto detectar':(rule.cardType||'Sin tarjeta')}</span>
-          <span class="settings-rule-chip">${rule.active!==false?'Activa':'Pausada'}</span>
-        </div>
+  rulesEl.innerHTML = `
+    <div class="gmail-rules-shell-head">
+      <div class="gmail-rules-shell-copy">
+        <div class="settings-rule-title">Reglas activas</div>
+        <div class="settings-rule-sub">Cada regla define qué correos mirar y cómo asignarlos dentro de la app.</div>
       </div>
-      <div class="settings-rule-actions">
-        <button class="dashboard-widget-mini" onclick="toggleGmailRule('${rule.id}')">${rule.active!==false?'Pausar':'Activar'}</button>
-        <button class="dashboard-widget-mini primary" onclick="openGmailRuleManager('${rule.id}')">Editar</button>
+      <div class="settings-module-actions settings-module-actions-tight">
+        <button class="dashboard-widget-mini primary" onclick="openGmailRuleManager()">+ Nueva regla</button>
       </div>
     </div>
-  `).join('');
+    ${rules.map(rule => {
+      const summary = summarizeGmailRule(rule);
+      return `
+        <div class="settings-rule-row gmail-rule-row-rich">
+          <div class="settings-rule-main">
+            <div class="settings-rule-title">${rule.name}</div>
+            <div class="gmail-rule-summary-list">
+              <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Mira</span><span>${summary.sender}</span></div>
+              <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Filtro</span><span>${summary.query}</span></div>
+              <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Asigna</span><span>${summary.assign}</span></div>
+            </div>
+            <div class="settings-rule-meta">
+              <span class="settings-rule-chip">${rule.active!==false?'Activa':'Pausada'}</span>
+              <span class="settings-rule-chip">${rule.bank || 'Sin banco'}</span>
+              <span class="settings-rule-chip">${formatGmailRuleCardType(rule.cardType)}</span>
+            </div>
+          </div>
+          <div class="settings-rule-actions">
+            <button class="dashboard-widget-mini" onclick="toggleGmailRule('${rule.id}')">${rule.active!==false?'Pausar':'Activar'}</button>
+            <button class="dashboard-widget-mini primary" onclick="openGmailRuleManager('${rule.id}')">Editar</button>
+          </div>
+        </div>
+      `;
+    }).join('')}
+  `;
 
   importEl.innerHTML = `
     <div class="settings-method-item">
@@ -2186,47 +2263,37 @@ function resetGmailRuleEditor(){
   const delBtn = document.getElementById('gmail-rule-delete-btn');
   if(idEl) idEl.value = '';
   if(delBtn) delBtn.style.display = 'none';
-  const defaults = getDefaultGmailImportRules()[0];
-  const values = {
-    name:'Nueva regla Gmail',
-    bank:'Banco / tarjeta',
-    sender:defaults.sender,
-    query:defaults.query,
-    card:'auto',
-    processor:'santander_email'
-  };
-  const map = {
-    'gmail-rule-name':values.name,
-    'gmail-rule-bank':values.bank,
-    'gmail-rule-sender':values.sender,
-    'gmail-rule-query':values.query,
-    'gmail-rule-card':values.card,
-    'gmail-rule-processor':values.processor
-  };
-  Object.entries(map).forEach(([id,val])=>{ const el=document.getElementById(id); if(el) el.value = val; });
+  applyGmailRuleTemplate('santander-compras');
 }
 
 function renderGmailRulesModal(editingId){
   const listEl = document.getElementById('gmail-rules-list');
   if(!listEl) return;
   const rules = ensureGmailImportRules();
-  listEl.innerHTML = rules.map(rule => `
-    <div class="settings-rule-row">
-      <div class="settings-rule-main">
-        <div class="settings-rule-title">${rule.name}</div>
-        <div class="settings-rule-sub">${rule.sender || 'sin remitente'} · ${rule.query || 'sin consulta'}</div>
-        <div class="settings-rule-meta">
-          <span class="settings-rule-chip">${rule.bank || 'Sin banco'}</span>
-          <span class="settings-rule-chip">${rule.cardType==='auto'?'Auto detectar':(rule.cardType||'Sin tarjeta')}</span>
-          <span class="settings-rule-chip">${rule.active!==false?'Activa':'Pausada'}</span>
+  listEl.innerHTML = rules.map(rule => {
+    const summary = summarizeGmailRule(rule);
+    return `
+      <div class="settings-rule-row gmail-rule-row-rich ${editingId===rule.id?'is-editing':''}">
+        <div class="settings-rule-main">
+          <div class="settings-rule-title">${rule.name}</div>
+          <div class="gmail-rule-summary-list">
+            <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Mira</span><span>${summary.sender}</span></div>
+            <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Filtro</span><span>${summary.query}</span></div>
+            <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Asigna</span><span>${summary.assign}</span></div>
+          </div>
+          <div class="settings-rule-meta">
+            <span class="settings-rule-chip">${rule.active!==false?'Activa':'Pausada'}</span>
+            <span class="settings-rule-chip">${rule.bank || 'Sin banco'}</span>
+            <span class="settings-rule-chip">${formatGmailRuleCardType(rule.cardType)}</span>
+          </div>
+        </div>
+        <div class="settings-rule-actions">
+          <button class="dashboard-widget-mini" onclick="toggleGmailRule('${rule.id}', true)">${rule.active!==false?'Pausar':'Activar'}</button>
+          <button class="dashboard-widget-mini primary" onclick="openGmailRuleManager('${rule.id}')">${editingId===rule.id?'Editando':'Editar'}</button>
         </div>
       </div>
-      <div class="settings-rule-actions">
-        <button class="dashboard-widget-mini" onclick="toggleGmailRule('${rule.id}', true)">${rule.active!==false?'Pausar':'Activar'}</button>
-        <button class="dashboard-widget-mini primary" onclick="openGmailRuleManager('${rule.id}')">${editingId===rule.id?'Editando':'Editar'}</button>
-      </div>
-    </div>
-  `).join('');
+    `;
+  }).join('');
 }
 
 function openGmailRuleManager(ruleId){

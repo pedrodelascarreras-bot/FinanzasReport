@@ -686,7 +686,7 @@
               <div class="settings-title settings-title-sm">Cuenta y sincronización</div>
               <div class="settings-module-actions settings-module-actions-tight">
                 <button class="btn btn-primary" onclick="openCloudSync(event)">Conectar Google</button>
-                <button class="btn btn-ghost" onclick="openGmailRuleManager()">Reglas Gmail</button>
+                <button class="btn btn-ghost" onclick="openGmailRuleManager()">+ Nueva regla</button>
               </div>
               <div id="settings-gmail-rules-shell" class="settings-rule-list"></div>
             </div>
@@ -2637,50 +2637,71 @@
     <div class="modal-header">
       <div>
         <div class="modal-title">Reglas Gmail</div>
-        <div class="modal-sub">Elegí qué correos mirar y cómo transformarlos en gastos importables.</div>
+        <div class="modal-sub">Elegí qué correos mirar y cómo querés que la app los asigne cuando detecta un gasto.</div>
       </div>
       <button class="modal-close" onclick="closeModal('modal-gmail-rules')">✕</button>
     </div>
     <div class="modal-body modal-stack">
+      <div class="gmail-rule-template-row">
+        <button class="settings-chip gmail-template-btn" onclick="applyGmailRuleTemplate('santander-compras')">Santander compras</button>
+        <button class="settings-chip gmail-template-btn" onclick="applyGmailRuleTemplate('santander-pagos')">Pago anulado</button>
+        <button class="settings-chip gmail-template-btn" onclick="applyGmailRuleTemplate('custom')">Personalizada</button>
+      </div>
       <div id="gmail-rules-list" class="settings-rule-list"></div>
       <div class="settings-rule-editor">
         <input type="hidden" id="gmail-rule-id">
-        <div class="field-grid-2">
-          <div>
-            <label class="field-label-premium">Nombre visible</label>
-            <input id="gmail-rule-name" type="text" class="field-control-premium" placeholder="Santander · Compras">
-          </div>
-          <div>
-            <label class="field-label-premium">Banco o fuente</label>
-            <input id="gmail-rule-bank" type="text" class="field-control-premium" placeholder="Santander Río">
-          </div>
-        </div>
-        <div class="field-grid-2">
-          <div>
-            <label class="field-label-premium">Remitente</label>
-            <input id="gmail-rule-sender" type="text" class="field-control-premium" placeholder="mensajesyavisos@mails.santander.com.ar">
-          </div>
-          <div>
-            <label class="field-label-premium">Consulta Gmail</label>
-            <input id="gmail-rule-query" type="text" class="field-control-premium" placeholder='subject:Pagaste OR subject:"Tu pago fue anulado"'>
+        <div class="gmail-rule-step">
+          <div class="gmail-rule-step-kicker">Paso 1</div>
+          <div class="gmail-rule-step-title">Poné un nombre claro</div>
+          <div class="gmail-rule-step-sub">Este nombre te va a ayudar a reconocer rápido la regla después.</div>
+          <div class="field-grid-2">
+            <div>
+              <label class="field-label-premium">Nombre visible</label>
+              <input id="gmail-rule-name" type="text" class="field-control-premium" placeholder="Santander · Compras Visa">
+            </div>
+            <div>
+              <label class="field-label-premium">Banco o fuente</label>
+              <input id="gmail-rule-bank" type="text" class="field-control-premium" placeholder="Santander Río">
+            </div>
           </div>
         </div>
-        <div class="field-grid-2">
-          <div>
-            <label class="field-label-premium">Tarjeta / medio</label>
-            <select id="gmail-rule-card" class="field-control-premium">
-              <option value="auto">Auto detectar</option>
-              <option value="visa">Visa</option>
-              <option value="amex">Amex</option>
-              <option value="deb">Débito</option>
-              <option value="ef">Efectivo</option>
-            </select>
+        <div class="gmail-rule-step">
+          <div class="gmail-rule-step-kicker">Paso 2</div>
+          <div class="gmail-rule-step-title">Decí qué correos tiene que mirar</div>
+          <div class="gmail-rule-step-sub">Podés filtrar por remitente, por asunto o por las dos cosas al mismo tiempo.</div>
+          <div class="field-grid-2">
+            <div>
+              <label class="field-label-premium">Remitente</label>
+              <input id="gmail-rule-sender" type="text" class="field-control-premium" placeholder="mensajesyavisos@mails.santander.com.ar">
+            </div>
+            <div>
+              <label class="field-label-premium">Frase o asunto</label>
+              <input id="gmail-rule-query" type="text" class="field-control-premium" placeholder='subject:Pagaste OR subject:"Tu pago fue anulado"'>
+            </div>
           </div>
-          <div>
-            <label class="field-label-premium">Procesador</label>
-            <select id="gmail-rule-processor" class="field-control-premium">
-              <option value="santander_email">Email Santander</option>
-            </select>
+          <div class="settings-inline-note">Si todos los avisos vienen del mismo correo, con el remitente solo ya alcanza. Si querés afinarlo, sumá una frase del asunto.</div>
+        </div>
+        <div class="gmail-rule-step">
+          <div class="gmail-rule-step-kicker">Paso 3</div>
+          <div class="gmail-rule-step-title">Elegí cómo se asigna</div>
+          <div class="gmail-rule-step-sub">Esto ayuda a que el gasto entre mejor clasificado cuando lo importás.</div>
+          <div class="field-grid-2">
+            <div>
+              <label class="field-label-premium">Tarjeta / medio</label>
+              <select id="gmail-rule-card" class="field-control-premium">
+                <option value="auto">Auto detectar</option>
+                <option value="visa">Visa</option>
+                <option value="amex">Amex</option>
+                <option value="deb">Débito</option>
+                <option value="ef">Efectivo</option>
+              </select>
+            </div>
+            <div>
+              <label class="field-label-premium">Procesador</label>
+              <select id="gmail-rule-processor" class="field-control-premium">
+                <option value="santander_email">Email Santander</option>
+              </select>
+            </div>
           </div>
         </div>
       </div>
