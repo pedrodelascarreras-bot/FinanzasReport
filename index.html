@@ -169,47 +169,20 @@
       <div id="dash-notifications" class="dash-notif-container dash-side-rail" style="display:none;"></div>
 
       <div class="dash-hero-main-col">
-        <!-- Card principal: gasto del mes -->
-        <div class="dash-hero-card dash-hero-clickable" onclick="nav('transactions')" title="Ver detalle de gastos">
-          <div class="dhc-eyebrow">GASTO TOTAL · <span id="dhc-month-label">—</span></div>
-          <div class="dhc-main">
-            <div class="dhc-amount" id="kpi-ars">—</div>
-            <span id="dhc-pct-inline" class="metric-inline"></span>
+        <!-- Card principal: bienvenida simple -->
+        <div class="dash-hero-card dash-hero-welcome-card">
+          <div class="dash-welcome-shell">
+            <div class="dash-welcome-kicker">INICIO DE HOY</div>
+            <div class="dash-welcome-title" id="dash-welcome-greeting">Buenos días, Pedro</div>
+            <div class="dash-welcome-date" id="dash-welcome-date">martes, 7 de abril de 2026</div>
+            <div class="dash-welcome-cycle" id="dash-welcome-cycle">Faltan 0 días para el cierre de tu tarjeta</div>
           </div>
-          <!-- 3 inner cards: ARS · USD · Margen -->
-          <div id="dhc-inner-grid" class="hero-inner-grid">
-            <!-- ARS card -->
-            <div class="hero-mini-card">
-              <div class="hero-mini-card-title">GASTO ARS</div>
-              <div class="hero-mini-card-value" id="dhc-ars-line">—</div>
+          <div class="dash-google-banner" id="dash-google-banner">
+            <div class="dash-google-banner-copy">
+              <div class="dash-google-banner-title" id="dash-google-banner-title">Conectá Google</div>
+              <div class="dash-google-banner-sub" id="dash-google-banner-sub">Sincronizá la app para usar los mismos datos en todos tus dispositivos.</div>
             </div>
-            <!-- USD card -->
-            <div class="hero-mini-card">
-              <div class="hero-mini-card-title">GASTO USD</div>
-              <div class="hero-mini-card-value accent" id="dhc-usd-line">—</div>
-            </div>
-            <!-- Margen card (spans 2 cols) -->
-            <div id="dhc-margin-section" class="hero-wide-card clickable" style="display:none;" onclick="nav('income')" title="Ver ingresos y configuración">
-              <div class="hero-wide-card-header">
-                <span class="hero-wide-card-title">MARGEN DISPONIBLE</span>
-                <span id="dhc-margin-val" class="hero-wide-card-value"></span>
-              </div>
-              <div class="hero-progress">
-                <div id="dhc-margin-fill" class="hero-progress-fill"></div>
-              </div>
-              <div class="hero-wide-card-footer table-subtle">
-                <span id="dhc-margin-sub"></span>
-                <span id="dhc-margin-ingreso"></span>
-              </div>
-            </div>
-            <!-- Payment method breakdown (spans 2 cols) -->
-            <div id="dhc-pay-method-section" class="hero-wide-card" style="display:none;">
-              <div class="hero-wide-card-title">MEDIOS DE PAGO</div>
-              <!-- Stacked bar -->
-              <div class="hero-pay-bar" id="dhc-pay-bar"></div>
-              <!-- Labels -->
-              <div id="dhc-pay-labels" class="hero-pay-labels"></div>
-            </div>
+            <button class="btn btn-primary dash-google-banner-btn" id="dash-google-banner-btn" onclick="openCloudSync(event)">Conectar Google</button>
           </div>
         </div>
         <div class="fade-up d2 dash-utility-grid" id="dash-utility-grid" data-layout-group="dashboard-utility">
@@ -290,6 +263,11 @@
 
       <!-- Hidden elements for JS compatibility -->
       <div style="display:none;">
+        <span id="dhc-month-label"></span>
+        <span id="kpi-ars"></span>
+        <span id="dhc-pct-inline"></span>
+        <span id="dhc-ars-line"></span>
+        <span id="dhc-usd-line"></span>
         <div id="dhc-pct-badge"></div>
         <div id="kpi-ars-d"></div>
         <span id="kpi-total-ars"></span>
@@ -304,6 +282,14 @@
         <div id="dhc-bal-result"></div>
         <div id="dhc-progress-fill"></div>
         <div id="dhc-progress-label"></div>
+        <div id="dhc-margin-section"></div>
+        <span id="dhc-margin-val"></span>
+        <div id="dhc-margin-fill"></div>
+        <span id="dhc-margin-sub"></span>
+        <span id="dhc-margin-ingreso"></span>
+        <div id="dhc-pay-method-section"></div>
+        <div id="dhc-pay-bar"></div>
+        <div id="dhc-pay-labels"></div>
       </div>
 
       <!-- 3 KPI cards secundarias -->

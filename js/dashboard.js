@@ -646,6 +646,12 @@ function renderDashNotifications() {
 function renderDashboard(){
   renderDashNotifications();
   const today=new Date();
+  const todayYmd=dateToYMD(today);
+  const allTcCycles=typeof getTcCycles==='function'?getTcCycles():[];
+  const currentTcCycle=allTcCycles.find((c,i)=>{
+    const open=getTcCycleOpen(allTcCycles,i);
+    return open&&todayYmd>=open&&todayYmd<=c.closeDate;
+  })||allTcCycles[0]||null;
   // Always default to real current month if state is empty or has an old stale value
   let activeMk = getActiveDashMonth();
   if(!activeMk) activeMk = getMonthKey(new Date());
@@ -812,23 +818,51 @@ function renderDashboard(){
   const debMonth=monthTxns.filter(t=>t.currency==='ARS'&&t.payMethod==='deb').reduce((s,t)=>s+t.amount,0);
   const hasPayTags=monthTxns.some(t=>t.payMethod);
 
-  // ── Widget Tarjeta: SIEMPRE usa el ciclo TC activo (independiente del modo) ──
+  // ── Widget Tarjeta: usa el mismo ciclo activo del dashboard en vista TC, o el actual como fallback ──
   const _tcCycles=getTcCycles();
+  const dashboardCycleForCards=(isTcView&&activeTcCycle)?activeTcCycle:currentTcCycle;
   let _tcWidgetTxns=monthTxns; // fallback: mismo período
-  if(_tcCycles.length){
-    const _activeTc=_tcCycles.find(c=>{
-      const _i=_tcCycles.findIndex(x=>x.id===c.id);
-      const _op=getTcCycleOpen(_tcCycles,_i);
-      const _today=dateToYMD(new Date());
-      return _op&&_today>=_op&&_today<=c.closeDate;
-    })||_tcCycles[0];
-    _tcWidgetTxns=getTcCycleTxns(_activeTc,_tcCycles);
+  if(dashboardCycleForCards){
+    _tcWidgetTxns=getTcCycleTxns(dashboardCycleForCards,_tcCycles);
   }
   // TC widget: incluir VISA, AMEX, y 'tc' (todos son cargos de tarjeta de crédito)
   const _isCCCharge=(t)=>t.payMethod==='tc'||t.payMethod==='visa'||t.payMethod==='amex'||(!t.payMethod&&!t.isPendingCuota);
   const tcWidgetAmt=_tcWidgetTxns.filter(t=>t.currency==='ARS'&&_isCCCharge(t)&&!t.isPendingCuota).reduce((s,t)=>s+t.amount,0);
   const debWidgetAmt=_tcWidgetTxns.filter(t=>t.currency==='ARS'&&t.payMethod==='deb').reduce((s,t)=>s+t.amount,0);
   const hasPayTagsWidget=_tcWidgetTxns.some(t=>t.payMethod);
+
+  const dashboardCardTotals={};
+  let dashboardCardsArs=0;
+  let dashboardCardsUsd=0;
+  let dashboardCardsCount=0;
+  const dashboardCards=(state.ccCards||[]);
+  if(dashboardCycleForCards&&dashboardCards.length){
+    const cycleId=dashboardCycleForCards.id;
+    dashboardCards.forEach(card=>{
+      const pmKey=card?.payMethodKey||null;
+      const ccState=(state.ccCycles||[]).find(c=>c.cardId===card.id&&c.tcCycleId===cycleId);
+      const excluded=new Set(ccState?.excludedIds||[]);
+      const expenses=(state.transactions||[]).filter(t=>{
+        if(excluded.has(t.id)) return false;
+        if(t.isPendingCuota||t.isPendingSubscription) return false;
+        if(pmKey&&t.payMethod!==pmKey) return false;
+        const d=dateToYMD(t.date);
+        return d>=getTcCycleOpen(_tcCycles,_tcCycles.findIndex(c=>c.id===cycleId))&&d<=dashboardCycleForCards.closeDate;
+      });
+      const ars=expenses.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0)+(ccState?.manualExpenses||[]).reduce((s,e)=>s+(e.amountARS||0),0);
+      const usd=expenses.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0)+(ccState?.manualExpenses||[]).reduce((s,e)=>s+(e.amountUSD||0),0);
+      const count=expenses.length+((ccState?.manualExpenses||[]).length||0);
+      dashboardCardTotals[card.payMethodKey||card.id]={ars,usd,count};
+      dashboardCardsArs+=ars;
+      dashboardCardsUsd+=usd;
+      dashboardCardsCount+=count;
+    });
+  }
+  if(isTcView&&dashboardCycleForCards&&dashboardCards.length){
+    arsMonth=dashboardCardsArs;
+    usdMonth=dashboardCardsUsd;
+    cntMonth=dashboardCardsCount;
+  }
 
   // ── Ingresos ──
   // Priority: 1) income month linked to active TC cycle open month  2) exact active month
@@ -1028,19 +1062,16 @@ function renderDashboard(){
   // ── Selector y fecha ──
   updateMonthPicker();
   const MNAMES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const _spendLabel = totalGastoARS>0 ? ' · $'+fmtN(totalGastoARS)+' gastados' : '';
   document.getElementById('dash-date').textContent=isTcView
     ?tcPeriodLabel
     :(isCurrentMonth
-      ?today.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+_spendLabel
-      :MNAMES[pM-1]+' '+pY+' · mes cerrado'+_spendLabel);
+      ?today.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})
+      :MNAMES[pM-1]+' '+pY+' · mes cerrado');
 
   // ── Título dinámico del dashboard ──
   const _titleEl=document.getElementById('dash-page-title');
   if(_titleEl){
-    const _h=today.getHours();
-    const _greeting=_h<12?'Buenos días':_h<20?'Buenas tardes':'Buenas noches';
-    _titleEl.textContent=_greeting+', '+(state.userName||'Pedro');
+    _titleEl.textContent='Inicio';
   }
   const timelineData=getDashboardTimelineData(today);
   const backupHealth=getBackupHealth(today);
@@ -1119,6 +1150,43 @@ function renderDashboard(){
 
 
   // ── Hero ──
+  const userName=(state.userName||'Pedro').trim()||'Pedro';
+  const currentHour=today.getHours();
+  const heroGreeting=currentHour<12?'Buenos días':currentHour<20?'Buenas tardes':'Buenas noches';
+  const welcomeGreetingEl=document.getElementById('dash-welcome-greeting');
+  if(welcomeGreetingEl) welcomeGreetingEl.textContent=`${heroGreeting}, ${userName}`;
+  const welcomeDateEl=document.getElementById('dash-welcome-date');
+  if(welcomeDateEl){
+    const rawDate=today.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
+    const prettyDate=rawDate.charAt(0).toUpperCase()+rawDate.slice(1);
+    welcomeDateEl.textContent=prettyDate;
+  }
+  const welcomeCycleEl=document.getElementById('dash-welcome-cycle');
+  if(welcomeCycleEl){
+    if(currentTcCycle?.closeDate){
+      const closeDate=new Date(currentTcCycle.closeDate+'T12:00:00');
+      const daysToClose=Math.max(0,Math.round((closeDate-today)/86400000));
+      const closeLabel=closeDate.toLocaleDateString('es-AR',{day:'numeric',month:'long'});
+      let cycleCopy='';
+      if(daysToClose===0) cycleCopy=`Tu tarjeta cierra hoy, ${closeLabel}.`;
+      else if(daysToClose===1) cycleCopy=`Falta 1 día para el cierre de tu tarjeta, el ${closeLabel}.`;
+      else cycleCopy=`Faltan ${daysToClose} días para el cierre de tu tarjeta, el ${closeLabel}.`;
+      welcomeCycleEl.textContent=cycleCopy;
+    } else {
+      welcomeCycleEl.textContent='Agregá el cierre de tu tarjeta para verlo acá todos los días.';
+    }
+  }
+  const googleTitleEl=document.getElementById('dash-google-banner-title');
+  const googleSubEl=document.getElementById('dash-google-banner-sub');
+  const googleBtnEl=document.getElementById('dash-google-banner-btn');
+  const googleConnected=typeof isGoogleConnected==='function'&&isGoogleConnected();
+  if(googleTitleEl) googleTitleEl.textContent=googleConnected?'Google ya está conectado':'Conectá Google';
+  if(googleSubEl){
+    googleSubEl.textContent=googleConnected
+      ?'Tu cuenta está lista para seguir sincronizando movimientos y respaldos.'
+      :'Sincronizá la app para usar los mismos datos en todos tus dispositivos.';
+  }
+  if(googleBtnEl) googleBtnEl.textContent=googleConnected?'Revisar conexión':'Conectar Google';
   const dhcML=document.getElementById('dhc-month-label');
   if(dhcML)dhcML.textContent=isTcView&&activeTcCycle?expandPeriodYearLabel(activeTcCycle.label||'').toUpperCase():(MNAMES[pM-1]+' '+pY).toUpperCase();
   animateNumberText(document.getElementById('kpi-ars'),totalGastoARS,{prefix:'$',decimals:2,duration:920});
@@ -1251,37 +1319,13 @@ function renderDashboard(){
     if(pLabel)pLabel.textContent=pct+'% usado del ingreso · meta: '+state.alertThreshold+'%';
   } else if(pFill){pFill.style.width='0%';}
 
-  // ── KPI: Tarjeta — split VISA / AMEX usando el tcCycle que contiene HOY (siempre período actual) ──
+  // ── KPI: Tarjeta — split VISA / AMEX usando el mismo ciclo que está activo en el dashboard ──
   ccInit();
   const _ccCards=state.ccCards||[];
-  const _allTcCyc=getTcCycles();
-  const _todayStr=dateToYMD(new Date());
-  // Encontrar el ciclo TC que contiene hoy (independiente de la vista seleccionada)
-  let _currentTcCyc=null;
-  if(_allTcCyc.length){
-    _currentTcCyc=_allTcCyc.find((c,i)=>{
-      const op=getTcCycleOpen(_allTcCyc,i);
-      return op&&_todayStr>=op&&_todayStr<=c.closeDate;
-    })||_allTcCyc[0];
-  }
   _ccCards.forEach(card=>{
-    let cardArs=0,cardUsd=0;
-    if(_currentTcCyc){
-      const _idx=_allTcCyc.findIndex(c=>c.id===_currentTcCyc.id);
-      const _openDate=getTcCycleOpen(_allTcCyc,_idx);
-      const pmKey=card.payMethodKey||null;
-      const ccState=(state.ccCycles||[]).find(c=>c.cardId===card.id&&c.tcCycleId===_currentTcCyc.id);
-      const excluded=new Set(ccState?.excludedIds||[]);
-      const expenses=(state.transactions||[]).filter(t=>{
-        if(excluded.has(t.id))return false;
-        if(pmKey&&t.payMethod!==pmKey)return false;
-        const d=dateToYMD(t.date);
-        return d>=_openDate&&d<=_currentTcCyc.closeDate;
-      });
-      cardArs=expenses.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-      cardUsd=expenses.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-      (ccState?.manualExpenses||[]).forEach(e=>{cardArs+=e.amountARS||0;cardUsd+=e.amountUSD||0;});
-    }
+    const cardTotals=dashboardCardTotals[card.payMethodKey||card.id]||{ars:0,usd:0};
+    const cardArs=cardTotals.ars||0;
+    const cardUsd=cardTotals.usd||0;
     const prefix=card.payMethodKey==='visa'?'visa':'amex';
     const arsEl=document.getElementById('kpi-'+prefix+'-ars');
     const usdEl=document.getElementById('kpi-'+prefix+'-usd');
@@ -1296,10 +1340,11 @@ function renderDashboard(){
   });
   const cycleCaption=document.getElementById('kpi-cycle-caption');
   if(cycleCaption){
-    cycleCaption.textContent=_currentTcCyc?.label?expandPeriodYearLabel(_currentTcCyc.label):'Sin ciclo activo';
+    cycleCaption.textContent=dashboardCycleForCards?.label?expandPeriodYearLabel(dashboardCycleForCards.label):'Sin ciclo activo';
   }
   // Hidden compat element
-  animateNumberText(document.getElementById('kpi-tc'),hasPayTagsWidget?(tcWidgetAmt+debWidgetAmt):_tcWidgetTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0),{prefix:'$',decimals:2,duration:760});
+  const compatCycleTotal=(dashboardCycleForCards&&dashboardCards.length)?dashboardCardsArs:(hasPayTagsWidget?(tcWidgetAmt+debWidgetAmt):_tcWidgetTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0));
+  animateNumberText(document.getElementById('kpi-tc'),compatCycleTotal,{prefix:'$',decimals:2,duration:760});
   // kpi-tc-d removed from HTML
 
   // ── KPI: Proyección ──
