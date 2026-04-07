@@ -726,6 +726,19 @@ function renderDashboard(){
     const ymd=dateToYMD(value);
     return !!ymd && ymd<=_todayYmd;
   };
+  const _getRecurringDatesInRange=(day,start,end)=>{
+    if(!day||!start||!end) return [];
+    const dates=[];
+    const cursor=new Date(start.getFullYear(), start.getMonth(), 1);
+    const limit=new Date(end.getFullYear(), end.getMonth(), 1);
+    while(cursor<=limit){
+      const maxDay=new Date(cursor.getFullYear(), cursor.getMonth()+1, 0).getDate();
+      const date=new Date(cursor.getFullYear(), cursor.getMonth(), Math.min(day, maxDay));
+      if(date>=start&&date<=end) dates.push(date);
+      cursor.setMonth(cursor.getMonth()+1);
+    }
+    return dates;
+  };
   const isCountableCycleExpense=expense=>{
     if(!expense) return false;
     if(!expense.isPendingCuota && !expense.isPendingSubscription) return true;
@@ -738,22 +751,70 @@ function renderDashboard(){
   let syntheticARS=0;
   let syntheticUSD=0;
   let syntheticCount=0;
+  const getSyntheticCycleTotals=cycle=>{
+    if(!cycle) return {ars:0,usd:0,count:0};
+    const totals={ars:0,usd:0,count:0};
+    const openDateValue=getTcCycleOpen(getTcCycles(), getTcCycles().findIndex(c=>c.id===cycle.id))||cycle.closeDate;
+    const openDate=new Date(openDateValue+'T00:00:00');
+    const closeDate=new Date(cycle.closeDate+'T23:59:59');
+    const extraKeys=new Set();
+    const add=(key,currency,amount)=>{
+      if(!key||extraKeys.has(key)) return;
+      extraKeys.add(key);
+      if((currency||'ARS')==='USD') totals.usd+=Number(amount)||0;
+      else totals.ars+=Number(amount)||0;
+      totals.count++;
+    };
+    (state.transactions||[]).filter(t=>(t.isPendingCuota||t.isPendingSubscription)).forEach(t=>{
+      if(!_hasReachedChargeDate(t.date)) return;
+      const d=new Date(String(t.date).includes('T')?t.date:(String(t.date)+'T12:00:00'));
+      if(d<openDate||d>closeDate) return;
+      if(t.isPendingSubscription && t.sourceSubscriptionId){
+        const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
+        const monthKey=getMonthKey(t.date);
+        if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
+      }
+      const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
+      add(key,t.currency,t.amount);
+    });
+    if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
+      detectAutoCuotas().forEach(g=>{
+        const snap=getAutoCuotaSnapshot(g, new Date(Math.min(today.getTime(), closeDate.getTime())));
+        if(!snap || snap.rem<=0) return;
+        const dueDay=snap.cfg?.day||snap.scheduleDay||null;
+        if(!dueDay) return;
+        _getRecurringDatesInRange(dueDay,openDate,closeDate).forEach(dueDate=>{
+          if(!_hasReachedChargeDate(dueDate)) return;
+          add(`auto-${g.key}-${dateToYMD(dueDate)}`,'ARS',snap.amountPerCuota);
+        });
+      });
+    }
+    (state.cuotas||[]).forEach(c=>{
+      if(c.paid>=c.total||!c.day) return;
+      _getRecurringDatesInRange(c.day,openDate,closeDate).forEach(dueDate=>{
+        if(!_hasReachedChargeDate(dueDate)) return;
+        add(`manual-${c.id}-${dateToYMD(dueDate)}`,'ARS',c.amount);
+      });
+    });
+    (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
+      _getRecurringDatesInRange(s.day,openDate,closeDate).forEach(dueDate=>{
+        if(!_hasReachedChargeDate(dueDate)) return;
+        const monthKey=getMonthKey(dueDate);
+        if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
+        add(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,s.currency||'ARS',s.price);
+      });
+    });
+    (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
+      _getRecurringDatesInRange(f.day,openDate,closeDate).forEach(dueDate=>{
+        if(!_hasReachedChargeDate(dueDate)) return;
+        add(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,f.currency||'ARS',f.amount);
+      });
+    });
+    return totals;
+  };
   if(_tcModeActive){
     const _openDate=new Date((getTcCycleOpen(getTcCycles(), getTcCycles().findIndex(c=>c.id===activeTcCycle.id))||activeTcCycle.closeDate)+'T00:00:00');
     const _closeDate=new Date(activeTcCycle.closeDate+'T23:59:59');
-    const _getRecurringDatesInRange=(day,start,end)=>{
-      if(!day||!start||!end) return [];
-      const dates=[];
-      const cursor=new Date(start.getFullYear(), start.getMonth(), 1);
-      const limit=new Date(end.getFullYear(), end.getMonth(), 1);
-      while(cursor<=limit){
-        const maxDay=new Date(cursor.getFullYear(), cursor.getMonth()+1, 0).getDate();
-        const date=new Date(cursor.getFullYear(), cursor.getMonth(), Math.min(day, maxDay));
-        if(date>=start&&date<=end) dates.push(date);
-        cursor.setMonth(cursor.getMonth()+1);
-      }
-      return dates;
-    };
     let extraARS=0;
     let extraUSD=0;
     let extraCount=0;
@@ -863,16 +924,21 @@ function renderDashboard(){
       dashboardCardsCount+=totals.count||0;
     });
   }
-  if(isTcView&&dashboardCycleForCards&&dashboardCards.length){
+  const widgetSyntheticTotals=(dashboardCycleForCards&&dashboardCards.length)
+    ? ((_tcModeActive&&activeTcCycle&&dashboardCycleForCards.id===activeTcCycle.id)
+        ? {ars:syntheticARS,usd:syntheticUSD,count:syntheticCount}
+        : getSyntheticCycleTotals(dashboardCycleForCards))
+    : {ars:0,usd:0,count:0};
+  if(dashboardCycleForCards&&dashboardCards.length){
     const cycleOwnerCardId=state.ccActiveCard||dashboardCards.find(c=>c.payMethodKey==='visa')?.id||dashboardCards[0]?.id||null;
     const cycleOwnerCard=dashboardCards.find(c=>c.id===cycleOwnerCardId)||dashboardCards[0]||null;
     const cycleOwnerKey=cycleOwnerCard?.payMethodKey||cycleOwnerCard?.id||null;
     if(cycleOwnerKey){
       const ownerTotals=dashboardCardDisplayTotals[cycleOwnerKey]||{ars:0,usd:0,count:0};
       dashboardCardDisplayTotals[cycleOwnerKey]={
-        ars:(ownerTotals.ars||0)+syntheticARS,
-        usd:(ownerTotals.usd||0)+syntheticUSD,
-        count:(ownerTotals.count||0)+syntheticCount
+        ars:(ownerTotals.ars||0)+widgetSyntheticTotals.ars,
+        usd:(ownerTotals.usd||0)+widgetSyntheticTotals.usd,
+        count:(ownerTotals.count||0)+widgetSyntheticTotals.count
       };
     }
   }
