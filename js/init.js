@@ -323,7 +323,9 @@ function importBackupJSON(event){
       if(!data._backup){showToast('⚠️ Archivo no válido','error');return;}
       if(!confirm('¿Restaurar backup del '+new Date(data._date).toLocaleDateString('es-AR')+'? Se reemplazarán todos los datos actuales.')){return;}
       localStorage.setItem('fin_state',JSON.stringify(data.state));
-      loadState();refreshAll();
+      loadState();
+      saveState();
+      refreshAll();
       showToast('✓ Backup restaurado correctamente','success');
     }catch(err){showToast('Error al restaurar backup','error');console.error(err);}
   };

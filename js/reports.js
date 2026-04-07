@@ -4,11 +4,15 @@ const MNAMES_R=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto
 // ── Email Report ──────────────────────────────────────────────────────────────
 // URL del servidor de reportes:
 // prioridad: state -> localStorage -> Render -> localhost
+const DEFAULT_REPORT_SERVER_URL =
+  (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? `http://${window.location.hostname || 'localhost'}:3001`
+    : 'https://finanzas-report-server.onrender.com';
+
 const REPORT_SERVER_URL = String(
   state.reportServerUrl
   || localStorage.getItem('fin_report_server_url')
-  || 'https://finanzas-report-server.onrender.com'
-  || 'http://localhost:3001'
+  || DEFAULT_REPORT_SERVER_URL
 ).replace(/\/+$/,'');
 
 if(!state.reportServerUrl) state.reportServerUrl = REPORT_SERVER_URL;
@@ -1085,12 +1089,29 @@ function clearAllData(){
   state.savDeposits=[];
   state.tcConfig={cardName:'',closeDay:0,dueDay:0,limit:0,mixTarget:70};
   state.tcCycles=[];
+  state.ccCards=[];
+  state.ccCycles=[];
+  state.ccActiveCard=null;
   state.dashTcCycle=null;
   state.dashView='mes';
   state.dashMonth=null;
   state.catRules=[];
   state.catHistory={};
   state.txnEstadoFilter='all';
+  state.txnCardFilter='';
+  state.gmailImportRules=[];
+  state.bankProfiles=[];
+  state.importConfig={};
+  state.automationPrefs={};
+  state.userProfiles=[];
+  state.activeUserProfileId=null;
+  state.profileTemplate='personal';
+  state.onboardingState={};
+  state.lastGmailSync=null;
+  state.dismissedNotifs=[];
+  state.decisionCenterCollapsed=false;
+  state.dismissedAutoCuotas=[];
+  state.userName='Pedro';
   saveState();
   renderImportHistory();
   updateSidebarStats();
@@ -1182,7 +1203,7 @@ function exportarCSV() {
     t.amount || 0,
     t.currency || 'ARS',
     (t.category || '').replace(/"/g,'""'),
-    (t.method || '').replace(/"/g,'""'),
+    (t.payMethod || '').replace(/"/g,'""'),
     t.estado_revision || '',
     t.origen_del_movimiento || ''
   ]);

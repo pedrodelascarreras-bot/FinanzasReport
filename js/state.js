@@ -137,6 +137,18 @@ function scheduleDriveSave(snapshot){
   driveSaveTimer = setTimeout(()=>saveToDrive(snapshot), 1500);
 }
 
+async function readGoogleResponse(res, fallbackMessage){
+  let data = null;
+  try { data = await res.json(); } catch(_) {}
+  if(!res.ok){
+    const msg = data?.error?.message || fallbackMessage || `Google API error (${res.status})`;
+    const err = new Error(msg);
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+
 async function saveToDrive(snapshot){
   if(!driveAccessToken) return;
   try{
@@ -150,11 +162,12 @@ async function saveToDrive(snapshot){
 
     if(driveFileId){
       // Update existing file
-      await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,{
+      const res = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${driveFileId}?uploadType=media`,{
         method:'PATCH',
         headers:{'Authorization':'Bearer '+driveAccessToken,'Content-Type':'application/json'},
         body: content
       });
+      if(!res.ok) await readGoogleResponse(res, 'No se pudo actualizar el archivo principal en Drive');
     } else {
       // Create new file in appDataFolder
       const meta = {name:DRIVE_FILE_NAME, parents:['appDataFolder']};
@@ -166,7 +179,8 @@ async function saveToDrive(snapshot){
         headers:{'Authorization':'Bearer '+driveAccessToken},
         body: form
       });
-      const data = await res.json();
+      const data = await readGoogleResponse(res, 'No se pudo crear el archivo principal en Drive');
+      if(!data?.id) throw new Error('Google Drive no devolvió un ID para el archivo principal');
       driveFileId = data.id;
     }
     // Update Drive indicator silently
@@ -175,7 +189,7 @@ async function saveToDrive(snapshot){
     saveToDrivePublic(snapshot).catch(e=>console.warn('Public sync error:',e));
   }catch(e){
     console.warn('Drive save error:',e);
-    if(e.message&&e.message.includes('401')){ driveAccessToken=null; driveReady=false; }
+    if(e.status===401 || e.status===403){ driveAccessToken=null; driveReady=false; }
   }
 }
 
@@ -184,7 +198,7 @@ async function findDriveFile(){
     const res = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27${DRIVE_FILE_NAME}%27&fields=files(id)`,{
       headers:{'Authorization':'Bearer '+driveAccessToken}
     });
-    const data = await res.json();
+    const data = await readGoogleResponse(res, 'No se pudo consultar el archivo principal en Drive');
     return data.files&&data.files.length ? data.files[0].id : null;
   }catch(e){ return null; }
 }
@@ -198,15 +212,16 @@ async function saveToDrivePublic(snapshot){
       const res = await fetch('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id)',{
         headers:{'Authorization':'Bearer '+driveAccessToken}
       });
-      const data = await res.json();
+      const data = await readGoogleResponse(res, 'No se pudo consultar la copia pública en Drive');
       if(data.files && data.files.length) drivePublicFileId = data.files[0].id;
     }
     if(drivePublicFileId){
-      await fetch('https://www.googleapis.com/upload/drive/v3/files/'+drivePublicFileId+'?uploadType=media',{
+      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files/'+drivePublicFileId+'?uploadType=media',{
         method:'PATCH',
         headers:{'Authorization':'Bearer '+driveAccessToken,'Content-Type':'application/json'},
         body: content
       });
+      if(!res.ok) await readGoogleResponse(res, 'No se pudo actualizar la copia pública en Drive');
     } else {
       const meta = {name:DRIVE_PUBLIC_FILE_NAME};
       const form = new FormData();
@@ -217,10 +232,14 @@ async function saveToDrivePublic(snapshot){
         headers:{'Authorization':'Bearer '+driveAccessToken},
         body: form
       });
-      const data = await res.json();
+      const data = await readGoogleResponse(res, 'No se pudo crear la copia pública en Drive');
+      if(!data?.id) throw new Error('Google Drive no devolvió un ID para la copia pública');
       drivePublicFileId = data.id;
     }
-  }catch(e){ console.warn('Error guardando copia publica en Drive:',e); }
+  }catch(e){
+    console.warn('Error guardando copia publica en Drive:',e);
+    if(e.status===401 || e.status===403){ driveAccessToken=null; driveReady=false; }
+  }
 }
 
 async function loadFromDrive(){
@@ -297,7 +316,7 @@ async function loadFromDrive(){
     state.transactions.forEach(t=>{if(t.payMethod&&_pmMig[t.payMethod])t.payMethod=_pmMig[t.payMethod];});
     // Also persist to localStorage
     try{
-      localStorage.setItem('fin_state',JSON.stringify(s));
+      localStorage.setItem('fin_state',JSON.stringify(getStateSnapshot()));
       if(state.gmailClientId) localStorage.setItem('fin_gmail_client_id', state.gmailClientId);
     }catch(e){}
     if(typeof ensureActiveUserProfileBootstrap === 'function'){

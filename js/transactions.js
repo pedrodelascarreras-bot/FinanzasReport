@@ -1349,7 +1349,7 @@ function openNewExpenseModal(){
   document.getElementById('ne-desc').value='';
   document.getElementById('ne-date').value=new Date().toISOString().split('T')[0];
   document.getElementById('ne-amount').value='';
-  document.getElementById('ne-method').value='Efectivo';
+  document.getElementById('ne-method').value='ef';
   const catSel=document.getElementById('ne-cat');
   let opts='';CATEGORY_GROUPS.forEach(g=>{opts+='<optgroup label="'+g.group+'">';g.subs.forEach(s=>{opts+='<option value="'+s+'">'+s+'</option>';});opts+='</optgroup>';});
   catSel.innerHTML=opts;
@@ -1365,11 +1365,12 @@ function saveNewExpense(){
   if(!desc){showToast('Ingresa una descripcion','error');return;}
   if(!dateVal){showToast('Ingresa una fecha','error');return;}
   if(!amountVal||amountVal<=0){showToast('Ingresa un monto valido','error');return;}
-  const currency=method==='USD'?'USD':'ARS';
+  const payMethodMap={ef:'ef',deb:'deb',tc:'tc',usd:'ef'};
+  const currency=method==='usd'?'USD':'ARS';
   const date=new Date(dateVal+'T12:00:00');
   const id=Math.random().toString(36).substr(2,9);
   const txn={id,date,description:desc,amount:amountVal,currency,category:cat,
-    payMethod:method,week:getWeekKey(date),month:getMonthKey(date),manual:true};
+    payMethod:payMethodMap[method]||'ef',week:getWeekKey(date),month:getMonthKey(date),manual:true};
   state.transactions.push(txn);
   let manualImp=state.imports.find(i=>i.id==='manual');
   if(!manualImp){manualImp={id:'manual',label:'Gastos manuales',date:new Date().toLocaleDateString('es-AR'),count:0,source:'manual',txnIds:[]};state.imports.unshift(manualImp);}

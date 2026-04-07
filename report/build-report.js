@@ -37,13 +37,41 @@ function subToMonthlyARS(s, usdRate) {
   return s.currency === 'USD' ? monthly * usdRate : monthly;
 }
 
+function getMonthIncomeARS(entry, incomeSources) {
+  let total = entry?.extraArs || 0;
+  for (const [srcId, amount] of Object.entries(entry?.sources || {})) {
+    const src = (incomeSources || []).find(s => s.id === srcId);
+    if (src && src.currency === 'ARS') total += amount || 0;
+  }
+  return total;
+}
+
+function getMonthIncomeUSD(entry, incomeSources) {
+  let total = entry?.extraUsd || 0;
+  for (const [srcId, amount] of Object.entries(entry?.sources || {})) {
+    const src = (incomeSources || []).find(s => s.id === srcId);
+    if (src && src.currency === 'USD') total += amount || 0;
+  }
+  return total;
+}
+
+function getSourceBaseIncome(rawData) {
+  const sources = rawData.incomeSources || [];
+  return sources.reduce((acc, src) => {
+    const base = src.base || 0;
+    if (src.currency === 'USD') acc.usd += base;
+    else acc.ars += base;
+    return acc;
+  }, { ars: 0, usd: 0 });
+}
+
 function buildReport(rawData) {
   const now = new Date();
   const usdRate = rawData.usdRate || 1420;
   const transactions = (rawData.transactions || []).map(t => ({
     ...t,
     date: new Date(t.date),
-  }));
+  })).filter(t => !t.isPendingCuota && !t.isPendingSubscription);
 
   // ── Periodos ──
   // Semana: ultimos 7 dias
@@ -89,10 +117,17 @@ function buildReport(rawData) {
 
   // Ingresos — buscar en el mes del reporte
   const incomeMonths = rawData.incomeMonths || [];
+  const incomeSources = rawData.incomeSources || [];
   const reportMonthKey = `${refDate.getFullYear()}-${String(refDate.getMonth() + 1).padStart(2, '0')}`;
   const currentIncome = incomeMonths.find(m => m.month === reportMonthKey);
-  const incomeARS = currentIncome ? (currentIncome.ars || 0) : 0;
-  const incomeUSD = currentIncome ? (currentIncome.usd || 0) : 0;
+  const sourceBaseIncome = getSourceBaseIncome(rawData);
+  const legacyIncome = rawData.income || {};
+  const incomeARS = currentIncome
+    ? getMonthIncomeARS(currentIncome, incomeSources)
+    : sourceBaseIncome.ars || ((legacyIncome.ars || 0) + (legacyIncome.varArs || 0));
+  const incomeUSD = currentIncome
+    ? getMonthIncomeUSD(currentIncome, incomeSources)
+    : sourceBaseIncome.usd || ((legacyIncome.usd || 0) + (legacyIncome.varUsd || 0));
   const incomeTotalARS = incomeARS + (incomeUSD * usdRate);
 
   const incomeUsedPct = incomeTotalARS > 0 ? Math.round((monthTotalARS / incomeTotalARS) * 100) : null;
@@ -153,7 +188,7 @@ function buildReport(rawData) {
   }));
 
   // ── Suscripciones: usan name + price + freq + currency (NO amount) ──
-  const subscriptions = rawData.subscriptions || [];
+  const subscriptions = (rawData.subscriptions || []).filter(s => s.active !== false);
   const subsTotalARS = subscriptions.reduce((s, sub) => s + subToMonthlyARS(sub, usdRate), 0);
   const fixedAndSubsTotal = fixedTotalARS + subsTotalARS;
 

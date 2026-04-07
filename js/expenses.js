@@ -484,17 +484,18 @@ function deleteFixed(){
 }
 function renderCompromisosSummary(){
   const toMonthly=s=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
+  const activeSubs=(state.subscriptions||[]).filter(s=>s.active!==false);
   // ARS: cuotas + subs ARS + fijos ARS
   const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
   const cuotasARS=[
-    ...autoGroups.map(g=>{const snap=getAutoCuotaSnapshot(g);return snap.paid>=snap.total?0:snap.amountPerCuota;}),
-    ...state.cuotas.filter(c=>c.paid<c.total).map(c=>c.amount)
+    ...autoGroups.map(g=>{const snap=getAutoCuotaSnapshot(g);if(!snap||snap.paid>=snap.total)return 0;return g.currency==='USD'?(snap.amountPerCuota*USD_TO_ARS):snap.amountPerCuota;}),
+    ...state.cuotas.filter(c=>c.paid<c.total).map(c=>c.currency==='USD'?(c.amount*USD_TO_ARS):c.amount)
   ].reduce((s,v)=>s+v,0);
-  const subsARS=state.subscriptions.filter(s=>s.currency==='ARS').reduce((a,s)=>a+toMonthly(s),0);
+  const subsARS=activeSubs.filter(s=>s.currency==='ARS').reduce((a,s)=>a+toMonthly(s),0);
   const fixedARS=(state.fixedExpenses||[]).filter(f=>f.currency==='ARS').reduce((a,f)=>a+f.amount,0);
   const totalARS=cuotasARS+subsARS+fixedARS;
   // USD: subs USD + fijos USD
-  const subsUSD=state.subscriptions.filter(s=>s.currency==='USD').reduce((a,s)=>a+toMonthly(s),0);
+  const subsUSD=activeSubs.filter(s=>s.currency==='USD').reduce((a,s)=>a+toMonthly(s),0);
   const fixedUSD=(state.fixedExpenses||[]).filter(f=>f.currency==='USD').reduce((a,f)=>a+f.amount,0);
   const totalUSD=subsUSD+fixedUSD;
   const combinado=totalARS+(totalUSD*USD_TO_ARS);
@@ -512,7 +513,7 @@ function renderCompromisosSummary(){
     const fijosVal=fixedARS+(fixedUSD*USD_TO_ARS);
     const subsVal=subsARS+(subsUSD*USD_TO_ARS);
     const nF=(state.fixedExpenses||[]).length;
-    const nS=state.subscriptions.length;
+    const nS=activeSubs.length;
     const nC=autoGroups.length+state.cuotas.filter(c=>c.paid<c.total).length;
     const cardFijos=document.getElementById('comp-card-fijos');
     const cardCuotas=document.getElementById('comp-card-cuotas');

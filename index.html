@@ -1461,6 +1461,10 @@
           <input class="input-field" id="cat-inline-name" placeholder="ej: Supermercado" onkeydown="if(event.key==='Enter')saveInlineCat()">
         </div>
         <div class="input-group">
+          <label class="input-label">Grupo</label>
+          <select class="input-field" id="cat-inline-group"></select>
+        </div>
+        <div class="input-group">
           <label class="input-label">Color</label>
           <div class="color-picker-row" id="cat-inline-color-picker"></div>
         </div>
@@ -2908,10 +2912,10 @@
         <div class="input-group"><label class="input-label">Monto</label><input id="ne-amount" type="number" class="input-field" placeholder="0" min="0" step="0.01"></div>
         <div class="input-group"><label class="input-label">Medio de pago</label>
           <select id="ne-method" class="input-field">
-            <option value="Efectivo">Efectivo</option>
-            <option value="Debito">Debito</option>
-            <option value="Tarjeta de Credito">Tarjeta de Credito</option>
-            <option value="USD">USD</option>
+            <option value="ef">Efectivo</option>
+            <option value="deb">Débito</option>
+            <option value="tc">Tarjeta de crédito</option>
+            <option value="usd">USD</option>
           </select>
         </div>
       </div>
@@ -3091,7 +3095,6 @@
 <script src="js/splash.js"></script>
 <script src="js/init.js"></script>
 <script src="js/credit-cards.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="js/cc-compare.js"></script>

@@ -3,7 +3,7 @@
 
 // ── Entry point ──────────────────────────────────────────
 function generateInsights() {
-  const txns = (state.transactions||[]).filter(t => !t.isPendingCuota);
+  const txns = (state.transactions||[]).filter(t => !t.isPendingCuota && !t.isPendingSubscription);
   const emptyEl   = document.getElementById('insights-empty');
   const contentEl = document.getElementById('insights-content');
   const configShell = document.getElementById('insights-config-shell');
@@ -122,7 +122,7 @@ function _renderInsightsConfig(data){
 // ── Data computation ──────────────────────────────────────
 function _computeInsightsData() {
   const today  = new Date();
-  const txns   = (state.transactions||[]).filter(t => !t.isPendingCuota);
+  const txns   = (state.transactions||[]).filter(t => !t.isPendingCuota && !t.isPendingSubscription);
   const MNAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
   const currentMonth = getMonthKey(today);
@@ -163,7 +163,7 @@ function _computeInsightsData() {
   } else if((state.incomeSources||[]).length) {
     incomeARS = (state.incomeSources||[]).reduce((s,src)=>{
         if(src.active===false) return s;
-        const monthly = src.freq==='annual' ? (src.amount/12) : src.amount;
+        const monthly = src.freq==='annual' ? ((src.base||0)/12) : (src.base||0);
         return s + (src.currency==='USD' ? monthly*(USD_TO_ARS||1500) : monthly);
       }, 0);
   } else {
@@ -173,7 +173,7 @@ function _computeInsightsData() {
   
   // Ensure we don't have 0 income if we have sources (fallback)
   if(incomeARS <= 0 && (state.incomeSources||[]).length) {
-    incomeARS = state.incomeSources.reduce((s,src)=> s + (src.currency==='USD' ? src.amount*(USD_TO_ARS||1500) : src.amount), 0);
+    incomeARS = state.incomeSources.reduce((s,src)=> s + (src.currency==='USD' ? (src.base||0)*(USD_TO_ARS||1500) : (src.base||0)), 0);
   }
 
   const spendPct=incomeARS>0?Math.round(arsThis/incomeARS*100):null;
@@ -219,7 +219,7 @@ function _computeInsightsData() {
   // Subscriptions
   const subsTotal=(state.subscriptions||[]).reduce((s,sub)=>{
     if(sub.active===false)return s;
-    const monthly=sub.freq==='annual'?sub.amount/12:sub.amount;
+    const monthly=sub.freq==='annual'?(sub.price||0)/12:(sub.price||0);
     return s+(sub.currency==='USD'?monthly*(USD_TO_ARS||1500):monthly);
   },0);
 
@@ -682,7 +682,7 @@ function _renderChallenges(data) {
 }
 
 function _buildChallenges(data) {
-  const txns = (state.transactions||[]).filter(t => !t.isPendingCuota);
+  const txns = (state.transactions||[]).filter(t => !t.isPendingCuota && !t.isPendingSubscription);
   const today = new Date();
   const todayStr = today.toISOString().slice(0,10);
 

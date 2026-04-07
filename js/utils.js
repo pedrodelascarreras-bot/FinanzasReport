@@ -218,36 +218,3 @@ function loadTheme(){
   const saved=localStorage.getItem('fin_theme')||'dark';
   if(saved==='light'){document.body.classList.add('light-mode');document.getElementById('theme-icon').textContent='🌙';document.getElementById('theme-label').textContent='Modo oscuro';if(typeof Chart!=='undefined')Chart.defaults.plugins.tooltip.backgroundColor='rgba(255,255,255,0.95)';}
 }
-
-// ══ RENDER SUBS ANNUAL BREAKDOWN ══
-function renderSubsAnnual(){
-  const toMonthly=(s)=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
-  const toAnnual=(s)=>toMonthly(s)*12;
-  if(!state.subscriptions.length){document.getElementById('subs-annual-card').style.display='none';return;}
-  const sorted=[...state.subscriptions].sort((a,b)=>toAnnual(b)-toAnnual(a));
-  const totalAnnual=sorted.filter(s=>s.currency==='ARS').reduce((acc,s)=>acc+toAnnual(s),0);
-  const totalAnnualUSD=sorted.filter(s=>s.currency==='USD').reduce((acc,s)=>acc+toAnnual(s),0);
-  const maxAnn=Math.max(...sorted.map(s=>toAnnual(s)),1);
-  document.getElementById('subs-annual-card').style.display='block';
-  const totalParts=[];
-  if(totalAnnual>0)totalParts.push('$'+fmtN(Math.round(totalAnnual))+' ARS/año');
-  if(totalAnnualUSD>0)totalParts.push('U$D '+fmtN(Math.round(totalAnnualUSD))+'/año');
-  document.getElementById('subs-annual-total').textContent=totalParts.join(' + ');
-  document.getElementById('subs-annual-list').innerHTML=sorted.map(s=>{
-    const c=s.color||'#888888';const ann=toAnnual(s);const w=Math.round(ann/maxAnn*100);
-    const prefix=s.currency==='USD'?'U$D ':'$';
-    return`<div style="display:flex;align-items:center;gap:12px;">
-      <div style="font-size:18px;width:28px;text-align:center;flex-shrink:0;">${esc(s.emoji||'●')}</div>
-      <div style="flex:1;min-width:0;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px;">
-          <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.name)}</div>
-          <div style="font-size:13px;font-family:var(--font);font-weight:700;color:${c};flex-shrink:0;">${prefix}${fmtN(Math.round(ann))}/año</div>
-        </div>
-        <div style="height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;">
-          <div style="height:100%;width:${w}%;background:${c};border-radius:3px;transition:width 0.5s ease;"></div>
-        </div>
-        <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:3px;">${prefix}${fmtN(Math.round(ann/12))}/mes · ${s.freq==='annual'?'Cobro anual':s.freq==='weekly'?'Semanal':'Mensual'}</div>
-      </div>
-    </div>`;
-  }).join('');
-}

@@ -307,31 +307,6 @@ function getParentCat(subName){
   return CATEGORY_GROUPS.find(g=>g.subs.includes(subName))||{group:'Sin clasificar',emoji:'🗑️',color:'#888888',subs:['Uncategorized']};
 }
 
-// ══ SIDEBAR TOGGLE ══
-function toggleMobMore(){
-  const m=document.getElementById('mob-more-menu');
-  if(m)m.style.display=m.style.display==='none'?'block':'none';
-}
-function closeMobMore(){
-  const m=document.getElementById('mob-more-menu');
-  if(m)m.style.display='none';
-}
-function toggleSidebar(){
-  const app=document.querySelector('.app');
-  const collapsed=app.classList.toggle('sidebar-collapsed');
-  localStorage.setItem('fin_sidebar',collapsed?'collapsed':'open');
-  const btn=document.getElementById('sidebar-open-btn');
-  if(btn)btn.style.display=collapsed?'flex':'none';
-}
-function loadSidebar(){
-  const saved=localStorage.getItem('fin_sidebar');
-  if(saved==='collapsed'){
-    document.querySelector('.app').classList.add('sidebar-collapsed');
-    const btn=document.getElementById('sidebar-open-btn');
-    if(btn)btn.style.display='flex';
-  }
-}
-
 // ══ SAVINGS GOALS SUMMARY BAR ══
 
 // ── Scroll to top button visibility ──
