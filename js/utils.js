@@ -209,6 +209,7 @@ function toggleTheme(){
     renderDashboard();
     if(document.getElementById('page-tendencia').classList.contains('active'))renderTendencia();
     if(document.getElementById('page-compare').classList.contains('active'))renderCompare();
+    if(document.getElementById('page-balance')?.classList.contains('active') && typeof renderBalancePage==='function')renderBalancePage();
     if(document.getElementById('page-cuotas').classList.contains('active')){renderCuotas();renderSubs();renderFixed();renderCompromisosSummary();}
     if(document.getElementById('page-income').classList.contains('active'))renderIncomePage();
     if(document.getElementById('page-savings').classList.contains('active'))renderSavingsPage();

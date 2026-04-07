@@ -219,6 +219,7 @@ function refreshAll(){
   if(document.getElementById('page-tendencia').classList.contains('active')) renderTendencia();
   if(document.getElementById('page-transactions').classList.contains('active')) renderTransactions();
   if(document.getElementById('page-compare').classList.contains('active')){renderCompareSelectors();renderCompare();}
+  if(document.getElementById('page-balance')?.classList.contains('active') && typeof renderBalancePage==='function') renderBalancePage();
   if(document.getElementById('page-reportes').classList.contains('active')) renderReportesPage();
   if(document.getElementById('page-cuotas').classList.contains('active')) {renderCuotas();renderSubs();renderFixed();renderCompromisosSummary();}
   if(document.getElementById('page-income').classList.contains('active')) renderIncomePage();
@@ -256,6 +257,7 @@ function nav(page){
   // Mobile nav
   const mn=document.getElementById('mn-'+navTarget);if(mn)mn.classList.add('active');
   if(page==='compare'){renderCompareSelectors();renderCompare();}
+  if(page==='balance' && typeof renderBalancePage==='function') renderBalancePage();
   if(page==='insights'&&state.transactions.length)generateInsights();
   if(page==='categories'){renderCategoryManage();renderInlineColorPicker('');}
   if(page==='transactions'){ setTxnFilterMode('tc'); renderTransactions(); }

@@ -78,6 +78,9 @@
     <button class="nav-item" id="ni-insights" onclick="nav('insights')">
       <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/><path d="M19 15l.5 2 2 .5-2 .5-.5 2-.5-2-2-.5 2-.5.5-2z"/></svg></span><span>Insights</span>
     </button>
+    <button class="nav-item" id="ni-balance" onclick="nav('balance')">
+      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M7 15V9"/><path d="M12 15V5"/><path d="M17 15v-3"/></svg></span><span>Balance mensual</span>
+    </button>
     <button class="nav-item" id="ni-compare" onclick="nav('compare')">
       <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg></span><span>Mes vs Mes</span>
     </button>
@@ -1306,6 +1309,36 @@
   </div>
 </div>
 
+<!-- BALANCE MENSUAL -->
+<div id="page-balance" class="page">
+  <div class="page-header fade-up">
+    <div>
+      <div class="page-title">Balance mensual</div>
+      <div class="page-subtitle">Cierre ejecutivo, control fino y oportunidades concretas para ahorrar mejor.</div>
+    </div>
+    <div class="header-actions balance-header-actions">
+      <select id="balance-month-select" class="txn-select" onchange="renderBalancePage()"></select>
+      <button class="btn btn-ghost btn-sm" onclick="nav('transactions')">Ver movimientos</button>
+      <button class="btn btn-primary" onclick="renderBalancePage()">Actualizar</button>
+    </div>
+  </div>
+
+  <div id="balance-empty" class="empty-state fade-up">
+    <div class="empty-icon">◎</div>
+    <div class="empty-title">Todavía no hay un mes para cerrar</div>
+    <div class="empty-sub">Importá movimientos o registrá ingresos para construir el balance mensual completo.</div>
+    <div class="empty-actions">
+      <button class="btn btn-primary" onclick="nav('import')">Importar datos</button>
+    </div>
+  </div>
+
+  <div id="balance-content" class="balance-page-content" style="display:none;">
+    <div id="balance-hero" class="fade-up d1"></div>
+    <div id="balance-grid" class="fade-up d2"></div>
+    <div id="balance-next" class="fade-up d3"></div>
+  </div>
+</div>
+
 <!-- CUOTAS -->
 <div id="page-cuotas" class="page">
   <div class="page-header fade-up">
@@ -1976,6 +2009,7 @@
       <button class="mob-nav-btn" id="mn-tendencia" onclick="nav('tendencia');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg></span>Tend.</button>
       <button class="mob-nav-btn" id="mn-income" onclick="nav('income');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="14" rx="2"/><path d="M2 10h20"/><circle cx="17" cy="14" r="1" fill="currentColor"/></svg></span>Ingresos</button>
       <button class="mob-nav-btn" id="mn-savings" onclick="nav('savings');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-0.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9.5a2 2 0 0 1 2-2"/></svg></span>Ahorros</button>
+      <button class="mob-nav-btn" id="mn-balance" onclick="nav('balance');closeMobMore()" style="padding:8px 4px;"><span class="mn-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M7 15V9"/><path d="M12 15V5"/><path d="M17 15v-3"/></svg></span>Balance</button>
       <button class="mob-nav-btn" id="mn-google-sync" onclick="openCloudSync(event);closeMobMore()" style="padding:8px 4px;"><span class="mn-icon">☁</span>Google</button>
     </div>
   </div>
@@ -3091,6 +3125,7 @@
 <script src="js/savings.js"></script>
 <script src="js/categories.js"></script>
 <script src="js/reports.js"></script>
+<script src="js/balance.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/splash.js"></script>
 <script src="js/init.js"></script>
