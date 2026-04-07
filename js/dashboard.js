@@ -735,6 +735,9 @@ function renderDashboard(){
   let arsMonth=billableTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   let usdMonth=billableTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
   let cntMonth=billableTxns.length;
+  let syntheticARS=0;
+  let syntheticUSD=0;
+  let syntheticCount=0;
   if(_tcModeActive){
     const _openDate=new Date((getTcCycleOpen(getTcCycles(), getTcCycles().findIndex(c=>c.id===activeTcCycle.id))||activeTcCycle.closeDate)+'T00:00:00');
     const _closeDate=new Date(activeTcCycle.closeDate+'T23:59:59');
@@ -754,9 +757,6 @@ function renderDashboard(){
     let extraARS=0;
     let extraUSD=0;
     let extraCount=0;
-    let syntheticARS=0;
-    let syntheticUSD=0;
-    let syntheticCount=0;
     const extraKeys=new Set();
     const addExtra=(key,currency,amount)=>{
       if(!key||extraKeys.has(key)) return;
