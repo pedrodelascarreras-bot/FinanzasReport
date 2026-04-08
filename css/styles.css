@@ -10723,89 +10723,460 @@ body[data-active-page="savings"] #page-savings > * {
   transition: background 0.2s var(--ease-premium) !important;
 }
 
-/* ═══ SIMPLE HOME SPLASH ═══ */
-.sp-simple-home {
-  width: min(880px, 100%);
+/* ═══ FINANCE OS — Container Reset ═══
+   When the new FOS shell is injected, reset .sp-inner
+   so it acts as a transparent wrapper and hide the
+   old static .sp-logo / .sp-footer elements.
+═══════════════════════════════════════════ */
+#splash:has(.fos-shell) .sp-inner {
+  background: none !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-radius: 0 !important;
+  max-width: 100% !important;
+  width: 100% !important;
+  padding: 40px 32px !important;
+}
+#splash:has(.fos-shell) .sp-logo {
+  display: none !important;
+}
+#splash:has(.fos-shell) .sp-footer {
+  display: none !important;
+}
+
+/* ═══ FINANCE OS — PREMIUM HOME PANEL ═══ */
+.fos-shell {
+  width: min(920px, 100%);
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  align-items: center;
   margin: 0 auto;
 }
-.sp-simple-hero {
-  padding: 34px 36px;
-  border-radius: 32px;
+.fos-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* ── Header ── */
+.fos-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px;
+  margin-bottom: 6px;
+}
+.fos-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.fos-brand-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--blue);
+  box-shadow: 0 0 16px color-mix(in srgb, var(--blue) 70%, transparent),
+              0 0 32px color-mix(in srgb, var(--blue) 30%, transparent);
+  animation: fos-dot-pulse 2.8s ease-in-out infinite;
+}
+@keyframes fos-dot-pulse {
+  0%,100% { box-shadow: 0 0 16px color-mix(in srgb, var(--blue) 70%, transparent), 0 0 32px color-mix(in srgb, var(--blue) 30%, transparent); }
+  50%     { box-shadow: 0 0 22px color-mix(in srgb, var(--blue) 90%, transparent), 0 0 48px color-mix(in srgb, var(--blue) 45%, transparent); }
+}
+.fos-brand-name {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
+  color: rgba(255,255,255,0.82);
+}
+.fos-header-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.fos-header-btn {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.7);
+  cursor: pointer;
+  transition: all 0.2s var(--ease-premium);
+  font-family: var(--font);
+}
+.fos-header-btn:hover {
+  background: rgba(255,255,255,0.12);
+  border-color: rgba(255,255,255,0.16);
+  color: #fff;
+  transform: translateY(-1px);
+}
+.fos-avatar {
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 80%, #000), color-mix(in srgb, var(--blue) 50%, #000));
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-left: 4px;
+  border: 2px solid rgba(255,255,255,0.12);
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--blue) 25%, transparent);
+}
+
+/* ── Hero Card ── */
+.fos-hero-card {
+  padding: 40px 42px 36px;
+  border-radius: 28px;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02)),
-    linear-gradient(160deg, rgba(8,13,23,0.92), rgba(13,20,34,0.88));
-  border: 1px solid rgba(255,255,255,0.1);
-  box-shadow: 0 34px 90px rgba(0,0,0,0.34), inset 0 1px 0 rgba(255,255,255,0.08);
+    linear-gradient(168deg, rgba(255,255,255,0.07) 0%, rgba(255,255,255,0.015) 100%),
+    linear-gradient(160deg, rgba(10,16,28,0.92), rgba(14,22,38,0.86));
+  border: 1px solid rgba(255,255,255,0.09);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.06) inset,
+    0 40px 100px -20px rgba(0,0,0,0.5),
+    0 0 0 1px rgba(0,0,0,0.3);
+  backdrop-filter: blur(20px) saturate(120%);
+  -webkit-backdrop-filter: blur(20px) saturate(120%);
+  position: relative;
+  overflow: hidden;
   text-align: left;
 }
-.sp-simple-kicker {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(241,245,249,0.56);
-  margin-bottom: 14px;
+.fos-hero-card::before {
+  content: '';
+  position: absolute;
+  top: -80px;
+  right: -60px;
+  width: 320px;
+  height: 320px;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--blue) 14%, transparent), transparent 70%);
+  pointer-events: none;
 }
-.sp-simple-title {
-  font-size: clamp(40px, 5.5vw, 64px);
-  line-height: 0.95;
-  letter-spacing: -0.06em;
+.fos-hero-card::after {
+  content: '';
+  position: absolute;
+  bottom: -100px;
+  left: -40px;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(48,209,88,0.08), transparent 70%);
+  pointer-events: none;
+}
+.fos-hero-title {
+  position: relative;
+  z-index: 1;
+  font-size: clamp(38px, 5vw, 58px);
+  line-height: 1.02;
+  letter-spacing: -0.05em;
   font-weight: 760;
-  color: #f8fbff;
-  margin-bottom: 10px;
+  color: #f4f7fc;
+  margin-bottom: 12px;
 }
-.sp-simple-date {
-  font-size: 16px;
-  font-weight: 600;
-  color: rgba(241,245,249,0.68);
-  margin-bottom: 18px;
-}
-.sp-simple-close {
-  display: inline-flex;
-  align-items: center;
-  min-height: 50px;
-  padding: 12px 16px;
-  border-radius: 18px;
-  background: rgba(255,255,255,0.05);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: rgba(241,245,249,0.86);
+.fos-hero-date {
+  position: relative;
+  z-index: 1;
   font-size: 15px;
   font-weight: 600;
+  color: rgba(241,245,249,0.55);
+  letter-spacing: 0.01em;
+  margin-bottom: 20px;
 }
-body.light-mode .sp-simple-hero {
+.fos-hero-pill {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.055);
+  border: 1px solid rgba(255,255,255,0.09);
+  color: rgba(241,245,249,0.88);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.005em;
+  backdrop-filter: blur(10px);
+}
+.fos-pill-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent3);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent3) 60%, transparent);
+  animation: fos-pill-pulse 2.2s ease-in-out infinite;
+}
+@keyframes fos-pill-pulse {
+  0%,100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+
+/* ── Google Connect Card ── */
+.fos-google-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 26px;
+  border-radius: 22px;
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.94), rgba(243,247,252,0.92)),
-    rgba(255,255,255,0.9);
-  border-color: rgba(71,88,117,0.14);
-  box-shadow: 0 34px 90px rgba(31,47,70,0.12), inset 0 1px 0 rgba(255,255,255,0.84);
+    linear-gradient(180deg, rgba(255,255,255,0.055), rgba(255,255,255,0.018));
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 20px 50px -10px rgba(0,0,0,0.3);
+  transition: border-color 0.24s var(--ease-premium), box-shadow 0.24s var(--ease-premium);
 }
-body.light-mode .sp-simple-kicker {
-  color: rgba(15,23,42,0.5);
+.fos-google-card:hover {
+  border-color: rgba(255,255,255,0.14);
 }
-body.light-mode .sp-simple-title {
+.fos-google-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+}
+.fos-google-logo {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.fos-google-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.fos-google-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255,255,255,0.92);
+  letter-spacing: -0.01em;
+}
+.fos-google-desc {
+  font-size: 13px;
+  line-height: 1.45;
+  color: rgba(255,255,255,0.55);
+}
+.fos-google-desc.ok {
+  color: rgba(180,255,200,0.85);
+}
+.fos-google-cta {
+  width: auto !important;
+  min-width: 180px;
+  flex: 0 0 auto;
+  padding: 14px 24px !important;
+  border-radius: 14px !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  background: linear-gradient(180deg, #28a745, #1e8e3e) !important;
+  border: 1px solid rgba(40,167,69,0.4) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 24px rgba(30,142,62,0.3), inset 0 1px 0 rgba(255,255,255,0.16) !important;
+  cursor: pointer;
+  transition: all 0.2s var(--ease-premium) !important;
+}
+.fos-google-cta:hover {
+  background: linear-gradient(180deg, #2fbd4f, #28a745) !important;
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 32px rgba(30,142,62,0.4), inset 0 1px 0 rgba(255,255,255,0.2) !important;
+}
+.fos-google-cta:active {
+  transform: translateY(0) !important;
+}
+
+/* ── Quick Actions ── */
+.fos-actions-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+.fos-action-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 12px 18px;
+  border-radius: 20px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  color: rgba(255,255,255,0.78);
+  cursor: pointer;
+  transition: all 0.22s var(--ease-premium);
+  font-family: var(--font);
+}
+.fos-action-btn:hover {
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(255,255,255,0.14);
+  color: #fff;
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.25);
+}
+.fos-action-icon {
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.06);
+}
+.fos-action-label {
+  font-size: 12.5px;
+  font-weight: 650;
+  letter-spacing: 0.005em;
+}
+
+/* ── Light Mode ── */
+body.light-mode .fos-brand-name {
+  color: rgba(15,23,42,0.72);
+}
+body.light-mode .fos-brand-dot {
+  box-shadow: 0 0 12px color-mix(in srgb, var(--blue) 50%, transparent);
+}
+body.light-mode .fos-header-btn {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.08);
+  color: rgba(15,23,42,0.6);
+}
+body.light-mode .fos-header-btn:hover {
+  background: rgba(0,0,0,0.08);
   color: #111827;
 }
-body.light-mode .sp-simple-date {
-  color: rgba(15,23,42,0.62);
+body.light-mode .fos-avatar {
+  border-color: rgba(0,0,0,0.1);
 }
-body.light-mode .sp-simple-close {
-  background: linear-gradient(180deg, rgba(255,255,255,0.88), rgba(240,245,251,0.84));
-  border-color: rgba(71,88,117,0.14);
-  color: #294769;
+body.light-mode .fos-hero-card {
+  background:
+    linear-gradient(168deg, rgba(255,255,255,0.96), rgba(248,251,255,0.92)),
+    rgba(255,255,255,0.95);
+  border-color: rgba(71,88,117,0.12);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.92) inset,
+    0 40px 100px -20px rgba(31,47,70,0.12);
 }
+body.light-mode .fos-hero-card::before {
+  background: radial-gradient(circle, color-mix(in srgb, var(--blue) 8%, transparent), transparent 70%);
+}
+body.light-mode .fos-hero-card::after {
+  background: radial-gradient(circle, rgba(48,209,88,0.05), transparent 70%);
+}
+body.light-mode .fos-hero-title {
+  color: #111827;
+}
+body.light-mode .fos-hero-date {
+  color: rgba(15,23,42,0.52);
+}
+body.light-mode .fos-hero-pill {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.08);
+  color: #374151;
+}
+body.light-mode .fos-google-card {
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.92), rgba(248,251,255,0.88)),
+    rgba(255,255,255,0.9);
+  border-color: rgba(71,88,117,0.1);
+  box-shadow: 0 20px 50px -10px rgba(31,47,70,0.1);
+}
+body.light-mode .fos-google-logo {
+  background: rgba(0,0,0,0.04);
+  border-color: rgba(0,0,0,0.06);
+}
+body.light-mode .fos-google-title {
+  color: #111827;
+}
+body.light-mode .fos-google-desc {
+  color: rgba(15,23,42,0.55);
+}
+body.light-mode .fos-google-desc.ok {
+  color: #166534;
+}
+body.light-mode .fos-action-btn {
+  background: rgba(0,0,0,0.03);
+  border-color: rgba(0,0,0,0.07);
+  color: rgba(15,23,42,0.72);
+}
+body.light-mode .fos-action-btn:hover {
+  background: rgba(0,0,0,0.06);
+  border-color: rgba(0,0,0,0.12);
+  color: #111827;
+}
+body.light-mode .fos-action-icon {
+  background: linear-gradient(135deg, rgba(0,0,0,0.05), rgba(0,0,0,0.02));
+  border-color: rgba(0,0,0,0.06);
+}
+
+/* ── Mobile ── */
 @media (max-width: 768px) {
-  .sp-simple-hero {
-    padding: 26px 22px;
-    border-radius: 26px;
+  .fos-shell.fos-mobile {
+    width: 100%;
+    min-height: calc(100dvh - 120px);
+    display: flex;
+    align-items: center;
   }
-  .sp-simple-title {
-    font-size: 38px;
+  .fos-shell.fos-mobile .fos-container {
+    max-width: 440px;
+    margin: 0 auto;
+    gap: 14px;
   }
-  .sp-simple-close {
-    font-size: 14px;
+  .fos-hero-card {
+    padding: 30px 24px 26px;
+    border-radius: 24px;
+  }
+  .fos-hero-title {
+    font-size: clamp(32px, 9vw, 44px);
+  }
+  .fos-hero-date {
+    font-size: 13px;
+    margin-bottom: 16px;
+  }
+  .fos-hero-pill {
+    font-size: 13px;
+    padding: 8px 14px;
+  }
+  .fos-google-card {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+    padding: 18px 20px;
+  }
+  .fos-google-cta {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .fos-actions-row {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+  .fos-action-btn {
+    padding: 16px 8px 14px;
+    border-radius: 16px;
+  }
+  .fos-action-icon {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+  }
+  .fos-action-label {
+    font-size: 11px;
   }
 }
 
