@@ -18,6 +18,10 @@
     return Math.round((part/total)*100);
   }
 
+  function balanceClamp(value,min,max){
+    return Math.max(min,Math.min(max,value));
+  }
+
   function balanceDeltaText(value, unit='$'){
     const abs=Math.abs(Math.round(value||0));
     if(!abs) return 'sin cambio';
@@ -38,9 +42,16 @@
 
   function balanceMonthKeys(){
     const months=new Set();
-    (state.transactions||[]).forEach(t=>months.add(t.month||getMonthKey(t.date)));
-    (state.incomeMonths||[]).forEach(m=>months.add(m.month));
-    (state.savDeposits||[]).forEach(d=>{ if(d.month) months.add(d.month); });
+    const currentMonth=getMonthKey(new Date());
+    (state.transactions||[]).forEach(t=>{
+      const month=t.month||getMonthKey(t.date);
+      if(month&&month<=currentMonth) months.add(month);
+    });
+    (state.incomeMonths||[]).forEach(m=>{
+      if(!m?.month||m.month>currentMonth) return;
+      const hasIncome=(Number(m.extraArs)||0)>0 || (Number(m.extraUsd)||0)>0 || Object.values(m.sources||{}).some(v=>(Number(v)||0)>0);
+      if(hasIncome) months.add(m.month);
+    });
     return [...months].filter(Boolean).sort().reverse();
   }
 
@@ -68,8 +79,9 @@
           else variableArs+=numeric;
         }
       });
-      extraArs=Number(monthEntry.extraArs)||0;
-      extraUsd=Number(monthEntry.extraUsd)||0;
+      // In the monthly logging modal these fields are the main salary in ARS/USD.
+      fixedArs+=Number(monthEntry.extraArs)||0;
+      fixedUsd+=Number(monthEntry.extraUsd)||0;
     }else if((state.incomeSources||[]).length){
       (state.incomeSources||[]).forEach(source=>{
         if(source.active===false) return;
@@ -353,6 +365,13 @@
     const status=balanceStatusLabel(data);
     const spendTone=data.freeCash<0?'danger':(data.savingsRate||0)>=15?'good':'warn';
     const rateText=data.savingsRate===null?'Sin ingreso configurado':`${data.savingsRate}% de ahorro`;
+    const fixedPct=balancePct(data.income.fixed,data.income.total)||0;
+    const variablePct=balancePct(data.income.variable,data.income.total)||0;
+    const topSpots=data.topCategories.slice(0,6);
+    const maxCat=Math.max(...topSpots.map(item=>item.total),1);
+    const committedPct=balancePct(data.committedBase,data.income.total)||0;
+    const expensePct=balancePct(data.totalExpenses,data.income.total)||0;
+    const freePct=data.income.total>0?balanceClamp(100-committedPct,0,100):0;
     hero.innerHTML=`
       <section class="balance-hero-shell balance-tone-${status.tone}">
         <div class="balance-hero-copy">
@@ -364,23 +383,85 @@
             <span class="balance-hero-main-value">${balanceFmtMoney(data.freeCash)}</span>
             <span class="balance-hero-main-sub">${rateText}</span>
           </div>
-        </div>
-        <div class="balance-hero-score">
-          <div class="balance-score-ring">
-            <svg viewBox="0 0 120 120" width="112" height="112" aria-hidden="true">
-              <circle cx="60" cy="60" r="46" fill="none" stroke="var(--border)" stroke-width="10"></circle>
-              <circle id="balance-score-arc" cx="60" cy="60" r="46" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" transform="rotate(-90 60 60)"></circle>
-            </svg>
-            <div class="balance-score-center">
-              <strong>${data.score}</strong>
-              <span>score</span>
+          <div class="balance-storyline">
+            <div class="balance-story-chip">
+              <span>vs mes anterior</span>
+              <strong>${balanceDeltaText(data.freeCash-(data.prevIncome.total-data.prevTotalExpenses))}</strong>
+            </div>
+            <div class="balance-story-chip">
+              <span>base comprometida</span>
+              <strong>${committedPct}% del ingreso</strong>
+            </div>
+            <div class="balance-story-chip">
+              <span>gasto dolarizado</span>
+              <strong>${data.usdExposure}%</strong>
             </div>
           </div>
-          <div class="balance-score-meta">
-            <div><span>Ingreso</span><strong>${balanceFmtMoney(data.income.total)}</strong></div>
-            <div><span>Gasto</span><strong>${balanceFmtMoney(data.totalExpenses)}</strong></div>
-            <div><span>Base fija</span><strong>${balanceFmtMoney(data.committedBase)}</strong></div>
-            <div><span>Normalizado</span><strong>${balanceFmtMoney(data.normalizedNet)}</strong></div>
+        </div>
+        <div class="balance-hero-cockpit">
+          <div class="balance-score-card">
+            <div class="balance-score-ring">
+              <svg viewBox="0 0 120 120" width="112" height="112" aria-hidden="true">
+                <circle cx="60" cy="60" r="46" fill="none" stroke="var(--border)" stroke-width="10"></circle>
+                <circle id="balance-score-arc" cx="60" cy="60" r="46" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" transform="rotate(-90 60 60)"></circle>
+              </svg>
+              <div class="balance-score-center">
+                <strong>${data.score}</strong>
+                <span>score</span>
+              </div>
+            </div>
+            <div class="balance-score-meta">
+              <div><span>Ingreso</span><strong>${balanceFmtMoney(data.income.total)}</strong></div>
+              <div><span>Gasto</span><strong>${balanceFmtMoney(data.totalExpenses)}</strong></div>
+              <div><span>Base fija</span><strong>${balanceFmtMoney(data.committedBase)}</strong></div>
+              <div><span>Normalizado</span><strong>${balanceFmtMoney(data.normalizedNet)}</strong></div>
+            </div>
+          </div>
+          <div class="balance-visual-stack">
+            <div class="balance-visual-card">
+              <div class="balance-visual-head">
+                <span>Mix de ingreso</span>
+                <strong>${balanceFmtMoney(data.income.total)}</strong>
+              </div>
+              <div class="balance-mix-bar">
+                <div class="balance-mix-seg fixed" style="width:${balanceClamp(fixedPct,0,100)}%"></div>
+                <div class="balance-mix-seg variable" style="width:${balanceClamp(variablePct,0,100)}%"></div>
+              </div>
+              <div class="balance-mix-legend">
+                <span><i class="fixed"></i>Fijo ${fixedPct}%</span>
+                <span><i class="variable"></i>Variable ${variablePct}%</span>
+              </div>
+            </div>
+            <div class="balance-visual-card">
+              <div class="balance-visual-head">
+                <span>Pista del mes</span>
+                <strong>${expensePct}% usado</strong>
+              </div>
+              <div class="balance-runway">
+                <div class="balance-runway-track">
+                  <div class="balance-runway-seg committed" style="width:${balanceClamp(committedPct,0,100)}%"></div>
+                  <div class="balance-runway-seg spent" style="width:${balanceClamp(expensePct,0,100)}%"></div>
+                </div>
+                <div class="balance-runway-foot">
+                  <span>Estructura ${committedPct}%</span>
+                  <span>Aire ${freePct}%</span>
+                </div>
+              </div>
+            </div>
+            <div class="balance-visual-card">
+              <div class="balance-visual-head">
+                <span>Pulso de categorías</span>
+                <strong>Top ${topSpots.length}</strong>
+              </div>
+              <div class="balance-pulse">
+                ${topSpots.map(item=>`
+                  <div class="balance-pulse-col">
+                    <div class="balance-pulse-bar" style="height:${balanceClamp(Math.round((item.total/maxCat)*100),14,100)}%"></div>
+                    <span>${esc(item.name).slice(0,3)}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -394,11 +475,10 @@
     const bridgeRows=[
       {label:'Ingreso fijo', value:data.income.fixed, tone:'good'},
       {label:'Ingreso variable', value:data.income.variable, tone:'good'},
-      {label:'Extras', value:data.income.extras, tone:'good'},
       {label:'Gasto del mes', value:-data.totalExpenses, tone:'danger'},
       {label:'Ahorro transferido', value:-Math.max(0,data.savingsNet), tone:'warn'},
       {label:'Resultado', value:data.freeCash, tone:data.freeCash>=0?'good':'danger', strong:true}
-    ];
+    ].filter(row=>Math.abs(row.value||0)>0);
     const drivers=balanceDrivers(data);
     const opportunities=balanceOpportunities(data);
     const alerts=balanceAlerts(data);
@@ -436,6 +516,20 @@
           <div><span>Gasto dolarizado</span><strong>${data.usdExposure}%</strong></div>
           <div><span>Cuotas pagadas</span><strong>${balanceFmtMoney(data.cuotaActual)}</strong></div>
           <div><span>Días con gasto</span><strong>${data.daysWithSpend}/${data.daysInMonth}</strong></div>
+        </div>
+        <div class="balance-health-band">
+          <div class="balance-health-band-labels">
+            <span>Ingreso</span>
+            <span>Estructura</span>
+            <span>Gasto real</span>
+            <span>Resultado</span>
+          </div>
+          <div class="balance-health-band-track">
+            <div class="income" style="width:100%"></div>
+            <div class="committed" style="width:${balanceClamp(balancePct(data.committedBase,data.income.total)||0,0,100)}%"></div>
+            <div class="spent" style="width:${balanceClamp(balancePct(data.totalExpenses,data.income.total)||0,0,100)}%"></div>
+            <div class="free ${data.freeCash<0?'negative':''}" style="width:${balanceClamp(Math.abs(balancePct(data.freeCash,data.income.total)||0),0,100)}%"></div>
+          </div>
         </div>
       </section>
 
@@ -481,6 +575,7 @@
                 <strong>${balanceFmtMoney(item.total)}</strong>
                 <span>${item.avg>0?`${balanceDeltaText(item.delta)} vs promedio`:'sin promedio'}</span>
               </div>
+              <div class="balance-category-progress"><span style="width:${balanceClamp(item.pct,6,100)}%"></span></div>
             </div>
           `).join('')}
         </div>
