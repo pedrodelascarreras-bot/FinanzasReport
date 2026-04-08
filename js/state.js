@@ -44,6 +44,7 @@ let state={
   profileTemplate: 'personal',
   onboardingState: {},
   userEmail: '',
+  manualUserEmail: '',
   userAvatar: '',
   userAvatarMode: 'generated',
   userAvatarPreset: '',
@@ -77,6 +78,7 @@ function getStateSnapshot(){
     gmailClientId:state.gmailClientId||localStorage.getItem('fin_gmail_client_id')||'',
     userName:state.userName||'Pedro',
     userEmail:state.userEmail||'',
+    manualUserEmail:state.manualUserEmail||'',
     userAvatar:state.userAvatar||'',
     userAvatarMode:state.userAvatarMode||'generated',
     userAvatarPreset:state.userAvatarPreset||'',
@@ -321,6 +323,7 @@ async function loadFromDrive(){
     state.lastGmailSync=s.lastGmailSync||null;
     state.gmailClientId=s.gmailClientId||'';
     state.userEmail=s.userEmail||'';
+    state.manualUserEmail=s.manualUserEmail||'';
     state.userAvatar=s.userAvatar||'';
     state.userAvatarMode=s.userAvatarMode||state.userAvatarMode||'generated';
     state.userAvatarPreset=s.userAvatarPreset||'';
@@ -385,6 +388,7 @@ function loadState(){
     state.lastGmailSync=s.lastGmailSync||null;
     state.gmailClientId=s.gmailClientId||localStorage.getItem('fin_gmail_client_id')||'';
     state.userEmail=s.userEmail||'';
+    state.manualUserEmail=s.manualUserEmail||'';
     state.userAvatar=s.userAvatar||'';
     state.userAvatarMode=s.userAvatarMode||state.userAvatarMode||'generated';
     state.userAvatarPreset=s.userAvatarPreset||'';

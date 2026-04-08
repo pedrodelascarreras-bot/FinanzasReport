@@ -1229,6 +1229,7 @@ function clearAllData(){
   state.dismissedAutoCuotas=[];
   state.userName='Pedro';
   state.userEmail='';
+  state.manualUserEmail='';
   state.userAvatar='';
   state.userAvatarMode='generated';
   state.userAvatarPreset='';

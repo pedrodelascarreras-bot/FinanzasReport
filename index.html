@@ -659,7 +659,7 @@
   <div class="page-header fade-up">
     <div>
       <div class="page-title">Configuración</div>
-      <div class="page-subtitle">Preferencias globales de la app.</div>
+      <div class="page-subtitle">Centro de configuración operativo para cuentas, tarjetas, reglas, categorías e integración.</div>
     </div>
   </div>
 
@@ -667,40 +667,126 @@
     <div class="settings-main">
       <div class="settings-card settings-card-hero settings-card-hero-compact settings-card-hero-clean">
         <div class="settings-hero-copy">
-          <div class="settings-kicker">Preferencias</div>
-          <div class="settings-title">Definí cómo querés usar la app.</div>
-          <div class="settings-note">Estas preferencias se aplican de forma consistente en toda la experiencia.</div>
+          <div class="settings-kicker">Configuration Center</div>
+          <div class="settings-title">Una base clara para operar cuentas, automatizaciones y preferencias sin fricción.</div>
+          <div class="settings-note">Cada bloque conecta con lógica real de la app para que la configuración siga siendo útil a medida que el sistema crece.</div>
         </div>
       </div>
-      <div class="profile-card settings-preferences-card">
-        <div class="profile-card-head">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09"/></svg>
-          <span>Preferencias de la app</span>
-        </div>
-        <div class="profile-field-list settings-pref-grid">
-          <div class="profile-field">
-            <label class="profile-field-label">Moneda principal</label>
-            <select class="profile-field-input" id="settings-currency">
-              <option value="ARS">ARS — Peso argentino</option>
-              <option value="USD">USD — Dólar</option>
-            </select>
+      <div class="settings-center-grid">
+        <section class="profile-card settings-section-card">
+          <div class="profile-card-head">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09"/></svg>
+            <span>Preferencias generales</span>
           </div>
-          <div class="profile-field">
-            <label class="profile-field-label">Idioma</label>
-            <select class="profile-field-input" id="settings-language">
-              <option value="es">Español</option>
-              <option value="en">English</option>
-            </select>
+          <div class="profile-field-list settings-pref-grid">
+            <div class="profile-field">
+              <label class="profile-field-label">Moneda principal</label>
+              <select class="profile-field-input" id="settings-currency">
+                <option value="ARS">ARS — Peso argentino</option>
+                <option value="USD">USD — Dólar</option>
+              </select>
+            </div>
+            <div class="profile-field">
+              <label class="profile-field-label">Idioma</label>
+              <select class="profile-field-input" id="settings-language">
+                <option value="es">Español</option>
+                <option value="en">English</option>
+              </select>
+            </div>
+            <div class="profile-field">
+              <label class="profile-field-label">Tema</label>
+              <select class="profile-field-input" id="settings-theme">
+                <option value="dark">Oscuro</option>
+                <option value="light">Claro</option>
+              </select>
+            </div>
           </div>
-          <div class="profile-field">
-            <label class="profile-field-label">Tema</label>
-            <select class="profile-field-input" id="settings-theme">
-              <option value="dark">Oscuro</option>
-              <option value="light">Claro</option>
-            </select>
+          <button class="btn btn-primary btn-sm" onclick="saveAppPreferences()">Guardar preferencias</button>
+        </section>
+
+        <section class="profile-card settings-section-card">
+          <div class="profile-card-head">
+            <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+            <span>Integración con Google</span>
           </div>
-        </div>
-        <button class="btn btn-primary btn-sm" onclick="saveAppPreferences()">Guardar preferencias</button>
+          <div class="profile-google-status">
+            <div class="profile-google-line">
+              <span class="profile-google-label">Cuenta conectada</span>
+              <span class="profile-google-value" id="settings-google-connection-status">No conectado</span>
+            </div>
+            <div class="profile-google-line">
+              <span class="profile-google-label">Email detectado</span>
+              <span class="profile-google-value" id="settings-google-email">—</span>
+            </div>
+            <div class="profile-google-line">
+              <span class="profile-google-label">Última sincronización</span>
+              <span class="profile-google-value" id="settings-google-sync">—</span>
+            </div>
+          </div>
+          <div class="profile-inline-actions">
+            <button class="btn btn-primary btn-sm" onclick="openCloudSync(event)">Conectar / reconectar</button>
+            <button class="btn btn-ghost btn-sm" onclick="gmailSync()">Sincronizar ahora</button>
+          </div>
+        </section>
+
+        <section class="profile-card settings-section-card settings-card-span-2">
+          <button class="settings-collapse-btn settings-collapse-btn-clean" type="button" onclick="toggleSettingsSetupGuide()">
+            <span>
+              <span class="settings-kicker">Setup Guide</span>
+              <span class="settings-title settings-title-sm">Paso 2 y configuración inicial</span>
+            </span>
+            <span id="settings-setup-arrow" class="settings-collapse-arrow">⌄</span>
+          </button>
+          <div id="settings-setup-guide" class="settings-guide-body"></div>
+        </section>
+
+        <section class="profile-card settings-section-card">
+          <div class="profile-card-head">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M7 8h10"/><path d="M7 12h5"/></svg>
+            <span>Cuentas y perfiles financieros</span>
+          </div>
+          <div id="settings-accounts-list" class="settings-fintech-list"></div>
+          <div class="profile-inline-actions">
+            <button class="btn btn-primary btn-sm" onclick="openBankProfileManager()">Agregar cuenta</button>
+            <button class="btn btn-ghost btn-sm" onclick="openBankProfileManager()">Editar cuentas</button>
+          </div>
+        </section>
+
+        <section class="profile-card settings-section-card">
+          <div class="profile-card-head">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>
+            <span>Configuración de tarjetas</span>
+          </div>
+          <div id="settings-cards-list" class="settings-fintech-list"></div>
+          <div class="profile-inline-actions">
+            <button class="btn btn-primary btn-sm" onclick="nav('credit-cards');ccSelectPageTab('config')">Administrar tarjetas</button>
+            <button class="btn btn-ghost btn-sm" onclick="nav('credit-cards');ccSelectPageTab('resumen')">Ver ciclos</button>
+          </div>
+        </section>
+
+        <section class="profile-card settings-section-card settings-card-span-2">
+          <div class="profile-card-head">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M7 12h10"/><path d="M10 17h4"/></svg>
+            <span>Gestión de categorías</span>
+          </div>
+          <div id="settings-categories-list" class="settings-fintech-list settings-category-list"></div>
+          <div class="profile-inline-actions">
+            <button class="btn btn-primary btn-sm" onclick="openNewCatModal()">Nueva categoría</button>
+            <button class="btn btn-ghost btn-sm" onclick="nav('categories')">Abrir gestor completo</button>
+          </div>
+        </section>
+
+        <section class="profile-card settings-section-card settings-card-span-2">
+          <div class="profile-card-head">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 9h8"/><path d="M8 13h5"/></svg>
+            <span>Reglas Gmail y automatización</span>
+          </div>
+          <div id="settings-gmail-rules-list" class="settings-fintech-list"></div>
+          <div class="profile-inline-actions">
+            <button class="btn btn-primary btn-sm" onclick="openGmailRuleManager()">Nueva regla</button>
+            <button class="btn btn-ghost btn-sm" onclick="gmailSync()">Probar sincronización</button>
+          </div>
+        </section>
       </div>
     </div>
   </div>
@@ -764,9 +850,10 @@
           </div>
           <div class="profile-field">
             <label class="profile-field-label">Email</label>
-            <input type="email" class="profile-field-input" id="pf-email" value="" placeholder="tu@email.com" readonly>
+            <input type="email" class="profile-field-input" id="pf-email" value="" placeholder="tu@email.com">
           </div>
         </div>
+        <div class="settings-inline-note" id="pf-email-note">Si conectás Google, el email de esa cuenta se usará como principal en la app.</div>
         <button class="btn btn-primary btn-sm" style="align-self:flex-start;margin-top:8px;" onclick="saveProfileInfo()">Guardar cambios</button>
       </div>
 
@@ -820,7 +907,31 @@
             <span class="profile-google-value" id="pf-google-email-status">—</span>
           </div>
         </div>
-        <button class="btn btn-ghost btn-sm" style="align-self:flex-start;margin-top:8px;" onclick="nav('security')">Abrir centro de datos</button>
+        <div class="profile-inline-actions">
+          <button class="btn btn-ghost btn-sm" onclick="openCloudSync(event)">Conectar Google</button>
+          <button class="btn btn-ghost btn-sm" onclick="gmailSync()">Sincronizar</button>
+        </div>
+      </div>
+
+      <div class="profile-card">
+        <div class="profile-card-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M4 15h16"/><path d="M7 11V7"/><path d="M12 11V5"/><path d="M17 11V8"/></svg>
+          <span>Control de cuenta</span>
+        </div>
+        <div class="profile-status-list">
+          <div class="profile-status-item">
+            <div class="profile-status-dot profile-status-ok"></div>
+            <span>Exportación y backups disponibles desde el centro de datos.</span>
+          </div>
+          <div class="profile-status-item">
+            <div class="profile-status-dot"></div>
+            <span>El reseteo total elimina datos locales y sincronizados de esta sesión.</span>
+          </div>
+        </div>
+        <div class="profile-inline-actions">
+          <button class="btn btn-primary btn-sm" onclick="confirmarAccion('backup')">Exportar backup</button>
+          <button class="btn btn-danger btn-sm" onclick="confirmarAccion('borrar')">Resetear datos</button>
+        </div>
       </div>
     </div>
   </div>
@@ -830,8 +941,8 @@
 <div id="page-security" class="page">
   <div class="page-header fade-up">
     <div>
-      <div class="page-title">Seguridad</div>
-      <div class="page-subtitle">Respaldo, credenciales y acceso de Google en una pantalla dedicada.</div>
+      <div class="page-title">Seguridad y datos</div>
+      <div class="page-subtitle">Centro de control para respaldos, restauración, exportación y permisos de acceso.</div>
     </div>
   </div>
 
@@ -870,11 +981,11 @@
           </div>
           <div class="security-stat-row">
             <span class="profile-google-label">Estado</span>
-            <strong class="profile-google-value">Placeholder seguro</strong>
+            <strong class="profile-google-value" id="security-restore-status">Listo para restaurar desde backup</strong>
           </div>
         </div>
         <div class="profile-inline-actions">
-          <button class="btn btn-ghost btn-sm" onclick="showRestorePlaceholder()">Restaurar</button>
+          <button class="btn btn-ghost btn-sm" onclick="confirmarAccion('restaurar')">Restaurar backup</button>
         </div>
         <input type="file" id="restore-json-input" accept=".json" style="display:none" onchange="importBackupJSON(event)">
       </section>
@@ -899,7 +1010,7 @@
       <section class="profile-card security-card">
         <div class="profile-card-head">
           <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          <span>Sync status</span>
+          <span>Access control</span>
         </div>
         <div class="profile-google-status">
           <div class="profile-google-line">
@@ -916,7 +1027,8 @@
           </div>
         </div>
         <div class="profile-inline-actions">
-          <button class="btn btn-primary btn-sm" onclick="openCloudSync(event)">Conectar</button>
+          <button class="btn btn-primary btn-sm" onclick="openCloudSync(event)">Conectar / reconectar</button>
+          <button class="btn btn-ghost btn-sm" onclick="gmailSync()">Sincronizar ahora</button>
           <button class="btn btn-danger btn-sm" onclick="disconnectGoogleAccess()">Desconectar / revocar</button>
         </div>
       </section>
@@ -2896,7 +3008,21 @@
           </div>
           <div class="field-grid-2">
             <div>
-              <label class="field-label-premium">Procesador</label>
+              <label class="field-label-premium">Categoría asignada</label>
+              <select id="gmail-rule-category" class="field-control-premium"></select>
+            </div>
+            <div>
+              <label class="field-label-premium">Tipo de movimiento</label>
+              <select id="gmail-rule-movement-type" class="field-control-premium">
+                <option value="expense">Gasto</option>
+                <option value="subscription">Suscripción</option>
+                <option value="transfer">Transferencia</option>
+              </select>
+            </div>
+          </div>
+          <div class="field-grid-2">
+            <div>
+              <label class="field-label-premium">Lógica de parsing</label>
               <select id="gmail-rule-processor" class="field-control-premium">
                 <option value="santander_email">Email Santander</option>
               </select>
@@ -2941,6 +3067,29 @@
             <label class="field-label-premium">Tarjeta o cuenta</label>
             <input id="bank-profile-card" type="text" class="field-control-premium" placeholder="Visa, Amex, Débito, Cuenta sueldo">
           </div>
+          <div>
+            <label class="field-label-premium">Tipo</label>
+            <select id="bank-profile-type" class="field-control-premium">
+              <option value="bank">Cuenta bancaria</option>
+              <option value="wallet">Wallet</option>
+              <option value="credit-card">Tarjeta de crédito</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-grid-2">
+          <div>
+            <label class="field-label-premium">Balance</label>
+            <input id="bank-profile-balance" type="number" step="0.01" class="field-control-premium" placeholder="0">
+          </div>
+          <div>
+            <label class="field-label-premium">Estado</label>
+            <select id="bank-profile-status" class="field-control-premium">
+              <option value="active">Activa</option>
+              <option value="inactive">Inactiva</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-grid-2">
           <div>
             <label class="field-label-premium">Método preferido</label>
             <select id="bank-profile-method" class="field-control-premium">

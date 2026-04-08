@@ -557,7 +557,7 @@ function isGoogleConnected() {
 }
 
 function getResolvedUserEmail() {
-  return state.googleProfile?.email || state.userEmail || '';
+  return state.googleProfile?.email || state.manualUserEmail || state.userEmail || '';
 }
 
 function getResolvedUserName() {
@@ -586,7 +586,6 @@ async function fetchGoogleProfile(force){
       name: profile.name || '',
       picture: profile.picture || ''
     };
-    if(profile.email) state.userEmail = profile.email;
     if(!state.userName && profile.name) state.userName = profile.name;
     saveState();
     if(typeof renderProfilePage === 'function') renderProfilePage();
@@ -1122,7 +1121,7 @@ function parseSantanderEmail(email, currentBatch, rule) {
       _baseDesc: baseDesc,
       amount,
       currency: txnCurrency,
-      category: 'Procesando...',
+      category: rule?.category || 'Procesando...',
       week: getWeekKey(txnDate),
       month: getMonthKey(txnDate),
       source: 'gmail',
@@ -1130,6 +1129,7 @@ function parseSantanderEmail(email, currentBatch, rule) {
       importRuleName: rule?.name || 'Gmail',
       sourceBank: rule?.bank || 'Gmail',
       importKind,
+      movementType: rule?.movementType || (isAutoDebit ? 'subscription' : 'expense'),
       isAutoDebit,
       merchantKey,
       subscriptionName: isAutoDebit ? baseDesc : null,
@@ -1442,6 +1442,7 @@ function getCurrentProfileSnapshot(){
   return {
     userName: state.userName || 'Usuario',
     userEmail: state.userEmail || '',
+    manualUserEmail: state.manualUserEmail || '',
     userAvatar: state.userAvatar || '',
     userAvatarMode: state.userAvatarMode || 'generated',
     userAvatarPreset: state.userAvatarPreset || '',
@@ -1579,6 +1580,7 @@ function applyUserProfile(profileId){
   state.activeUserProfileId = profile.id;
   state.userName = profile.userName || profile.name || 'Usuario';
   state.userEmail = profile.userEmail || '';
+  state.manualUserEmail = profile.manualUserEmail || '';
   state.userAvatar = profile.userAvatar || '';
   state.userAvatarMode = profile.userAvatarMode || (profile.userAvatar ? 'upload' : (profile.userAvatarPreset ? 'preset' : 'generated'));
   state.userAvatarPreset = profile.userAvatarPreset || '';
@@ -1838,6 +1840,7 @@ function renderSettingsPage(){
   currencyEl.value = prefs.currency || 'ARS';
   languageEl.value = prefs.language || 'es';
   themeEl.value = prefs.theme || 'dark';
+  if(typeof window.renderSettingsCenter === 'function') window.renderSettingsCenter();
 }
 
 function toggleSettingsAdvanced(){
@@ -1853,6 +1856,9 @@ function resetBankProfileEditor(){
     name:'Nuevo perfil',
     bank:'Banco',
     card:'Tarjeta o cuenta',
+    type:'bank',
+    balance:'',
+    status:'active',
     method:'gmail',
     close:'',
     due:'',
@@ -1862,6 +1868,9 @@ function resetBankProfileEditor(){
     'bank-profile-name':defaults.name,
     'bank-profile-bank':defaults.bank,
     'bank-profile-card':defaults.card,
+    'bank-profile-type':defaults.type,
+    'bank-profile-balance':defaults.balance,
+    'bank-profile-status':defaults.status,
     'bank-profile-method':defaults.method,
     'bank-profile-close':defaults.close,
     'bank-profile-due':defaults.due,
@@ -1889,6 +1898,9 @@ function renderBankProfilesModal(editingId){
         <div class="settings-rule-title">${profile.name}</div>
         <div class="settings-rule-sub">${profile.bank || 'Sin banco'} · ${profile.card || 'Sin tarjeta'}${profile.note ? ' · ' + profile.note : ''}</div>
         <div class="settings-rule-meta">
+          <span class="settings-rule-chip">${profile.typeLabel || 'Cuenta bancaria'}</span>
+          ${profile.balance ? `<span class="settings-rule-chip">$${fmtN(Math.round(profile.balance))}</span>` : ''}
+          <span class="settings-rule-chip">${profile.status === 'inactive' ? 'Inactiva' : 'Activa'}</span>
           <span class="settings-rule-chip">${profile.methodLabel || 'Sin método'}</span>
           ${profile.closeDay ? `<span class="settings-rule-chip">Cierre ${profile.closeDay}</span>` : ''}
           ${profile.dueDay ? `<span class="settings-rule-chip">Vence ${profile.dueDay}</span>` : ''}
@@ -1914,6 +1926,9 @@ function openBankProfileManager(profileId){
   document.getElementById('bank-profile-name').value = profile.name || '';
   document.getElementById('bank-profile-bank').value = profile.bank || '';
   document.getElementById('bank-profile-card').value = profile.card || '';
+  document.getElementById('bank-profile-type').value = profile.type || 'bank';
+  document.getElementById('bank-profile-balance').value = profile.balance || '';
+  document.getElementById('bank-profile-status').value = profile.status || 'active';
   document.getElementById('bank-profile-method').value = profile.method || 'gmail';
   document.getElementById('bank-profile-close').value = profile.closeDay || '';
   document.getElementById('bank-profile-due').value = profile.dueDay || '';
@@ -1926,11 +1941,17 @@ function saveBankProfile(){
   const id = document.getElementById('bank-profile-id')?.value || '';
   const method = document.getElementById('bank-profile-method')?.value || 'gmail';
   const labels = { gmail:'Gmail', paste:'Texto pegado', csv:'Archivo / CSV', manual:'Manual' };
+  const type = document.getElementById('bank-profile-type')?.value || 'bank';
+  const typeLabels = { bank:'Cuenta bancaria', wallet:'Wallet', 'credit-card':'Tarjeta de crédito' };
   const payload = {
     id: id || 'bank-profile-' + Date.now().toString(36),
     name: (document.getElementById('bank-profile-name')?.value || '').trim() || 'Perfil bancario',
     bank: (document.getElementById('bank-profile-bank')?.value || '').trim() || 'Banco',
     card: (document.getElementById('bank-profile-card')?.value || '').trim() || 'Tarjeta o cuenta',
+    type,
+    typeLabel: typeLabels[type] || 'Cuenta bancaria',
+    balance: parseFloat(document.getElementById('bank-profile-balance')?.value || '') || 0,
+    status: document.getElementById('bank-profile-status')?.value || 'active',
     method,
     methodLabel: labels[method] || 'Manual',
     closeDay: parseInt(document.getElementById('bank-profile-close')?.value || '', 10) || null,
@@ -2178,6 +2199,10 @@ function resetGmailRuleEditor(){
   const delBtn = document.getElementById('gmail-rule-delete-btn');
   if(idEl) idEl.value = '';
   if(delBtn) delBtn.style.display = 'none';
+  const catEl = document.getElementById('gmail-rule-category');
+  if(catEl){
+    catEl.innerHTML = `<option value="">Auto detectar</option>${(state.categories || []).map(cat => `<option value="${esc(cat.name)}">${esc(cat.name)}</option>`).join('')}`;
+  }
   applyGmailRuleTemplate('santander-compras');
 }
 
@@ -2201,6 +2226,7 @@ function renderGmailRulesModal(editingId){
             <span class="settings-rule-chip">${getGmailRuleImportKind(rule)==='subscription'?'Suscripción':'Movimiento'}</span>
             <span class="settings-rule-chip">${rule.bank || 'Sin banco'}</span>
             <span class="settings-rule-chip">${formatGmailRuleCardType(rule.cardType)}</span>
+            ${rule.category ? `<span class="settings-rule-chip">${rule.category}</span>` : ''}
           </div>
         </div>
         <div class="settings-rule-actions">
@@ -2215,6 +2241,10 @@ function renderGmailRulesModal(editingId){
 function openGmailRuleManager(ruleId){
   ensureGmailImportRules();
   openModal('modal-gmail-rules');
+  const catEl = document.getElementById('gmail-rule-category');
+  if(catEl){
+    catEl.innerHTML = `<option value="">Auto detectar</option>${(state.categories || []).map(cat => `<option value="${esc(cat.name)}">${esc(cat.name)}</option>`).join('')}`;
+  }
   renderGmailRulesModal(ruleId);
   const rule = (state.gmailImportRules||[]).find(r => r.id === ruleId);
   if(!rule){
@@ -2228,6 +2258,8 @@ function openGmailRuleManager(ruleId){
   document.getElementById('gmail-rule-query').value = rule.query || '';
   document.getElementById('gmail-rule-import-kind').value = getGmailRuleImportKind(rule);
   document.getElementById('gmail-rule-card').value = rule.cardType || 'auto';
+  document.getElementById('gmail-rule-category').value = rule.category || '';
+  document.getElementById('gmail-rule-movement-type').value = rule.movementType || (getGmailRuleImportKind(rule)==='subscription' ? 'subscription' : 'expense');
   document.getElementById('gmail-rule-processor').value = rule.processor || 'santander_email';
   document.getElementById('gmail-rule-delete-btn').style.display = 'inline-flex';
 }
@@ -2243,6 +2275,8 @@ function saveGmailRule(){
     query: (document.getElementById('gmail-rule-query')?.value || '').trim(),
     importKind: document.getElementById('gmail-rule-import-kind')?.value || 'transaction',
     cardType: document.getElementById('gmail-rule-card')?.value || 'auto',
+    category: document.getElementById('gmail-rule-category')?.value || '',
+    movementType: document.getElementById('gmail-rule-movement-type')?.value || 'expense',
     processor: document.getElementById('gmail-rule-processor')?.value || 'santander_email',
     active: true
   };
