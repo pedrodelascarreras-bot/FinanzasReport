@@ -1096,7 +1096,8 @@ function renderImportHistoryItems(targetId, compact){
     el.innerHTML = `
       <div class="import-history-empty">
         <div class="empty-icon">📋</div>
-        <div class="empty-title import-history-empty-title">Sin coincidencias</div>
+        <div class="empty-title import-history-empty-title">${state.imports?.length ? 'Sin coincidencias' : 'Todavía no hay importaciones'}</div>
+        <div class="empty-sub">${state.imports?.length ? 'Probá con otro estado o período para encontrar una importación específica.' : 'Importá movimientos desde la pantalla de Importaciones para construir historial y poder revisar cambios después.'}</div>
       </div>`;
     return;
   }

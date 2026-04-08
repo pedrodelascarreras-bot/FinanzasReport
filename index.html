@@ -81,7 +81,7 @@
     <button class="nav-item" id="ni-insights" onclick="nav('insights')">
       <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/><path d="M19 15l.5 2 2 .5-2 .5-.5 2-.5-2-2-.5 2-.5.5-2z"/></svg></span><span>Insights</span>
     </button>
-    <button class="nav-item" id="ni-compare" onclick="nav('compare')">
+    <button class="nav-item nav-item-hidden" id="ni-compare" onclick="nav('compare')" aria-hidden="true" tabindex="-1">
       <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg></span><span>Mes vs Mes</span>
     </button>
     
@@ -1308,15 +1308,15 @@
 <div id="page-transactions" class="page">
 
   <div class="page-header fade-up">
-    <div><div class="page-title">Movimientos</div><div class="page-subtitle">Búsqueda, revisión y corrección con una vista más ordenada y operativa.</div></div>
+    <div><div class="page-title">Movimientos</div><div class="page-subtitle">Tu mesa operativa diaria para buscar, corregir, categorizar y cerrar movimientos sin fricción.</div></div>
     <div class="header-actions">
       <div class="search-wrap search-wrap-wide">
         <span class="search-icon">🔍</span>
         <input id="f-search" class="search-input search-input-compact" type="text" placeholder="Buscar descripción, monto o categoría..." oninput="onSearchInput(this)">
         <button class="search-clear" id="search-clear-btn" onclick="clearSearch()">✕</button>
       </div>
-      <button class="btn btn-ghost" onclick="openRulesPanel()">Reglas</button>
-      <button class="btn btn-ghost" onclick="openNewExpenseModal()">Registrar gasto</button>
+      <button class="btn btn-ghost" onclick="openRulesPanel()">Crear regla</button>
+      <button class="btn btn-ghost" onclick="openNewExpenseModal()">Nuevo gasto</button>
       <button class="btn btn-primary quick-review-btn" id="btn-quick-cat" onclick="openCatReview()">Revisar categorías <span id="qr-badge" class="quick-review-badge">0</span></button>
     </div>
   </div>
@@ -1486,65 +1486,13 @@
 
 <!-- COMPARE -->
 <div id="page-compare" class="page">
-  <div class="page-header fade-up">
-    <div><div class="page-title">Mes vs Mes</div><div class="page-subtitle">Compará períodos y detectá cambios</div></div>
-    <div class="header-actions">
-      <div class="view-toggle">
-        <button class="edit-layout-btn" id="edit-btn-compare" onclick="toggleEditMode('compare')" style="margin-right:8px;">✦ Editar vista</button><button class="toggle-btn active" id="tog-month" onclick="setCompareMode('month')">Meses</button>
-        <button class="toggle-btn" id="tog-tc" onclick="setCompareMode('tc')">Ciclo TC</button>
-      </div>
-    </div>
-  </div>
-  <div id="compare-empty" class="empty-state fade-up">
+  <div class="empty-state fade-up">
     <div class="empty-icon">⇄</div>
-    <div class="empty-title">Sin datos suficientes</div>
-    <p class="empty-sub">Necesitás tener al menos dos meses registrados para poder comparar tu desempeño financiero entre ellos.</p>
+    <div class="empty-title">Mes vs Mes ahora vive dentro de Balance mensual</div>
+    <p class="empty-sub">Abrí Balance mensual para comparar períodos dentro del mismo flujo de análisis.</p>
     <div class="empty-actions">
-      <button class="btn btn-primary" onclick="nav('import')">Importar resumen</button>
+      <button class="btn btn-primary" onclick="setBalanceView('compare', { navigate: true })">Abrir Balance mensual</button>
     </div>
-  </div>
-  <div id="compare-content" style="display:none;flex-direction:column;gap:20px;">
-    <div class="layout-edit-banner" id="banner-compare"><strong>✦ Modo edición</strong> · Arrastrá · Toggle · <button class="btn btn-ghost btn-sm" onclick="toggleEditMode('compare')">Listo ✓</button></div>
-
-    <div class="layout-section" data-page="compare" data-key="selector"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('compare','selector',this)">● Selector de períodos</button></div>
-    <!-- Selector de períodos -->
-    <div class="cmp-selector-row fade-up d1">
-      <select id="cmp-a" class="txn-select" style="flex:1;max-width:220px;" onchange="renderCompare()"></select>
-      <div class="cmp-vs">vs</div>
-      <select id="cmp-b" class="txn-select" style="flex:1;max-width:220px;" onchange="renderCompare()"></select>
-    </div>
-    </div><!-- /layout-section -->
-
-    <div class="layout-section" data-page="compare" data-key="hero"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('compare','hero',this)">● Resumen comparativo</button></div>
-    <!-- Resumen principal: 3 números -->
-    <div class="cmp-hero-row fade-up d2" id="cmp-hero"></div>
-    </div><!-- /layout-section -->
-
-    <div class="layout-section" data-page="compare" data-key="cats"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('compare','cats',this)">● Diferencia por cat.</button></div>
-    <!-- Diferencia por categoría -->
-    <div class="table-card fade-up d3">
-      <div class="table-header" style="padding:16px 20px 0;">
-        <div class="table-title">Por categoría</div>
-        <div class="table-sub" id="cmp-cat-sub" style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;"></div>
-      </div>
-      <div id="cmp-cat-diff" style="padding:12px 20px 16px;"></div>
-    </div>
-    </div><!-- /layout-section -->
-
-    <div class="layout-section" data-page="compare" data-key="line"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('compare','line',this)">● Evolución comparada</button></div>
-    <!-- Gráfico de líneas comparativo -->
-    <div class="chart-card fade-up d3">
-      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;">
-        <div>
-          <div class="chart-card-title">Evolución comparada</div>
-          <div class="chart-card-sub" id="cmp-line-sub">Gasto acumulado día a día (solo meses)</div>
-        </div>
-        <div id="cmp-line-legend" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;"></div>
-      </div>
-      <div class="chart-wrap" style="height:220px;"><canvas id="chart-cmp-line"></canvas></div>
-    </div>
-    </div><!-- /layout-section -->
-
   </div>
 </div>
 
@@ -1617,7 +1565,7 @@
   <div class="page-header fade-up">
     <div>
       <div class="page-title">Balance mensual</div>
-      <div class="page-subtitle">Cabina financiera del mes: cierre, diagnóstico, oportunidades y próximo movimiento.</div>
+      <div class="page-subtitle">Una sola vista para entender el cierre del mes, comparar contra el anterior y decidir qué hacer después.</div>
     </div>
     <div class="header-actions balance-header-actions">
       <select id="balance-month-select" class="txn-select" onchange="renderBalancePage()"></select>
@@ -1636,9 +1584,95 @@
   </div>
 
   <div id="balance-content" class="balance-page-content" style="display:none;">
-    <div id="balance-hero" class="fade-up d1"></div>
-    <div id="balance-grid" class="fade-up d2"></div>
-    <div id="balance-next" class="fade-up d3"></div>
+    <section class="balance-topbar fade-up d1">
+      <div class="balance-topbar-main">
+        <div class="balance-context-copy">
+          <span class="balance-context-kicker">Análisis mensual</span>
+          <strong id="balance-context-title">Resumen del período</strong>
+          <p id="balance-context-sub">Leé el cierre del mes y detectá dónde conviene ajustar antes del próximo arranque.</p>
+        </div>
+        <div class="balance-top-metrics">
+          <article class="balance-top-metric">
+            <span>Ingresos</span>
+            <strong id="balance-top-income">—</strong>
+          </article>
+          <article class="balance-top-metric">
+            <span>Gastos</span>
+            <strong id="balance-top-expenses">—</strong>
+          </article>
+          <article class="balance-top-metric">
+            <span>Resultado</span>
+            <strong id="balance-top-net">—</strong>
+          </article>
+        </div>
+      </div>
+      <div class="balance-view-switch" role="tablist" aria-label="Vista de balance mensual">
+        <button id="balance-tab-summary" class="balance-view-btn active" role="tab" aria-selected="true" onclick="setBalanceView('summary')">Resumen</button>
+        <button id="balance-tab-compare" class="balance-view-btn" role="tab" aria-selected="false" onclick="setBalanceView('compare')">Mes vs Mes</button>
+      </div>
+    </section>
+
+    <section id="balance-summary-view" class="balance-view-panel">
+      <div id="balance-hero" class="fade-up d1"></div>
+      <div id="balance-grid" class="fade-up d2"></div>
+      <div id="balance-next" class="fade-up d3"></div>
+    </section>
+
+    <section id="balance-compare-view" class="balance-view-panel" style="display:none;">
+      <div class="balance-compare-shell fade-up d2">
+        <div class="balance-compare-toolbar">
+          <div class="balance-compare-copy">
+            <span class="balance-panel-kicker">Comparación</span>
+            <h3>Mes vs Mes</h3>
+            <p>Compará dos períodos con el mismo marco visual para entender cuánto cambió tu gasto y en qué categorías.</p>
+          </div>
+          <div class="view-toggle balance-compare-toggle">
+            <button class="toggle-btn active" id="tog-month" onclick="setCompareMode('month')">Meses</button>
+            <button class="toggle-btn" id="tog-tc" onclick="setCompareMode('tc')">Ciclo TC</button>
+          </div>
+        </div>
+
+        <div id="compare-empty" class="empty-state fade-up">
+          <div class="empty-icon">⇄</div>
+          <div class="empty-title">Todavía no hay dos períodos para comparar</div>
+          <p class="empty-sub">Importá al menos dos meses o dos ciclos para resaltar diferencias, detectar desvíos y entender la evolución.</p>
+          <div class="empty-actions">
+            <button class="btn btn-primary" onclick="nav('import')">Importar datos</button>
+          </div>
+        </div>
+
+        <div id="compare-content" style="display:none;flex-direction:column;gap:20px;">
+          <div class="cmp-selector-row fade-up d1 balance-compare-selector">
+            <select id="cmp-a" class="txn-select" style="flex:1;max-width:220px;" onchange="renderCompare()"></select>
+            <div class="cmp-vs">vs</div>
+            <select id="cmp-b" class="txn-select" style="flex:1;max-width:220px;" onchange="renderCompare()"></select>
+          </div>
+
+          <div class="cmp-hero-row fade-up d2" id="cmp-hero"></div>
+
+          <div class="balance-compare-grid fade-up d3">
+            <div class="table-card balance-compare-card">
+              <div class="table-header" style="padding:16px 20px 0;">
+                <div class="table-title">Diferencia por categoría</div>
+                <div class="table-sub" id="cmp-cat-sub" style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;"></div>
+              </div>
+              <div id="cmp-cat-diff" style="padding:12px 20px 16px;"></div>
+            </div>
+
+            <div class="chart-card balance-compare-card">
+              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;gap:12px;flex-wrap:wrap;">
+                <div>
+                  <div class="chart-card-title">Evolución comparada</div>
+                  <div class="chart-card-sub" id="cmp-line-sub">Gasto acumulado día a día</div>
+                </div>
+                <div id="cmp-line-legend" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;"></div>
+              </div>
+              <div class="chart-wrap" style="height:220px;"><canvas id="chart-cmp-line"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
 
@@ -2095,19 +2129,19 @@
   <div class="page-header fade-up">
     <div>
       <div class="page-title">Importar datos</div>
-      <div class="page-subtitle import-page-subtitle">Ingreso de movimientos y carga manual sin mezclar seguridad ni configuración.</div>
+      <div class="page-subtitle import-page-subtitle">La entrada principal de movimientos: detectá, revisá, corregí y confirmá desde un flujo simple.</div>
     </div>
   </div>
 
   <div class="import-overview-band fade-up d1">
     <div class="import-overview-copy">
-      <div class="import-overview-kicker">Carga y resguardo</div>
-      <div class="import-overview-title">Unificá importación, carga puntual y seguridad en una sola pantalla más clara.</div>
+      <div class="import-overview-kicker">Flujo de importación</div>
+      <div class="import-overview-title">1. Elegí origen · 2. Revisá movimientos detectados · 3. Corregí lo necesario · 4. Confirmá y guardá el historial.</div>
     </div>
     <div class="import-overview-chips">
-      <span class="import-overview-chip">📋 Texto pegado</span>
-      <span class="import-overview-chip">💵 Gasto manual</span>
-      <span class="import-overview-chip">📋 Historial</span>
+      <span class="import-overview-chip">1. Origen</span>
+      <span class="import-overview-chip">2. Revisión</span>
+      <span class="import-overview-chip">3. Confirmación</span>
     </div>
   </div>
 
@@ -2118,7 +2152,7 @@
         <div class="import-title">Pegar resumen bancario</div>
         <div class="import-subtitle">Copiá y pegá el texto del banco para convertirlo en movimientos listos para revisar.</div>
       </div>
-      <button class="btn btn-primary" onclick="processPasteText()">Procesar texto</button>
+      <button class="btn btn-primary" onclick="processPasteText()">Detectar movimientos</button>
     </div>
     <div class="section-card-body">
       <div id="import-config-shell" class="field-grid-2" style="margin-bottom:14px;"></div>
@@ -2134,7 +2168,7 @@
         <div class="import-title">Registrar gasto manual</div>
         <div class="import-subtitle">Ideal para efectivo, movimientos aislados o consumos fuera del extracto.</div>
       </div>
-      <button class="btn btn-ghost btn-sm" onclick="toggleManualForm()" id="manual-form-toggle">Nuevo registro</button>
+      <button class="btn btn-ghost btn-sm" onclick="toggleManualForm()" id="manual-form-toggle">Nuevo gasto</button>
     </div>
     <div id="manual-form-body" class="import-manual-body" style="display:none;">
       <div class="import-grid-2">
@@ -2830,11 +2864,11 @@
 <div class="modal-overlay" id="modal-import-review">
   <div class="modal" style="width:640px;max-height:80vh;display:flex;flex-direction:column;">
     <div class="modal-title">🔍 Revisar importación</div>
-    <div class="modal-sub" id="review-sub">Revisá los movimientos antes de confirmar</div>
+    <div class="modal-sub" id="review-sub">Revisá los movimientos detectados antes de guardarlos</div>
     <div id="review-body" style="flex:1;overflow-y:auto;max-height:50vh;margin:12px 0;display:flex;flex-direction:column;gap:8px;"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="cancelImportReview()">Cancelar</button>
-      <button class="btn btn-primary" onclick="confirmImportReview()">✓ Confirmar importación</button>
+      <button class="btn btn-primary" onclick="confirmImportReview()">Guardar importación</button>
     </div>
   </div>
 </div>

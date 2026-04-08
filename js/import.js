@@ -327,7 +327,7 @@ function openImportReview(txns,issues){
     }
   });
   const subEl=document.getElementById('review-sub');
-  subEl.textContent=txns.length+' movimientos detectados'+(issues.length?' · '+issues.length+' requieren revisión':'');
+  subEl.textContent=txns.length+' movimientos detectados'+(issues.length?' · '+issues.length+' requieren corrección antes de importar':' · listos para confirmar');
   
   const bodyEl=document.getElementById('review-body');
   let html='';
@@ -519,7 +519,7 @@ function finishImport(txns,source,origen){
   if(pi.monthKey) state.dashMonth=pi.monthKey;
   saveState();
   const dupMsg=duplicates>0?' · '+duplicates+' duplicadas':'' ;
-  showToast('✓ '+added+' nuevas'+dupMsg+' — '+pi.label,'success');
+  showToast('Importación completada · '+added+' movimiento'+(added===1?'':'s')+dupMsg+' — '+pi.label,'success');
   afterDataLoad();
   // Gmail imports: don't auto-categorize, just render
   if(isGmail){

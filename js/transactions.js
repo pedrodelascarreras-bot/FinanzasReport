@@ -429,9 +429,9 @@ function renderTransactions(){
       <div class="empty-state fade-up">
         <div class="empty-icon">📊</div>
         <div class="empty-title">${searchVal ? 'Sin resultados' : 'Sin movimientos aún'}</div>
-        <p class="empty-sub">${searchVal ? 'No encontramos nada que coincida con "' + esc(searchVal) + '" en este período.' : 'Empezá importando tus gastos de Santander o conectando tu Gmail para ver el detalle aquí.'}</p>
+        <p class="empty-sub">${searchVal ? 'No encontramos nada que coincida con "' + esc(searchVal) + '" en este período. Probá con otra categoría, monto o descripción.' : 'Todavía no hay movimientos para revisar. Importá datos o cargá un gasto manual para empezar a ordenar el día a día.'}</p>
         <div class="empty-actions">
-           ${searchVal ? '<button class="btn btn-secondary" onclick="clearSearch()">Limpiar búsqueda</button>' : '<button class="btn btn-primary" onclick="nav(\'import\')">Importar movimientos</button>'}
+           ${searchVal ? '<button class="btn btn-secondary" onclick="clearSearch()">Limpiar búsqueda</button>' : '<button class="btn btn-primary" onclick="nav(\'import\')">Importar datos</button><button class="btn btn-ghost" onclick="openNewExpenseModal()">Nuevo gasto</button>'}
         </div>
       </div>`;
     return;

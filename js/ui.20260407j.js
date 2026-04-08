@@ -167,7 +167,7 @@ function isMobileAppView(){
 }
 
 function isMobileBlockedPage(page){
-  return isMobileAppView() && ['insights','reportes','compare','categories','import','cc-compare','dashboard-design'].includes(page);
+  return isMobileAppView() && ['insights','reportes','categories','import','cc-compare','dashboard-design'].includes(page);
 }
 
 function handleDashEmptyTap(event){
@@ -183,7 +183,12 @@ function handleDashEmptyTap(event){
 }
 
 function openTrendDetail(){
-  nav(isMobileAppView() ? 'tendencia' : 'compare');
+  if(isMobileAppView()){
+    nav('tendencia');
+    return;
+  }
+  if(typeof setBalanceView === 'function') setBalanceView('compare', { navigate: true });
+  else nav('balance');
 }
 
 function enforceMobilePagePreferences(){
@@ -218,7 +223,6 @@ function refreshAll(){
   // Actualizar las otras páginas solo si están abiertas en este momento
   if(document.getElementById('page-tendencia').classList.contains('active')) renderTendencia();
   if(document.getElementById('page-transactions').classList.contains('active')) renderTransactions();
-  if(document.getElementById('page-compare').classList.contains('active')){renderCompareSelectors();renderCompare();}
   if(document.getElementById('page-balance')?.classList.contains('active') && typeof renderBalancePage==='function') renderBalancePage();
   if(document.getElementById('page-reportes').classList.contains('active')) renderReportesPage();
   if(document.getElementById('page-cuotas').classList.contains('active')) {renderCuotas();renderSubs();renderFixed();renderCompromisosSummary();}
@@ -238,6 +242,10 @@ function nav(page){
   if(typeof closeNotifPanel === 'function') closeNotifPanel();
   if(typeof closeImportHistoryMenu === 'function') closeImportHistoryMenu();
   if(typeof closeProfileDropdown === 'function') closeProfileDropdown();
+  if(page==='compare'){
+    state.balanceView='compare';
+    page='balance';
+  }
   if(isMobileBlockedPage(page)){
     showToast('Esa pantalla quedó disponible solo en desktop', 'info');
     page='dashboard';
@@ -259,7 +267,6 @@ function nav(page){
   if(secId){openSection(secId);document.getElementById(secId)?.classList.add('has-active');}
   // Mobile nav
   const mn=document.getElementById('mn-'+navTarget);if(mn)mn.classList.add('active');
-  if(page==='compare'){renderCompareSelectors();renderCompare();}
   if(page==='balance' && typeof renderBalancePage==='function') renderBalancePage();
   if(page==='insights'&&state.transactions.length)generateInsights();
   if(page==='categories'){renderCategoryManage();renderInlineColorPicker('');}

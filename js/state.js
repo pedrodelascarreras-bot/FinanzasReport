@@ -3,7 +3,7 @@ let state={
   transactions:[],categories:[...DEFAULT_CATS],
   income:{ars:0,varArs:0,usd:0,varUsd:0},
   savingsGoal:20,alertThreshold:80,spendPct:100,insightsBufferMonths:3,tendChartMode:'bar',
-  imports:[],compareMode:'month',repDesign:'executive',tendMode:'tc',
+  imports:[],compareMode:'month',balanceView:'summary',repDesign:'executive',tendMode:'tc',
   activeTendCats:null,
   _selectedTxns:new Set(),
   cuotas:[],autoCuotaConfig:{},subscriptions:[],fixedExpenses:[],
@@ -58,7 +58,7 @@ function getStateSnapshot(){
     try{ syncActiveUserProfileFromState(false); }catch(e){ console.warn('profile sync error', e); }
   }
   return {
-    transactions:state.transactions,categories:state.categories,income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'mes',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],
+    transactions:state.transactions,categories:state.categories,income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'mes',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],balanceView:state.balanceView||'summary',
     savingsGoal:state.savingsGoal,alertThreshold:state.alertThreshold,spendPct:state.spendPct||100,insightsBufferMonths:state.insightsBufferMonths||3,tendChartMode:state.tendChartMode||'bar',imports:state.imports,
     cuotas:state.cuotas,autoCuotaConfig:state.autoCuotaConfig,subscriptions:state.subscriptions,fixedExpenses:state.fixedExpenses||[],
     incomeSources:state.incomeSources,incomeMonths:state.incomeMonths,
@@ -321,6 +321,7 @@ async function loadFromDrive(){
     state.profileTemplate=s.profileTemplate||'personal';
     state.onboardingState=s.onboardingState||{};
     state.lastGmailSync=s.lastGmailSync||null;
+    state.balanceView=s.balanceView||state.balanceView||'summary';
     state.gmailClientId=s.gmailClientId||'';
     state.userEmail=s.userEmail||'';
     state.manualUserEmail=s.manualUserEmail||'';
@@ -386,6 +387,7 @@ function loadState(){
     state.profileTemplate=s.profileTemplate||'personal';
     state.onboardingState=s.onboardingState||{};
     state.lastGmailSync=s.lastGmailSync||null;
+    state.balanceView=s.balanceView||state.balanceView||'summary';
     state.gmailClientId=s.gmailClientId||localStorage.getItem('fin_gmail_client_id')||'';
     state.userEmail=s.userEmail||'';
     state.manualUserEmail=s.manualUserEmail||'';
