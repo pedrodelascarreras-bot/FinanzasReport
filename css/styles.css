@@ -10836,10 +10836,39 @@ body.light-mode .sp-simple-close {
   font-weight: 700;
 }
 .balance-hero-title {
-  margin-top: 10px;
+  margin-top: 8px;
   font-size: clamp(32px,4vw,54px);
   line-height: 0.96;
   letter-spacing: -0.05em;
+}
+.balance-status-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text);
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.04);
+}
+.balance-status-tag.good { box-shadow: inset 0 0 0 1px rgba(48,209,88,0.14); }
+.balance-status-tag.warn { box-shadow: inset 0 0 0 1px rgba(255,159,10,0.14); }
+.balance-status-tag.danger { box-shadow: inset 0 0 0 1px rgba(255,69,58,0.14); }
+.balance-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.9;
+  animation: balancePulse 2.2s ease-in-out infinite;
+}
+@keyframes balancePulse {
+  0%,100% { transform: scale(1); opacity: .8; }
+  50% { transform: scale(1.5); opacity: 1; }
 }
 .balance-hero-desc {
   margin-top: 10px;
@@ -10878,6 +10907,26 @@ body.light-mode .sp-simple-close {
   flex-wrap: wrap;
   gap: 10px;
 }
+.balance-inline-insights {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+.balance-inline-insight {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.07);
+  color: var(--text2);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.balance-hero-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
 .balance-story-chip {
   min-width: 0;
   padding: 10px 12px;
@@ -10914,6 +10963,29 @@ body.light-mode .sp-simple-close {
   grid-template-columns: 120px 1fr;
   gap: 14px;
   align-items: center;
+}
+.balance-score-details {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.balance-score-details summary {
+  cursor: pointer;
+  color: var(--text2);
+  font-size: 12px;
+  list-style: none;
+}
+.balance-score-details summary::-webkit-details-marker { display: none; }
+.balance-score-details div {
+  margin-top: 8px;
+  display: grid;
+  gap: 6px;
+}
+.balance-score-details p {
+  color: var(--text3);
+  font-size: 12px;
+  line-height: 1.55;
 }
 .balance-visual-stack {
   display: grid;
@@ -11090,8 +11162,161 @@ body.light-mode .sp-simple-close {
 }
 #balance-grid {
   display: grid;
-  grid-template-columns: repeat(2,minmax(0,1fr));
+  grid-template-columns: 1fr;
   gap: 18px;
+}
+.balance-secondary-grid,
+.balance-leak-grid,
+.balance-action-grid,
+.balance-simulation-grid {
+  display: grid;
+  gap: 14px;
+}
+.balance-secondary-grid {
+  grid-template-columns: repeat(3,minmax(0,1fr));
+}
+.balance-metric-card,
+.balance-leak-card,
+.balance-action-card,
+.balance-scenario-card {
+  padding: 18px;
+  border-radius: 20px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(255,255,255,0.03);
+  box-shadow: var(--shadow-xs);
+  transition: transform var(--dur-fast) var(--ease-premium), border-color var(--dur-fast) var(--ease-premium), background var(--dur-fast) var(--ease-premium);
+}
+.balance-metric-card:hover,
+.balance-leak-card:hover,
+.balance-action-card:hover,
+.balance-scenario-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.045);
+}
+.balance-metric-top {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.balance-metric-top span,
+.balance-action-impact,
+.balance-scenario-card span,
+.balance-leak-top span,
+.balance-leak-values label {
+  color: var(--text3);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.balance-metric-top strong,
+.balance-scenario-card strong {
+  font-size: 28px;
+  line-height: 1;
+  letter-spacing: -0.05em;
+}
+.balance-metric-card p,
+.balance-leak-card p,
+.balance-action-card p,
+.balance-scenario-card p,
+.balance-scenario-card small,
+.balance-simulation-assumptions div {
+  color: var(--text3);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.balance-metric-visual {
+  margin: 14px 0 12px;
+}
+.balance-mini-compare,
+.balance-mini-stack,
+.balance-mini-line {
+  position: relative;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+  overflow: hidden;
+}
+.balance-mini-compare span,
+.balance-mini-stack span,
+.balance-mini-line span {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(41,151,255,0.95), rgba(41,151,255,0.45));
+}
+.balance-mini-compare .expense,
+.balance-mini-line.fx span {
+  background: linear-gradient(90deg, rgba(255,69,58,0.95), rgba(255,69,58,0.45));
+}
+.balance-mini-stack .variable {
+  left: auto;
+  right: 0;
+  background: linear-gradient(90deg, rgba(48,209,88,0.95), rgba(48,209,88,0.45));
+}
+.balance-capacity-dots,
+.balance-mini-calendar {
+  display: grid;
+  gap: 6px;
+}
+.balance-capacity-dots {
+  grid-template-columns: repeat(6,1fr);
+}
+.balance-capacity-dots i,
+.balance-mini-calendar i {
+  display: block;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+}
+.balance-capacity-dots i {
+  height: 10px;
+}
+.balance-capacity-dots i.on {
+  background: linear-gradient(90deg, rgba(48,209,88,0.95), rgba(41,151,255,0.55));
+}
+.balance-mini-calendar {
+  grid-template-columns: repeat(8,1fr);
+}
+.balance-mini-calendar i {
+  width: 100%;
+  aspect-ratio: 1;
+}
+.balance-mini-calendar i.on {
+  background: linear-gradient(180deg, rgba(41,151,255,0.95), rgba(41,151,255,0.3));
+}
+.balance-leak-grid,
+.balance-action-grid,
+.balance-simulation-grid {
+  grid-template-columns: repeat(3,minmax(0,1fr));
+}
+.balance-leak-top,
+.balance-leak-values {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.balance-leak-values {
+  margin: 14px 0 10px;
+}
+.balance-leak-values strong,
+.balance-action-card strong {
+  display: block;
+  margin-top: 4px;
+  font-size: 19px;
+  letter-spacing: -0.03em;
+}
+.balance-action-card b {
+  color: var(--text2);
+}
+.balance-scenario-card.improved {
+  background: linear-gradient(180deg, rgba(48,209,88,0.08), rgba(255,255,255,0.03));
+  border-color: rgba(48,209,88,0.2);
+}
+.balance-simulation-assumptions {
+  margin-top: 12px;
+  display: grid;
+  gap: 8px;
 }
 .balance-panel,
 .balance-next-shell {
@@ -11277,8 +11502,11 @@ body.light-mode .sp-simple-close {
 
 @media (max-width: 980px) {
   .balance-hero-shell,
-  #balance-grid,
-  .balance-next-grid {
+  .balance-next-grid,
+  .balance-secondary-grid,
+  .balance-leak-grid,
+  .balance-action-grid,
+  .balance-simulation-grid {
     grid-template-columns: 1fr;
   }
   .balance-score-card {
@@ -11308,6 +11536,7 @@ body.light-mode .sp-simple-close {
     grid-template-columns: 1fr;
   }
   .balance-storyline,
+  .balance-hero-actions,
   .balance-mix-legend,
   .balance-runway-foot,
   .balance-health-band-labels {

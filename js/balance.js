@@ -290,6 +290,25 @@
     return items.slice(0,4);
   }
 
+  function balanceInlineInsights(data){
+    const insights=[];
+    const leaks=balanceLeaks(data);
+    if(leaks[0]){
+      insights.push(`"${leaks[0].category}" está ${leaks[0].multipleLabel} por encima de tu nivel normal.`);
+    }
+    const top=data.topCategories[0];
+    if(top){
+      insights.push(`${top.name} representa ${top.pct}% de tu gasto total.`);
+    }
+    if(data.daysWithSpend>(data.daysInMonth*0.75)){
+      insights.push(`Gastaste en ${data.daysWithSpend}/${data.daysInMonth} días. La frecuencia ya es una palanca importante.`);
+    }
+    if(data.subscriptionsBase>0){
+      insights.push(`Tus suscripciones consumen ${balancePct(data.subscriptionsBase,data.committedBase)||0}% de tu base comprometida.`);
+    }
+    return insights.slice(0,4);
+  }
+
   function balanceOpportunities(data){
     const suggestions=[];
     const subscriptionCount=(state.subscriptions||[]).filter(s=>s.active!==false).length;
@@ -340,6 +359,89 @@
     return alerts.slice(0,4);
   }
 
+  function balanceLeaks(data){
+    return data.topCategories
+      .filter(cat=>cat.avg>0 && cat.total>cat.avg*1.12)
+      .map(cat=>{
+        const ratio=cat.avg>0?(cat.total/cat.avg):1;
+        const reducible=Math.max(0,cat.total-cat.avg);
+        const savePotential=Math.round(cat.total*0.3);
+        return {
+          category: cat.name,
+          current: cat.total,
+          avg: cat.avg,
+          delta: cat.delta,
+          ratio,
+          multipleLabel: ratio>=2 ? `${fmtN(ratio,1)}x` : `+${Math.round((ratio-1)*100)}%`,
+          explanation: `${cat.name} está ${ratio>=2?`${fmtN(ratio,1)}x`:`${Math.round((ratio-1)*100)}%`} por encima de tu promedio. Recortar 30% liberaría ${balanceFmtMoney(savePotential)}.`,
+          plainAction: `Reducir ${cat.name} en 30% te devolvería ${balanceFmtMoney(savePotential)}.`,
+          savePotential,
+          reducible
+        };
+      })
+      .sort((a,b)=>b.savePotential-a.savePotential)
+      .slice(0,3);
+  }
+
+  function balanceActionPlan(data){
+    const leaks=balanceLeaks(data);
+    const actions=[];
+    if(leaks[0]){
+      actions.push({
+        title:`Bajá ${leaks[0].category}`,
+        problem:`Está en ${leaks[0].multipleLabel} de tu ritmo normal.`,
+        impact: leaks[0].savePotential,
+        action:`Probá una reducción de 30% este mes y recuperás ${balanceFmtMoney(leaks[0].savePotential)}.`
+      });
+    }
+    if(data.daysWithSpend>(data.daysInMonth*0.75)){
+      const frequencySave=Math.round(data.avgTicket*2.5);
+      actions.push({
+        title:'Reducí frecuencia de compra',
+        problem:`Gastaste en ${data.daysWithSpend}/${data.daysInMonth} días.`,
+        impact: frequencySave,
+        action:'Agrupá compras pequeñas en menos días. Suele rendir más que perseguir un gasto grande aislado.'
+      });
+    }
+    if(data.subscriptionsBase>0){
+      const subSave=Math.round(data.subscriptionsBase*0.2);
+      actions.push({
+        title:'Optimizar suscripciones',
+        problem:`Tenés ${balanceFmtMoney(data.subscriptionsBase)} mensuales en servicios recurrentes.`,
+        impact: subSave,
+        action:`Con una poda de 20% liberarías cerca de ${balanceFmtMoney(subSave)} por mes.`
+      });
+    }
+    if(data.committedBase>0&&data.income.total>0&&(data.committedBase/data.income.total)>0.55){
+      actions.push({
+        title:'Bajar base comprometida',
+        problem:`La estructura fija consume ${Math.round((data.committedBase/data.income.total)*100)}% del ingreso.`,
+        impact: Math.round(data.committedBase*0.08),
+        action:'Mover una sola obligación recurrente o renegociar una cuota cambia mucho más de lo que parece.'
+      });
+    }
+    return actions.slice(0,3);
+  }
+
+  function balanceSimulation(data){
+    const leaks=balanceLeaks(data).slice(0,2);
+    const baselineSavings=data.income.total-data.totalExpenses;
+    const optimizedDelta=leaks.reduce((sum,leak)=>sum+Math.round(leak.current*0.25),0);
+    const optimizedSavings=baselineSavings+optimizedDelta;
+    return {
+      baseline: {
+        projectedSavings: baselineSavings,
+        savingsRate: data.income.total>0?Math.round((baselineSavings/data.income.total)*100):null
+      },
+      optimized: {
+        projectedSavings: optimizedSavings,
+        savingsRate: data.income.total>0?Math.round((optimizedSavings/data.income.total)*100):null,
+        delta: optimizedDelta,
+        assumptions: leaks.map(leak=>({category: leak.category, reductionPct: 25, recovered: Math.round(leak.current*0.25)}))
+      }
+    };
+  }
+
   function balanceNextMonth(data){
     const activeSubs=(state.subscriptions||[]).filter(s=>s.active!==false);
     const fixedCount=(state.fixedExpenses||[]).length;
@@ -359,6 +461,59 @@
     };
   }
 
+  function balanceSecondaryCards(data){
+    const fixedPct=balancePct(data.fixedBase+data.subscriptionsBase+data.cuotaProxima,data.totalExpenses)||0;
+    const variablePct=balanceClamp(100-fixedPct,0,100);
+    return [
+      {
+        title:'Income vs Expenses',
+        value: balanceFmtMoney(data.freeCash),
+        sub:`Tus gastos consumieron ${balancePct(data.totalExpenses,data.income.total)||0}% del ingreso.`,
+        visual: `
+          <div class="balance-mini-compare">
+            <span style="width:100%"></span>
+            <span class="expense" style="width:${balanceClamp(balancePct(data.totalExpenses,data.income.total)||0,2,100)}%"></span>
+          </div>
+        `
+      },
+      {
+        title:'Expense Structure',
+        value: `${fixedPct}% fijo`,
+        sub:`La parte variable fue ${variablePct}% del gasto.`,
+        visual: `
+          <div class="balance-mini-stack">
+            <span style="width:${balanceClamp(fixedPct,4,100)}%"></span>
+            <span class="variable" style="width:${balanceClamp(variablePct,4,100)}%"></span>
+          </div>
+        `
+      },
+      {
+        title:'Spending Velocity',
+        value: `${data.spendVelocity===null?'—':data.spendVelocity+'%'}`,
+        sub:'Qué tan rápido se fue el ingreso total durante el mes.',
+        visual: `<div class="balance-mini-line"><span style="width:${balanceClamp(data.spendVelocity||0,8,100)}%"></span></div>`
+      },
+      {
+        title:'Savings Capacity',
+        value: `${fmtN(data.bufferMonths,1)} meses`,
+        sub:'Cobertura de tu estructura comprometida con tu patrimonio actual.',
+        visual: `<div class="balance-capacity-dots">${new Array(6).fill(0).map((_,i)=>`<i class="${i<Math.round(balanceClamp(data.bufferMonths,0,6))?'on':''}"></i>`).join('')}</div>`
+      },
+      {
+        title:'Dollar Exposure',
+        value: `${data.usdExposure}%`,
+        sub:'Porción del gasto expuesta a movimientos del tipo de cambio.',
+        visual: `<div class="balance-mini-line fx"><span style="width:${balanceClamp(data.usdExposure,8,100)}%"></span></div>`
+      },
+      {
+        title:'Active Days Spending',
+        value: `${data.daysWithSpend}/${data.daysInMonth}`,
+        sub:'Mientras más frecuente el gasto, más difícil sostener ahorro.',
+        visual: `<div class="balance-mini-calendar">${new Array(Math.min(data.daysInMonth,31)).fill(0).map((_,i)=>`<i class="${i<data.daysWithSpend?'on':''}"></i>`).join('')}</div>`
+      }
+    ];
+  }
+
   function renderBalanceHero(data){
     const hero=document.getElementById('balance-hero');
     if(!hero) return;
@@ -372,30 +527,28 @@
     const committedPct=balancePct(data.committedBase,data.income.total)||0;
     const expensePct=balancePct(data.totalExpenses,data.income.total)||0;
     const freePct=data.income.total>0?balanceClamp(100-committedPct,0,100):0;
+    const inlineInsights=balanceInlineInsights(data);
     hero.innerHTML=`
       <section class="balance-hero-shell balance-tone-${status.tone}">
         <div class="balance-hero-copy">
           <div class="balance-hero-kicker">CIERRE DE ${balanceMonthLabel(data.monthKey).toUpperCase()}</div>
+          <div class="balance-status-tag ${status.tone}">
+            <span class="balance-status-dot"></span>${status.title}
+          </div>
           <h2 class="balance-hero-title">${status.title}</h2>
           <p class="balance-hero-desc">${status.desc}</p>
           <div class="balance-hero-main ${spendTone}">
             <span class="balance-hero-main-label">Resultado final</span>
             <span class="balance-hero-main-value">${balanceFmtMoney(data.freeCash)}</span>
-            <span class="balance-hero-main-sub">${rateText}</span>
+            <span class="balance-hero-main-sub">${rateText} · ${balanceDeltaText(data.freeCash-(data.prevIncome.total-data.prevTotalExpenses))} vs mes anterior</span>
           </div>
-          <div class="balance-storyline">
-            <div class="balance-story-chip">
-              <span>vs mes anterior</span>
-              <strong>${balanceDeltaText(data.freeCash-(data.prevIncome.total-data.prevTotalExpenses))}</strong>
-            </div>
-            <div class="balance-story-chip">
-              <span>base comprometida</span>
-              <strong>${committedPct}% del ingreso</strong>
-            </div>
-            <div class="balance-story-chip">
-              <span>gasto dolarizado</span>
-              <strong>${data.usdExposure}%</strong>
-            </div>
+          <div class="balance-inline-insights">
+            ${inlineInsights.map(text=>`<div class="balance-inline-insight">${text}</div>`).join('')}
+          </div>
+          <div class="balance-hero-actions">
+            <button class="btn btn-primary btn-sm" onclick="balanceJump('balance-actions')">Cut expenses</button>
+            <button class="btn btn-ghost btn-sm" onclick="balanceJump('balance-actions')">Optimize subscriptions</button>
+            <button class="btn btn-ghost btn-sm" onclick="balanceJump('balance-simulation')">Simulate next month</button>
           </div>
         </div>
         <div class="balance-hero-cockpit">
@@ -416,6 +569,17 @@
               <div><span>Base fija</span><strong>${balanceFmtMoney(data.committedBase)}</strong></div>
               <div><span>Normalizado</span><strong>${balanceFmtMoney(data.normalizedNet)}</strong></div>
             </div>
+            <details class="balance-score-details">
+              <summary>Why this score?</summary>
+              <div>
+                ${[
+                  `Ahorro del mes: ${data.savingsRate===null?'sin ingreso cargado':data.savingsRate+'%'}.`,
+                  `Base comprometida: ${committedPct}% del ingreso.`,
+                  `Cobertura patrimonial: ${fmtN(data.bufferMonths,1)} meses.`,
+                  `Exposición USD: ${data.usdExposure}% del gasto.`
+                ].map(item=>`<p>${item}</p>`).join('')}
+              </div>
+            </details>
           </div>
           <div class="balance-visual-stack">
             <div class="balance-visual-card">
@@ -472,6 +636,7 @@
   function renderBalanceGrid(data){
     const grid=document.getElementById('balance-grid');
     if(!grid) return;
+    const cards=balanceSecondaryCards(data);
     const bridgeRows=[
       {label:'Ingreso fijo', value:data.income.fixed, tone:'good'},
       {label:'Ingreso variable', value:data.income.variable, tone:'good'},
@@ -482,8 +647,24 @@
     const drivers=balanceDrivers(data);
     const opportunities=balanceOpportunities(data);
     const alerts=balanceAlerts(data);
+    const leaks=balanceLeaks(data);
+    const actions=balanceActionPlan(data);
+    const simulation=balanceSimulation(data);
     const categories=data.topCategories.slice(0,5);
     grid.innerHTML=`
+      <section class="balance-secondary-grid">
+        ${cards.map(card=>`
+          <article class="balance-metric-card">
+            <div class="balance-metric-top">
+              <span>${card.title}</span>
+              <strong>${card.value}</strong>
+            </div>
+            <div class="balance-metric-visual">${card.visual}</div>
+            <p>${card.sub}</p>
+          </article>
+        `).join('')}
+      </section>
+
       <section class="balance-panel balance-panel-bridge">
         <div class="balance-panel-head">
           <div>
@@ -554,6 +735,75 @@
         </div>
         <div class="balance-insight-list">
           ${opportunities.map(item=>`<article><strong>${item.title}</strong><p>${item.body}</p></article>`).join('')}
+        </div>
+      </section>
+
+      <section class="balance-panel" id="balance-leaks">
+        <div class="balance-panel-head">
+          <div>
+            <div class="balance-panel-kicker">Behavioral analytics</div>
+            <h3>Where your money leaks</h3>
+          </div>
+        </div>
+        <div class="balance-leak-grid">
+          ${leaks.map(leak=>`
+            <article class="balance-leak-card">
+              <div class="balance-leak-top">
+                <strong>${esc(leak.category)}</strong>
+                <span>${leak.multipleLabel}</span>
+              </div>
+              <div class="balance-leak-values">
+                <div><label>Actual</label><strong>${balanceFmtMoney(leak.current)}</strong></div>
+                <div><label>Promedio</label><strong>${balanceFmtMoney(leak.avg)}</strong></div>
+              </div>
+              <p>${leak.explanation}</p>
+            </article>
+          `).join('')}
+        </div>
+      </section>
+
+      <section class="balance-panel" id="balance-actions">
+        <div class="balance-panel-head">
+          <div>
+            <div class="balance-panel-kicker">Actionable insights</div>
+            <h3>What to do next</h3>
+          </div>
+        </div>
+        <div class="balance-action-grid">
+          ${actions.map(action=>`
+            <article class="balance-action-card">
+              <span class="balance-action-impact">Impacto ${balanceFmtMoney(action.impact)}</span>
+              <strong>${action.title}</strong>
+              <p><b>Problema:</b> ${action.problem}</p>
+              <p><b>Acción:</b> ${action.action}</p>
+            </article>
+          `).join('')}
+        </div>
+      </section>
+
+      <section class="balance-panel balance-simulation-shell" id="balance-simulation">
+        <div class="balance-panel-head">
+          <div>
+            <div class="balance-panel-kicker">Next month simulation</div>
+            <h3>Qué pasa si repetís este comportamiento</h3>
+          </div>
+        </div>
+        <div class="balance-simulation-grid">
+          <article class="balance-scenario-card">
+            <span>Current behavior</span>
+            <strong>${balanceFmtMoney(simulation.baseline.projectedSavings)}</strong>
+            <p>Ahorro proyectado si repetís este mes tal cual.</p>
+            <small>${simulation.baseline.savingsRate===null?'Sin tasa disponible':`${simulation.baseline.savingsRate}% de ahorro estimado`}</small>
+          </article>
+          <article class="balance-scenario-card improved">
+            <span>Reduce top 2 categories</span>
+            <strong>${balanceFmtMoney(simulation.optimized.projectedSavings)}</strong>
+            <p>Escenario ajustando 25% en tus dos fugas más claras.</p>
+            <small>${simulation.optimized.savingsRate===null?'Sin tasa disponible':`${simulation.optimized.savingsRate}% de ahorro estimado · ${balanceFmtMoney(simulation.optimized.delta)} mejor`}</small>
+          </article>
+        </div>
+        <div class="balance-simulation-assumptions">
+          ${simulation.optimized.assumptions.map(item=>`<div>${item.category}: -${item.reductionPct}% = ${balanceFmtMoney(item.recovered)} recuperados</div>`).join('')}
         </div>
       </section>
 
@@ -657,5 +907,10 @@
     renderBalanceGrid(data);
     renderBalanceNext(data);
     replayFadeUp(content);
+  };
+
+  window.balanceJump=function balanceJump(id){
+    const el=document.getElementById(id);
+    if(el) el.scrollIntoView({behavior:'smooth', block:'start'});
   };
 })();
