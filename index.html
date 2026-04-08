@@ -115,6 +115,72 @@
 
 <main class="main">
 
+<!-- ═══ GLOBAL APP HEADER ═══ -->
+<header id="app-header" class="app-header">
+  <div class="app-header-left">
+    <div class="app-header-brand" onclick="nav('dashboard')">
+      <div class="app-header-dot"></div>
+      <span class="app-header-name">FINANZAS</span>
+    </div>
+  </div>
+  <div class="app-header-center" id="app-header-center">
+    <span id="app-header-section">Dashboard</span>
+  </div>
+  <div class="app-header-right">
+    <button class="app-hdr-btn" id="app-btn-search" onclick="openGlobalSearch()" title="Buscar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    </button>
+    <button class="app-hdr-btn" id="app-btn-notif" onclick="toggleNotifPanel()" title="Notificaciones">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span id="app-notif-dot" class="app-hdr-dot" style="display:none;"></span>
+    </button>
+    <button class="app-hdr-btn" id="app-btn-add" onclick="nav('import')" title="Agregar">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <div class="app-avatar-wrap" id="app-avatar-wrap">
+      <button class="app-avatar" id="app-avatar-btn" onclick="toggleProfileDropdown()" title="Perfil">
+        <span id="app-avatar-letter">P</span>
+      </button>
+      <!-- Profile Dropdown -->
+      <div id="profile-dropdown" class="profile-dd" style="display:none;">
+        <div class="profile-dd-header">
+          <div class="profile-dd-avatar"><span id="dd-avatar-letter">P</span></div>
+          <div class="profile-dd-info">
+            <div class="profile-dd-name" id="dd-user-name">Pedro</div>
+            <div class="profile-dd-email" id="dd-user-email">usuario@finanzas.app</div>
+          </div>
+        </div>
+        <div class="profile-dd-divider"></div>
+        <div class="profile-dd-menu">
+          <button class="profile-dd-item" onclick="nav('profile');closeProfileDropdown()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            <span>Mi perfil</span>
+          </button>
+          <button class="profile-dd-item" onclick="nav('settings');closeProfileDropdown()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span>Configuración</span>
+          </button>
+          <button class="profile-dd-item" onclick="closeProfileDropdown()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            <span>Seguridad</span>
+          </button>
+          <button class="profile-dd-item" onclick="closeProfileDropdown()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            <span>Plan y suscripción</span>
+          </button>
+        </div>
+        <div class="profile-dd-divider"></div>
+        <div class="profile-dd-menu">
+          <button class="profile-dd-item profile-dd-item-danger" onclick="closeProfileDropdown()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            <span>Cerrar sesión</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</header>
+
 <!-- DASHBOARD -->
 <div id="page-dashboard" class="page active">
     <div class="dashboard-header">
@@ -729,6 +795,131 @@
           </div>
         </div>
       </section>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE -->
+<div id="page-profile" class="page">
+  <div class="page-header fade-up">
+    <div>
+      <div class="page-title">Mi perfil</div>
+      <div class="page-subtitle">Información personal, preferencias y seguridad de la cuenta.</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost" onclick="nav('settings')">← Configuración</button>
+    </div>
+  </div>
+
+  <div class="profile-page-shell fade-up d1">
+    <!-- Profile Card -->
+    <div class="profile-card profile-card-hero">
+      <div class="profile-hero-top">
+        <div class="profile-hero-avatar" id="profile-avatar">
+          <span id="profile-avatar-big">P</span>
+        </div>
+        <div class="profile-hero-info">
+          <div class="profile-hero-name" id="profile-name">Pedro</div>
+          <div class="profile-hero-email" id="profile-email">usuario@finanzas.app</div>
+          <div class="profile-hero-badge">
+            <span class="profile-badge-dot"></span>
+            Plan activo
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="profile-grid">
+      <!-- Personal Info -->
+      <div class="profile-card">
+        <div class="profile-card-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+          <span>Información personal</span>
+        </div>
+        <div class="profile-field-list">
+          <div class="profile-field">
+            <label class="profile-field-label">Nombre</label>
+            <input type="text" class="profile-field-input" id="pf-name" value="Pedro" placeholder="Nombre">
+          </div>
+          <div class="profile-field">
+            <label class="profile-field-label">Email</label>
+            <input type="email" class="profile-field-input" id="pf-email" value="" placeholder="tu@email.com">
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" style="align-self:flex-start;margin-top:8px;" onclick="saveProfileInfo()">Guardar cambios</button>
+      </div>
+
+      <!-- App Settings -->
+      <div class="profile-card">
+        <div class="profile-card-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09"/></svg>
+          <span>Ajustes de la app</span>
+        </div>
+        <div class="profile-field-list">
+          <div class="profile-field">
+            <label class="profile-field-label">Moneda principal</label>
+            <select class="profile-field-input" id="pf-currency">
+              <option value="ARS" selected>ARS — Peso argentino</option>
+              <option value="USD">USD — Dólar</option>
+            </select>
+          </div>
+          <div class="profile-field">
+            <label class="profile-field-label">Idioma</label>
+            <select class="profile-field-input" id="pf-lang">
+              <option value="es" selected>Español</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <div class="profile-field profile-field-row">
+            <label class="profile-field-label">Tema visual</label>
+            <div class="profile-theme-toggle">
+              <button class="profile-theme-btn" id="pf-theme-dark" onclick="if(document.body.classList.contains('light-mode'))toggleTheme()">Oscuro</button>
+              <button class="profile-theme-btn" id="pf-theme-light" onclick="if(!document.body.classList.contains('light-mode'))toggleTheme()">Claro</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Security -->
+      <div class="profile-card">
+        <div class="profile-card-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Seguridad</span>
+        </div>
+        <div class="profile-status-list">
+          <div class="profile-status-item">
+            <div class="profile-status-dot profile-status-ok"></div>
+            <span>Datos almacenados localmente en tu navegador</span>
+          </div>
+          <div class="profile-status-item">
+            <div class="profile-status-dot profile-status-ok"></div>
+            <span>Sin acceso de terceros a tus finanzas</span>
+          </div>
+          <div class="profile-status-item">
+            <div class="profile-status-dot" id="pf-google-status-dot"></div>
+            <span id="pf-google-status-text">Google no conectado</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Google Integration -->
+      <div class="profile-card">
+        <div class="profile-card-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          <span>Integración Google</span>
+        </div>
+        <div class="profile-google-status" id="pf-google-card-body">
+          <div class="profile-google-line">
+            <span class="profile-google-label">Estado</span>
+            <span class="profile-google-value" id="pf-google-conn-status">No conectado</span>
+          </div>
+          <div class="profile-google-line">
+            <span class="profile-google-label">Sincronización</span>
+            <span class="profile-google-value" id="pf-google-sync-status">—</span>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" style="align-self:flex-start;margin-top:8px;" onclick="openCloudSync(event)">Conectar Google</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3128,6 +3319,7 @@
 <script src="js/balance.20260407j.js"></script>
 <script src="js/ui.20260407j.js"></script>
 <script src="js/splash.js"></script>
+<script src="js/shell.js"></script>
 <script src="js/init.js"></script>
 <script src="js/credit-cards.20260407j.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
