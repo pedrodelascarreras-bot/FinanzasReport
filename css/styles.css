@@ -11301,6 +11301,8 @@ body.light-mode .fos-action-icon {
   border: 2px solid rgba(255,255,255,0.12); color: #fff; font-weight: 700; font-size: 15px;
   cursor: pointer; transition: all 0.2s var(--ease-premium);
   box-shadow: 0 4px 12px color-mix(in srgb, var(--blue) 25%, transparent);
+  overflow: hidden;
+  background-clip: padding-box;
 }
 .app-avatar:hover { transform: scale(1.05); border-color: rgba(255,255,255,0.25); }
 
@@ -11322,6 +11324,8 @@ body.light-mode .fos-action-icon {
   width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
   background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 80%, #000), color-mix(in srgb, var(--blue) 40%, #000));
   color: #fff; font-weight: 700; font-size: 17px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.15);
+  overflow: hidden;
+  background-clip: padding-box;
 }
 .profile-dd-info { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .profile-dd-name { font-size: 15px; font-weight: 700; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -11356,6 +11360,8 @@ body.light-mode .fos-action-icon {
   background: linear-gradient(135deg, color-mix(in srgb, var(--blue) 80%, #000), color-mix(in srgb, var(--blue) 40%, #000));
   border: 3px solid rgba(255,255,255,0.1); color: #fff; font-weight: 700; font-size: 32px;
   box-shadow: 0 12px 30px color-mix(in srgb, var(--blue) 30%, transparent); position: relative;
+  overflow: hidden;
+  background-clip: padding-box;
 }
 .profile-hero-info { display: flex; flex-direction: column; gap: 4px; }
 .profile-hero-name { font-size: 26px; font-weight: 700; color: #fff; letter-spacing: -0.02em; }
@@ -12909,11 +12915,115 @@ body.light-mode .balance-view-btn.active {
 .profile-avatar-option-preview {
   width: 72px;
   height: 72px;
-  border-radius: 20px;
+  border-radius: 50%;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
   box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+}
+
+.settings-category-toolbar {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.settings-category-group {
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 18px;
+  background: rgba(255,255,255,0.02);
+  overflow: hidden;
+}
+
+.settings-category-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  cursor: pointer;
+}
+
+.settings-category-summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-category-summary-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.settings-category-summary-main strong {
+  display: block;
+  font-size: 14px;
+}
+
+.settings-category-summary-main small {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text3);
+}
+
+.settings-category-group-badge {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.settings-category-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 0 18px 18px;
+}
+
+.settings-category-item {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.05);
+}
+
+.settings-editor-block {
+  margin-top: 14px;
+  padding: 18px;
+  border-radius: 18px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.settings-editor-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.settings-editor-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.settings-editor-grid-single {
+  grid-template-columns: 1fr;
 }
 
 .profile-avatar-option-label {

@@ -771,6 +771,57 @@
     `;
   }
 
+  function renderBalanceViewState(){
+    const current = state.balanceView === 'compare' ? 'compare' : 'summary';
+    const summaryBtn = document.getElementById('balance-tab-summary');
+    const compareBtn = document.getElementById('balance-tab-compare');
+    const summaryView = document.getElementById('balance-summary-view');
+    const compareView = document.getElementById('balance-compare-view');
+    const title = document.getElementById('balance-context-title');
+    const sub = document.getElementById('balance-context-sub');
+    if(summaryBtn){
+      summaryBtn.classList.toggle('active', current === 'summary');
+      summaryBtn.setAttribute('aria-selected', String(current === 'summary'));
+    }
+    if(compareBtn){
+      compareBtn.classList.toggle('active', current === 'compare');
+      compareBtn.setAttribute('aria-selected', String(current === 'compare'));
+    }
+    if(summaryView) summaryView.style.display = current === 'summary' ? 'flex' : 'none';
+    if(compareView) compareView.style.display = current === 'compare' ? 'flex' : 'none';
+    if(title) title.textContent = current === 'compare' ? 'Comparación operativa' : 'Resumen del período';
+    if(sub) sub.textContent = current === 'compare'
+      ? 'Compará dos períodos con foco en diferencias, desvíos y evolución acumulada.'
+      : 'Leé el cierre del mes y detectá dónde conviene ajustar antes del próximo arranque.';
+  }
+
+  function renderBalanceTopMetrics(data){
+    const incomeEl = document.getElementById('balance-top-income');
+    const expensesEl = document.getElementById('balance-top-expenses');
+    const netEl = document.getElementById('balance-top-net');
+    if(incomeEl) incomeEl.textContent = balanceFmtMoney(data?.income?.total || 0);
+    if(expensesEl) expensesEl.textContent = balanceFmtMoney(data?.totalExpenses || 0);
+    if(netEl){
+      netEl.textContent = balanceFmtMoney(data?.freeCash || 0);
+      netEl.style.color = (data?.freeCash || 0) < 0 ? 'var(--danger)' : ((data?.freeCash || 0) === 0 ? 'var(--text)' : 'var(--accent2)');
+    }
+  }
+
+  window.setBalanceView=function setBalanceView(view, options={}){
+    const nextView = view === 'compare' ? 'compare' : 'summary';
+    state.balanceView = nextView;
+    saveState();
+    if(options.navigate){
+      nav('balance');
+      return;
+    }
+    renderBalanceViewState();
+    if(nextView === 'compare' && typeof renderCompareSelectors === 'function'){
+      renderCompareSelectors();
+      renderCompare();
+    }
+  };
+
   window.renderBalancePage=function renderBalancePage(){
     const empty=document.getElementById('balance-empty');
     const content=document.getElementById('balance-content');
@@ -793,9 +844,15 @@
     empty.style.display='none';
     content.style.display='flex';
     const data=balanceMonthData(preferred);
+    renderBalanceTopMetrics(data);
     renderBalanceHero(data);
     renderBalanceGrid(data);
     renderBalanceNext(data);
+    renderBalanceViewState();
+    if(state.balanceView === 'compare' && typeof renderCompareSelectors === 'function'){
+      renderCompareSelectors();
+      renderCompare();
+    }
     replayFadeUp(content);
   };
 

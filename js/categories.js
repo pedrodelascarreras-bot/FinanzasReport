@@ -251,7 +251,13 @@ function selectInlineCat(name){
 function renderInlineGroupSelector(selGroup){
   const el=document.getElementById('cat-inline-group');
   if(!el)return;
-  el.innerHTML=CATEGORY_GROUPS.map(g=>'<option value="'+g.group+'" '+(g.group===selGroup?'selected':'')+'>'+g.emoji+' '+g.group+'</option>').join('');
+  const stateGroups=[...new Set((state.categories||[]).map(cat=>(cat.group||'Sin clasificar').trim()||'Sin clasificar'))];
+  if(!stateGroups.includes('Sin clasificar')) stateGroups.unshift('Sin clasificar');
+  el.innerHTML=stateGroups.map(group=>{
+    const info=CATEGORY_GROUPS.find(g=>g.group===group);
+    const emoji=info?info.emoji:'•';
+    return '<option value="'+group+'" '+(group===selGroup?'selected':'')+'>'+emoji+' '+group+'</option>';
+  }).join('');
 }
 function openInlineCatForm(){
   clearInlineCatForm();
@@ -281,7 +287,12 @@ function saveInlineCat(){
   const editing=document.getElementById('cat-inline-editing').value;
   if(editing){
     const cat=state.categories.find(c=>c.name===editing);
-    if(cat){if(name!==editing)state.transactions.forEach(t=>{if(t.category===editing)t.category=name;});cat.name=name;cat.color=hexColor;}
+    if(cat){
+      if(name!==editing)state.transactions.forEach(t=>{if(t.category===editing)t.category=name;});
+      cat.name=name;
+      cat.color=hexColor;
+      cat.group=document.getElementById('cat-inline-group')?.value||cat.group||'Sin clasificar';
+    }
     showToast('✓ Categoría actualizada','success');
   } else {
     if(state.categories.find(c=>c.name===name)){showToast('⚠️ Ya existe esa categoría','error');return;}

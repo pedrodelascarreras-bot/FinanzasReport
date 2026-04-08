@@ -21,6 +21,10 @@
       .replace(/'/g, '&#39;');
   }
 
+  function jsString(value){
+    return JSON.stringify(String(value ?? ''));
+  }
+
   function getUserName(){
     return (window.getResolvedUserName?.() || window.state?.userName || 'Pedro').trim() || 'Pedro';
   }
@@ -97,14 +101,19 @@
             <stop offset="0%" stop-color="${top}"/>
             <stop offset="100%" stop-color="${bottom}"/>
           </linearGradient>
+          <clipPath id="clipCircle">
+            <circle cx="60" cy="60" r="60"/>
+          </clipPath>
         </defs>
-        <rect width="120" height="120" rx="36" fill="url(#bg)"/>
-        <circle cx="60" cy="45" r="19" fill="#FFD8BF"/>
-        <path d="M38 41c2-17 42-23 48 1c-1-8-8-20-24-20c-14 0-23 8-24 19z" fill="${hair}"/>
-        <path d="M37 99c4-17 16-28 23-28s19 10 23 28z" fill="${shirt}"/>
-        <circle cx="53" cy="46" r="2" fill="#2A2A2A"/>
-        <circle cx="67" cy="46" r="2" fill="#2A2A2A"/>
-        <path d="M54 55c2 2 10 2 12 0" stroke="#A35A4A" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <g clip-path="url(#clipCircle)">
+          <rect width="120" height="120" fill="url(#bg)"/>
+          <circle cx="60" cy="45" r="19" fill="#FFD8BF"/>
+          <path d="M38 41c2-17 42-23 48 1c-1-8-8-20-24-20c-14 0-23 8-24 19z" fill="${hair}"/>
+          <path d="M37 99c4-17 16-28 23-28s19 10 23 28z" fill="${shirt}"/>
+          <circle cx="53" cy="46" r="2" fill="#2A2A2A"/>
+          <circle cx="67" cy="46" r="2" fill="#2A2A2A"/>
+          <path d="M54 55c2 2 10 2 12 0" stroke="#A35A4A" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        </g>
       </svg>`;
     return encodeSvg(svg);
   }
@@ -241,12 +250,45 @@
   function renderSettingsAccountsList(){
     const el = document.getElementById('settings-accounts-list');
     if(!el) return;
-    const profiles = window.state?.bankProfiles || [];
-    if(!profiles.length){
+    const profiles = typeof window.ensureBankProfiles === 'function' ? window.ensureBankProfiles() : (window.state?.bankProfiles || []);
+    const savingsAccounts = window.state?.savAccounts || [];
+    const derivedAccounts = [
+      ...profiles,
+      ...savingsAccounts.map(account => ({
+        id:`sav-${account.id}`,
+        name:account.name || 'Cuenta de ahorro',
+        bank:account.type || 'Ahorros',
+        card:account.emoji || 'Cuenta',
+        typeLabel:account.type || 'Ahorro',
+        status: 'active',
+        methodLabel: account.currency || 'ARS',
+        balance: Number(account.balance || 0)
+      }))
+    ];
+    if(!derivedAccounts.length){
+      const fallbackCards = window.state?.ccCards || [];
+      if(fallbackCards.length){
+        el.innerHTML = fallbackCards.map(card => `
+          <div class="settings-fintech-row">
+            <div class="settings-fintech-main">
+              <strong>${esc(card.name || 'Tarjeta')}</strong>
+              <small>Tomada desde la configuración de tarjetas</small>
+              <div class="settings-fintech-chips">
+                <span>${esc(card.type || 'credit-card')}</span>
+                <span>${esc(card.payMethodKey || 'manual')}</span>
+              </div>
+            </div>
+            <div class="settings-fintech-actions">
+              <button class="dashboard-widget-mini primary" onclick="nav('credit-cards')">Abrir tarjetas</button>
+            </div>
+          </div>
+        `).join('');
+        return;
+      }
       el.innerHTML = `<div class="settings-empty-block">Todavía no hay cuentas configuradas. Agregá una para definir banco, wallet o tarjeta y su método operativo.</div>`;
       return;
     }
-    el.innerHTML = profiles.map(profile => `
+    el.innerHTML = derivedAccounts.map(profile => `
       <div class="settings-fintech-row">
         <div class="settings-fintech-main">
           <strong>${esc(profile.name || 'Cuenta')}</strong>
@@ -259,8 +301,9 @@
           </div>
         </div>
         <div class="settings-fintech-actions">
-          <button class="dashboard-widget-mini primary" onclick="openBankProfileManager('${esc(profile.id)}')">Editar</button>
-          <button class="dashboard-widget-mini" onclick="deleteBankProfileById('${esc(profile.id)}')">Eliminar</button>
+          ${String(profile.id || '').startsWith('sav-')
+            ? `<button class="dashboard-widget-mini primary" onclick="nav('savings')">Ver ahorro</button>`
+            : `<button class="dashboard-widget-mini primary" onclick="openBankProfileManager('${esc(profile.id)}')">Editar</button><button class="dashboard-widget-mini" onclick="deleteBankProfileById('${esc(profile.id)}')">Eliminar</button>`}
         </div>
       </div>
     `).join('');
@@ -273,6 +316,45 @@
     const cycles = typeof window.getTcCycles === 'function' ? window.getTcCycles() : [];
     const tcConfig = window.state?.tcConfig || {};
     if(!cards.length){
+      if(tcConfig.cardName || cycles.length){
+        el.innerHTML = `
+          <div class="settings-fintech-row">
+            <div class="settings-fintech-main">
+              <strong>${esc(tcConfig.cardName || 'Tarjeta configurada')}</strong>
+              <small>${cycles.length ? `${cycles.length} ciclo${cycles.length===1?'':'s'} cargado${cycles.length===1?'':'s'}` : 'Sin ciclos cargados'}</small>
+              <div class="settings-fintech-chips">
+                <span>${tcConfig.limit ? `Límite $${esc(typeof fmtN === 'function' ? fmtN(Math.round(tcConfig.limit)) : Math.round(tcConfig.limit))}` : 'Límite no definido'}</span>
+                <span>${tcConfig.closeDay ? `Cierre ${esc(tcConfig.closeDay)}` : 'Sin cierre'}</span>
+                <span>${tcConfig.dueDay ? `Vence ${esc(tcConfig.dueDay)}` : 'Sin vencimiento'}</span>
+              </div>
+            </div>
+            <div class="settings-fintech-actions">
+              <button class="dashboard-widget-mini primary" onclick="nav('credit-cards');ccSelectPageTab('config')">Configurar</button>
+            </div>
+          </div>
+        `;
+        return;
+      }
+      const creditProfiles = (window.state?.bankProfiles || []).filter(profile => profile.type === 'credit-card');
+      if(creditProfiles.length){
+        el.innerHTML = creditProfiles.map(profile => `
+          <div class="settings-fintech-row">
+            <div class="settings-fintech-main">
+              <strong>${esc(profile.name || profile.card || 'Tarjeta')}</strong>
+              <small>${esc(profile.bank || 'Sin banco')} · ${esc(profile.card || 'Tarjeta')}</small>
+              <div class="settings-fintech-chips">
+                <span>${profile.closeDay ? `Cierre ${esc(profile.closeDay)}` : 'Sin cierre'}</span>
+                <span>${profile.dueDay ? `Vence ${esc(profile.dueDay)}` : 'Sin vencimiento'}</span>
+                <span>${profile.balance ? `$${esc(typeof fmtN === 'function' ? fmtN(Math.round(profile.balance)) : Math.round(profile.balance))}` : 'Sin saldo'}</span>
+              </div>
+            </div>
+            <div class="settings-fintech-actions">
+              <button class="dashboard-widget-mini primary" onclick="openBankProfileManager('${esc(profile.id)}')">Editar</button>
+            </div>
+          </div>
+        `).join('');
+        return;
+      }
       el.innerHTML = `<div class="settings-empty-block">No hay tarjetas registradas todavía. La configuración de ciclos y límites vive en el módulo de tarjetas.</div>`;
       return;
     }
@@ -300,6 +382,25 @@
     }).join('');
   }
 
+  function getSettingsCategoryGroups(){
+    const categories = window.state?.categories || [];
+    const order = [];
+    categories.forEach(cat => {
+      const group = (cat.group || 'Sin clasificar').trim() || 'Sin clasificar';
+      if(!order.includes(group)) order.push(group);
+    });
+    if(!order.includes('Sin clasificar')) order.push('Sin clasificar');
+    return order;
+  }
+
+  function getSettingsCategoryGroupMeta(groupName){
+    const group = (window.CATEGORY_GROUPS || []).find(item => item.group === groupName);
+    return {
+      emoji: group?.emoji || '•',
+      color: group?.color || '#64748b'
+    };
+  }
+
   function renderSettingsCategoriesList(){
     const el = document.getElementById('settings-categories-list');
     if(!el) return;
@@ -312,23 +413,53 @@
       el.innerHTML = `<div class="settings-empty-block">No hay categorías disponibles.</div>`;
       return;
     }
-    el.innerHTML = categories.slice().sort((a,b) => (counts[b.name] || 0) - (counts[a.name] || 0)).map(cat => `
-      <div class="settings-fintech-row">
-        <div class="settings-fintech-main">
-          <strong><span class="settings-category-dot" style="background:${esc(cat.color || '#64748b')}"></span>${esc(cat.name)}</strong>
-          <small>${esc(cat.group || 'Sin grupo')} · ${counts[cat.name] || 0} movimiento${(counts[cat.name] || 0) === 1 ? '' : 's'}</small>
-        </div>
-        <div class="settings-fintech-actions">
-          <button class="dashboard-widget-mini primary" onclick="openEditCatModal('${esc(cat.name)}')">Editar</button>
-        </div>
-      </div>
-    `).join('');
+    const groups = getSettingsCategoryGroups();
+    el.innerHTML = groups.map(groupName => {
+      const meta = getSettingsCategoryGroupMeta(groupName);
+      const groupCategories = categories
+        .filter(cat => (cat.group || 'Sin clasificar') === groupName)
+        .sort((a,b) => (counts[b.name] || 0) - (counts[a.name] || 0) || a.name.localeCompare(b.name));
+      const total = groupCategories.reduce((sum, cat) => sum + (counts[cat.name] || 0), 0);
+      return `
+        <details class="settings-category-group" ${groupName === 'Sin clasificar' ? 'open' : ''}>
+          <summary class="settings-category-summary">
+            <div class="settings-category-summary-main">
+              <span class="settings-category-group-badge" style="background:${esc(meta.color)}22;color:${esc(meta.color)}">${esc(meta.emoji)}</span>
+              <div>
+                <strong>${esc(groupName)}</strong>
+                <small>${groupCategories.length} categoría${groupCategories.length===1?'':'s'} · ${total} movimiento${total===1?'':'s'}</small>
+              </div>
+            </div>
+            <div class="settings-fintech-actions">
+              <button class="dashboard-widget-mini" type="button" onclick="event.preventDefault();event.stopPropagation();startSettingsGroupEdit(${jsString(groupName)})">Renombrar</button>
+              <button class="dashboard-widget-mini" type="button" onclick="event.preventDefault();event.stopPropagation();startSettingsCategoryCreate(${jsString(groupName)})">Agregar categoría</button>
+            </div>
+          </summary>
+          <div class="settings-category-items">
+            ${groupCategories.length ? groupCategories.map(cat => `
+              <div class="settings-category-item">
+                <div class="settings-fintech-main">
+                  <strong><span class="settings-category-dot" style="background:${esc(cat.color || '#64748b')}"></span>${esc(cat.name)}</strong>
+                  <small>${counts[cat.name] || 0} movimiento${(counts[cat.name] || 0) === 1 ? '' : 's'} · ${esc(cat.group || 'Sin grupo')}</small>
+                </div>
+                <div class="settings-fintech-actions">
+                  <button class="dashboard-widget-mini primary" type="button" onclick="startSettingsCategoryEdit(${jsString(cat.name)})">Editar</button>
+                  <button class="dashboard-widget-mini" type="button" onclick="deleteSettingsCategory(${jsString(cat.name)})">Eliminar</button>
+                </div>
+              </div>
+            `).join('') : `<div class="settings-empty-block">Este grupo todavía no tiene categorías.</div>`}
+          </div>
+        </details>
+      `;
+    }).join('');
   }
 
   function renderSettingsGmailRulesList(){
     const el = document.getElementById('settings-gmail-rules-list');
     if(!el) return;
-    const rules = window.state?.gmailImportRules || [];
+    const rules = typeof window.ensureGmailImportRules === 'function'
+      ? window.ensureGmailImportRules()
+      : (window.state?.gmailImportRules || []);
     if(!rules.length){
       el.innerHTML = `<div class="settings-empty-block">Todavía no hay reglas Gmail. Configurá remitente, filtro, categoría y lógica de parsing para automatizar importaciones.</div>`;
       return;
@@ -362,11 +493,13 @@
 
   function renderSettingsCenter(){
     renderSettingsGoogleSection();
-    renderSetupGuide();
     renderSettingsAccountsList();
     renderSettingsCardsList();
     renderSettingsCategoriesList();
+    renderSettingsCategoryEditor();
+    renderSettingsGroupEditor();
     renderSettingsGmailRulesList();
+    renderSetupGuide();
   }
 
   function syncActiveUi(){
@@ -474,6 +607,11 @@
   function handleAvatarUpload(event){
     const file = event?.target?.files?.[0];
     if(!file) return;
+    if(!/^image\/(png|jpeg)$/i.test(file.type)){
+      window.showToast?.('Usá una imagen JPG o PNG', 'error');
+      event.target.value = '';
+      return;
+    }
     const reader = new FileReader();
     reader.onload = e => {
       window.state.userAvatar = String(e.target?.result || '');
@@ -610,6 +748,231 @@
     window.showToast?.('Regla eliminada', 'info');
   }
 
+  function persistSettingsState(message, tone='success'){
+    if(typeof window.syncActiveUserProfileFromState === 'function') window.syncActiveUserProfileFromState(false);
+    window.saveState?.();
+    renderSettingsCenter();
+    window.renderSettingsPage?.();
+    window.refreshAll?.();
+    if(message) window.showToast?.(message, tone);
+  }
+
+  function ensureCategorySettingsDraft(){
+    if(!window.state._settingsCategoryDraft){
+      window.state._settingsCategoryDraft = { mode:'create', originalName:'', name:'', group:'Sin clasificar', color:'#64748b' };
+    }
+    return window.state._settingsCategoryDraft;
+  }
+
+  function ensureGroupSettingsDraft(){
+    if(!window.state._settingsGroupDraft){
+      window.state._settingsGroupDraft = { mode:'create', originalName:'', name:'' };
+    }
+    return window.state._settingsGroupDraft;
+  }
+
+  function renderSettingsCategoryColorPicker(){
+    const wrap = document.getElementById('settings-category-color-picker');
+    const draft = ensureCategorySettingsDraft();
+    if(!wrap || !Array.isArray(window.PALETTE)) return;
+    wrap.innerHTML = window.PALETTE.map(color => `
+      <button type="button" class="color-swatch ${draft.color===color ? 'selected' : ''}" style="background:${color}" onclick="setSettingsCategoryColor('${color}')"></button>
+    `).join('');
+  }
+
+  function renderSettingsCategoryEditor(){
+    const shell = document.getElementById('settings-category-editor');
+    if(!shell) return;
+    const draft = ensureCategorySettingsDraft();
+    if(!draft.mode){
+      shell.style.display = 'none';
+      shell.innerHTML = '';
+      return;
+    }
+    shell.style.display = 'block';
+    const groups = getSettingsCategoryGroups();
+    shell.innerHTML = `
+      <div class="settings-editor-head">
+        <strong>${draft.mode === 'edit' ? 'Editar categoría' : 'Nueva categoría'}</strong>
+        <button class="dashboard-widget-mini" type="button" onclick="cancelSettingsCategoryEditor()">Cerrar</button>
+      </div>
+      <div class="settings-editor-grid">
+        <label class="profile-field">
+          <span class="profile-field-label">Nombre</span>
+          <input id="settings-category-name" class="profile-field-input" value="${esc(draft.name || '')}" placeholder="Ej: Supermercado">
+        </label>
+        <label class="profile-field">
+          <span class="profile-field-label">Grupo</span>
+          <select id="settings-category-group" class="profile-field-input">
+            ${groups.map(group => `<option value="${esc(group)}" ${draft.group===group?'selected':''}>${esc(group)}</option>`).join('')}
+          </select>
+        </label>
+      </div>
+      <div class="profile-field">
+        <span class="profile-field-label">Color</span>
+        <div id="settings-category-color-picker" class="color-picker-row"></div>
+      </div>
+      <div class="profile-inline-actions">
+        <button class="btn btn-primary btn-sm" type="button" onclick="saveSettingsCategory()">Guardar categoría</button>
+        ${draft.mode === 'edit' ? `<button class="btn btn-ghost btn-sm" type="button" onclick="deleteSettingsCategory(${jsString(draft.originalName)})">Eliminar</button>` : ''}
+      </div>
+    `;
+    renderSettingsCategoryColorPicker();
+  }
+
+  function renderSettingsGroupEditor(){
+    const shell = document.getElementById('settings-group-editor');
+    if(!shell) return;
+    const draft = ensureGroupSettingsDraft();
+    if(!draft.mode){
+      shell.style.display = 'none';
+      shell.innerHTML = '';
+      return;
+    }
+    shell.style.display = 'block';
+    shell.innerHTML = `
+      <div class="settings-editor-head">
+        <strong>${draft.mode === 'edit' ? 'Renombrar grupo' : 'Nuevo grupo'}</strong>
+        <button class="dashboard-widget-mini" type="button" onclick="cancelSettingsGroupEditor()">Cerrar</button>
+      </div>
+      <div class="settings-editor-grid settings-editor-grid-single">
+        <label class="profile-field">
+          <span class="profile-field-label">Nombre del grupo</span>
+          <input id="settings-group-name" class="profile-field-input" value="${esc(draft.name || '')}" placeholder="Ej: Hogar">
+        </label>
+      </div>
+      <div class="profile-inline-actions">
+        <button class="btn btn-primary btn-sm" type="button" onclick="saveSettingsGroup()">Guardar grupo</button>
+        ${draft.mode === 'edit' && draft.originalName !== 'Sin clasificar' ? `<button class="btn btn-ghost btn-sm" type="button" onclick="deleteSettingsGroup(${jsString(draft.originalName)})">Eliminar grupo</button>` : ''}
+      </div>
+    `;
+  }
+
+  function startSettingsCategoryCreate(groupName){
+    window.state._settingsCategoryDraft = {
+      mode:'create',
+      originalName:'',
+      name:'',
+      group:groupName || 'Sin clasificar',
+      color:'#64748b'
+    };
+    renderSettingsCategoryEditor();
+  }
+
+  function startSettingsCategoryEdit(name){
+    const category = (window.state?.categories || []).find(cat => cat.name === name);
+    if(!category) return;
+    window.state._settingsCategoryDraft = {
+      mode:'edit',
+      originalName:category.name,
+      name:category.name,
+      group:category.group || 'Sin clasificar',
+      color:category.color || '#64748b'
+    };
+    renderSettingsCategoryEditor();
+  }
+
+  function cancelSettingsCategoryEditor(){
+    window.state._settingsCategoryDraft = null;
+    renderSettingsCategoryEditor();
+  }
+
+  function setSettingsCategoryColor(color){
+    const draft = ensureCategorySettingsDraft();
+    draft.color = color;
+    renderSettingsCategoryEditor();
+  }
+
+  function saveSettingsCategory(){
+    const draft = ensureCategorySettingsDraft();
+    const name = document.getElementById('settings-category-name')?.value.trim() || '';
+    const group = document.getElementById('settings-category-group')?.value || 'Sin clasificar';
+    if(!name){
+      window.showToast?.('Ingresá un nombre de categoría', 'error');
+      return;
+    }
+    const categories = [...(window.state?.categories || [])];
+    const duplicate = categories.find(cat => cat.name === name && cat.name !== draft.originalName);
+    if(duplicate){
+      window.showToast?.('Ya existe una categoría con ese nombre', 'error');
+      return;
+    }
+    if(draft.mode === 'edit'){
+      const category = categories.find(cat => cat.name === draft.originalName);
+      if(!category) return;
+      if(name !== draft.originalName){
+        (window.state?.transactions || []).forEach(txn => {
+          if(txn.category === draft.originalName) txn.category = name;
+        });
+      }
+      category.name = name;
+      category.group = group;
+      category.color = draft.color || category.color || '#64748b';
+    } else {
+      categories.push({ name, group, color:draft.color || '#64748b', emoji:getSettingsCategoryGroupMeta(group).emoji });
+    }
+    window.state.categories = categories;
+    cancelSettingsCategoryEditor();
+    persistSettingsState('Categoría guardada', 'success');
+  }
+
+  function deleteSettingsCategory(name){
+    if(!name) return;
+    if(!window.confirm(`¿Eliminar la categoría "${name}"?`)) return;
+    window.state.categories = (window.state?.categories || []).filter(cat => cat.name !== name);
+    (window.state?.transactions || []).forEach(txn => {
+      if(txn.category === name) txn.category = 'Uncategorized';
+    });
+    cancelSettingsCategoryEditor();
+    persistSettingsState('Categoría eliminada', 'info');
+  }
+
+  function startSettingsGroupCreate(){
+    window.state._settingsGroupDraft = { mode:'create', originalName:'', name:'' };
+    renderSettingsGroupEditor();
+  }
+
+  function startSettingsGroupEdit(name){
+    window.state._settingsGroupDraft = { mode:'edit', originalName:name, name:name };
+    renderSettingsGroupEditor();
+  }
+
+  function cancelSettingsGroupEditor(){
+    window.state._settingsGroupDraft = null;
+    renderSettingsGroupEditor();
+  }
+
+  function saveSettingsGroup(){
+    const draft = ensureGroupSettingsDraft();
+    const name = document.getElementById('settings-group-name')?.value.trim() || '';
+    if(!name){
+      window.showToast?.('Ingresá un nombre de grupo', 'error');
+      return;
+    }
+    const exists = getSettingsCategoryGroups().includes(name);
+    if(draft.mode === 'create' && exists){
+      window.showToast?.('Ese grupo ya existe', 'error');
+      return;
+    }
+    if(draft.mode === 'edit'){
+      (window.state?.categories || []).forEach(cat => {
+        if((cat.group || 'Sin clasificar') === draft.originalName) cat.group = name;
+      });
+    }
+    cancelSettingsGroupEditor();
+    persistSettingsState('Grupo guardado', 'success');
+  }
+
+  function deleteSettingsGroup(name){
+    if(!name || name === 'Sin clasificar') return;
+    if(!window.confirm(`¿Eliminar el grupo "${name}"? Las categorías pasarán a "Sin clasificar".`)) return;
+    (window.state?.categories || []).forEach(cat => {
+      if((cat.group || 'Sin clasificar') === name) cat.group = 'Sin clasificar';
+    });
+    cancelSettingsGroupEditor();
+    persistSettingsState('Grupo eliminado', 'info');
+  }
+
   const originalNav = window.nav;
   if(originalNav){
     window.nav = function(pageId){
@@ -683,4 +1046,15 @@
   window.toggleSettingsSetupGuide = toggleSettingsSetupGuide;
   window.deleteBankProfileById = deleteBankProfileById;
   window.deleteGmailRuleById = deleteGmailRuleById;
+  window.startSettingsCategoryCreate = startSettingsCategoryCreate;
+  window.startSettingsCategoryEdit = startSettingsCategoryEdit;
+  window.cancelSettingsCategoryEditor = cancelSettingsCategoryEditor;
+  window.setSettingsCategoryColor = setSettingsCategoryColor;
+  window.saveSettingsCategory = saveSettingsCategory;
+  window.deleteSettingsCategory = deleteSettingsCategory;
+  window.startSettingsGroupCreate = startSettingsGroupCreate;
+  window.startSettingsGroupEdit = startSettingsGroupEdit;
+  window.cancelSettingsGroupEditor = cancelSettingsGroupEditor;
+  window.saveSettingsGroup = saveSettingsGroup;
+  window.deleteSettingsGroup = deleteSettingsGroup;
 })();
