@@ -43,6 +43,10 @@ let state={
   activeUserProfileId: null,
   profileTemplate: 'personal',
   onboardingState: {},
+  userEmail: '',
+  userAvatar: '',
+  userPrefs: { currency:'ARS', language:'es', theme:'dark' },
+  googleProfile: null,
 };
 
 // ══ PERSIST ══
@@ -70,6 +74,10 @@ function getStateSnapshot(){
     lastGmailSync:state.lastGmailSync||null,
     gmailClientId:state.gmailClientId||localStorage.getItem('fin_gmail_client_id')||'',
     userName:state.userName||'Pedro',
+    userEmail:state.userEmail||'',
+    userAvatar:state.userAvatar||'',
+    userPrefs:state.userPrefs||{ currency:'ARS', language:'es', theme:(document.body?.classList?.contains('light-mode')?'light':'dark') },
+    googleProfile:state.googleProfile||null,
     lastVisit:state.lastVisit||null,
     dismissedNotifs:state.dismissedNotifs||[],
     decisionCenterCollapsed:!!state.decisionCenterCollapsed,
@@ -114,6 +122,7 @@ function initDriveClient(autoSync){
         try{localStorage.setItem('fin_state',JSON.stringify(getStateSnapshot()));}catch(e){}
         updateGmailBtn('connected');
         driveReady = true;
+        if(typeof fetchGoogleProfile === 'function') fetchGoogleProfile(true);
         loadFromDrive().then(loaded=>{
           if(loaded){
             if(state.transactions.length){document.getElementById('dash-empty').style.display='none';document.getElementById('dash-content').style.display='flex';}
@@ -307,6 +316,10 @@ async function loadFromDrive(){
     state.onboardingState=s.onboardingState||{};
     state.lastGmailSync=s.lastGmailSync||null;
     state.gmailClientId=s.gmailClientId||'';
+    state.userEmail=s.userEmail||'';
+    state.userAvatar=s.userAvatar||'';
+    state.userPrefs=s.userPrefs||state.userPrefs||{ currency:'ARS', language:'es', theme:'dark' };
+    state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
     state.txnCardFilter=s.txnCardFilter||'';
@@ -365,6 +378,10 @@ function loadState(){
     state.onboardingState=s.onboardingState||{};
     state.lastGmailSync=s.lastGmailSync||null;
     state.gmailClientId=s.gmailClientId||localStorage.getItem('fin_gmail_client_id')||'';
+    state.userEmail=s.userEmail||'';
+    state.userAvatar=s.userAvatar||'';
+    state.userPrefs=s.userPrefs||state.userPrefs||{ currency:'ARS', language:'es', theme:'dark' };
+    state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
     state.txnCardFilter=s.txnCardFilter||'';

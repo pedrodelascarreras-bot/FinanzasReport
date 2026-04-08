@@ -216,12 +216,16 @@ window.addEventListener('DOMContentLoaded',()=>{
   // One-time cleanup: remove any "Cuota X de Y" standalone entries from old imports
   if(state.transactions.length) deduplicateTransactions();
   loadTheme();
+  applySavedUserTheme();
   loadColorTheme();
   loadSidebar();
   updateUsdRateUI();
   setChartMode(state.chartMode||'bars');
   setTxnFilterMode(state.txnFilterMode||'mes');
   if(state.transactions.length){updateSidebarStats();renderDashboard();renderTransactions();document.getElementById('dash-empty').style.display='none';document.getElementById('dash-content').style.display='flex';setTimeout(()=>applyLayout('dashboard'),0);}
+  if(typeof renderProfilePage === 'function') renderProfilePage();
+  if(typeof renderSecurityPage === 'function') renderSecurityPage();
+  if(typeof renderAppShellProfile === 'function') renderAppShellProfile();
   if(typeof enforceMobilePagePreferences === 'function') enforceMobilePagePreferences();
   if(!getApiKey()){/* API Key now always visible in sidebar IA section */}
   fetchUsdRate();
@@ -302,16 +306,23 @@ function exportBackupJSON(){
   }catch(e){showToast('Error al exportar backup','error');console.error(e);}
 }
 function updateLastBackupLabel(){
-  const el=document.getElementById('last-backup-label');if(!el)return;
   const raw=localStorage.getItem('fin_last_backup');
-  if(!raw){el.textContent='Sin backup guardado';return;}
+  const labels=['last-backup-label','security-last-backup'];
+  if(!raw){
+    labels.forEach(id=>{ const el=document.getElementById(id); if(el) el.textContent='Sin backup guardado'; });
+    return;
+  }
   const d=new Date(raw);
   const now=new Date();
   const diffDays=Math.floor((now-d)/86400000);
   const timeStr=d.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'2-digit'});
   const ageStr=diffDays===0?'hoy':diffDays===1?'ayer':diffDays+'d atrás';
-  el.textContent='Último: '+timeStr+' ('+ageStr+')';
-  el.style.color=diffDays>7?'var(--accent3)':diffDays>30?'var(--danger)':'var(--text3)';
+  labels.forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el) return;
+    el.textContent='Último: '+timeStr+' ('+ageStr+')';
+    el.style.color=diffDays>30?'var(--danger)':diffDays>7?'var(--accent3)':'var(--text3)';
+  });
 }
 
 function importBackupJSON(event){
@@ -331,6 +342,14 @@ function importBackupJSON(event){
   };
   reader.readAsText(file);
   event.target.value='';
+}
+
+function showRestorePlaceholder(){
+  showToast('La restauración guiada vuelve en esta sección en la próxima iteración', 'info');
+}
+
+function showExportPlaceholder(){
+  showToast('La exportación dedicada vive en Seguridad', 'info');
 }
 
 // ══ DRIVE STATUS BANNER ══
@@ -525,6 +544,78 @@ function buildGmailRuleQuery(rule, dateQuery){
 
 function isGoogleConnected() {
   return !!(driveReady && driveAccessToken);
+}
+
+function getResolvedUserEmail() {
+  return state.googleProfile?.email || state.userEmail || '';
+}
+
+function getResolvedUserName() {
+  return state.userName || state.googleProfile?.name || 'Pedro';
+}
+
+function applySavedUserTheme() {
+  const preferred = state.userPrefs?.theme;
+  if (!preferred) return;
+  const isLight = document.body.classList.contains('light-mode');
+  if (preferred === 'light' && !isLight) toggleTheme();
+  if (preferred === 'dark' && isLight) toggleTheme();
+}
+
+async function fetchGoogleProfile(force){
+  if((!driveAccessToken && !gmailAccessToken) || (!force && state.googleProfile?.email)) return state.googleProfile || null;
+  const token = driveAccessToken || gmailAccessToken;
+  try{
+    const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if(!res.ok) throw new Error('userinfo failed');
+    const profile = await res.json();
+    state.googleProfile = {
+      email: profile.email || '',
+      name: profile.name || '',
+      picture: profile.picture || ''
+    };
+    if(profile.email) state.userEmail = profile.email;
+    if(!state.userName && profile.name) state.userName = profile.name;
+    saveState();
+    if(typeof renderProfilePage === 'function') renderProfilePage();
+    if(typeof renderSecurityPage === 'function') renderSecurityPage();
+    if(typeof renderAppShellProfile === 'function') renderAppShellProfile();
+    return state.googleProfile;
+  }catch(e){
+    console.warn('Google profile fetch error', e);
+    return state.googleProfile || null;
+  }
+}
+
+function disconnectGoogleAccess(){
+  const token = driveAccessToken || gmailAccessToken;
+  const finalize = ()=>{
+    driveAccessToken = null;
+    gmailAccessToken = null;
+    driveReady = false;
+    driveFileId = null;
+    drivePublicFileId = null;
+    driveSyncFolderId = null;
+    state.googleProfile = null;
+    saveState();
+    updateGmailBtn('default');
+    if(typeof renderSettingsPage === 'function') renderSettingsPage();
+    if(typeof renderProfilePage === 'function') renderProfilePage();
+    if(typeof renderSecurityPage === 'function') renderSecurityPage();
+    if(typeof renderAppShellProfile === 'function') renderAppShellProfile();
+    showToast('Google desconectado', 'info');
+  };
+  if(window.google?.accounts?.oauth2?.revoke && token){
+    try{
+      window.google.accounts.oauth2.revoke(token, finalize);
+      return;
+    }catch(e){
+      console.warn('Google revoke error', e);
+    }
+  }
+  finalize();
 }
 
 function sanitizeGoogleClientId(raw) {
@@ -1340,6 +1431,10 @@ function ensureActiveUserProfileBootstrap(){
 function getCurrentProfileSnapshot(){
   return {
     userName: state.userName || 'Usuario',
+    userEmail: state.userEmail || '',
+    userAvatar: state.userAvatar || '',
+    userPrefs: cloneDeepProfileValue(state.userPrefs || { currency:'ARS', language:'es', theme:'dark' }),
+    googleProfile: cloneDeepProfileValue(state.googleProfile || null),
     profileTemplate: state.profileTemplate || 'personal',
     transactions: cloneDeepProfileValue(markOwnedItems((state.transactions || []).map(txn => ({
       ...txn,
@@ -1471,6 +1566,10 @@ function applyUserProfile(profileId){
   if(!profile) return;
   state.activeUserProfileId = profile.id;
   state.userName = profile.userName || profile.name || 'Usuario';
+  state.userEmail = profile.userEmail || '';
+  state.userAvatar = profile.userAvatar || '';
+  state.userPrefs = cloneDeepProfileValue(profile.userPrefs || state.userPrefs || { currency:'ARS', language:'es', theme:'dark' });
+  state.googleProfile = cloneDeepProfileValue(profile.googleProfile || null);
   state.profileTemplate = profile.profileTemplate || 'personal';
   state.transactions = (profile.transactions || []).map(txn => ({
     ...txn,
@@ -1526,6 +1625,9 @@ function applyUserProfile(profileId){
   saveState();
   if(typeof refreshAll === 'function') refreshAll();
   renderSettingsPage();
+  if(typeof renderProfilePage === 'function') renderProfilePage();
+  if(typeof renderSecurityPage === 'function') renderSecurityPage();
+  if(typeof renderAppShellProfile === 'function') renderAppShellProfile();
   renderUserProfilesModal(profile.id);
   if(typeof renderOnboardingWizard === 'function') renderOnboardingWizard();
   if(document.getElementById('page-insights')?.classList.contains('active') && typeof generateInsights === 'function') generateInsights();

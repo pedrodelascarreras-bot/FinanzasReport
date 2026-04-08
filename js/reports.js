@@ -1044,13 +1044,128 @@ function copyResumen(){
 }
 
 // ══ IMPORT HISTORY ══
+function getImportSourceLabel(source){
+  if(source === 'gmail') return 'Gmail';
+  if(source === 'manual') return 'Manual';
+  return 'Manual';
+}
+
+function getImportStatusMeta(imp){
+  if((imp.count || 0) <= 0) return { key:'empty', label:'Sin movimientos' };
+  if(imp.source === 'gmail') return { key:'gmail', label:'Importada' };
+  if(imp.source === 'manual') return { key:'manual', label:'Manual' };
+  return { key:'success', label:'Importada' };
+}
+
+function getImportTotalAmount(imp){
+  const ids = new Set(imp.txnIds || []);
+  return (state.transactions || [])
+    .filter(t => ids.has(t.id))
+    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+}
+
+function getImportDateValue(imp){
+  const raw = String(imp.date || '').trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  return '';
+}
+
+function getFilteredImports(){
+  const statusFilter = document.getElementById('import-history-filter-status')?.value || 'all';
+  const monthFilter = document.getElementById('import-history-filter-date')?.value || '';
+  return (state.imports || []).filter(imp => {
+    const status = getImportStatusMeta(imp);
+    const dateValue = getImportDateValue(imp);
+    const matchesStatus =
+      statusFilter === 'all' ||
+      (statusFilter === 'success' && status.key === 'success') ||
+      (statusFilter === 'gmail' && imp.source === 'gmail') ||
+      (statusFilter === 'manual' && imp.source === 'manual');
+    const matchesMonth = !monthFilter || (dateValue && dateValue.startsWith(monthFilter));
+    return matchesStatus && matchesMonth;
+  });
+}
+
+function renderImportHistoryItems(targetId, compact){
+  const el = document.getElementById(targetId);
+  if(!el) return;
+  const imports = getFilteredImports();
+  if(!imports.length){
+    el.innerHTML = `
+      <div class="import-history-empty">
+        <div class="empty-icon">📋</div>
+        <div class="empty-title import-history-empty-title">Sin coincidencias</div>
+      </div>`;
+    return;
+  }
+  el.innerHTML = imports.map(imp => {
+    const status = getImportStatusMeta(imp);
+    const amount = getImportTotalAmount(imp);
+    const source = getImportSourceLabel(imp.source);
+    const count = Number(imp.count || 0);
+    const date = imp.date || '—';
+    return `
+      <div class="import-history-item">
+        <span class="import-history-badge import-history-status ${status.key}">${status.label}</span>
+        <div class="import-history-copy">
+          <div class="import-history-title">${esc(imp.label || 'Importación')}</div>
+          <div class="import-history-meta">${date} · ${source}</div>
+          <div class="import-history-submeta">${count} movimiento${count===1?'':'s'} · $${fmtN(Math.round(amount || 0))}</div>
+        </div>
+        ${compact ? '' : `
+          <div class="import-history-actions">
+            <button class="btn btn-ghost btn-sm btn-icon import-row-btn" onclick="openRenameImport('${imp.id}')" title="Renombrar">✏️</button>
+            <button class="btn btn-danger btn-sm btn-icon" onclick="deleteImport('${imp.id}')" title="Eliminar">🗑</button>
+          </div>
+        `}
+      </div>`;
+  }).join('');
+}
+
+function renderImportHistoryMenu(){
+  renderImportHistoryItems('import-history-menu-list', true);
+}
+
+function toggleImportHistoryMenu(){
+  const menu = document.getElementById('import-history-menu');
+  if(!menu) return;
+  const open = menu.style.display !== 'block';
+  if(!open){
+    closeImportHistoryMenu();
+    return;
+  }
+  if(typeof closeNotifPanel === 'function') closeNotifPanel();
+  if(typeof closeProfileDropdown === 'function') closeProfileDropdown();
+  menu.style.display = 'block';
+  renderImportHistoryMenu();
+  document.addEventListener('click', handleImportHistoryDismiss);
+  document.addEventListener('keydown', handleImportHistoryDismiss);
+}
+
+function closeImportHistoryMenu(){
+  const menu = document.getElementById('import-history-menu');
+  if(!menu) return;
+  menu.style.display = 'none';
+  document.removeEventListener('click', handleImportHistoryDismiss);
+  document.removeEventListener('keydown', handleImportHistoryDismiss);
+}
+
+function handleImportHistoryDismiss(event){
+  const menu = document.getElementById('import-history-menu');
+  const trigger = document.getElementById('app-btn-add');
+  if(!menu || menu.style.display !== 'block') return;
+  if(event.type === 'keydown' && event.key === 'Escape'){
+    closeImportHistoryMenu();
+    return;
+  }
+  if(trigger?.contains(event.target) || menu.contains(event.target)) return;
+  closeImportHistoryMenu();
+}
+
 function renderImportHistory(){
-  renderDriveStatusBanner();
-  renderBackupHistory();
-  updateCSVExportCount();
-  const el=document.getElementById('import-history-list');if(!el)return;
-  if(!state.imports.length){el.innerHTML='<div class="empty-state import-history-empty"><div class="empty-icon">📋</div><div class="empty-title import-history-empty-title">Sin importaciones aún</div></div>';return;}
-  el.innerHTML=state.imports.map(imp=>'<div class="import-row"><span class="import-badge">'+imp.count+' mov.</span><div class="import-row-copy"><div class="import-row-title">'+imp.label+'</div><div class="import-meta">'+imp.date+' · Texto pegado</div></div><button class="btn btn-ghost btn-sm btn-icon import-row-btn" onclick="openRenameImport(\''+imp.id+'\');" title="Renombrar">✏️</button><button class="btn btn-danger btn-sm btn-icon" onclick="deleteImport(\''+imp.id+'\');" title="Eliminar">🗑</button></div>').join('');
+  renderImportHistoryItems('import-history-list', false);
 }
 
 function openRenameImport(id){
@@ -1066,10 +1181,10 @@ function confirmRenameImport(){
   const val=document.getElementById('rename-import-val').value.trim();
   if(!val){showToast('⚠️ Ingresá un nombre','error');return;}
   const imp=state.imports.find(i=>i.id===id);
-  if(imp){imp.label=val;saveState();renderImportHistory();showToast('✓ Nombre actualizado','success');}
+  if(imp){imp.label=val;saveState();renderImportHistory();renderImportHistoryMenu();showToast('✓ Nombre actualizado','success');}
   closeModal('modal-rename-import');
 }
-function deleteImport(id){const imp=state.imports.find(i=>i.id===id);if(!imp)return;if(imp.txnIds)state.transactions=state.transactions.filter(t=>!imp.txnIds.includes(t.id));state.imports=state.imports.filter(i=>i.id!==id);saveState();renderImportHistory();updateSidebarStats();renderDashboard();renderTransactions();showToast('Importación eliminada','info');}
+function deleteImport(id){const imp=state.imports.find(i=>i.id===id);if(!imp)return;if(imp.txnIds)state.transactions=state.transactions.filter(t=>!imp.txnIds.includes(t.id));state.imports=state.imports.filter(i=>i.id!==id);saveState();renderImportHistory();renderImportHistoryMenu();updateSidebarStats();renderDashboard();renderTransactions();showToast('Importación eliminada','info');}
 function clearAllData(){
   state.transactions=[];
   state.imports=[];
@@ -1112,8 +1227,16 @@ function clearAllData(){
   state.decisionCenterCollapsed=false;
   state.dismissedAutoCuotas=[];
   state.userName='Pedro';
+  state.userEmail='';
+  state.userAvatar='';
+  state.userPrefs={ currency:'ARS', language:'es', theme:'dark' };
+  state.googleProfile=null;
   saveState();
   renderImportHistory();
+  if(typeof renderImportHistoryMenu === 'function') renderImportHistoryMenu();
+  if(typeof renderProfilePage === 'function') renderProfilePage();
+  if(typeof renderSecurityPage === 'function') renderSecurityPage();
+  if(typeof renderAppShellProfile === 'function') renderAppShellProfile();
   updateSidebarStats();
   document.getElementById('dash-empty').style.display='block';
   document.getElementById('dash-content').style.display='none';

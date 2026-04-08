@@ -235,6 +235,9 @@ function syncActivePageState(page){
 
 function nav(page){
   closeMobMore();
+  if(typeof closeNotifPanel === 'function') closeNotifPanel();
+  if(typeof closeImportHistoryMenu === 'function') closeImportHistoryMenu();
+  if(typeof closeProfileDropdown === 'function') closeProfileDropdown();
   if(isMobileBlockedPage(page)){
     showToast('Esa pantalla quedó disponible solo en desktop', 'info');
     page='dashboard';
@@ -269,6 +272,8 @@ function nav(page){
   if(page==='savings')renderSavingsPage();
   if(page==='reportes')renderReportesPage();
   if(page==='settings' && typeof renderSettingsPage==='function')renderSettingsPage();
+  if(page==='profile' && typeof renderProfilePage==='function')renderProfilePage();
+  if(page==='security' && typeof renderSecurityPage==='function')renderSecurityPage();
   if(page==='dashboard')renderDashboard();
   if(page==='dashboard-design')renderDashboardDesignPage();
   if(page==='credit-cards')renderCreditCards();
@@ -583,16 +588,42 @@ function onWidgetDragEnd(e) {
 function toggleNotifPanel() {
   const panel = document.getElementById('notif-panel');
   if(!panel) return;
-  const isShow = panel.style.display === 'none';
-  panel.style.display = isShow ? 'flex' : 'none';
-  if(isShow){
-    renderNotifications();
+  const isShow = panel.style.display !== 'block';
+  if(!isShow){
+    closeNotifPanel();
+    return;
   }
+  if(typeof closeImportHistoryMenu === 'function') closeImportHistoryMenu();
+  if(typeof closeProfileDropdown === 'function') closeProfileDropdown();
+  panel.style.display = 'block';
+  renderNotifications();
+  document.addEventListener('click', handleNotifDismiss);
+  document.addEventListener('keydown', handleNotifDismiss);
+}
+
+function closeNotifPanel(){
+  const panel = document.getElementById('notif-panel');
+  if(!panel) return;
+  panel.style.display = 'none';
+  document.removeEventListener('click', handleNotifDismiss);
+  document.removeEventListener('keydown', handleNotifDismiss);
+}
+
+function handleNotifDismiss(event){
+  const panel = document.getElementById('notif-panel');
+  const trigger = document.getElementById('app-btn-notif');
+  if(!panel || panel.style.display !== 'block') return;
+  if(event.type === 'keydown' && event.key === 'Escape'){
+    closeNotifPanel();
+    return;
+  }
+  if(trigger?.contains(event.target) || panel.contains(event.target)) return;
+  closeNotifPanel();
 }
 
 function renderNotifications() {
   const list = document.getElementById('notif-list');
-  const badge = document.getElementById('notif-badge');
+  const badge = document.getElementById('app-notif-dot');
   if(!list) return;
 
   const notifs = [];
