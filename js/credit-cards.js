@@ -134,9 +134,13 @@ function ccSelectPageTab(tab){
   document.getElementById('cpt-compare')?.classList.remove('active');
   const pr=document.getElementById('cc-panel-resumen');
   const pc=document.getElementById('cc-panel-config');
-  if(pr) pr.style.display=tab==='resumen'?'':'none';
-  if(pc) pc.style.display=tab==='config'?'':'none';
-  if(tab==='config') renderCcConfigPanel();
+  if(pr) pr.style.display=tab==='resumen'?'flex':'none';
+  if(pc) pc.style.display=tab==='config'?'flex':'none';
+  if(tab==='resumen'){
+    renderCcActiveCycle();
+  } else if(tab==='config') {
+    renderCcConfigPanel();
+  }
 }
 
 // ── Renderizar página completa ──
@@ -150,8 +154,8 @@ function renderCreditCards(){
   document.getElementById('cpt-compare')?.classList.remove('active');
   const pr=document.getElementById('cc-panel-resumen');
   const pc=document.getElementById('cc-panel-config');
-  if(pr) pr.style.display=tab==='resumen'?'':'none';
-  if(pc) pc.style.display=tab==='config'?'':'none';
+  if(pr) pr.style.display=tab==='resumen'?'flex':'none';
+  if(pc) pc.style.display=tab==='config'?'flex':'none';
   if(tab==='resumen'){
     renderCcActiveCycle();
   } else {

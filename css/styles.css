@@ -8937,10 +8937,22 @@ body.light-mode .notif-close:hover {
   font-family: var(--font); transition: all 0.15s; white-space: nowrap; letter-spacing: -.01em;
 }
 .cc-stab.active {
-  background: var(--surface-solid); color: var(--text);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  background: linear-gradient(180deg, rgba(255,255,255,0.12), rgba(255,255,255,0.04));
+  color: var(--text);
+  box-shadow: 0 8px 18px rgba(0,0,0,0.14);
 }
 .cc-stab:hover:not(.active) { color: var(--text2); background: rgba(0,0,0,0.04); }
+
+body.light-mode .surface-toggle-btn.active,
+body.light-mode .tft-btn.active,
+body.light-mode .ins-tab.active,
+body.light-mode .cc-stab.active,
+body.light-mode .cc-tab-chip.active {
+  background: rgba(52, 199, 89, 0.12) !important;
+  color: #1e8b47 !important;
+  border-color: rgba(52, 199, 89, 0.24) !important;
+  box-shadow: inset 0 0 0 1px rgba(52, 199, 89, 0.08);
+}
 
 /* ── CC Config Panel inputs ── */
 .cc-cfg-input {
