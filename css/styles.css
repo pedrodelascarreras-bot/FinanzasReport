@@ -10891,7 +10891,8 @@ body.light-mode .sp-simple-close {
 .balance-hero-main.warn { box-shadow: inset 0 0 0 1px rgba(255,159,10,0.12); }
 .balance-hero-main.danger { box-shadow: inset 0 0 0 1px rgba(255,69,58,0.14); }
 .balance-hero-main-label,
-.balance-hero-main-sub {
+.balance-hero-main-sub,
+.balance-hero-main-meta {
   font-size: 12px;
   color: var(--text3);
 }
@@ -10900,6 +10901,23 @@ body.light-mode .sp-simple-close {
   font-weight: 800;
   line-height: 0.95;
   letter-spacing: -0.05em;
+}
+.balance-hero-main.good .balance-hero-main-value { color: var(--accent2); }
+.balance-hero-main.warn .balance-hero-main-value { color: var(--accent3); }
+.balance-hero-main.danger .balance-hero-main-value { color: var(--danger); }
+.balance-hero-main-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+.balance-hero-main-meta span {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
 }
 .balance-storyline {
   margin-top: 16px;
@@ -11165,6 +11183,7 @@ body.light-mode .sp-simple-close {
   grid-template-columns: 1fr;
   gap: 18px;
 }
+.balance-bottom-grid,
 .balance-secondary-grid,
 .balance-leak-grid,
 .balance-action-grid,
@@ -11173,7 +11192,10 @@ body.light-mode .sp-simple-close {
   gap: 14px;
 }
 .balance-secondary-grid {
-  grid-template-columns: repeat(3,minmax(0,1fr));
+  grid-template-columns: repeat(4,minmax(0,1fr));
+}
+.balance-bottom-grid {
+  grid-template-columns: 1.15fr .85fr;
 }
 .balance-metric-card,
 .balance-leak-card,
@@ -11288,6 +11310,10 @@ body.light-mode .sp-simple-close {
 .balance-action-grid,
 .balance-simulation-grid {
   grid-template-columns: repeat(3,minmax(0,1fr));
+}
+.balance-action-grid.compact,
+.balance-simulation-grid.compact {
+  grid-template-columns: 1fr;
 }
 .balance-leak-top,
 .balance-leak-values {
@@ -11502,6 +11528,7 @@ body.light-mode .sp-simple-close {
 
 @media (max-width: 980px) {
   .balance-hero-shell,
+  .balance-bottom-grid,
   .balance-next-grid,
   .balance-secondary-grid,
   .balance-leak-grid,
@@ -11537,6 +11564,7 @@ body.light-mode .sp-simple-close {
   }
   .balance-storyline,
   .balance-hero-actions,
+  .balance-hero-main-meta,
   .balance-mix-legend,
   .balance-runway-foot,
   .balance-health-band-labels {

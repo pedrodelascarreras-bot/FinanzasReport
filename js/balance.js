@@ -466,7 +466,7 @@
     const variablePct=balanceClamp(100-fixedPct,0,100);
     return [
       {
-        title:'Income vs Expenses',
+        title:'Ingresos vs gastos',
         value: balanceFmtMoney(data.freeCash),
         sub:`Tus gastos consumieron ${balancePct(data.totalExpenses,data.income.total)||0}% del ingreso.`,
         visual: `
@@ -477,7 +477,7 @@
         `
       },
       {
-        title:'Expense Structure',
+        title:'Estructura del gasto',
         value: `${fixedPct}% fijo`,
         sub:`La parte variable fue ${variablePct}% del gasto.`,
         visual: `
@@ -488,25 +488,25 @@
         `
       },
       {
-        title:'Spending Velocity',
+        title:'Velocidad de gasto',
         value: `${data.spendVelocity===null?'—':data.spendVelocity+'%'}`,
         sub:'Qué tan rápido se fue el ingreso total durante el mes.',
         visual: `<div class="balance-mini-line"><span style="width:${balanceClamp(data.spendVelocity||0,8,100)}%"></span></div>`
       },
       {
-        title:'Savings Capacity',
+        title:'Capacidad de ahorro',
         value: `${fmtN(data.bufferMonths,1)} meses`,
         sub:'Cobertura de tu estructura comprometida con tu patrimonio actual.',
         visual: `<div class="balance-capacity-dots">${new Array(6).fill(0).map((_,i)=>`<i class="${i<Math.round(balanceClamp(data.bufferMonths,0,6))?'on':''}"></i>`).join('')}</div>`
       },
       {
-        title:'Dollar Exposure',
+        title:'Exposición al dólar',
         value: `${data.usdExposure}%`,
         sub:'Porción del gasto expuesta a movimientos del tipo de cambio.',
         visual: `<div class="balance-mini-line fx"><span style="width:${balanceClamp(data.usdExposure,8,100)}%"></span></div>`
       },
       {
-        title:'Active Days Spending',
+        title:'Días con gasto',
         value: `${data.daysWithSpend}/${data.daysInMonth}`,
         sub:'Mientras más frecuente el gasto, más difícil sostener ahorro.',
         visual: `<div class="balance-mini-calendar">${new Array(Math.min(data.daysInMonth,31)).fill(0).map((_,i)=>`<i class="${i<data.daysWithSpend?'on':''}"></i>`).join('')}</div>`
@@ -527,7 +527,8 @@
     const committedPct=balancePct(data.committedBase,data.income.total)||0;
     const expensePct=balancePct(data.totalExpenses,data.income.total)||0;
     const freePct=data.income.total>0?balanceClamp(100-committedPct,0,100):0;
-    const inlineInsights=balanceInlineInsights(data);
+    const inlineInsights=balanceInlineInsights(data).slice(0,3);
+    const deltaVsPrev=data.freeCash-(data.prevIncome.total-data.prevTotalExpenses);
     hero.innerHTML=`
       <section class="balance-hero-shell balance-tone-${status.tone}">
         <div class="balance-hero-copy">
@@ -535,20 +536,23 @@
           <div class="balance-status-tag ${status.tone}">
             <span class="balance-status-dot"></span>${status.title}
           </div>
-          <h2 class="balance-hero-title">${status.title}</h2>
+          <h2 class="balance-hero-title">Resultado del mes</h2>
           <p class="balance-hero-desc">${status.desc}</p>
           <div class="balance-hero-main ${spendTone}">
             <span class="balance-hero-main-label">Resultado final</span>
             <span class="balance-hero-main-value">${balanceFmtMoney(data.freeCash)}</span>
-            <span class="balance-hero-main-sub">${rateText} · ${balanceDeltaText(data.freeCash-(data.prevIncome.total-data.prevTotalExpenses))} vs mes anterior</span>
+            <div class="balance-hero-main-meta">
+              <span>${rateText}</span>
+              <span>${balanceDeltaText(deltaVsPrev)} vs mes anterior</span>
+            </div>
           </div>
           <div class="balance-inline-insights">
             ${inlineInsights.map(text=>`<div class="balance-inline-insight">${text}</div>`).join('')}
           </div>
           <div class="balance-hero-actions">
-            <button class="btn btn-primary btn-sm" onclick="balanceJump('balance-actions')">Cut expenses</button>
-            <button class="btn btn-ghost btn-sm" onclick="balanceJump('balance-actions')">Optimize subscriptions</button>
-            <button class="btn btn-ghost btn-sm" onclick="balanceJump('balance-simulation')">Simulate next month</button>
+            <button class="btn btn-primary btn-sm" onclick="balanceJump('balance-actions')">Recortar gastos</button>
+            <button class="btn btn-ghost btn-sm" onclick="balanceJump('balance-actions')">Optimizar suscripciones</button>
+            <button class="btn btn-ghost btn-sm" onclick="balanceJump('balance-simulation')">Simular próximo mes</button>
           </div>
         </div>
         <div class="balance-hero-cockpit">
@@ -560,7 +564,7 @@
               </svg>
               <div class="balance-score-center">
                 <strong>${data.score}</strong>
-                <span>score</span>
+                <span>puntaje</span>
               </div>
             </div>
             <div class="balance-score-meta">
@@ -570,7 +574,7 @@
               <div><span>Normalizado</span><strong>${balanceFmtMoney(data.normalizedNet)}</strong></div>
             </div>
             <details class="balance-score-details">
-              <summary>Why this score?</summary>
+              <summary>Por qué dio este score</summary>
               <div>
                 ${[
                   `Ahorro del mes: ${data.savingsRate===null?'sin ingreso cargado':data.savingsRate+'%'}.`,
@@ -615,7 +619,7 @@
             <div class="balance-visual-card">
               <div class="balance-visual-head">
                 <span>Pulso de categorías</span>
-                <strong>Top ${topSpots.length}</strong>
+                <strong>${topSpots.length} focos</strong>
               </div>
               <div class="balance-pulse">
                 ${topSpots.map(item=>`
@@ -637,23 +641,13 @@
     const grid=document.getElementById('balance-grid');
     if(!grid) return;
     const cards=balanceSecondaryCards(data);
-    const bridgeRows=[
-      {label:'Ingreso fijo', value:data.income.fixed, tone:'good'},
-      {label:'Ingreso variable', value:data.income.variable, tone:'good'},
-      {label:'Gasto del mes', value:-data.totalExpenses, tone:'danger'},
-      {label:'Ahorro transferido', value:-Math.max(0,data.savingsNet), tone:'warn'},
-      {label:'Resultado', value:data.freeCash, tone:data.freeCash>=0?'good':'danger', strong:true}
-    ].filter(row=>Math.abs(row.value||0)>0);
-    const drivers=balanceDrivers(data);
-    const opportunities=balanceOpportunities(data);
-    const alerts=balanceAlerts(data);
     const leaks=balanceLeaks(data);
     const actions=balanceActionPlan(data);
     const simulation=balanceSimulation(data);
-    const categories=data.topCategories.slice(0,5);
+    const cardsToShow=[cards[0],cards[1],cards[2],cards[3]];
     grid.innerHTML=`
       <section class="balance-secondary-grid">
-        ${cards.map(card=>`
+        ${cardsToShow.map(card=>`
           <article class="balance-metric-card">
             <div class="balance-metric-top">
               <span>${card.title}</span>
@@ -665,84 +659,11 @@
         `).join('')}
       </section>
 
-      <section class="balance-panel balance-panel-bridge">
-        <div class="balance-panel-head">
-          <div>
-            <div class="balance-panel-kicker">Puente financiero</div>
-            <h3>Cómo terminó el mes</h3>
-          </div>
-          <div class="balance-panel-meta">${data.income.extras>0?'Incluye ingresos no recurrentes':'Solo flujo operativo'}</div>
-        </div>
-        <div class="balance-bridge-list">
-          ${bridgeRows.map(row=>`
-            <div class="balance-bridge-row ${row.tone} ${row.strong?'strong':''}">
-              <span>${row.label}</span>
-              <strong>${row.value>=0?'+':''}${balanceFmtMoney(Math.abs(row.value))}</strong>
-            </div>
-          `).join('')}
-        </div>
-      </section>
-
-      <section class="balance-panel balance-panel-health">
-        <div class="balance-panel-head">
-          <div>
-            <div class="balance-panel-kicker">Salud del mes</div>
-            <h3>Control central</h3>
-          </div>
-        </div>
-        <div class="balance-health-grid">
-          <div><span>Velocidad de gasto</span><strong>${data.spendVelocity===null?'—':data.spendVelocity+'%'}</strong></div>
-          <div><span>Ticket promedio</span><strong>${balanceFmtMoney(data.avgTicket)}</strong></div>
-          <div><span>Patrimonio / base</span><strong>${fmtN(data.bufferMonths,1)} meses</strong></div>
-          <div><span>Gasto dolarizado</span><strong>${data.usdExposure}%</strong></div>
-          <div><span>Cuotas pagadas</span><strong>${balanceFmtMoney(data.cuotaActual)}</strong></div>
-          <div><span>Días con gasto</span><strong>${data.daysWithSpend}/${data.daysInMonth}</strong></div>
-        </div>
-        <div class="balance-health-band">
-          <div class="balance-health-band-labels">
-            <span>Ingreso</span>
-            <span>Estructura</span>
-            <span>Gasto real</span>
-            <span>Resultado</span>
-          </div>
-          <div class="balance-health-band-track">
-            <div class="income" style="width:100%"></div>
-            <div class="committed" style="width:${balanceClamp(balancePct(data.committedBase,data.income.total)||0,0,100)}%"></div>
-            <div class="spent" style="width:${balanceClamp(balancePct(data.totalExpenses,data.income.total)||0,0,100)}%"></div>
-            <div class="free ${data.freeCash<0?'negative':''}" style="width:${balanceClamp(Math.abs(balancePct(data.freeCash,data.income.total)||0),0,100)}%"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="balance-panel">
-        <div class="balance-panel-head">
-          <div>
-            <div class="balance-panel-kicker">Lo que movió el cierre</div>
-            <h3>Drivers principales</h3>
-          </div>
-        </div>
-        <div class="balance-insight-list">
-          ${drivers.map(item=>`<article><strong>${item.label}</strong><p>${item.text}</p></article>`).join('')}
-        </div>
-      </section>
-
-      <section class="balance-panel">
-        <div class="balance-panel-head">
-          <div>
-            <div class="balance-panel-kicker">Palancas de ahorro</div>
-            <h3>Dónde intervenir primero</h3>
-          </div>
-        </div>
-        <div class="balance-insight-list">
-          ${opportunities.map(item=>`<article><strong>${item.title}</strong><p>${item.body}</p></article>`).join('')}
-        </div>
-      </section>
-
       <section class="balance-panel" id="balance-leaks">
         <div class="balance-panel-head">
           <div>
-            <div class="balance-panel-kicker">Behavioral analytics</div>
-            <h3>Where your money leaks</h3>
+            <div class="balance-panel-kicker">Fugas detectadas</div>
+            <h3>Por dónde se te escapa la plata</h3>
           </div>
         </div>
         <div class="balance-leak-grid">
@@ -762,85 +683,49 @@
         </div>
       </section>
 
-      <section class="balance-panel" id="balance-actions">
-        <div class="balance-panel-head">
-          <div>
-            <div class="balance-panel-kicker">Actionable insights</div>
-            <h3>What to do next</h3>
-          </div>
-        </div>
-        <div class="balance-action-grid">
-          ${actions.map(action=>`
-            <article class="balance-action-card">
-              <span class="balance-action-impact">Impacto ${balanceFmtMoney(action.impact)}</span>
-              <strong>${action.title}</strong>
-              <p><b>Problema:</b> ${action.problem}</p>
-              <p><b>Acción:</b> ${action.action}</p>
-            </article>
-          `).join('')}
-        </div>
-      </section>
-
-      <section class="balance-panel balance-simulation-shell" id="balance-simulation">
-        <div class="balance-panel-head">
-          <div>
-            <div class="balance-panel-kicker">Next month simulation</div>
-            <h3>Qué pasa si repetís este comportamiento</h3>
-          </div>
-        </div>
-        <div class="balance-simulation-grid">
-          <article class="balance-scenario-card">
-            <span>Current behavior</span>
-            <strong>${balanceFmtMoney(simulation.baseline.projectedSavings)}</strong>
-            <p>Ahorro proyectado si repetís este mes tal cual.</p>
-            <small>${simulation.baseline.savingsRate===null?'Sin tasa disponible':`${simulation.baseline.savingsRate}% de ahorro estimado`}</small>
-          </article>
-          <article class="balance-scenario-card improved">
-            <span>Reduce top 2 categories</span>
-            <strong>${balanceFmtMoney(simulation.optimized.projectedSavings)}</strong>
-            <p>Escenario ajustando 25% en tus dos fugas más claras.</p>
-            <small>${simulation.optimized.savingsRate===null?'Sin tasa disponible':`${simulation.optimized.savingsRate}% de ahorro estimado · ${balanceFmtMoney(simulation.optimized.delta)} mejor`}</small>
-          </article>
-        </div>
-        <div class="balance-simulation-assumptions">
-          ${simulation.optimized.assumptions.map(item=>`<div>${item.category}: -${item.reductionPct}% = ${balanceFmtMoney(item.recovered)} recuperados</div>`).join('')}
-        </div>
-      </section>
-
-      <section class="balance-panel">
-        <div class="balance-panel-head">
-          <div>
-            <div class="balance-panel-kicker">Desvíos por categoría</div>
-            <h3>Radar del mes</h3>
-          </div>
-        </div>
-        <div class="balance-category-table">
-          ${categories.map(item=>`
-            <div class="balance-category-row">
-              <div>
-                <strong>${esc(item.name)}</strong>
-                <span>${esc(item.group)}</span>
-              </div>
-              <div>
-                <strong>${balanceFmtMoney(item.total)}</strong>
-                <span>${item.avg>0?`${balanceDeltaText(item.delta)} vs promedio`:'sin promedio'}</span>
-              </div>
-              <div class="balance-category-progress"><span style="width:${balanceClamp(item.pct,6,100)}%"></span></div>
+      <section class="balance-bottom-grid">
+        <section class="balance-panel" id="balance-actions">
+          <div class="balance-panel-head">
+            <div>
+              <div class="balance-panel-kicker">Acciones recomendadas</div>
+              <h3>Qué haría ahora</h3>
             </div>
-          `).join('')}
-        </div>
-      </section>
-
-      <section class="balance-panel">
-        <div class="balance-panel-head">
-          <div>
-            <div class="balance-panel-kicker">Alertas y foco</div>
-            <h3>Lo que no conviene perder de vista</h3>
           </div>
-        </div>
-        <div class="balance-alert-list">
-          ${alerts.map(item=>`<div class="balance-alert ${item.tone}"><strong>${item.title}</strong><p>${item.text}</p></div>`).join('')}
-        </div>
+          <div class="balance-action-grid compact">
+            ${actions.map(action=>`
+              <article class="balance-action-card">
+                <span class="balance-action-impact">Impacto ${balanceFmtMoney(action.impact)}</span>
+                <strong>${action.title}</strong>
+                <p><b>Problema:</b> ${action.problem}</p>
+                <p><b>Acción:</b> ${action.action}</p>
+              </article>
+            `).join('')}
+          </div>
+        </section>
+
+        <section class="balance-panel balance-simulation-shell" id="balance-simulation">
+          <div class="balance-panel-head">
+            <div>
+              <div class="balance-panel-kicker">Simulación</div>
+              <h3>Próximo mes</h3>
+            </div>
+          </div>
+          <div class="balance-simulation-grid compact">
+            <article class="balance-scenario-card">
+              <span>Si seguís igual</span>
+              <strong>${balanceFmtMoney(simulation.baseline.projectedSavings)}</strong>
+              <small>${simulation.baseline.savingsRate===null?'Sin tasa disponible':`${simulation.baseline.savingsRate}% de ahorro estimado`}</small>
+            </article>
+            <article class="balance-scenario-card improved">
+              <span>Si ajustás 2 fugas</span>
+              <strong>${balanceFmtMoney(simulation.optimized.projectedSavings)}</strong>
+              <small>${simulation.optimized.savingsRate===null?'Sin tasa disponible':`${simulation.optimized.savingsRate}% de ahorro estimado · ${balanceFmtMoney(simulation.optimized.delta)} mejor`}</small>
+            </article>
+          </div>
+          <div class="balance-simulation-assumptions">
+            ${simulation.optimized.assumptions.map(item=>`<div>${item.category}: -${item.reductionPct}% = ${balanceFmtMoney(item.recovered)} recuperados</div>`).join('')}
+          </div>
+        </section>
       </section>
     `;
   }
