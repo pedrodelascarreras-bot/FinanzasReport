@@ -12327,8 +12327,66 @@ body.light-mode .balance-hero-fact strong {
   right: 102px;
 }
 
-.import-history-menu {
+.import-history-menu,
+.create-menu {
   right: 52px;
+}
+
+.create-menu {
+  width: min(320px, calc(100vw - 32px));
+}
+
+.create-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.create-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 15px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.04);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+}
+
+.create-menu-item-primary {
+  background: linear-gradient(135deg, rgba(41,151,255,0.2), rgba(41,151,255,0.1));
+  border-color: rgba(41,151,255,0.28);
+}
+
+.create-menu-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.08);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.create-menu-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.create-menu-copy strong {
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.create-menu-copy small {
+  font-size: 11px;
+  color: var(--text3);
 }
 
 .shell-popover-head {
@@ -12546,8 +12604,87 @@ body.light-mode .balance-hero-fact strong {
   gap: 22px;
 }
 
+.profile-card-wide {
+  grid-column: 1 / -1;
+}
+
+.profile-avatar-source-row {
+  display: inline-flex;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 14px;
+  background: rgba(0,0,0,0.18);
+  border: 1px solid rgba(255,255,255,0.06);
+  align-self: flex-start;
+}
+
+.profile-avatar-source {
+  border: 0;
+  background: transparent;
+  color: var(--text3);
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.profile-avatar-source.active {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+
+.profile-avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 14px;
+}
+
+.profile-avatar-option {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+  padding: 14px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.03);
+  cursor: pointer;
+}
+
+.profile-avatar-option.active {
+  border-color: rgba(41,151,255,0.35);
+  background: rgba(41,151,255,0.08);
+  box-shadow: inset 0 0 0 1px rgba(41,151,255,0.18);
+}
+
+.profile-avatar-option-preview {
+  width: 72px;
+  height: 72px;
+  border-radius: 20px;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  box-shadow: 0 10px 24px rgba(0,0,0,0.18);
+}
+
+.profile-avatar-option-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+}
+
 .security-card-wide {
   grid-column: 1 / -1;
+}
+
+.security-grid-inner {
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
+  align-items: start;
+}
+
+.security-history-list {
+  padding: 4px 0;
 }
 
 .security-password-grid {
@@ -12585,6 +12722,20 @@ body.light-mode .balance-hero-fact strong {
 
 .settings-card-hero-clean {
   border-radius: 30px;
+}
+
+.settings-shell-simple .settings-main {
+  max-width: 760px;
+}
+
+.settings-preferences-card {
+  margin-top: 18px;
+}
+
+.settings-pref-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
 }
 
 #page-import .section-card,
@@ -12808,11 +12959,34 @@ body.light-mode .profile-hero-surface::before {
     radial-gradient(circle at bottom left, rgba(52,199,89,0.08), transparent 28%);
 }
 
+body.light-mode .create-menu-item {
+  background: rgba(248,250,252,0.95);
+  border-color: rgba(148,163,184,0.16);
+  color: #0f172a;
+}
+
+body.light-mode .profile-avatar-source-row {
+  background: #f8fafc;
+  border-color: rgba(148,163,184,0.2);
+}
+
+body.light-mode .profile-avatar-source.active {
+  background: #fff;
+  color: #0f172a;
+}
+
+body.light-mode .profile-avatar-option {
+  background: rgba(248,250,252,0.95);
+  border-color: rgba(148,163,184,0.18);
+}
+
 @media (max-width: 980px) {
   .profile-grid-wide,
   .security-grid,
   .security-password-grid,
-  .import-history-toolbar {
+  .import-history-toolbar,
+  .settings-pref-grid,
+  .security-grid-inner {
     grid-template-columns: 1fr;
   }
 

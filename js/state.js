@@ -45,6 +45,8 @@ let state={
   onboardingState: {},
   userEmail: '',
   userAvatar: '',
+  userAvatarMode: 'generated',
+  userAvatarPreset: '',
   userPrefs: { currency:'ARS', language:'es', theme:'dark' },
   googleProfile: null,
 };
@@ -76,6 +78,8 @@ function getStateSnapshot(){
     userName:state.userName||'Pedro',
     userEmail:state.userEmail||'',
     userAvatar:state.userAvatar||'',
+    userAvatarMode:state.userAvatarMode||'generated',
+    userAvatarPreset:state.userAvatarPreset||'',
     userPrefs:state.userPrefs||{ currency:'ARS', language:'es', theme:(document.body?.classList?.contains('light-mode')?'light':'dark') },
     googleProfile:state.googleProfile||null,
     lastVisit:state.lastVisit||null,
@@ -318,6 +322,8 @@ async function loadFromDrive(){
     state.gmailClientId=s.gmailClientId||'';
     state.userEmail=s.userEmail||'';
     state.userAvatar=s.userAvatar||'';
+    state.userAvatarMode=s.userAvatarMode||state.userAvatarMode||'generated';
+    state.userAvatarPreset=s.userAvatarPreset||'';
     state.userPrefs=s.userPrefs||state.userPrefs||{ currency:'ARS', language:'es', theme:'dark' };
     state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
@@ -380,6 +386,8 @@ function loadState(){
     state.gmailClientId=s.gmailClientId||localStorage.getItem('fin_gmail_client_id')||'';
     state.userEmail=s.userEmail||'';
     state.userAvatar=s.userAvatar||'';
+    state.userAvatarMode=s.userAvatarMode||state.userAvatarMode||'generated';
+    state.userAvatarPreset=s.userAvatarPreset||'';
     state.userPrefs=s.userPrefs||state.userPrefs||{ currency:'ARS', language:'es', theme:'dark' };
     state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;

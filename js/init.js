@@ -325,6 +325,13 @@ function updateLastBackupLabel(){
   });
 }
 
+function updateLastRestoreLabel(){
+  const raw = localStorage.getItem('fin_last_restore');
+  const el = document.getElementById('security-last-restore');
+  if(!el) return;
+  el.textContent = raw ? new Date(raw).toLocaleString('es-AR', { dateStyle:'medium', timeStyle:'short' }) : 'Nunca';
+}
+
 function importBackupJSON(event){
   const file=event.target.files[0];if(!file)return;
   const reader=new FileReader();
@@ -334,9 +341,11 @@ function importBackupJSON(event){
       if(!data._backup){showToast('⚠️ Archivo no válido','error');return;}
       if(!confirm('¿Restaurar backup del '+new Date(data._date).toLocaleDateString('es-AR')+'? Se reemplazarán todos los datos actuales.')){return;}
       localStorage.setItem('fin_state',JSON.stringify(data.state));
+      localStorage.setItem('fin_last_restore', new Date().toISOString());
       loadState();
       saveState();
       refreshAll();
+      updateLastRestoreLabel();
       showToast('✓ Backup restaurado correctamente','success');
     }catch(err){showToast('Error al restaurar backup','error');console.error(err);}
   };
@@ -382,8 +391,7 @@ function renderDriveStatusBanner() {
 
 // ══ HISTORIAL DE BACKUPS ══
 function renderBackupHistory() {
-  const el = document.getElementById('backup-history-list');
-  if (!el) return;
+  const targets = ['backup-history-list','security-backup-history'];
   const raw = localStorage.getItem('fin_backup_history');
   let history = [];
   try { history = raw ? JSON.parse(raw) : []; } catch(e) { history = []; }
@@ -391,11 +399,9 @@ function renderBackupHistory() {
   if (legacy && !history.find(h => h.date === legacy)) {
     history.unshift({ date: legacy, type: 'manual', size: '—' });
   }
-  if (!history.length) {
-    el.innerHTML = '<div style="color:var(--text3);font-size:11px;padding:4px 0;">Aún no hay backups registrados. Te recomendamos hacer uno ahora.</div>';
-    return;
-  }
-  el.innerHTML = history.slice(0, 5).map(h => {
+  const html = !history.length
+    ? '<div style="color:var(--text3);font-size:11px;padding:4px 0;">Aún no hay backups registrados. Te recomendamos hacer uno ahora.</div>'
+    : history.slice(0, 5).map(h => {
     const d = new Date(h.date);
     const now = new Date();
     const diffDays = Math.floor((now - d) / 86400000);
@@ -408,6 +414,10 @@ function renderBackupHistory() {
       <span style="color:${color}">${ageStr}</span>
     </div>`;
   }).join('');
+  targets.forEach(id => {
+    const el = document.getElementById(id);
+    if(el) el.innerHTML = html;
+  });
 }
 
 function registrarBackupEnHistorial(tipo) {
@@ -1433,6 +1443,8 @@ function getCurrentProfileSnapshot(){
     userName: state.userName || 'Usuario',
     userEmail: state.userEmail || '',
     userAvatar: state.userAvatar || '',
+    userAvatarMode: state.userAvatarMode || 'generated',
+    userAvatarPreset: state.userAvatarPreset || '',
     userPrefs: cloneDeepProfileValue(state.userPrefs || { currency:'ARS', language:'es', theme:'dark' }),
     googleProfile: cloneDeepProfileValue(state.googleProfile || null),
     profileTemplate: state.profileTemplate || 'personal',
@@ -1568,6 +1580,8 @@ function applyUserProfile(profileId){
   state.userName = profile.userName || profile.name || 'Usuario';
   state.userEmail = profile.userEmail || '';
   state.userAvatar = profile.userAvatar || '';
+  state.userAvatarMode = profile.userAvatarMode || (profile.userAvatar ? 'upload' : (profile.userAvatarPreset ? 'preset' : 'generated'));
+  state.userAvatarPreset = profile.userAvatarPreset || '';
   state.userPrefs = cloneDeepProfileValue(profile.userPrefs || state.userPrefs || { currency:'ARS', language:'es', theme:'dark' });
   state.googleProfile = cloneDeepProfileValue(profile.googleProfile || null);
   state.profileTemplate = profile.profileTemplate || 'personal';
@@ -1816,251 +1830,18 @@ function toggleAutomationPref(key){
 }
 
 function renderSettingsPage(){
-  ensureGmailImportRules();
-  ensureBankProfiles();
-  ensureUserProfiles();
-  ensureAutomationPrefs();
-  updateLastBackupLabel();
-  const onboardingEl = document.getElementById('settings-onboarding-shell');
-  const rulesEl = document.getElementById('settings-gmail-rules-shell');
-  const importEl = document.getElementById('settings-import-shell');
-  const bankEl = document.getElementById('settings-bank-profiles-shell');
-  const usersEl = document.getElementById('settings-user-profiles-shell');
-  const multiEl = document.getElementById('settings-multiuser-shell');
-  const overviewEl = document.getElementById('settings-overview-shell');
-  const safetyEl = document.getElementById('settings-safety-shell');
-  const advancedPanel = document.getElementById('settings-advanced-panel');
-  const advancedArrow = document.getElementById('settings-advanced-arrow');
-  if(!onboardingEl || !rulesEl || !importEl || !bankEl || !usersEl || !multiEl || !overviewEl || !safetyEl || !advancedPanel || !advancedArrow) return;
-
-  const activeRules = getActiveGmailImportRules().length;
-  const backupRaw = localStorage.getItem('fin_last_backup');
-  const backupLabel = backupRaw ? new Date(backupRaw).toLocaleDateString('es-AR') : 'Pendiente';
-  const activeProfile = (state.userProfiles || []).find(profile => profile.id === state.activeUserProfileId);
-  const connectedGoogle = isGoogleConnected();
-  overviewEl.innerHTML = `
-    <div class="settings-overview-card profile">
-      <div class="settings-overview-kicker">Perfil activo</div>
-      <div class="settings-overview-value">${activeProfile?.name || state.userName || 'Sin perfil'}</div>
-      <div class="settings-overview-sub">${activeProfile?.profileTemplate || state.profileTemplate || 'personal'}</div>
-    </div>
-    <div class="settings-overview-card google">
-      <div class="settings-overview-kicker">Google</div>
-      <div class="settings-overview-value">${connectedGoogle ? 'Conectado' : 'Pendiente'}</div>
-      <div class="settings-overview-sub">${activeRules} regla${activeRules===1?'':'s'} Gmail activa${activeRules===1?'':'s'}</div>
-    </div>
-    <div class="settings-overview-card bank">
-      <div class="settings-overview-kicker">Bancos</div>
-      <div class="settings-overview-value">${(state.bankProfiles || []).length}</div>
-      <div class="settings-overview-sub">perfil${(state.bankProfiles || []).length===1?'':'es'} bancario${(state.bankProfiles || []).length===1?'':'s'}</div>
-    </div>
-    <div class="settings-overview-card backup">
-      <div class="settings-overview-kicker">Backup</div>
-      <div class="settings-overview-value">${backupLabel}</div>
-      <div class="settings-overview-sub">${backupRaw ? 'última copia guardada' : 'sin respaldo reciente'}</div>
-    </div>
-  `;
-
-  const advancedOpen = localStorage.getItem('fin_settings_advanced_open') === '1';
-  advancedPanel.style.display = advancedOpen ? 'flex' : 'none';
-  advancedArrow.textContent = advancedOpen ? '⌄' : '›';
-
-  const checklist = getOnboardingChecklist();
-  onboardingEl.innerHTML = checklist.map(step => `
-    <div class="settings-status-row">
-      <div class="settings-status-badge">${step.icon}</div>
-      <div class="settings-status-copy">
-        <div class="settings-status-title">${step.title}</div>
-        <div class="settings-status-sub">${step.sub}</div>
-      </div>
-      <button class="dashboard-widget-mini ${step.done ? 'primary' : ''}" onclick="${step.onclick}">${step.action}</button>
-    </div>
-  `).join('');
-
-  safetyEl.innerHTML = `
-    <div class="settings-safety-item backup">
-      <div class="settings-safety-icon">🛟</div>
-      <div class="settings-safety-copy">
-        <div class="settings-safety-title">Descargar backup</div>
-        <div class="settings-safety-sub">Guardá una copia completa antes de importar, limpiar o probar cambios grandes.</div>
-      </div>
-      <button class="dashboard-widget-mini primary" onclick="exportBackupJSON()">Guardar</button>
-    </div>
-    <div class="settings-safety-item restore">
-      <div class="settings-safety-icon">♻️</div>
-      <div class="settings-safety-copy">
-        <div class="settings-safety-title">Restaurar backup</div>
-        <div class="settings-safety-sub">Recuperá una copia previa si querés volver a un estado estable.</div>
-      </div>
-      <button class="dashboard-widget-mini" onclick="document.getElementById('restore-json-input')?.click()">Restaurar</button>
-    </div>
-    <div class="settings-safety-item export">
-      <div class="settings-safety-icon">📄</div>
-      <div class="settings-safety-copy">
-        <div class="settings-safety-title">Exportar movimientos</div>
-        <div class="settings-safety-sub">Bajá tus transacciones en CSV para revisar, auditar o compartir por fuera de la app.</div>
-      </div>
-      <button class="dashboard-widget-mini" onclick="exportarCSV()">Exportar</button>
-    </div>
-  `;
-
-  const rules = ensureGmailImportRules();
-  rulesEl.innerHTML = `
-    <div class="gmail-rules-shell-head">
-      <div class="gmail-rules-shell-copy">
-        <div class="settings-rule-title">Reglas activas</div>
-        <div class="settings-rule-sub">Cada regla define qué correos mirar y cómo asignarlos dentro de la app.</div>
-      </div>
-      <div class="settings-module-actions settings-module-actions-tight">
-        <button class="dashboard-widget-mini primary" onclick="openGmailRuleManager()">+ Nueva regla</button>
-      </div>
-    </div>
-    ${rules.map(rule => {
-      const summary = summarizeGmailRule(rule);
-      return `
-        <div class="settings-rule-row gmail-rule-row-rich">
-          <div class="settings-rule-main">
-            <div class="settings-rule-title">${rule.name}</div>
-            <div class="gmail-rule-summary-list">
-              <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Mira</span><span>${summary.sender}</span></div>
-              <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Filtro</span><span>${summary.query}</span></div>
-              <div class="gmail-rule-summary-item"><span class="gmail-rule-summary-label">Asigna</span><span>${summary.assign}</span></div>
-            </div>
-            <div class="settings-rule-meta">
-              <span class="settings-rule-chip">${rule.active!==false?'Activa':'Pausada'}</span>
-              <span class="settings-rule-chip">${getGmailRuleImportKind(rule)==='subscription'?'Suscripción':'Movimiento'}</span>
-              <span class="settings-rule-chip">${rule.bank || 'Sin banco'}</span>
-              <span class="settings-rule-chip">${formatGmailRuleCardType(rule.cardType)}</span>
-            </div>
-          </div>
-          <div class="settings-rule-actions">
-            <button class="dashboard-widget-mini" onclick="toggleGmailRule('${rule.id}')">${rule.active!==false?'Pausar':'Activar'}</button>
-            <button class="dashboard-widget-mini primary" onclick="openGmailRuleManager('${rule.id}')">Editar</button>
-          </div>
-        </div>
-      `;
-    }).join('')}
-  `;
-
-  importEl.innerHTML = `
-    <div class="settings-method-item">
-      <div class="settings-method-head">
-        <div>
-          <div class="settings-method-title">Pegar resumen</div>
-          <div class="settings-method-sub">Ideal para cualquier banco. Copiás el resumen, lo pegás y la app intenta interpretarlo antes de importar.</div>
-        </div>
-      </div>
-      <div class="settings-method-actions">
-        <button class="dashboard-widget-mini primary" onclick="openUniversalImport('paste')">Pegar ahora</button>
-        <button class="dashboard-widget-mini" onclick="nav('import')">Abrir importación</button>
-      </div>
-    </div>
-    <div class="settings-method-item">
-      <div class="settings-method-head">
-        <div>
-          <div class="settings-method-title">Importar archivo</div>
-          <div class="settings-method-sub">CSV, backup o archivo estructurado cuando el banco ya te deja descargar movimientos.</div>
-        </div>
-      </div>
-      <div class="settings-method-actions">
-        <button class="dashboard-widget-mini primary" onclick="openUniversalImport('csv')">Subir archivo</button>
-        <button class="dashboard-widget-mini" onclick="nav('import')">Ver opciones</button>
-      </div>
-      <div class="settings-inline-note">Hoy la lectura más afinada está orientada a CSV compatibles y backups; después podemos sumar asistentes por banco.</div>
-    </div>
-    <div class="settings-method-item">
-      <div class="settings-method-head">
-        <div>
-          <div class="settings-method-title">Gmail / alertas bancarias</div>
-          <div class="settings-method-sub">Lee emails configurados por regla y transforma compras en movimientos revisables antes de importar.</div>
-        </div>
-      </div>
-      <div class="settings-method-actions">
-        <button class="dashboard-widget-mini primary" onclick="openCloudSync(event)">Conectar Google</button>
-        <button class="dashboard-widget-mini" onclick="openGmailRuleManager()">Ver reglas</button>
-      </div>
-    </div>
-  `;
-
-  const bankProfiles = ensureBankProfiles();
-  const userProfiles = ensureUserProfiles();
-
-  if(userProfiles.length){
-    usersEl.innerHTML = userProfiles.map(profile => `
-      <div class="settings-rule-row">
-        <div class="settings-rule-main">
-          <div class="settings-rule-title">${profile.name}${state.activeUserProfileId===profile.id ? ' · Activo' : ''}</div>
-          <div class="settings-rule-sub">${profile.note || 'Sin notas'} · ${profile.profileTemplate || 'personal'}</div>
-          <div class="settings-rule-meta">
-            <span class="settings-rule-chip">${getUserProfileStats(profile).activeRules} regla${getUserProfileStats(profile).activeRules===1?'':'s'} Gmail</span>
-            <span class="settings-rule-chip">${getUserProfileStats(profile).bankProfiles} banco${getUserProfileStats(profile).bankProfiles===1?'':'s'} / tarjeta${getUserProfileStats(profile).bankProfiles===1?'':'s'}</span>
-            <span class="settings-rule-chip">${getUserProfileStats(profile).cards} tarjeta${getUserProfileStats(profile).cards===1?'':'s'} configurada${getUserProfileStats(profile).cards===1?'':'s'}</span>
-            <span class="settings-rule-chip">${getUserProfileStats(profile).incomeMonths} mes${getUserProfileStats(profile).incomeMonths===1?'':'es'} con ingresos</span>
-            <span class="settings-rule-chip">${getUserProfileStats(profile).txns} movimiento${getUserProfileStats(profile).txns===1?'':'s'}</span>
-          </div>
-        </div>
-        <div class="settings-rule-actions">
-          <button class="dashboard-widget-mini ${state.activeUserProfileId===profile.id?'primary':''}" onclick="applyUserProfile('${profile.id}')">${state.activeUserProfileId===profile.id?'Activo':'Aplicar'}</button>
-          <button class="dashboard-widget-mini" onclick="openUserProfileManager('${profile.id}')">Editar</button>
-        </div>
-      </div>
-    `).join('');
-  } else {
-    usersEl.innerHTML = `
-      <div class="settings-method-item">
-        <div class="settings-method-title">Solo está la configuración actual</div>
-        <div class="settings-method-sub">Guardala como perfil para empezar a alternar entre distintas personas o contextos.</div>
-        <div class="settings-method-actions">
-          <button class="dashboard-widget-mini primary" onclick="saveActiveUserProfile()">Guardar como perfil</button>
-        </div>
-      </div>
-    `;
-  }
-
-  if(bankProfiles.length){
-    bankEl.innerHTML = bankProfiles.map(profile => `
-      <div class="settings-rule-row">
-        <div class="settings-rule-main">
-          <div class="settings-rule-title">${profile.name}</div>
-          <div class="settings-rule-sub">${profile.bank || 'Sin banco'} · ${profile.card || 'Sin tarjeta'}${profile.note ? ' · ' + profile.note : ''}</div>
-          <div class="settings-rule-meta">
-            <span class="settings-rule-chip">${profile.methodLabel || 'Sin método'}</span>
-            ${profile.closeDay ? `<span class="settings-rule-chip">Cierre ${profile.closeDay}</span>` : ''}
-            ${profile.dueDay ? `<span class="settings-rule-chip">Vence ${profile.dueDay}</span>` : ''}
-          </div>
-        </div>
-        <div class="settings-rule-actions">
-          <button class="dashboard-widget-mini" onclick="openBankProfileManager('${profile.id}')">Editar</button>
-        </div>
-      </div>
-    `).join('');
-  } else {
-    bankEl.innerHTML = `
-      <div class="settings-method-item">
-        <div class="settings-method-title">Todavía no hay perfiles guardados</div>
-        <div class="settings-method-sub">Creá uno para dejar preparado el banco, la tarjeta, el cierre y la vía de importación preferida de cada persona.</div>
-        <div class="settings-method-actions">
-          <button class="dashboard-widget-mini primary" onclick="openBankProfileManager()">Crear primer perfil</button>
-        </div>
-      </div>
-    `;
-  }
-
-  multiEl.innerHTML = `
-    <div class="settings-list-item"><strong>Perfil activo</strong><span>${activeProfile?.name || 'Sin perfil'} usa su propia configuración de Google, bancos, reglas e ingresos.</span></div>
-    <div class="settings-list-item"><strong>Datos aislados</strong><span>Movimientos, compromisos, importaciones, ahorros y layout del dashboard ya quedan asociados al perfil activo.</span></div>
-    <div class="settings-list-item"><strong>Preparada para otros</strong><span>Podés duplicar un perfil y armar rápidamente la base de un amigo o familiar sin mezclar su información con la tuya.</span></div>
-  `;
+  const currencyEl = document.getElementById('settings-currency');
+  const languageEl = document.getElementById('settings-language');
+  const themeEl = document.getElementById('settings-theme');
+  if(!currencyEl || !languageEl || !themeEl) return;
+  const prefs = state.userPrefs || { currency:'ARS', language:'es', theme:(document.body.classList.contains('light-mode') ? 'light' : 'dark') };
+  currencyEl.value = prefs.currency || 'ARS';
+  languageEl.value = prefs.language || 'es';
+  themeEl.value = prefs.theme || 'dark';
 }
 
 function toggleSettingsAdvanced(){
-  const panel = document.getElementById('settings-advanced-panel');
-  const arrow = document.getElementById('settings-advanced-arrow');
-  if(!panel || !arrow) return;
-  const opening = panel.style.display === 'none';
-  panel.style.display = opening ? 'flex' : 'none';
-  arrow.textContent = opening ? '⌄' : '›';
-  localStorage.setItem('fin_settings_advanced_open', opening ? '1' : '0');
+  return;
 }
 
 function resetBankProfileEditor(){

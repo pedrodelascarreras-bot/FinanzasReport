@@ -265,6 +265,7 @@ function nav(page){
   if(page==='categories'){renderCategoryManage();renderInlineColorPicker('');}
   if(page==='transactions'){ setTxnFilterMode('tc'); renderTransactions(); }
   if(page==='import'){renderImportHistory();updateLastBackupLabel();if(typeof renderImportConfigPanel==='function')renderImportConfigPanel();}
+  if(page==='import-history'){renderImportHistory();}
   if(page==='tendencia')renderTendencia();
   if(page==='cuotas'){renderCuotas();renderSubs();renderFixed();renderCompromisosSummary();}
   if(page==='suscripciones'){nav('cuotas');return;}

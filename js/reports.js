@@ -1125,6 +1125,7 @@ function renderImportHistoryItems(targetId, compact){
 }
 
 function renderImportHistoryMenu(){
+  if(!document.getElementById('import-history-menu-list')) return;
   renderImportHistoryItems('import-history-menu-list', true);
 }
 
@@ -1229,6 +1230,8 @@ function clearAllData(){
   state.userName='Pedro';
   state.userEmail='';
   state.userAvatar='';
+  state.userAvatarMode='generated';
+  state.userAvatarPreset='';
   state.userPrefs={ currency:'ARS', language:'es', theme:'dark' };
   state.googleProfile=null;
   saveState();

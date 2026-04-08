@@ -90,16 +90,6 @@
     </button>
   </nav>
 
-  <button class="nav-item" id="ni-settings" onclick="nav('settings')">
-    <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span><span>Configuración</span>
-  </button>
-  <button class="nav-item" id="ni-profile" onclick="nav('profile')">
-    <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg></span><span>Perfil</span>
-  </button>
-  <button class="nav-item" id="ni-security" onclick="nav('security')">
-    <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><span>Seguridad</span>
-  </button>
-
   <div class="sidebar-bottom-tools">
     <!-- Gmail Sync Button -->
     <button class="gmail-sync-btn" id="gmail-sync-btn" onclick="gmailSync()" title="Sincronizar con Gmail">
@@ -146,26 +136,32 @@
       </div>
       <div id="notif-list" class="notif-list shell-popover-list"></div>
     </div>
-    <button class="app-hdr-btn" id="app-btn-add" onclick="toggleImportHistoryMenu()" title="Historial de importaciones">
+    <button class="app-hdr-btn" id="app-btn-add" onclick="toggleCreateMenu()" title="Crear">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
-    <div id="import-history-menu" class="shell-popover import-history-menu" style="display:none;">
+    <div id="app-create-menu" class="shell-popover create-menu" style="display:none;">
       <div class="shell-popover-head">
         <div>
-          <div class="shell-popover-title">Historial de importaciones</div>
-          <div class="shell-popover-subtitle">Compacto, filtrable y listo para crecer</div>
+          <div class="shell-popover-title">Acciones rápidas</div>
+          <div class="shell-popover-subtitle">Creá un gasto o revisá importaciones sin ruido</div>
         </div>
       </div>
-      <div class="import-history-toolbar">
-        <select id="import-history-filter-status" class="input-field input-field-compact" onchange="renderImportHistoryMenu()">
-          <option value="all">Todos</option>
-          <option value="success">Importadas</option>
-          <option value="manual">Manual</option>
-          <option value="gmail">Gmail</option>
-        </select>
-        <input id="import-history-filter-date" type="month" class="input-field input-field-compact" onchange="renderImportHistoryMenu()">
+      <div class="create-menu-list">
+        <button class="create-menu-item create-menu-item-primary" onclick="openQuickExpenseFlow()">
+          <span class="create-menu-icon">＋</span>
+          <span class="create-menu-copy">
+            <strong>Nuevo gasto</strong>
+            <small>Carga manual rápida</small>
+          </span>
+        </button>
+        <button class="create-menu-item" onclick="nav('import-history');closeCreateMenu()">
+          <span class="create-menu-icon">◷</span>
+          <span class="create-menu-copy">
+            <strong>Historial de importaciones</strong>
+            <small>Pantalla dedicada para revisar entradas</small>
+          </span>
+        </button>
       </div>
-      <div id="import-history-menu-list" class="shell-popover-list"></div>
     </div>
     <div class="app-avatar-wrap" id="app-avatar-wrap">
       <button class="app-avatar" id="app-avatar-btn" onclick="toggleProfileDropdown()" title="Perfil">
@@ -663,155 +659,49 @@
   <div class="page-header fade-up">
     <div>
       <div class="page-title">Configuración</div>
-      <div class="page-subtitle">Ordená la experiencia, la apariencia y los módulos operativos sin duplicar flujos.</div>
+      <div class="page-subtitle">Preferencias globales de la app.</div>
     </div>
   </div>
 
-  <div class="settings-shell fade-up d1">
+  <div class="settings-shell settings-shell-simple fade-up d1">
     <div class="settings-main">
       <div class="settings-card settings-card-hero settings-card-hero-compact settings-card-hero-clean">
         <div class="settings-hero-copy">
-          <div class="settings-kicker">Configuración</div>
-          <div class="settings-title">Una base consistente para que toda la app se sienta ordenada.</div>
-          <div class="settings-note">Acá quedan la apariencia, los accesos operativos y la organización general. Perfil y seguridad viven como pantallas propias.</div>
-        </div>
-        <div class="settings-module-actions settings-module-actions-tight">
-          <button class="btn btn-primary" onclick="nav('profile')">Abrir perfil</button>
-          <button class="btn btn-ghost" onclick="nav('security')">Abrir seguridad</button>
-          <button class="btn btn-ghost" onclick="nav('dashboard-design')">Editar dashboard</button>
+          <div class="settings-kicker">Preferencias</div>
+          <div class="settings-title">Definí cómo querés usar la app.</div>
+          <div class="settings-note">Estas preferencias se aplican de forma consistente en toda la experiencia.</div>
         </div>
       </div>
-
-      <div id="settings-overview-shell" class="settings-overview-grid"></div>
-
-      <section class="settings-section">
-        <div class="settings-section-head">
-          <div class="settings-kicker">Parte 1</div>
-          <div class="settings-title settings-title-sm">Configuración de la app</div>
-          <div class="settings-note">Lo visual, lo cotidiano y lo que usás para adaptar la app a tu forma de mirar los datos.</div>
+      <div class="profile-card settings-preferences-card">
+        <div class="profile-card-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09"/></svg>
+          <span>Preferencias de la app</span>
         </div>
-
-        <div class="settings-grid settings-grid-simple">
-          <button class="settings-card settings-nav-card" onclick="nav('categories')">
-            <div class="settings-nav-icon">◑</div>
-            <div class="settings-nav-copy">
-              <div class="settings-nav-title">Categorías</div>
-              <div class="settings-nav-sub">Nombres, colores y emojis.</div>
-            </div>
-            <div class="settings-nav-cta">Abrir</div>
-          </button>
-
-          <button class="settings-card settings-nav-card" onclick="nav('credit-cards');ccSelectPageTab('config')">
-            <div class="settings-nav-icon">💳</div>
-            <div class="settings-nav-copy">
-              <div class="settings-nav-title">Tarjetas y ciclos</div>
-              <div class="settings-nav-sub">Apertura, cierre y vencimiento.</div>
-            </div>
-            <div class="settings-nav-cta">Abrir</div>
-          </button>
-
-          <button class="settings-card settings-nav-card" onclick="nav('income')">
-            <div class="settings-nav-icon">＋</div>
-            <div class="settings-nav-copy">
-              <div class="settings-nav-title">Ingresos base</div>
-              <div class="settings-nav-sub">Lo que la app usa para leer tu mes.</div>
-            </div>
-            <div class="settings-nav-cta">Abrir</div>
-          </button>
-
-          <button class="settings-card settings-nav-card" onclick="nav('dashboard-design')">
-            <div class="settings-nav-icon">◫</div>
-            <div class="settings-nav-copy">
-              <div class="settings-nav-title">Diseño del dashboard</div>
-              <div class="settings-nav-sub">Widgets, orden y vistas guardadas.</div>
-            </div>
-            <div class="settings-nav-cta">Abrir</div>
-          </button>
-        </div>
-
-        <div class="settings-card settings-card-linkout">
-          <div class="settings-kicker">Accesos dedicados</div>
-          <div class="settings-title settings-title-sm">Perfil y seguridad ya no comparten panel</div>
-          <div class="settings-note">Cada flujo vive en su propia pantalla para evitar mezcla entre identidad, respaldo, Google y datos críticos.</div>
-          <div id="settings-safety-shell" class="settings-safety-grid" style="display:none;"></div>
-          <div class="settings-module-actions settings-module-actions-tight">
-            <button class="btn btn-primary" onclick="nav('profile')">Perfil</button>
-            <button class="btn btn-ghost" onclick="nav('security')">Seguridad</button>
+        <div class="profile-field-list settings-pref-grid">
+          <div class="profile-field">
+            <label class="profile-field-label">Moneda principal</label>
+            <select class="profile-field-input" id="settings-currency">
+              <option value="ARS">ARS — Peso argentino</option>
+              <option value="USD">USD — Dólar</option>
+            </select>
+          </div>
+          <div class="profile-field">
+            <label class="profile-field-label">Idioma</label>
+            <select class="profile-field-input" id="settings-language">
+              <option value="es">Español</option>
+              <option value="en">English</option>
+            </select>
+          </div>
+          <div class="profile-field">
+            <label class="profile-field-label">Tema</label>
+            <select class="profile-field-input" id="settings-theme">
+              <option value="dark">Oscuro</option>
+              <option value="light">Claro</option>
+            </select>
           </div>
         </div>
-      </section>
-
-      <section class="settings-section settings-section-divider">
-        <button class="settings-collapse-btn" type="button" onclick="toggleSettingsAdvanced()">
-          <span>
-            <span class="settings-kicker">Parte 2</span>
-            <span class="settings-title settings-title-sm">Inicio, sincronización y perfiles</span>
-          </span>
-          <span id="settings-advanced-arrow" class="settings-collapse-arrow">›</span>
-        </button>
-
-        <div id="settings-advanced-panel" class="settings-advanced-panel" style="display:none;">
-          <div class="settings-note">Todo lo que prepara la app para entrar con Google, importar gastos y usarla con distintos perfiles o bancos.</div>
-
-          <div class="settings-module-grid settings-module-grid-simple">
-            <div class="settings-card">
-              <div class="settings-kicker">Onboarding</div>
-              <div class="settings-title settings-title-sm">Puesta en marcha</div>
-              <div id="settings-onboarding-shell" class="settings-status-list"></div>
-            </div>
-
-            <div class="settings-card">
-              <div class="settings-kicker">Google y Gmail</div>
-              <div class="settings-title settings-title-sm">Cuenta y sincronización</div>
-              <div class="settings-module-actions settings-module-actions-tight">
-                <button class="btn btn-primary" onclick="openCloudSync(event)">Conectar Google</button>
-                <button class="btn btn-ghost" onclick="openGmailRuleManager()">+ Nueva regla</button>
-              </div>
-              <div id="settings-gmail-rules-shell" class="settings-rule-list"></div>
-            </div>
-          </div>
-
-          <div class="settings-module-grid settings-module-grid-simple">
-            <div class="settings-card">
-              <div class="settings-kicker">Importación</div>
-              <div class="settings-title settings-title-sm">Cómo entran los movimientos</div>
-              <div class="settings-module-actions settings-module-actions-tight">
-                <button class="btn btn-primary" onclick="openImportAssistant()">Asistente</button>
-                <button class="btn btn-ghost" onclick="nav('import')">Abrir importación</button>
-              </div>
-              <div id="settings-import-shell" class="settings-method-list"></div>
-            </div>
-
-            <div class="settings-card">
-              <div class="settings-kicker">Bancos y tarjetas</div>
-              <div class="settings-title settings-title-sm">Perfiles base</div>
-              <div class="settings-module-actions settings-module-actions-tight">
-                <button class="btn btn-primary" onclick="openBankProfileManager()">Agregar perfil</button>
-                <button class="btn btn-ghost" onclick="nav('credit-cards');ccSelectPageTab('config')">Abrir tarjetas</button>
-              </div>
-              <div id="settings-bank-profiles-shell" class="settings-rule-list"></div>
-            </div>
-          </div>
-
-          <div class="settings-module-grid settings-module-grid-simple">
-            <div class="settings-card">
-              <div class="settings-kicker">Perfiles</div>
-              <div class="settings-title settings-title-sm">Usuarios y contextos</div>
-              <div class="settings-module-actions settings-module-actions-tight">
-                <button class="btn btn-primary" onclick="openUserProfileManager()">Gestionar perfiles</button>
-                <button class="btn btn-ghost" onclick="saveActiveUserProfile()">Guardar perfil activo</button>
-              </div>
-              <div id="settings-user-profiles-shell" class="settings-rule-list"></div>
-            </div>
-
-            <div class="settings-card">
-              <div class="settings-kicker">Estado del perfil activo</div>
-              <div class="settings-title settings-title-sm">Lo que hoy queda preparado</div>
-              <div id="settings-multiuser-shell" class="settings-list"></div>
-            </div>
-          </div>
-        </div>
-      </section>
+        <button class="btn btn-primary btn-sm" onclick="saveAppPreferences()">Guardar preferencias</button>
+      </div>
     </div>
   </div>
 </div>
@@ -844,13 +734,24 @@
         </div>
         <div class="profile-hero-actions">
           <input id="profile-avatar-input" type="file" accept="image/*" style="display:none" onchange="handleAvatarUpload(event)">
-          <button class="btn btn-primary" onclick="document.getElementById('profile-avatar-input').click()">Cambiar avatar</button>
+          <button class="btn btn-primary" onclick="document.getElementById('profile-avatar-input').click()">Subir imagen</button>
           <button class="btn btn-ghost" onclick="removeAvatar()">Quitar</button>
         </div>
       </div>
     </div>
 
     <div class="profile-grid profile-grid-wide">
+      <div class="profile-card profile-card-wide">
+        <div class="profile-card-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
+          <span>Elegir avatar</span>
+        </div>
+        <div class="profile-avatar-source-row">
+          <button class="profile-avatar-source active" id="avatar-source-upload" onclick="activateAvatarSource('upload')">Imagen subida</button>
+          <button class="profile-avatar-source" id="avatar-source-preset" onclick="activateAvatarSource('preset')">Avatar predefinido</button>
+        </div>
+        <div id="profile-avatar-presets" class="profile-avatar-grid"></div>
+      </div>
       <div class="profile-card">
         <div class="profile-card-head">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -919,28 +820,7 @@
             <span class="profile-google-value" id="pf-google-email-status">—</span>
           </div>
         </div>
-        <button class="btn btn-ghost btn-sm" style="align-self:flex-start;margin-top:8px;" onclick="nav('security')">Abrir seguridad</button>
-      </div>
-
-      <div class="profile-card">
-        <div class="profile-card-head">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M4 15h16"/><path d="M7 11V7"/><path d="M12 11V5"/><path d="M17 11V8"/></svg>
-          <span>Control de datos</span>
-        </div>
-        <div class="profile-status-list">
-          <div class="profile-status-item">
-            <div class="profile-status-dot profile-status-ok"></div>
-            <span>Reset total disponible desde esta cuenta</span>
-          </div>
-          <div class="profile-status-item">
-            <div class="profile-status-dot"></div>
-            <span>Exportación guiada vive en Seguridad</span>
-          </div>
-        </div>
-        <div class="profile-inline-actions">
-          <button class="btn btn-danger btn-sm" onclick="confirmarAccion('borrar')">Resetear datos</button>
-          <button class="btn btn-ghost btn-sm" onclick="showExportPlaceholder()">Exportar</button>
-        </div>
+        <button class="btn btn-ghost btn-sm" style="align-self:flex-start;margin-top:8px;" onclick="nav('security')">Abrir centro de datos</button>
       </div>
     </div>
   </div>
@@ -959,43 +839,41 @@
     <div class="security-grid">
       <section class="profile-card security-card security-card-wide">
         <div class="profile-card-head">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-          <span>Cambiar contraseña</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Backups</span>
         </div>
-        <div class="profile-field-list security-password-grid">
-          <div class="profile-field">
-            <label class="profile-field-label">Contraseña actual</label>
-            <input id="security-current-password" type="password" class="profile-field-input" placeholder="••••••••">
+        <div class="security-grid security-grid-inner">
+          <div class="security-stat-list">
+            <div class="security-stat-row">
+              <span class="profile-google-label">Último backup</span>
+              <strong class="profile-google-value" id="security-last-backup">—</strong>
+            </div>
+            <div class="security-stat-row">
+              <span class="profile-google-label">Historial reciente</span>
+              <strong class="profile-google-value">Hasta 5 eventos</strong>
+            </div>
           </div>
-          <div class="profile-field">
-            <label class="profile-field-label">Nueva contraseña</label>
-            <input id="security-new-password" type="password" class="profile-field-input" placeholder="••••••••">
-          </div>
-          <div class="profile-field">
-            <label class="profile-field-label">Confirmar contraseña</label>
-            <input id="security-confirm-password" type="password" class="profile-field-input" placeholder="••••••••">
-          </div>
+          <div id="security-backup-history" class="security-history-list"></div>
         </div>
-        <button class="btn btn-primary btn-sm" style="align-self:flex-start;" onclick="saveSecurityPassword()">Actualizar contraseña</button>
+        <button class="btn btn-primary btn-sm" style="align-self:flex-start;" onclick="confirmarAccion('backup')">Backup manual</button>
       </section>
 
       <section class="profile-card security-card">
         <div class="profile-card-head">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          <span>Backups</span>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v6h6"/><path d="M21 17v-6h-6"/><path d="M20 7a8 8 0 0 0-14.85-3"/><path d="M4 17a8 8 0 0 0 14.85 3"/></svg>
+          <span>Restore</span>
         </div>
         <div class="security-stat-list">
           <div class="security-stat-row">
-            <span class="profile-google-label">Último backup</span>
-            <strong class="profile-google-value" id="security-last-backup">—</strong>
+            <span class="profile-google-label">Última restauración</span>
+            <strong class="profile-google-value" id="security-last-restore">Nunca</strong>
           </div>
           <div class="security-stat-row">
-            <span class="profile-google-label">Restauración</span>
-            <strong class="profile-google-value">Placeholder limpio</strong>
+            <span class="profile-google-label">Estado</span>
+            <strong class="profile-google-value">Placeholder seguro</strong>
           </div>
         </div>
         <div class="profile-inline-actions">
-          <button class="btn btn-primary btn-sm" onclick="confirmarAccion('backup')">Backup manual</button>
           <button class="btn btn-ghost btn-sm" onclick="showRestorePlaceholder()">Restaurar</button>
         </div>
         <input type="file" id="restore-json-input" accept=".json" style="display:none" onchange="importBackupJSON(event)">
@@ -1003,8 +881,25 @@
 
       <section class="profile-card security-card">
         <div class="profile-card-head">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>
+          <span>Export data</span>
+        </div>
+        <div class="security-stat-list">
+          <div class="security-stat-row">
+            <span class="profile-google-label">Formato</span>
+            <select id="security-export-format" class="profile-field-input profile-field-input-inline">
+              <option value="csv">CSV</option>
+              <option value="json">JSON backup</option>
+            </select>
+          </div>
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="exportSelectedData()">Exportar</button>
+      </section>
+
+      <section class="profile-card security-card">
+        <div class="profile-card-head">
           <svg width="18" height="18" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
-          <span>Acceso de Google</span>
+          <span>Sync status</span>
         </div>
         <div class="profile-google-status">
           <div class="profile-google-line">
@@ -1014,6 +909,10 @@
           <div class="profile-google-line">
             <span class="profile-google-label">Email</span>
             <span class="profile-google-value" id="security-google-email">—</span>
+          </div>
+          <div class="profile-google-line">
+            <span class="profile-google-label">Última sync</span>
+            <span class="profile-google-value" id="security-sync-time">—</span>
           </div>
         </div>
         <div class="profile-inline-actions">
@@ -2163,15 +2062,34 @@
       </div>
     </div>
   </div>
-  <!-- Import history -->
-  <div class="section-card fade-up d3">
+</div>
+
+<div id="page-import-history" class="page">
+  <div class="page-header fade-up">
+    <div>
+      <div class="page-title">Historial de importaciones</div>
+      <div class="page-subtitle">Pantalla dedicada para revisar origen, fecha y volumen importado.</div>
+    </div>
+  </div>
+  <div class="section-card fade-up d1">
     <div class="section-card-header import-header-card">
       <div>
-        <div class="import-title">Historial de importaciones</div>
-        <div class="import-subtitle">La misma lectura compacta del header, pero expandida para revisar más contexto.</div>
+        <div class="import-title">Importaciones registradas</div>
+        <div class="import-subtitle">Filtrá por estado o mes con una vista simple y escalable.</div>
       </div>
     </div>
-    <div id="import-history-list"></div>
+    <div class="section-card-body">
+      <div class="import-history-toolbar">
+        <select id="import-history-filter-status" class="input-field input-field-compact" onchange="renderImportHistory()">
+          <option value="all">Todos</option>
+          <option value="success">Importadas</option>
+          <option value="manual">Manual</option>
+          <option value="gmail">Gmail</option>
+        </select>
+        <input id="import-history-filter-date" type="month" class="input-field input-field-compact" onchange="renderImportHistory()">
+      </div>
+      <div id="import-history-list"></div>
+    </div>
   </div>
 </div>
 
