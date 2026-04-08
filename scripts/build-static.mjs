@@ -6,7 +6,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
-const assetVersion = '20260407h';
+const assetVersion = '20260407i';
 
 const entries = [
   'index.html',
@@ -31,10 +31,10 @@ async function build() {
   const rootIndexPath = path.join(rootDir, 'index.html');
   let distIndex = await readFile(rootIndexPath, 'utf8');
   distIndex = distIndex
-    .replace('css/styles.20260407h.css', `css/styles.${assetVersion}.css`)
-    .replace('js/balance.20260407h.js', `js/balance.${assetVersion}.js`)
-    .replace('js/ui.20260407h.js', `js/ui.${assetVersion}.js`)
-    .replace('js/credit-cards.20260407h.js', `js/credit-cards.${assetVersion}.js`);
+    .replace('css/styles.20260407i.css', `css/styles.${assetVersion}.css`)
+    .replace('js/balance.20260407i.js', `js/balance.${assetVersion}.js`)
+    .replace('js/ui.20260407i.js', `js/ui.${assetVersion}.js`)
+    .replace('js/credit-cards.20260407i.js', `js/credit-cards.${assetVersion}.js`);
   await writeFile(path.join(distDir, 'index.html'), distIndex, 'utf8');
 
   await cp(path.join(rootDir, 'css', 'styles.css'), path.join(rootDir, 'css', `styles.${assetVersion}.css`));
