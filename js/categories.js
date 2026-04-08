@@ -201,20 +201,21 @@ function reApplySuggestionsAll(){
 
 // ══ CATEGORIES ══
 function renderCategoryManage(){
+  if(typeof normalizeCategoryState === 'function') normalizeCategoryState(state);
   const counts={};state.transactions.forEach(t=>{counts[t.category]=(counts[t.category]||0)+1;});
   const el=document.getElementById('cat-list-manage');
   const sub=document.getElementById('cat-count-sub');
-  const totalSubs=state.categories.length;
-  const totalGroups=[...new Set(state.categories.map(c=>c.group))].length;
+  const groups=typeof getCategoryGroups === 'function' ? getCategoryGroups() : [...new Set((state.categories||[]).map(c=>c.group))].map((name, index)=>({id:`group-${index}`,name}));
+  const totalSubs=(state.categories||[]).length;
+  const totalGroups=groups.length;
   if(sub)sub.textContent=totalGroups+' grupos \u00B7 '+totalSubs+' subcategor\u00EDa'+(totalSubs!==1?'s':'');
   if(el){
     let html='';
-    const groups=[...new Set(state.categories.map(c=>c.group||'Sin clasificar'))];
-    groups.forEach(g=>{
-      const grp=CATEGORY_GROUPS.find(x=>x.group===g);
+    groups.forEach(group=>{
+      const g=group.name||'Sin clasificar';
+      const grp=typeof getCategoryGroupById === 'function' ? (getCategoryGroupById(group.id) || getCategoryGroupByName(g)) : CATEGORY_GROUPS.find(x=>x.group===g);
       const emoji=grp?grp.emoji:'\u{1F5D1}\u{FE0F}';
-      const gColor=grp?grp.color:'#888888';
-      const subs=state.categories.filter(c=>(c.group||'Sin clasificar')===g);
+      const subs=state.categories.filter(c=>((c.groupId&&c.groupId===group.id)||(c.group||'Sin clasificar')===g));
       const gCount=subs.reduce((s,c)=>s+(counts[c.name]||0),0);
       html+='<div class="cat-group-header" style="display:flex;align-items:center;gap:8px;padding:10px 10px 4px;margin-top:6px;">'+
         '<span style="font-size:15px;">'+emoji+'</span>'+
@@ -223,7 +224,7 @@ function renderCategoryManage(){
       '</div>';
       subs.forEach(c=>{
         const n=counts[c.name]||0;
-        html+='<div class="cat-item-row" data-cat="'+esc(c.name)+'" onclick="selectInlineCat(\x27'+esc(c.name)+'\x27)" style="padding-left:34px;">'+
+        html+='<div class="cat-item-row" data-cat-id="'+esc(c.id||c.name)+'" onclick="selectInlineCat(\x27'+esc(c.id||c.name)+'\x27)" style="padding-left:34px;">'+
           '<div class="cat-item-color" style="background:'+c.color+';width:10px;height:10px;border-radius:50%;flex-shrink:0;"></div>'+
           '<div class="cat-item-name" style="flex:1;font-size:12px;font-weight:500;">'+esc(c.name)+'</div>'+
           '<div class="cat-item-count" style="font-size:10px;color:var(--text3);font-family:var(--font);">'+n+'</div>'+
@@ -233,30 +234,30 @@ function renderCategoryManage(){
     el.innerHTML=html;
   }
 }
-function selectInlineCat(name){
-  const cat=state.categories.find(c=>c.name===name);if(!cat)return;
+function selectInlineCat(id){
+  const cat=(typeof getCategoryById==='function' ? getCategoryById(id) : null) || state.categories.find(c=>c.name===id||c.id===id);if(!cat)return;
   document.getElementById('cat-form-title').textContent='Editar subcategoría';
   document.getElementById('cat-inline-name').value=cat.name;
+  document.getElementById('cat-inline-id').value=cat.id||'';
   document.getElementById('cat-inline-editing').value=cat.name;
   document.getElementById('cat-inline-delete-btn').style.display='inline-flex';
   document.getElementById('cat-inline-empty-hint').style.display='none';
-  renderInlineGroupSelector(cat.group||'Sin clasificar');
+  renderInlineGroupSelector(cat.groupId||cat.group||'Sin clasificar');
   renderInlineColorPicker(cat.color);
   // Highlight selected row
   document.querySelectorAll('.cat-item-row').forEach(r=>r.classList.remove('active'));
-  const row=document.querySelector('.cat-item-row[data-cat="'+esc(name)+'"]');
+  const row=document.querySelector('.cat-item-row[data-cat-id="'+esc(cat.id||cat.name)+'"]');
   if(row)row.classList.add('active');
   document.getElementById('cat-inline-name').focus();
 }
 function renderInlineGroupSelector(selGroup){
   const el=document.getElementById('cat-inline-group');
   if(!el)return;
-  const stateGroups=[...new Set((state.categories||[]).map(cat=>(cat.group||'Sin clasificar').trim()||'Sin clasificar'))];
-  if(!stateGroups.includes('Sin clasificar')) stateGroups.unshift('Sin clasificar');
-  el.innerHTML=stateGroups.map(group=>{
-    const info=CATEGORY_GROUPS.find(g=>g.group===group);
-    const emoji=info?info.emoji:'•';
-    return '<option value="'+group+'" '+(group===selGroup?'selected':'')+'>'+emoji+' '+group+'</option>';
+  const groups=typeof getCategoryGroups==='function' ? getCategoryGroups() : [];
+  el.innerHTML=groups.map(group=>{
+    const value=group.id||group.name;
+    const selected=value===selGroup || group.name===selGroup;
+    return '<option value="'+esc(value)+'" '+(selected?'selected':'')+'>'+esc(group.emoji||'•')+' '+esc(group.name)+'</option>';
   }).join('');
 }
 function openInlineCatForm(){
@@ -265,8 +266,10 @@ function openInlineCatForm(){
 }
 function clearInlineCatForm(){
   document.getElementById('cat-form-title').textContent='Nueva subcategoría';
-  renderInlineGroupSelector('Sin clasificar');
+  const fallback=typeof getCategoryGroupByName==='function' ? (getCategoryGroupByName('Sin clasificar')||getCategoryGroups?.()[0]) : null;
+  renderInlineGroupSelector(fallback?.id||'Sin clasificar');
   document.getElementById('cat-inline-name').value='';
+  if(document.getElementById('cat-inline-id')) document.getElementById('cat-inline-id').value='';
   document.getElementById('cat-inline-editing').value='';
   document.getElementById('cat-inline-delete-btn').style.display='none';
   document.getElementById('cat-inline-empty-hint').style.display='none';
@@ -284,22 +287,17 @@ function saveInlineCat(){
   const sw=document.querySelector('#cat-inline-color-picker .color-swatch.selected');
   const rawColor=sw?sw.style.backgroundColor:'#888888';
   const hexColor=rawColor.startsWith('#')?rawColor:rgbToHex(rawColor);
+  const categoryId=document.getElementById('cat-inline-id')?.value||'';
   const editing=document.getElementById('cat-inline-editing').value;
+  const groupId=document.getElementById('cat-inline-group')?.value||'';
+  let result=null;
   if(editing){
-    const cat=state.categories.find(c=>c.name===editing);
-    if(cat){
-      if(name!==editing)state.transactions.forEach(t=>{if(t.category===editing)t.category=name;});
-      cat.name=name;
-      cat.color=hexColor;
-      cat.group=document.getElementById('cat-inline-group')?.value||cat.group||'Sin clasificar';
-    }
+    result=typeof updateCategory==='function' ? updateCategory(categoryId||editing,{name,groupId,color:hexColor}) : null;
+    if(!result?.ok){showToast(result?.error||'No se pudo guardar','error');return;}
     showToast('✓ Categoría actualizada','success');
   } else {
-    if(state.categories.find(c=>c.name===name)){showToast('⚠️ Ya existe esa categoría','error');return;}
-    // Find which group this is being added to (default Sin clasificar)
-    const selGroup=document.getElementById('cat-inline-group')?.value||'Sin clasificar';
-    const grpInfo=CATEGORY_GROUPS.find(g=>g.group===selGroup);
-    state.categories.push({name,color:hexColor,group:selGroup,emoji:grpInfo?grpInfo.emoji:'🗑️'});
+    result=typeof createCategory==='function' ? createCategory({name,groupId,color:hexColor}) : null;
+    if(!result?.ok){showToast(result?.error||'No se pudo guardar','error');return;}
     showToast('✓ Subcategoría creada','success');
   }
   saveState();refreshAll();
@@ -307,9 +305,10 @@ function saveInlineCat(){
 }
 function deleteInlineCat(){
   const name=document.getElementById('cat-inline-editing').value;if(!name)return;
+  const categoryId=document.getElementById('cat-inline-id')?.value||name;
   if(!confirm('¿Eliminar la categoría "'+name+'"? Los movimientos pasarán a "Otros".'))return;
-  state.categories=state.categories.filter(c=>c.name!==name);
-  state.transactions.forEach(t=>{if(t.category===name)t.category='Uncategorized';});
+  const result=typeof deleteCategory==='function' ? deleteCategory(categoryId) : null;
+  if(!result?.ok){showToast(result?.error||'No se pudo eliminar','error');return;}
   saveState();refreshAll();showToast('Categoría eliminada','info');
   clearInlineCatForm();
 }
@@ -405,9 +404,13 @@ function saveCat(){
   const name=document.getElementById('modal-cat-name').value.trim();if(!name){showToast('⚠️ Ingresá un nombre','error');return;}
   const sw=document.querySelector('#color-picker .color-swatch.selected');const rawColor=sw?sw.style.backgroundColor:'#888888';const hexColor=rawColor.startsWith('#')?rawColor:rgbToHex(rawColor);
   const editing=document.getElementById('modal-cat-editing').value;
-  if(editing){const cat=state.categories.find(c=>c.name===editing);if(cat){if(name!==editing)state.transactions.forEach(t=>{if(t.category===editing)t.category=name;});cat.name=name;cat.color=hexColor;}showToast('✓ Actualizada','success');}
-  else{if(state.categories.find(c=>c.name===name)){showToast('⚠️ Ya existe','error');return;}state.categories.push({name,color:hexColor,group:'Sin clasificar',emoji:'🗑️'});showToast('✓ Creada','success');}
+  const fallback=typeof getCategoryGroupByName==='function' ? getCategoryGroupByName('Sin clasificar') : null;
+  const result=editing
+    ? (typeof updateCategory==='function' ? updateCategory(editing,{name,color:hexColor}) : null)
+    : (typeof createCategory==='function' ? createCategory({name,groupId:fallback?.id||'group-sin-clasificar',color:hexColor}) : null);
+  if(!result?.ok){showToast(result?.error||'No se pudo guardar','error');return;}
+  showToast(editing?'✓ Actualizada':'✓ Creada','success');
   saveState();closeModal('modal-cat');refreshAll();
 }
-function deleteCat(){const name=document.getElementById('modal-cat-editing').value;if(!name)return;state.categories=state.categories.filter(c=>c.name!==name);state.transactions.forEach(t=>{if(t.category===name)t.category='Uncategorized';});saveState();closeModal('modal-cat');refreshAll();showToast('Eliminada','info');}
+function deleteCat(){const name=document.getElementById('modal-cat-editing').value;if(!name)return;const result=typeof deleteCategory==='function' ? deleteCategory(name) : null;if(!result?.ok){showToast(result?.error||'No se pudo eliminar','error');return;}saveState();closeModal('modal-cat');refreshAll();showToast('Eliminada','info');}
 function rgbToHex(rgb){const m=rgb.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);if(!m)return'#888888';return'#'+[m[1],m[2],m[3]].map(x=>parseInt(x).toString(16).padStart(2,'0')).join('');}

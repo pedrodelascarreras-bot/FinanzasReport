@@ -1190,6 +1190,7 @@ function deleteImport(id){const imp=state.imports.find(i=>i.id===id);if(!imp)ret
 function clearAllData(){
   state.transactions=[];
   state.imports=[];
+  state.categoryGroups=[...DEFAULT_CATEGORY_GROUPS];
   state.categories=[...DEFAULT_CATS];
   state.income={ars:0,varArs:0,usd:0,varUsd:0};
   state.savingsGoal=20;
@@ -1236,6 +1237,7 @@ function clearAllData(){
   state.userAvatarPreset='';
   state.userPrefs={ currency:'ARS', language:'es', theme:'dark' };
   state.googleProfile=null;
+  if(typeof normalizeCategoryState === 'function') normalizeCategoryState(state);
   saveState();
   renderImportHistory();
   if(typeof renderImportHistoryMenu === 'function') renderImportHistoryMenu();

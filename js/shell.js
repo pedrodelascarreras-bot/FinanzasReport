@@ -383,6 +383,9 @@
   }
 
   function getSettingsCategoryGroups(){
+    if(typeof window.getCategoryGroups === 'function'){
+      return window.getCategoryGroups();
+    }
     const categories = window.state?.categories || [];
     const order = [];
     categories.forEach(cat => {
@@ -390,12 +393,16 @@
       if(!order.includes(group)) order.push(group);
     });
     if(!order.includes('Sin clasificar')) order.push('Sin clasificar');
-    return order;
+    return order.map(name => ({ id:name, name, emoji:'•', color:'#64748b' }));
   }
 
-  function getSettingsCategoryGroupMeta(groupName){
-    const group = (window.CATEGORY_GROUPS || []).find(item => item.group === groupName);
+  function getSettingsCategoryGroupMeta(groupRef){
+    const groupName = typeof groupRef === 'string' ? groupRef : groupRef?.name;
+    const dynamicGroup = typeof window.getCategoryGroupByName === 'function' ? window.getCategoryGroupByName(groupName) : null;
+    const group = dynamicGroup || (window.CATEGORY_GROUPS || []).find(item => item.group === groupName);
     return {
+      id: dynamicGroup?.id || group?.id || `group-${String(groupName || 'sin-clasificar').toLowerCase()}`,
+      name: dynamicGroup?.name || group?.group || groupName || 'Sin clasificar',
       emoji: group?.emoji || '•',
       color: group?.color || '#64748b'
     };
@@ -404,35 +411,45 @@
   function renderSettingsCategoriesList(){
     const el = document.getElementById('settings-categories-list');
     if(!el) return;
+    if(typeof window.normalizeCategoryState === 'function') window.normalizeCategoryState(window.state);
     const categories = window.state?.categories || [];
+    const groups = getSettingsCategoryGroups();
     const counts = {};
     (window.state?.transactions || []).forEach(txn => {
       counts[txn.category] = (counts[txn.category] || 0) + 1;
     });
-    if(!categories.length){
-      el.innerHTML = `<div class="settings-empty-block">No hay categorías disponibles.</div>`;
+    if(!groups.length){
+      el.innerHTML = `<div class="settings-empty-block">Todavía no hay grupos. Creá el primero para organizar las categorías.</div>`;
       return;
     }
-    const groups = getSettingsCategoryGroups();
-    el.innerHTML = groups.map(groupName => {
-      const meta = getSettingsCategoryGroupMeta(groupName);
+    if(!categories.length){
+      el.innerHTML = `
+        <div class="settings-empty-block">Todavía no hay categorías. Creá la primera y asignala a un grupo para empezar.</div>
+        <div class="settings-category-toolbar">
+          <button class="btn btn-primary btn-sm" type="button" onclick="startSettingsCategoryCreate()">Crear categoría</button>
+        </div>
+      `;
+      return;
+    }
+    el.innerHTML = groups.map(groupItem => {
+      const meta = getSettingsCategoryGroupMeta(groupItem);
       const groupCategories = categories
-        .filter(cat => (cat.group || 'Sin clasificar') === groupName)
-        .sort((a,b) => (counts[b.name] || 0) - (counts[a.name] || 0) || a.name.localeCompare(b.name));
+        .filter(cat => (cat.groupId && cat.groupId === meta.id) || (cat.group || 'Sin clasificar') === meta.name)
+        .sort((a,b) => (a.order || 0) - (b.order || 0) || a.name.localeCompare(b.name));
       const total = groupCategories.reduce((sum, cat) => sum + (counts[cat.name] || 0), 0);
       return `
-        <details class="settings-category-group" ${groupName === 'Sin clasificar' ? 'open' : ''}>
+        <details class="settings-category-group" ${meta.name === 'Sin clasificar' ? 'open' : ''}>
           <summary class="settings-category-summary">
             <div class="settings-category-summary-main">
               <span class="settings-category-group-badge" style="background:${esc(meta.color)}22;color:${esc(meta.color)}">${esc(meta.emoji)}</span>
               <div>
-                <strong>${esc(groupName)}</strong>
+                <strong>${esc(meta.name)}</strong>
                 <small>${groupCategories.length} categoría${groupCategories.length===1?'':'s'} · ${total} movimiento${total===1?'':'s'}</small>
               </div>
             </div>
             <div class="settings-fintech-actions">
-              <button class="dashboard-widget-mini" type="button" onclick="event.preventDefault();event.stopPropagation();startSettingsGroupEdit(${jsString(groupName)})">Renombrar</button>
-              <button class="dashboard-widget-mini" type="button" onclick="event.preventDefault();event.stopPropagation();startSettingsCategoryCreate(${jsString(groupName)})">Agregar categoría</button>
+              <button class="dashboard-widget-mini" type="button" onclick="event.preventDefault();event.stopPropagation();startSettingsGroupEdit(${jsString(meta.id)})">Renombrar</button>
+              <button class="dashboard-widget-mini" type="button" onclick="event.preventDefault();event.stopPropagation();startSettingsCategoryCreate(${jsString(meta.id)})">Agregar categoría</button>
             </div>
           </summary>
           <div class="settings-category-items">
@@ -440,11 +457,11 @@
               <div class="settings-category-item">
                 <div class="settings-fintech-main">
                   <strong><span class="settings-category-dot" style="background:${esc(cat.color || '#64748b')}"></span>${esc(cat.name)}</strong>
-                  <small>${counts[cat.name] || 0} movimiento${(counts[cat.name] || 0) === 1 ? '' : 's'} · ${esc(cat.group || 'Sin grupo')}</small>
+                  <small>${counts[cat.name] || 0} movimiento${(counts[cat.name] || 0) === 1 ? '' : 's'} · ${esc(cat.group || 'Sin grupo')} · ${esc(cat.type || 'expense')}</small>
                 </div>
                 <div class="settings-fintech-actions">
-                  <button class="dashboard-widget-mini primary" type="button" onclick="startSettingsCategoryEdit(${jsString(cat.name)})">Editar</button>
-                  <button class="dashboard-widget-mini" type="button" onclick="deleteSettingsCategory(${jsString(cat.name)})">Eliminar</button>
+                  <button class="dashboard-widget-mini primary" type="button" onclick="startSettingsCategoryEdit(${jsString(cat.id || cat.name)})">Editar</button>
+                  <button class="dashboard-widget-mini" type="button" onclick="deleteSettingsCategory(${jsString(cat.id || cat.name)})">Eliminar</button>
                 </div>
               </div>
             `).join('') : `<div class="settings-empty-block">Este grupo todavía no tiene categorías.</div>`}
@@ -759,14 +776,15 @@
 
   function ensureCategorySettingsDraft(){
     if(!window.state._settingsCategoryDraft){
-      window.state._settingsCategoryDraft = { mode:'create', originalName:'', name:'', group:'Sin clasificar', color:'#64748b' };
+      const fallback = getSettingsCategoryGroupMeta('Sin clasificar');
+      window.state._settingsCategoryDraft = { mode:'create', originalId:'', originalName:'', name:'', groupId:fallback.id, type:'expense', color:fallback.color };
     }
     return window.state._settingsCategoryDraft;
   }
 
   function ensureGroupSettingsDraft(){
     if(!window.state._settingsGroupDraft){
-      window.state._settingsGroupDraft = { mode:'create', originalName:'', name:'' };
+      window.state._settingsGroupDraft = { mode:'create', originalId:'', originalName:'', name:'', type:'expense', color:'#64748b' };
     }
     return window.state._settingsGroupDraft;
   }
@@ -804,7 +822,15 @@
         <label class="profile-field">
           <span class="profile-field-label">Grupo</span>
           <select id="settings-category-group" class="profile-field-input">
-            ${groups.map(group => `<option value="${esc(group)}" ${draft.group===group?'selected':''}>${esc(group)}</option>`).join('')}
+            ${groups.map(group => `<option value="${esc(group.id)}" ${draft.groupId===group.id?'selected':''}>${esc(group.emoji || '•')} ${esc(group.name)}</option>`).join('')}
+          </select>
+        </label>
+        <label class="profile-field">
+          <span class="profile-field-label">Tipo</span>
+          <select id="settings-category-type" class="profile-field-input">
+            <option value="expense" ${draft.type==='expense'?'selected':''}>Gasto</option>
+            <option value="income" ${draft.type==='income'?'selected':''}>Ingreso</option>
+            <option value="transfer" ${draft.type==='transfer'?'selected':''}>Transferencia</option>
           </select>
         </label>
       </div>
@@ -849,24 +875,31 @@
   }
 
   function startSettingsCategoryCreate(groupName){
+    const fallback = getSettingsCategoryGroupMeta(groupName || 'Sin clasificar');
     window.state._settingsCategoryDraft = {
       mode:'create',
+      originalId:'',
       originalName:'',
       name:'',
-      group:groupName || 'Sin clasificar',
-      color:'#64748b'
+      groupId:fallback.id,
+      type:'expense',
+      color:fallback.color || '#64748b'
     };
     renderSettingsCategoryEditor();
   }
 
-  function startSettingsCategoryEdit(name){
-    const category = (window.state?.categories || []).find(cat => cat.name === name);
+  function startSettingsCategoryEdit(categoryId){
+    const category = typeof window.getCategoryById === 'function'
+      ? window.getCategoryById(categoryId) || window.getCategoryByName?.(categoryId)
+      : (window.state?.categories || []).find(cat => cat.name === categoryId || cat.id === categoryId);
     if(!category) return;
     window.state._settingsCategoryDraft = {
       mode:'edit',
+      originalId:category.id || '',
       originalName:category.name,
       name:category.name,
-      group:category.group || 'Sin clasificar',
+      groupId:category.groupId || getSettingsCategoryGroupMeta(category.group || 'Sin clasificar').id,
+      type:category.type || 'expense',
       color:category.color || '#64748b'
     };
     renderSettingsCategoryEditor();
@@ -886,54 +919,53 @@
   function saveSettingsCategory(){
     const draft = ensureCategorySettingsDraft();
     const name = document.getElementById('settings-category-name')?.value.trim() || '';
-    const group = document.getElementById('settings-category-group')?.value || 'Sin clasificar';
+    const groupId = document.getElementById('settings-category-group')?.value || getSettingsCategoryGroupMeta('Sin clasificar').id;
+    const type = document.getElementById('settings-category-type')?.value || 'expense';
     if(!name){
       window.showToast?.('Ingresá un nombre de categoría', 'error');
       return;
     }
-    const categories = [...(window.state?.categories || [])];
-    const duplicate = categories.find(cat => cat.name === name && cat.name !== draft.originalName);
-    if(duplicate){
-      window.showToast?.('Ya existe una categoría con ese nombre', 'error');
+    if(!groupId){
+      window.showToast?.('Seleccioná un grupo', 'error');
       return;
     }
-    if(draft.mode === 'edit'){
-      const category = categories.find(cat => cat.name === draft.originalName);
-      if(!category) return;
-      if(name !== draft.originalName){
-        (window.state?.transactions || []).forEach(txn => {
-          if(txn.category === draft.originalName) txn.category = name;
-        });
-      }
-      category.name = name;
-      category.group = group;
-      category.color = draft.color || category.color || '#64748b';
-    } else {
-      categories.push({ name, group, color:draft.color || '#64748b', emoji:getSettingsCategoryGroupMeta(group).emoji });
+    const result = draft.mode === 'edit'
+      ? window.updateCategory?.(draft.originalId || draft.originalName, { name, groupId, type, color:draft.color || '#64748b' })
+      : window.createCategory?.({ name, groupId, type, color:draft.color || '#64748b' });
+    if(!result?.ok){
+      window.showToast?.(result?.error || 'No se pudo guardar', 'error');
+      return;
     }
-    window.state.categories = categories;
     cancelSettingsCategoryEditor();
     persistSettingsState('Categoría guardada', 'success');
   }
 
-  function deleteSettingsCategory(name){
-    if(!name) return;
-    if(!window.confirm(`¿Eliminar la categoría "${name}"?`)) return;
-    window.state.categories = (window.state?.categories || []).filter(cat => cat.name !== name);
-    (window.state?.transactions || []).forEach(txn => {
-      if(txn.category === name) txn.category = 'Uncategorized';
-    });
+  function deleteSettingsCategory(categoryId){
+    const category = typeof window.getCategoryById === 'function'
+      ? window.getCategoryById(categoryId) || window.getCategoryByName?.(categoryId)
+      : (window.state?.categories || []).find(cat => cat.id === categoryId || cat.name === categoryId);
+    if(!category) return;
+    if(!window.confirm(`¿Eliminar la categoría "${category.name}"?`)) return;
+    const result = window.deleteCategory?.(category.id || category.name);
+    if(!result?.ok){
+      window.showToast?.(result?.error || 'No se pudo eliminar', 'error');
+      return;
+    }
     cancelSettingsCategoryEditor();
     persistSettingsState('Categoría eliminada', 'info');
   }
 
   function startSettingsGroupCreate(){
-    window.state._settingsGroupDraft = { mode:'create', originalName:'', name:'' };
+    window.state._settingsGroupDraft = { mode:'create', originalId:'', originalName:'', name:'', type:'expense', color:'#64748b' };
     renderSettingsGroupEditor();
   }
 
-  function startSettingsGroupEdit(name){
-    window.state._settingsGroupDraft = { mode:'edit', originalName:name, name:name };
+  function startSettingsGroupEdit(groupId){
+    const group = typeof window.getCategoryGroupById === 'function'
+      ? window.getCategoryGroupById(groupId) || window.getCategoryGroupByName?.(groupId)
+      : null;
+    const meta = group || getSettingsCategoryGroupMeta(groupId);
+    window.state._settingsGroupDraft = { mode:'edit', originalId:meta.id, originalName:meta.name, name:meta.name, type:meta.type || 'expense', color:meta.color || '#64748b' };
     renderSettingsGroupEditor();
   }
 
@@ -949,26 +981,29 @@
       window.showToast?.('Ingresá un nombre de grupo', 'error');
       return;
     }
-    const exists = getSettingsCategoryGroups().includes(name);
-    if(draft.mode === 'create' && exists){
-      window.showToast?.('Ese grupo ya existe', 'error');
+    const result = draft.mode === 'edit'
+      ? window.updateCategoryGroup?.(draft.originalId || draft.originalName, { name, color:draft.color || '#64748b', type:draft.type || 'expense' })
+      : window.createCategoryGroup?.({ name, color:draft.color || '#64748b', type:draft.type || 'expense' });
+    if(!result?.ok){
+      window.showToast?.(result?.error || 'No se pudo guardar', 'error');
       return;
-    }
-    if(draft.mode === 'edit'){
-      (window.state?.categories || []).forEach(cat => {
-        if((cat.group || 'Sin clasificar') === draft.originalName) cat.group = name;
-      });
     }
     cancelSettingsGroupEditor();
     persistSettingsState('Grupo guardado', 'success');
   }
 
-  function deleteSettingsGroup(name){
-    if(!name || name === 'Sin clasificar') return;
-    if(!window.confirm(`¿Eliminar el grupo "${name}"? Las categorías pasarán a "Sin clasificar".`)) return;
-    (window.state?.categories || []).forEach(cat => {
-      if((cat.group || 'Sin clasificar') === name) cat.group = 'Sin clasificar';
-    });
+  function deleteSettingsGroup(groupId){
+    const group = typeof window.getCategoryGroupById === 'function'
+      ? window.getCategoryGroupById(groupId) || window.getCategoryGroupByName?.(groupId)
+      : null;
+    const groupName = group?.name || groupId;
+    if(!groupName || groupName === 'Sin clasificar') return;
+    if(!window.confirm(`¿Eliminar el grupo "${groupName}"? Las categorías pasarán a "Sin clasificar".`)) return;
+    const result = window.deleteCategoryGroup?.(group?.id || groupName, 'Sin clasificar');
+    if(!result?.ok){
+      window.showToast?.(result?.error || 'No se pudo eliminar', 'error');
+      return;
+    }
     cancelSettingsGroupEditor();
     persistSettingsState('Grupo eliminado', 'info');
   }

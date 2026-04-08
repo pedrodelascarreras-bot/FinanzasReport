@@ -1439,6 +1439,7 @@ function ensureActiveUserProfileBootstrap(){
 }
 
 function getCurrentProfileSnapshot(){
+  if(typeof normalizeCategoryState === 'function') normalizeCategoryState(state);
   return {
     userName: state.userName || 'Usuario',
     userEmail: state.userEmail || '',
@@ -1474,6 +1475,7 @@ function getCurrentProfileSnapshot(){
     savGoals: cloneDeepProfileValue(markOwnedItems(state.savGoals || [], state.activeUserProfileId || 'default-profile')),
     savDeposits: cloneDeepProfileValue(markOwnedItems(state.savDeposits || [], state.activeUserProfileId || 'default-profile')),
     incViewCurrency: state.incViewCurrency || 'ARS',
+    categoryGroups: cloneDeepProfileValue(state.categoryGroups || []),
     categories: cloneDeepProfileValue(state.categories || []),
     catRules: cloneDeepProfileValue(markOwnedItems(state.catRules || [], state.activeUserProfileId || 'default-profile')),
     catHistory: cloneDeepProfileValue(state.catHistory || {}),
@@ -1612,9 +1614,11 @@ function applyUserProfile(profileId){
   state.savGoals = cloneDeepProfileValue(profile.savGoals || []);
   state.savDeposits = cloneDeepProfileValue(profile.savDeposits || []);
   state.incViewCurrency = profile.incViewCurrency || state.incViewCurrency || 'ARS';
+  state.categoryGroups = cloneDeepProfileValue(profile.categoryGroups || state.categoryGroups || []);
   state.categories = cloneDeepProfileValue(profile.categories || state.categories || []);
   state.catRules = cloneDeepProfileValue(profile.catRules || []);
   state.catHistory = cloneDeepProfileValue(profile.catHistory || {});
+  if(typeof normalizeCategoryState === 'function') normalizeCategoryState(state);
   state.savingsGoal = profile.savingsGoal || state.savingsGoal || 20;
   state.alertThreshold = profile.alertThreshold || state.alertThreshold || 80;
   state.spendPct = profile.spendPct || state.spendPct || 100;

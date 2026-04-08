@@ -1,6 +1,6 @@
 // ══ STATE ══
 let state={
-  transactions:[],categories:[...DEFAULT_CATS],
+  transactions:[],categories:[...DEFAULT_CATS],categoryGroups:[...DEFAULT_CATEGORY_GROUPS],
   income:{ars:0,varArs:0,usd:0,varUsd:0},
   savingsGoal:20,alertThreshold:80,spendPct:100,insightsBufferMonths:3,tendChartMode:'bar',
   imports:[],compareMode:'month',balanceView:'summary',repDesign:'executive',tendMode:'tc',
@@ -57,8 +57,11 @@ function getStateSnapshot(){
   if(typeof syncActiveUserProfileFromState === 'function'){
     try{ syncActiveUserProfileFromState(false); }catch(e){ console.warn('profile sync error', e); }
   }
+  if(typeof normalizeCategoryState === 'function'){
+    try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
+  }
   return {
-    transactions:state.transactions,categories:state.categories,income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'mes',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],balanceView:state.balanceView||'summary',
+    transactions:state.transactions,categories:state.categories,categoryGroups:state.categoryGroups||[],income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'mes',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],balanceView:state.balanceView||'summary',
     savingsGoal:state.savingsGoal,alertThreshold:state.alertThreshold,spendPct:state.spendPct||100,insightsBufferMonths:state.insightsBufferMonths||3,tendChartMode:state.tendChartMode||'bar',imports:state.imports,
     cuotas:state.cuotas,autoCuotaConfig:state.autoCuotaConfig,subscriptions:state.subscriptions,fixedExpenses:state.fixedExpenses||[],
     incomeSources:state.incomeSources,incomeMonths:state.incomeMonths,
@@ -279,7 +282,8 @@ async function loadFromDrive(){
     const s = await res.json();
     // Apply loaded state (same as loadState logic)
     state.transactions=(s.transactions||[]).map(t=>({...t,date:new Date(t.date)}));
-    state.categories=s.categories||[...DEFAULT_CATS];if(state.categories.length&&!state.categories[0].group){state.categories=[...DEFAULT_CATS];}
+    state.categories=s.categories||[...DEFAULT_CATS];
+    state.categoryGroups=s.categoryGroups||state.categoryGroups||[...DEFAULT_CATEGORY_GROUPS];
     state.income=s.income||state.income;
     state.savingsGoal=s.savingsGoal||20;
     state.alertThreshold=s.alertThreshold||80;
@@ -333,6 +337,9 @@ async function loadFromDrive(){
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
     state.txnCardFilter=s.txnCardFilter||'';
+    if(typeof normalizeCategoryState === 'function'){
+      try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
+    }
     state.transactions.forEach(t=>{if(!t.week)t.week=getWeekKey(t.date);if(!t.month)t.month=getMonthKey(t.date);});
     // Migración retroactiva de payMethod con valores legacy del formulario manual
     const _pmMig={'Efectivo':'ef','Débito':'deb','Tarjeta de Crédito':'tc','USD':'ef'};
@@ -355,7 +362,7 @@ function loadState(){
   try{
     const raw=localStorage.getItem('fin_state');if(!raw)return;const s=JSON.parse(raw);
     state.transactions=(s.transactions||[]).map(t=>({...t,date:new Date(t.date)}));
-    state.categories=s.categories||[...DEFAULT_CATS];if(state.categories.length&&!state.categories[0].group){state.categories=[...DEFAULT_CATS];}state.income=s.income||state.income;
+    state.categories=s.categories||[...DEFAULT_CATS];state.categoryGroups=s.categoryGroups||state.categoryGroups||[...DEFAULT_CATEGORY_GROUPS];state.income=s.income||state.income;
     state.savingsGoal=s.savingsGoal||20;state.alertThreshold=s.alertThreshold||80;state.spendPct=s.spendPct||100;state.insightsBufferMonths=s.insightsBufferMonths||3;state.tendChartMode=s.tendChartMode||'bar';
     state.imports=s.imports||[];state.cuotas=s.cuotas||[];state.autoCuotaConfig=s.autoCuotaConfig||{};
     state.subscriptions=s.subscriptions||[];
@@ -400,6 +407,9 @@ function loadState(){
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
     state.txnCardFilter=s.txnCardFilter||'';
     state.apiKey=localStorage.getItem('fin_apikey')||'';
+    if(typeof normalizeCategoryState === 'function'){
+      try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
+    }
     state.transactions.forEach(t=>{if(!t.week)t.week=getWeekKey(t.date);if(!t.month)t.month=getMonthKey(t.date);});
     // Migración retroactiva de payMethod con valores legacy del formulario manual
     const _pmMigMap={'Efectivo':'ef','Débito':'deb','Tarjeta de Crédito':'tc','USD':'ef'};
