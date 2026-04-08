@@ -19,7 +19,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260407b">
+<link rel="stylesheet" href="css/styles.css?v=20260407d">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -75,11 +75,11 @@
     <button class="nav-item" id="ni-credit-cards" onclick="nav('credit-cards')">
       <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span><span>Tarjeta de crédito</span>
     </button>
-    <button class="nav-item" id="ni-insights" onclick="nav('insights')">
-      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/><path d="M19 15l.5 2 2 .5-2 .5-.5 2-.5-2-2-.5 2-.5.5-2z"/></svg></span><span>Insights</span>
-    </button>
     <button class="nav-item" id="ni-balance" onclick="nav('balance')">
       <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M7 15V9"/><path d="M12 15V5"/><path d="M17 15v-3"/></svg></span><span>Balance mensual</span>
+    </button>
+    <button class="nav-item" id="ni-insights" onclick="nav('insights')">
+      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z"/><path d="M19 15l.5 2 2 .5-2 .5-.5 2-.5-2-2-.5 2-.5.5-2z"/></svg></span><span>Insights</span>
     </button>
     <button class="nav-item" id="ni-compare" onclick="nav('compare')">
       <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg></span><span>Mes vs Mes</span>
@@ -99,7 +99,7 @@
     <button class="gmail-sync-btn" id="gmail-sync-btn" onclick="gmailSync()" title="Sincronizar con Gmail">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" fill="currentColor"/></svg>
       <span id="gmail-sync-label">Gmail · Sincronizar</span>
-      <span id="gmail-sync-dot" style="width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;margin-left:auto;"></span>
+      <span id="gmail-sync-dot" style="width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;"></span>
     </button>
     <button class="color-theme-btn" id="color-theme-btn" onclick="toggleColorThemePanel()">
       <span class="color-theme-dot" id="color-theme-dot"></span>
@@ -3125,8 +3125,8 @@
 <script src="js/savings.js"></script>
 <script src="js/categories.js"></script>
 <script src="js/reports.js"></script>
-<script src="js/balance.js?v=20260407b"></script>
-<script src="js/ui.js?v=20260407b"></script>
+<script src="js/balance.js?v=20260407c"></script>
+<script src="js/ui.js?v=20260407c"></script>
 <script src="js/splash.js"></script>
 <script src="js/init.js"></script>
 <script src="js/credit-cards.js"></script>

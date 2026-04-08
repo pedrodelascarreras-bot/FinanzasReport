@@ -45,10 +45,10 @@
     const currentMonth=getMonthKey(new Date());
     (state.transactions||[]).forEach(t=>{
       const month=t.month||getMonthKey(t.date);
-      if(month&&month<=currentMonth) months.add(month);
+      if(month&&month<currentMonth) months.add(month);
     });
     (state.incomeMonths||[]).forEach(m=>{
-      if(!m?.month||m.month>currentMonth) return;
+      if(!m?.month||m.month>=currentMonth) return;
       const hasIncome=(Number(m.extraArs)||0)>0 || (Number(m.extraUsd)||0)>0 || Object.values(m.sources||{}).some(v=>(Number(v)||0)>0);
       if(hasIncome) months.add(m.month);
     });
@@ -529,6 +529,11 @@
     const freePct=data.income.total>0?balanceClamp(100-committedPct,0,100):0;
     const inlineInsights=balanceInlineInsights(data).slice(0,3);
     const deltaVsPrev=data.freeCash-(data.prevIncome.total-data.prevTotalExpenses);
+    const heroFacts=[
+      {label:'Ingreso', value:balanceFmtMoney(data.income.total)},
+      {label:'Gasto', value:balanceFmtMoney(data.totalExpenses)},
+      {label:'Base comprometida', value:`${committedPct}%`}
+    ];
     hero.innerHTML=`
       <section class="balance-hero-shell balance-tone-${status.tone}">
         <div class="balance-hero-copy">
@@ -536,7 +541,7 @@
           <div class="balance-status-tag ${status.tone}">
             <span class="balance-status-dot"></span>${status.title}
           </div>
-          <h2 class="balance-hero-title">Resultado del mes</h2>
+          <h2 class="balance-hero-title">${status.title}</h2>
           <p class="balance-hero-desc">${status.desc}</p>
           <div class="balance-hero-main ${spendTone}">
             <span class="balance-hero-main-label">Resultado final</span>
@@ -549,10 +554,13 @@
           <div class="balance-inline-insights">
             ${inlineInsights.map(text=>`<div class="balance-inline-insight">${text}</div>`).join('')}
           </div>
-          <div class="balance-hero-actions">
-            <button class="btn btn-primary btn-sm" onclick="balanceJump('balance-actions')">Recortar gastos</button>
-            <button class="btn btn-ghost btn-sm" onclick="balanceJump('balance-actions')">Optimizar suscripciones</button>
-            <button class="btn btn-ghost btn-sm" onclick="balanceJump('balance-simulation')">Simular próximo mes</button>
+          <div class="balance-hero-strip">
+            ${heroFacts.map(item=>`
+              <div class="balance-hero-fact">
+                <span>${item.label}</span>
+                <strong>${item.value}</strong>
+              </div>
+            `).join('')}
           </div>
         </div>
         <div class="balance-hero-cockpit">

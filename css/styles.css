@@ -373,6 +373,10 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
   border: none; background: none; width: 100%; text-align: left;
   border: 1px solid transparent;
 }
+.nav-item > span:last-child {
+  min-width: 0;
+  white-space: nowrap;
+}
 .nav-item:hover {
   background: rgba(255,255,255,0.05);
   color: var(--text);
@@ -428,6 +432,18 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
   border: 1px solid var(--border); background: rgba(0,0,0,0.02);
   cursor: pointer; font-size: 12.5px; font-weight: 400;
   color: var(--text2); font-family: var(--font); transition: all 0.15s; width: 100%;
+  overflow: hidden;
+}
+.gmail-sync-btn #gmail-sync-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gmail-sync-btn #gmail-sync-dot {
+  flex: 0 0 auto;
+  margin-left: 2px;
 }
 .gmail-sync-btn:hover { background: rgba(128,128,128,0.1); color: var(--text); }
 .gmail-sync-btn.connected { color: var(--blue); }
@@ -4352,12 +4368,7 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
     min-height: 68px;
   }
 
-  /* Credit cards: resumen only */
-  #page-credit-cards .cc-section-tabs,
-  #page-credit-cards #cc-history-section,
-  #page-credit-cards #cc-panel-config {
-    display: none !important;
-  }
+  /* Credit cards: keep full summary visible on mobile */
   #page-credit-cards .cc-tabs-row {
     display: grid;
     grid-template-columns: 1fr;
@@ -9799,6 +9810,9 @@ body.light-mode .nav-item.active {
   font-weight: 600;
   box-shadow: inset 3px 0 0 rgba(0,113,227,0.9);
 }
+body.light-mode .nav-item.active .nav-icon {
+  color: #1152b8 !important;
+}
 body.light-mode .nav-item .nav-icon,
 body.light-mode .nav-section-header,
 body.light-mode .nav-section.has-active .nav-section-header {
@@ -10882,10 +10896,10 @@ body.light-mode .sp-simple-close {
   display: inline-flex;
   flex-direction: column;
   gap: 5px;
-  padding: 18px 20px;
-  border-radius: 18px;
+  padding: 20px 22px;
+  border-radius: 22px;
   border: 1px solid var(--border);
-  background: rgba(8,12,18,0.28);
+  background: linear-gradient(180deg, rgba(8,12,18,0.34), rgba(8,12,18,0.16));
 }
 .balance-hero-main.good { box-shadow: inset 0 0 0 1px rgba(48,209,88,0.12); }
 .balance-hero-main.warn { box-shadow: inset 0 0 0 1px rgba(255,159,10,0.12); }
@@ -10897,9 +10911,9 @@ body.light-mode .sp-simple-close {
   color: var(--text3);
 }
 .balance-hero-main-value {
-  font-size: clamp(34px,4.5vw,56px);
+  font-size: clamp(40px,5vw,68px);
   font-weight: 800;
-  line-height: 0.95;
+  line-height: 0.9;
   letter-spacing: -0.05em;
 }
 .balance-hero-main.good .balance-hero-main-value { color: var(--accent2); }
@@ -10918,6 +10932,31 @@ body.light-mode .sp-simple-close {
   border-radius: 999px;
   background: rgba(255,255,255,0.05);
   border: 1px solid rgba(255,255,255,0.08);
+}
+.balance-hero-strip {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 10px;
+  margin-top: 16px;
+}
+.balance-hero-fact {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.balance-hero-fact span {
+  display: block;
+  color: var(--text3);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.balance-hero-fact strong {
+  display: block;
+  margin-top: 6px;
+  font-size: 18px;
+  letter-spacing: -0.03em;
 }
 .balance-storyline {
   margin-top: 16px;
@@ -10938,12 +10977,6 @@ body.light-mode .sp-simple-close {
   color: var(--text2);
   font-size: 13px;
   line-height: 1.55;
-}
-.balance-hero-actions {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 16px;
 }
 .balance-story-chip {
   min-width: 0;
@@ -11207,6 +11240,26 @@ body.light-mode .sp-simple-close {
   background: rgba(255,255,255,0.03);
   box-shadow: var(--shadow-xs);
   transition: transform var(--dur-fast) var(--ease-premium), border-color var(--dur-fast) var(--ease-premium), background var(--dur-fast) var(--ease-premium);
+}
+.balance-leak-card {
+  background:
+    linear-gradient(180deg, rgba(255,159,10,0.08), rgba(255,255,255,0.03)),
+    rgba(255,255,255,0.03);
+}
+.balance-action-card {
+  background:
+    linear-gradient(180deg, rgba(41,151,255,0.08), rgba(255,255,255,0.03)),
+    rgba(255,255,255,0.03);
+}
+.balance-leak-card:nth-child(2) {
+  background:
+    linear-gradient(180deg, rgba(255,69,58,0.08), rgba(255,255,255,0.03)),
+    rgba(255,255,255,0.03);
+}
+.balance-leak-card:nth-child(3) {
+  background:
+    linear-gradient(180deg, rgba(48,209,88,0.08), rgba(255,255,255,0.03)),
+    rgba(255,255,255,0.03);
 }
 .balance-metric-card:hover,
 .balance-leak-card:hover,
@@ -11539,6 +11592,9 @@ body.light-mode .sp-simple-close {
   .balance-score-card {
     grid-template-columns: 1fr;
   }
+  .balance-hero-strip {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 768px) {
@@ -11563,8 +11619,8 @@ body.light-mode .sp-simple-close {
     grid-template-columns: 1fr;
   }
   .balance-storyline,
-  .balance-hero-actions,
   .balance-hero-main-meta,
+  .balance-hero-strip,
   .balance-mix-legend,
   .balance-runway-foot,
   .balance-health-band-labels {
@@ -11578,6 +11634,24 @@ body.light-mode .sp-simple-close {
     justify-content: flex-start;
   }
 }
+
+body.light-mode .balance-hero-main {
+  background: linear-gradient(180deg, rgba(255,255,255,0.84), rgba(245,249,255,0.72));
+  border-color: rgba(49,67,96,0.14);
+  box-shadow: 0 18px 46px rgba(31,47,70,0.08);
+}
+body.light-mode .balance-hero-main-label,
+body.light-mode .balance-hero-main-meta,
+body.light-mode .balance-hero-main-meta span {
+  color: #5d6c82;
+}
+body.light-mode .balance-hero-main-meta span {
+  background: rgba(49,67,96,0.06);
+  border-color: rgba(49,67,96,0.1);
+}
+body.light-mode .balance-hero-main.good .balance-hero-main-value { color: #1e8b47; }
+body.light-mode .balance-hero-main.warn .balance-hero-main-value { color: #c46a00; }
+body.light-mode .balance-hero-main.danger .balance-hero-main-value { color: #d63636; }
 
 @media (min-width: 769px) {
   .app {
