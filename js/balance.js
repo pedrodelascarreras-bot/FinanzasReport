@@ -538,9 +538,6 @@
       <section class="balance-hero-shell balance-tone-${status.tone}">
         <div class="balance-hero-copy">
           <div class="balance-hero-kicker">${`CIERRE DE ${balanceMonthLabel(data.monthKey).toUpperCase()}`}</div>
-          <div class="balance-status-tag ${status.tone}">
-            <span class="balance-status-dot"></span>Cierre ${balanceMonthLabel(data.monthKey)} · Score ${data.score}
-          </div>
           <h2 class="balance-hero-title">${status.title}</h2>
           <p class="balance-hero-desc">${status.desc}</p>
           <div class="balance-hero-main ${spendTone}">
