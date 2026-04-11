@@ -429,8 +429,8 @@
       const total = groupCategories.reduce((sum, cat) => sum + (counts[cat.name] || 0), 0);
       return `
         <details class="settings-category-group" ${meta.name === 'Sin clasificar' ? 'open' : ''}>
-          <summary class="settings-category-summary">
-            <div class="settings-category-summary-inner">
+          <summary class="settings-category-summary" style="display: block !important; padding: 0 !important;">
+            <div class="settings-category-summary-inner" style="display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; width: 100%;">
               <div class="settings-category-summary-main">
                 <span class="settings-category-group-badge" style="background:${esc(meta.color)}22;color:${esc(meta.color)}">${esc(meta.emoji)}</span>
                 <div>
