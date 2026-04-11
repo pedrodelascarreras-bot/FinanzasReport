@@ -134,17 +134,24 @@ async function loadAllRates(){
   }catch(e2){if(blueEl)blueEl.textContent='Sin conexión';if(oficialRangeEl)oficialRangeEl.textContent='Sin conexión';}
 }
 function getActiveDashMonth(){
+  const currentMk=getMonthKey(new Date());
+  // Clamp: never devolver un mes futuro al actual
+  if(state.dashMonth && state.dashMonth>currentMk){
+    state.dashMonth=null;
+  }
   if(state.dashMonth) return state.dashMonth;
-  // Fallback to real-world current month (2026-04 if it's March 24, 2026)
-  return getMonthKey(new Date());
+  return currentMk;
 }
 function getCurrentMonthTxns(){
   const mk=getActiveDashMonth();
   return state.transactions.filter(t=>t.month===mk||getMonthKey(t.date)===mk);
 }
 function getAvailableMonths(){
+  const currentMk=getMonthKey(new Date());
   const set=new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)));
-  return [...set].sort();
+  // Asegurar que el mes actual siempre esté disponible y no devolver meses futuros
+  set.add(currentMk);
+  return [...set].filter(m=>m<=currentMk).sort();
 }
 function renderUiGlyph(name){
   const icons={
@@ -504,6 +511,12 @@ function setDashMonthFromSelect(val){
   if(state.dashView==='tc'){
     state.dashTcCycle=val||null;
   } else {
+    const currentMk=getMonthKey(new Date());
+    // Bloqueo defensivo: no aceptar meses futuros
+    if(val && val>currentMk){
+      val='';
+      if(typeof showToast==='function') showToast('No podés navegar a meses futuros','warn');
+    }
     state.dashMonth=val||null;
   }
   saveState();
@@ -676,9 +689,12 @@ function renderDashboard(){
       const _selId=state.dashTcCycle||'';
       _dashSel.innerHTML='<option value="">Ciclo actual</option>'+_cycles.map(c=>'<option value="'+c.id+'" '+(c.id===_selId?'selected':'')+'>'+esc(expandPeriodYearLabel(c.label||''))+'</option>').join('');
     } else {
-      // Mes mode: show calendar months
+      // Mes mode: show calendar months (sin meses futuros)
+      const _curMk=getMonthKey(new Date());
       if(!_dashSel.querySelector('option[value="'+activeMk+'"]')){
-        const months=[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))].sort().reverse();
+        const _set=new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)));
+        _set.add(_curMk);
+        const months=[..._set].filter(m=>m<=_curMk).sort().reverse();
         const _MN=['Enero','Feb','Marzo','Abril','Mayo','Junio','Julio','Agosto','Sep','Oct','Nov','Dic'];
         _dashSel.innerHTML='<option value="">Mes actual</option>'+months.map(m=>{const[y,mo]=m.split('-');return'<option value="'+m+'" '+(m===activeMk?'selected':'')+'>'+_MN[+mo-1]+' '+y+'</option>';}).join('');
       } else {
@@ -687,6 +703,38 @@ function renderDashboard(){
     }
   }
   const isCurrentMonth=activeMk===getMonthKey(today);
+  // ── Cabecera de ciclo de tarjeta (apertura / cierre / vencimiento) ──
+  const _tcHeader=document.getElementById('dash-tc-cycle-header');
+  if(_tcHeader){
+    if(isTcView){
+      const _cycListHdr=getTcCycles();
+      const _selIdHdr=state.dashTcCycle||'';
+      const _hdrCycle=(_selIdHdr&&_cycListHdr.find(c=>c.id===_selIdHdr))||_cycListHdr[0]||null;
+      if(_hdrCycle){
+        const _hdrIdx=_cycListHdr.findIndex(c=>c.id===_hdrCycle.id);
+        const _openYmd=getTcCycleOpen(_cycListHdr,_hdrIdx);
+        const _card=(state.ccCards||[]).find(c=>c.id===_hdrCycle.cardId);
+        const _fmt=ymd=>{
+          if(!ymd) return '—';
+          try{ return new Date(ymd+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'2-digit'}); }
+          catch(e){ return ymd; }
+        };
+        const _nameEl=document.getElementById('dash-tc-cycle-name');
+        const _openEl=document.getElementById('dash-tc-cycle-open');
+        const _closeEl=document.getElementById('dash-tc-cycle-close');
+        const _dueEl=document.getElementById('dash-tc-cycle-due');
+        if(_nameEl) _nameEl.textContent=(_card?.name||'Tarjeta')+' · '+expandPeriodYearLabel(_hdrCycle.label||'Ciclo');
+        if(_openEl) _openEl.textContent=_fmt(_openYmd);
+        if(_closeEl) _closeEl.textContent=_fmt(_hdrCycle.closeDate);
+        if(_dueEl) _dueEl.textContent=_fmt(_hdrCycle.dueDate);
+        _tcHeader.style.display='block';
+      } else {
+        _tcHeader.style.display='none';
+      }
+    } else {
+      _tcHeader.style.display='none';
+    }
+  }
   let monthTxns, tcPeriodLabel='', activeTcCycle=null;
   if(isTcView){
     const cycles=getTcCycles(); // sorted desc by closeDate
@@ -1168,18 +1216,18 @@ function renderDashboard(){
     value:document.getElementById(`timeline-slot-${i}-value`),
     meta:document.getElementById(`timeline-slot-${i}-meta`)
   }));
+  // Agenda viva: simplemente tomamos los próximos 3 eventos por fecha
+  // (cuotas, suscripciones, gastos fijos, cierre de TC y vencimiento de TC)
   const rawEvents=(timelineData.events||[]).filter(e=>e&&e.days>=0);
   const seenTimeline=new Set();
   const timelineCards=[];
   const pushTimelineEvent=e=>{
-    if(!e) return;
+    if(!e||timelineCards.length>=3) return;
     const key=`${e.type}-${e.title}-${e.date instanceof Date?e.date.toISOString():e.date}`;
     if(seenTimeline.has(key)) return;
     seenTimeline.add(key);
     timelineCards.push(e);
   };
-  pushTimelineEvent(rawEvents.find(e=>(e.type==='close'||e.type==='due')&&e.days<=7));
-  rawEvents.filter(e=>e.type!=='close'&&e.type!=='due').forEach(pushTimelineEvent);
   rawEvents.forEach(pushTimelineEvent);
   const fallbackCards=[
     {label:'Presión semanal',chip:'caja',value:timelineData.nextWeekAmount>0?`$${fmtN(Math.round(timelineData.nextWeekAmount||0))}`:'Semana despejada',meta:timelineData.nextWeekCount?`${timelineData.nextWeekCount} evento${timelineData.nextWeekCount!==1?'s':''} en los próximos 7 días.`:`Sin presión inmediata en la agenda financiera.`},
@@ -1193,8 +1241,8 @@ function renderDashboard(){
     const dateLabel=e.date instanceof Date?e.date.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}):'';
     if(e.type==='close'||e.type==='due'){
       return {
-        label:e.type==='due'?'Vencimiento TC':'Cierre TC',
-        chip:e.type==='due'?'tarjeta':'tarjeta',
+        label:e.type==='due'?'Vencimiento tarjeta':'Cierre tarjeta',
+        chip:e.type==='due'?'pago TC':'cierre TC',
         value:e.shortLabel,
         meta:`${when} · ${dateLabel}`
       };

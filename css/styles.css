@@ -13597,3 +13597,322 @@ body.light-mode .settings-guide-step-icon {
     padding: 22px;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════
+   FIX/REDESIGN BLOCK · finanzas overhaul
+═══════════════════════════════════════════════════════════ */
+
+/* Cabecera ciclo de TC en dashboard */
+.dash-tc-cycle-header{
+  margin: 6px 0 14px;
+}
+.dash-tc-cycle-header-card{
+  display:flex;
+  align-items:center;
+  gap:18px;
+  padding:12px 18px;
+  border-radius:14px;
+  background: linear-gradient(135deg, rgba(0,113,227,0.10), rgba(125,58,236,0.10));
+  border:1px solid rgba(0,113,227,0.22);
+  flex-wrap:wrap;
+}
+.dash-tc-cycle-header-name{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  font-weight:700;
+  font-size:13px;
+  letter-spacing:0.01em;
+  color:var(--text);
+  flex:0 0 auto;
+}
+.dash-tc-cycle-icon{
+  font-size:14px;
+  color:var(--accent);
+}
+.dash-tc-cycle-dates{
+  display:flex;
+  align-items:center;
+  gap:18px;
+  flex:1;
+  flex-wrap:wrap;
+}
+.dash-tc-cycle-date{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  min-width:90px;
+}
+.dash-tc-cycle-date-mid{
+  position:relative;
+  padding:0 18px;
+}
+.dash-tc-cycle-date-mid::before,
+.dash-tc-cycle-date-mid::after{
+  content:'›';
+  position:absolute;
+  top:50%;
+  transform:translateY(-50%);
+  color:var(--text4);
+  font-size:14px;
+}
+.dash-tc-cycle-date-mid::before{ left:0; }
+.dash-tc-cycle-date-mid::after{ right:0; }
+.dash-tc-cycle-date-label{
+  font-size:10px;
+  font-weight:600;
+  color:var(--text3);
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+}
+.dash-tc-cycle-date-value{
+  font-size:14px;
+  font-weight:700;
+  color:var(--text);
+}
+
+/* Avatar grid · estilo moderno */
+.profile-avatar-grid{
+  display:grid;
+  grid-template-columns: repeat(auto-fill, minmax(78px, 1fr));
+  gap:12px;
+}
+.profile-avatar-option{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  padding:8px 6px 10px;
+  border-radius:14px;
+  background: rgba(255,255,255,0.025);
+  border:1.5px solid var(--border);
+  cursor:pointer;
+  transition:all .18s ease;
+}
+.profile-avatar-option:hover{
+  border-color: var(--accent);
+  background: rgba(0,113,227,0.08);
+  transform: translateY(-1px);
+}
+.profile-avatar-option.active{
+  border-color: var(--accent);
+  background: rgba(0,113,227,0.14);
+  box-shadow: 0 0 0 3px rgba(0,113,227,0.18);
+}
+.profile-avatar-option-preview{
+  width:54px;
+  height:54px;
+  border-radius:50%;
+  background-size:cover;
+  background-position:center;
+  background-color: var(--surface3);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+.profile-avatar-option-label{
+  font-size:11px;
+  font-weight:600;
+  color:var(--text2);
+  text-align:center;
+}
+.profile-hero-avatar{
+  background-size:cover !important;
+  background-position:center !important;
+}
+
+/* Settings Cards (Tarjetas + ciclos) — rediseño */
+.settings-card-redesign{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  padding:14px;
+  border-radius:16px;
+  background: linear-gradient(135deg, rgba(0,113,227,0.06), rgba(125,58,236,0.06));
+  border:1px solid var(--border);
+}
+.settings-card-redesign-head{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+}
+.settings-card-redesign-name{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-weight:700;
+  font-size:15px;
+  color:var(--text);
+}
+.settings-card-redesign-dot{
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  flex-shrink:0;
+}
+.settings-card-redesign-tag{
+  font-size:10px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:0.05em;
+  padding:3px 9px;
+  border-radius:999px;
+  background: rgba(255,255,255,0.06);
+  color: var(--text2);
+}
+.settings-card-redesign-cycles{
+  display:grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px,1fr));
+  gap:8px;
+  margin-top:4px;
+}
+.settings-card-redesign-cycle{
+  padding:8px 10px;
+  border-radius:10px;
+  background: rgba(255,255,255,0.03);
+  border:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.settings-card-redesign-cycle-label{
+  font-size:9px;
+  text-transform:uppercase;
+  font-weight:700;
+  color:var(--text3);
+  letter-spacing:0.05em;
+}
+.settings-card-redesign-cycle-value{
+  font-size:13px;
+  font-weight:700;
+  color:var(--text);
+}
+.settings-card-redesign-actions{
+  display:flex;
+  gap:8px;
+  margin-top:6px;
+}
+
+/* Profile dropdown / Navbar redesign */
+.app-avatar-wrap{
+  position:relative;
+}
+.app-avatar{
+  width:38px;
+  height:38px;
+  border-radius:50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent4));
+  border: 2px solid rgba(255,255,255,0.12);
+  box-shadow: 0 4px 14px rgba(0,113,227,0.32);
+  color:#fff;
+  font-weight:700;
+  font-size:14px;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background-size: cover !important;
+  background-position: center !important;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+.app-avatar:hover{
+  transform: scale(1.06);
+  box-shadow: 0 6px 18px rgba(0,113,227,0.45);
+}
+.app-avatar.has-image span{ display:none; }
+.profile-dd{
+  position:absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  min-width: 290px;
+  padding: 8px;
+  background: var(--surface-solid);
+  border:1px solid var(--border2);
+  border-radius:18px;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.55), 0 0 0 1px rgba(255,255,255,0.04);
+  opacity:0;
+  transform: translateY(-6px) scale(0.97);
+  transition: opacity .18s ease, transform .18s ease;
+  z-index: 9999;
+}
+.profile-dd.active{
+  opacity:1;
+  transform: translateY(0) scale(1);
+}
+.profile-dd-header{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  padding:12px 12px 14px;
+}
+.profile-dd-avatar{
+  width:46px;
+  height:46px;
+  border-radius:50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent4));
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  color:#fff;
+  font-weight:700;
+  font-size:16px;
+  background-size:cover !important;
+  background-position:center !important;
+  flex-shrink:0;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+.profile-dd-avatar.has-image span{ display:none; }
+.profile-dd-info{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+  min-width:0;
+}
+.profile-dd-name{
+  font-weight:700;
+  font-size:14px;
+  color:var(--text);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.profile-dd-email{
+  font-size:11.5px;
+  color:var(--text3);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.profile-dd-divider{
+  height:1px;
+  background: var(--border);
+  margin: 4px 6px;
+}
+.profile-dd-menu{
+  display:flex;
+  flex-direction:column;
+  gap:1px;
+  padding: 4px;
+}
+.profile-dd-item{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding:10px 12px;
+  border-radius:12px;
+  background:transparent;
+  border:none;
+  color:var(--text);
+  font-size:13.5px;
+  font-weight:500;
+  cursor:pointer;
+  transition: background .14s ease;
+  text-align:left;
+}
+.profile-dd-item svg{ flex-shrink:0; color: var(--text3); }
+.profile-dd-item:hover{
+  background: rgba(255,255,255,0.05);
+}
+.profile-dd-item:hover svg{ color: var(--accent); }
+.profile-dd-item-danger{ color: #ff5b5b; }
+.profile-dd-item-danger svg{ color: #ff5b5b; }
+.profile-dd-item-danger:hover{ background: rgba(255,59,48,0.10); }

@@ -2,12 +2,14 @@
 
 (function(){
   const AVATAR_PRESETS = [
-    { id:'coral', label:'Coral' },
-    { id:'navy', label:'Navy' },
-    { id:'mint', label:'Mint' },
-    { id:'sun', label:'Sun' },
-    { id:'lilac', label:'Lilac' },
-    { id:'forest', label:'Forest' }
+    { id:'sunset',  label:'Sunset'  },
+    { id:'ocean',   label:'Ocean'   },
+    { id:'mint',    label:'Mint'    },
+    { id:'lavender',label:'Lavender'},
+    { id:'peach',   label:'Peach'   },
+    { id:'noir',    label:'Noir'    },
+    { id:'forest',  label:'Forest'  },
+    { id:'aurora',  label:'Aurora'  }
   ];
   const SETTINGS_GUIDE_KEY = 'fin_settings_setup_open';
   let uiSyncQueued = false;
@@ -85,36 +87,42 @@
   }
 
   function buildPresetSvg(id){
+    // Each theme: [bgTop, bgBottom, accent, faceTone]
     const themes = {
-      coral:['#FFB199','#FF5F6D','#3B1F2B','#FFE8E0'],
-      navy:['#8FD3F4','#4A67D6','#14203A','#F2F7FF'],
-      mint:['#B7F8DB','#50A7C2','#0F3D44','#F4FFFB'],
-      sun:['#FCE38A','#F38181','#5D3A1A','#FFF8E7'],
-      lilac:['#D9AFD9','#97D9E1','#2C2340','#FFF3FF'],
-      forest:['#C1FBA4','#2F855A','#173225','#F3FFF7']
+      sunset:   ['#FF9966','#FF5E62','#FFE66D','#FFD8BF'],
+      ocean:    ['#36D1DC','#5B86E5','#A8FFCE','#FFE0CC'],
+      mint:     ['#43E97B','#38F9D7','#FFF8B5','#FFD8BF'],
+      lavender: ['#C471F5','#FA71CD','#FFEAA7','#FFE0CC'],
+      peach:    ['#FFD3A5','#FD6585','#FFFBE6','#FFE0CC'],
+      noir:     ['#232526','#414345','#00C9FF','#FFD8BF'],
+      forest:   ['#11998E','#38EF7D','#FFF59D','#FFE0CC'],
+      aurora:   ['#7F00FF','#00FFEE','#FFEB3B','#FFE0CC']
     };
-    const [top,bottom,hair,shirt] = themes[id] || themes.coral;
-    const svg = `
-      <svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
-        <defs>
-          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stop-color="${top}"/>
-            <stop offset="100%" stop-color="${bottom}"/>
-          </linearGradient>
-          <clipPath id="clipCircle">
-            <circle cx="60" cy="60" r="60"/>
-          </clipPath>
-        </defs>
-        <g clip-path="url(#clipCircle)">
-          <rect width="120" height="120" fill="url(#bg)"/>
-          <circle cx="60" cy="45" r="19" fill="#FFD8BF"/>
-          <path d="M38 41c2-17 42-23 48 1c-1-8-8-20-24-20c-14 0-23 8-24 19z" fill="${hair}"/>
-          <path d="M37 99c4-17 16-28 23-28s19 10 23 28z" fill="${shirt}"/>
-          <circle cx="53" cy="46" r="2" fill="#2A2A2A"/>
-          <circle cx="67" cy="46" r="2" fill="#2A2A2A"/>
-          <path d="M54 55c2 2 10 2 12 0" stroke="#A35A4A" stroke-width="2.5" stroke-linecap="round" fill="none"/>
-        </g>
-      </svg>`;
+    const [c1,c2,accent,faceTone] = themes[id] || themes.sunset;
+    const initial = getAvatarLetter().slice(0,1) || 'P';
+    // SVG moderno: gradiente + glyph geométrico + inicial central
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+      <defs>
+        <linearGradient id="bg-${id}" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="${c1}"/>
+          <stop offset="100%" stop-color="${c2}"/>
+        </linearGradient>
+        <radialGradient id="halo-${id}" cx="50%" cy="38%" r="55%">
+          <stop offset="0%" stop-color="${accent}" stop-opacity="0.45"/>
+          <stop offset="100%" stop-color="${accent}" stop-opacity="0"/>
+        </radialGradient>
+        <clipPath id="clip-${id}"><circle cx="80" cy="80" r="80"/></clipPath>
+      </defs>
+      <g clip-path="url(#clip-${id})">
+        <rect width="160" height="160" fill="url(#bg-${id})"/>
+        <circle cx="80" cy="65" r="78" fill="url(#halo-${id})"/>
+        <circle cx="120" cy="32" r="14" fill="${accent}" opacity="0.75"/>
+        <circle cx="32" cy="120" r="22" fill="${faceTone}" opacity="0.18"/>
+        <text x="80" y="100" font-family="-apple-system, SF Pro Display, sans-serif"
+              font-size="68" font-weight="800" fill="#ffffff"
+              text-anchor="middle" letter-spacing="-2">${esc(initial)}</text>
+      </g>
+    </svg>`;
     return encodeSvg(svg);
   }
 
@@ -192,9 +200,7 @@
     applyAvatarSurface('profile-avatar', 'profile-avatar-big');
     renderAvatarPresetGrid();
 
-    document.getElementById('pf-google-conn-status')?.replaceChildren(document.createTextNode(window.isGoogleConnected?.() ? 'Conectado' : 'No conectado'));
-    document.getElementById('pf-google-sync-status')?.replaceChildren(document.createTextNode(getSyncLabel()));
-    document.getElementById('pf-google-email-status')?.replaceChildren(document.createTextNode(getGoogleEmail() || '—'));
+    // Google status now lives only in Security page (dedup cleanup)
   }
 
   function renderSecurityPage(){
@@ -314,68 +320,59 @@
     if(!el) return;
     const cards = window.state?.ccCards || [];
     const cycles = typeof window.getTcCycles === 'function' ? window.getTcCycles() : [];
-    const tcConfig = window.state?.tcConfig || {};
     if(!cards.length){
-      if(tcConfig.cardName || cycles.length){
-        el.innerHTML = `
-          <div class="settings-fintech-row">
-            <div class="settings-fintech-main">
-              <strong>${esc(tcConfig.cardName || 'Tarjeta configurada')}</strong>
-              <small>${cycles.length ? `${cycles.length} ciclo${cycles.length===1?'':'s'} cargado${cycles.length===1?'':'s'}` : 'Sin ciclos cargados'}</small>
-              <div class="settings-fintech-chips">
-                <span>${tcConfig.limit ? `Límite $${esc(typeof fmtN === 'function' ? fmtN(Math.round(tcConfig.limit)) : Math.round(tcConfig.limit))}` : 'Límite no definido'}</span>
-                <span>${tcConfig.closeDay ? `Cierre ${esc(tcConfig.closeDay)}` : 'Sin cierre'}</span>
-                <span>${tcConfig.dueDay ? `Vence ${esc(tcConfig.dueDay)}` : 'Sin vencimiento'}</span>
-              </div>
-            </div>
-            <div class="settings-fintech-actions">
-              <button class="dashboard-widget-mini primary" onclick="nav('credit-cards');ccSelectPageTab('config')">Configurar</button>
-            </div>
-          </div>
-        `;
-        return;
-      }
-      const creditProfiles = (window.state?.bankProfiles || []).filter(profile => profile.type === 'credit-card');
-      if(creditProfiles.length){
-        el.innerHTML = creditProfiles.map(profile => `
-          <div class="settings-fintech-row">
-            <div class="settings-fintech-main">
-              <strong>${esc(profile.name || profile.card || 'Tarjeta')}</strong>
-              <small>${esc(profile.bank || 'Sin banco')} · ${esc(profile.card || 'Tarjeta')}</small>
-              <div class="settings-fintech-chips">
-                <span>${profile.closeDay ? `Cierre ${esc(profile.closeDay)}` : 'Sin cierre'}</span>
-                <span>${profile.dueDay ? `Vence ${esc(profile.dueDay)}` : 'Sin vencimiento'}</span>
-                <span>${profile.balance ? `$${esc(typeof fmtN === 'function' ? fmtN(Math.round(profile.balance)) : Math.round(profile.balance))}` : 'Sin saldo'}</span>
-              </div>
-            </div>
-            <div class="settings-fintech-actions">
-              <button class="dashboard-widget-mini primary" onclick="openBankProfileManager('${esc(profile.id)}')">Editar</button>
-            </div>
-          </div>
-        `).join('');
-        return;
-      }
-      el.innerHTML = `<div class="settings-empty-block">No hay tarjetas registradas todavía. La configuración de ciclos y límites vive en el módulo de tarjetas.</div>`;
+      el.innerHTML = `<div class="settings-empty-block">No hay tarjetas registradas todavía. Agregalas desde el módulo de Tarjetas para ver sus ciclos acá.</div>`;
       return;
     }
+    const fmtDate = ymd => {
+      if(!ymd) return '—';
+      try{ return new Date(ymd+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short'}); }
+      catch(e){ return ymd; }
+    };
+    const today = new Date(); today.setHours(0,0,0,0);
     el.innerHTML = cards.map(card => {
-      const pendingCycle = cycles.find(cycle => {
-        const status = (window.state?.ccCycles || []).find(item => item.cardId === card.id && item.tcCycleId === cycle.id);
-        return !status || status.status !== 'paid';
-      }) || cycles[0] || null;
+      // Filter cycles that belong to this card (or general cycles if no cardId set)
+      const cardCycles = cycles.filter(c => !c.cardId || c.cardId === card.id);
+      // Pick the next upcoming (or current) cycle: smallest dueDate >= today, else most recent
+      let activeCycle = null;
+      const sortedAsc = [...cardCycles].sort((a,b)=>(a.dueDate||a.closeDate||'').localeCompare(b.dueDate||b.closeDate||''));
+      for(const c of sortedAsc){
+        const ref = c.dueDate || c.closeDate;
+        if(ref && new Date(ref+'T12:00:00') >= today){ activeCycle = c; break; }
+      }
+      if(!activeCycle) activeCycle = sortedAsc[sortedAsc.length-1] || null;
+      const idxInDesc = activeCycle ? cycles.findIndex(c=>c.id===activeCycle.id) : -1;
+      const openDate = (idxInDesc>=0 && typeof window.getTcCycleOpen === 'function') ? window.getTcCycleOpen(cycles, idxInDesc) : null;
+      const status = (window.state?.ccCycles || []).find(s => s.cardId === card.id && activeCycle && s.tcCycleId === activeCycle.id);
+      const isPaid = status?.status === 'paid';
       return `
-        <div class="settings-fintech-row">
-          <div class="settings-fintech-main">
-            <strong>${esc(card.name || 'Tarjeta')}</strong>
-            <small>${esc(card.payMethodKey ? card.payMethodKey.toUpperCase() : 'Sin identificador')} · ${pendingCycle ? `Cierre ${esc(pendingCycle.closeDate || '—')}` : 'Sin ciclo activo'}</small>
-            <div class="settings-fintech-chips">
-              <span>${pendingCycle?.dueDate ? `Vence ${esc(pendingCycle.dueDate)}` : 'Sin vencimiento'}</span>
-              <span>${tcConfig.limit ? `Límite $${esc(typeof fmtN === 'function' ? fmtN(Math.round(tcConfig.limit)) : Math.round(tcConfig.limit))}` : 'Límite no definido'}</span>
-              <span>${cards.length > 1 ? 'Multi-card listo' : '1 tarjeta activa'}</span>
+        <div class="settings-card-redesign">
+          <div class="settings-card-redesign-head">
+            <div class="settings-card-redesign-name">
+              <span class="settings-card-redesign-dot" style="background:${esc(card.color || '#64748b')}"></span>
+              ${esc(card.name || 'Tarjeta')}
             </div>
+            <span class="settings-card-redesign-tag">${esc((card.payMethodKey||'tc').toUpperCase())} · ${cardCycles.length} ciclo${cardCycles.length===1?'':'s'}${isPaid?' · pagado':''}</span>
           </div>
-          <div class="settings-fintech-actions">
-            <button class="dashboard-widget-mini primary" onclick="nav('credit-cards');ccSelectPageTab('config')">Configurar</button>
+          ${activeCycle ? `
+            <div class="settings-card-redesign-cycles">
+              <div class="settings-card-redesign-cycle">
+                <span class="settings-card-redesign-cycle-label">Apertura</span>
+                <span class="settings-card-redesign-cycle-value">${esc(fmtDate(openDate))}</span>
+              </div>
+              <div class="settings-card-redesign-cycle">
+                <span class="settings-card-redesign-cycle-label">Cierre</span>
+                <span class="settings-card-redesign-cycle-value">${esc(fmtDate(activeCycle.closeDate))}</span>
+              </div>
+              <div class="settings-card-redesign-cycle">
+                <span class="settings-card-redesign-cycle-label">Vencimiento</span>
+                <span class="settings-card-redesign-cycle-value">${esc(fmtDate(activeCycle.dueDate))}</span>
+              </div>
+            </div>
+          ` : `<div class="settings-empty-block">Sin ciclos cargados para esta tarjeta.</div>`}
+          <div class="settings-card-redesign-actions">
+            <button class="dashboard-widget-mini primary" type="button" onclick="nav('credit-cards');if(typeof ccSelectPageTab==='function')ccSelectPageTab('config')">Gestionar ciclos</button>
+            <button class="dashboard-widget-mini" type="button" onclick="nav('credit-cards');if(typeof state!=='undefined'){state.ccActiveCard='${esc(card.id)}';}if(typeof renderCcPage==='function')renderCcPage()">Ver tarjeta</button>
           </div>
         </div>
       `;
@@ -422,15 +419,8 @@
       el.innerHTML = `<div class="settings-empty-block">Todavía no hay grupos. Creá el primero para organizar las categorías.</div>`;
       return;
     }
-    if(!categories.length){
-      el.innerHTML = `
-        <div class="settings-empty-block">Todavía no hay categorías. Creá la primera y asignala a un grupo para empezar.</div>
-        <div class="settings-category-toolbar">
-          <button class="btn btn-primary btn-sm" type="button" onclick="startSettingsCategoryCreate()">Crear categoría</button>
-        </div>
-      `;
-      return;
-    }
+    // Aunque no haya categorías cargadas, igual renderizamos los grupos
+    // (cada grupo muestra su mensaje vacío individualmente y permite crear).
     el.innerHTML = groups.map(groupItem => {
       const meta = getSettingsCategoryGroupMeta(groupItem);
       const groupCategories = categories
@@ -474,9 +464,9 @@
   function renderSettingsGmailRulesList(){
     const el = document.getElementById('settings-gmail-rules-list');
     if(!el) return;
-    const rules = typeof window.ensureGmailImportRules === 'function'
-      ? window.ensureGmailImportRules()
-      : (window.state?.gmailImportRules || []);
+    // Asegurar que las reglas estén pobladas (init.js seedea Santander por defecto)
+    if(typeof window.ensureGmailImportRules === 'function') window.ensureGmailImportRules();
+    const rules = window.state?.gmailImportRules || [];
     if(!rules.length){
       el.innerHTML = `<div class="settings-empty-block">Todavía no hay reglas Gmail. Configurá remitente, filtro, categoría y lógica de parsing para automatizar importaciones.</div>`;
       return;
@@ -502,11 +492,8 @@
     `).join('');
   }
 
-  function renderSettingsGoogleSection(){
-    document.getElementById('settings-google-connection-status')?.replaceChildren(document.createTextNode(getConnectionLabel()));
-    document.getElementById('settings-google-email')?.replaceChildren(document.createTextNode(getGoogleEmail() || getManualEmail() || '—'));
-    document.getElementById('settings-google-sync')?.replaceChildren(document.createTextNode(getSyncLabel()));
-  }
+  // renderSettingsGoogleSection removed — Google integration now centralized in Security page only
+  function renderSettingsGoogleSection(){ /* no-op: elements removed from settings HTML */ }
 
   function renderSettingsCenter(){
     renderSettingsGoogleSection();
@@ -603,39 +590,87 @@
   }
 
   function activateAvatarSource(source){
-    if(source === 'upload' && !window.state?.userAvatar){
-      document.getElementById('profile-avatar-input')?.click();
+    if(source === 'upload'){
+      // Si ya hay imagen, simplemente activamos el modo upload.
+      if(window.state?.userAvatar){
+        window.state.userAvatarMode = 'upload';
+        persistProfileShell();
+      } else {
+        document.getElementById('profile-avatar-input')?.click();
+      }
       return;
     }
-    if(source === 'preset' && !window.state?.userAvatarPreset){
-      window.state.userAvatarPreset = AVATAR_PRESETS[0].id;
+    if(source === 'preset'){
+      if(!window.state?.userAvatarPreset){
+        window.state.userAvatarPreset = AVATAR_PRESETS[0].id;
+      }
+      window.state.userAvatarMode = 'preset';
+      persistProfileShell();
     }
-    window.state.userAvatarMode = source;
-    persistProfileShell();
   }
 
   function selectPresetAvatar(id){
     window.state.userAvatarPreset = id;
     window.state.userAvatarMode = 'preset';
+    // Lógica de prioridad: el avatar pasa a ser la imagen activa.
+    // No borramos la foto subida (se conserva), pero el modo activo es preset.
     persistProfileShell();
     window.showToast?.('Avatar actualizado', 'success');
+  }
+
+  // Reduce imágenes grandes para evitar quota exceeded en localStorage
+  function downscaleImage(dataUrl, maxSize = 384){
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if(width > maxSize || height > maxSize){
+          if(width >= height){
+            height = Math.round(height * (maxSize / width));
+            width = maxSize;
+          } else {
+            width = Math.round(width * (maxSize / height));
+            height = maxSize;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        try{
+          resolve(canvas.toDataURL('image/jpeg', 0.86));
+        }catch(e){ reject(e); }
+      };
+      img.onerror = reject;
+      img.src = dataUrl;
+    });
   }
 
   function handleAvatarUpload(event){
     const file = event?.target?.files?.[0];
     if(!file) return;
-    if(!/^image\/(png|jpeg)$/i.test(file.type)){
-      window.showToast?.('Usá una imagen JPG o PNG', 'error');
+    if(!/^image\/(png|jpe?g|webp)$/i.test(file.type)){
+      window.showToast?.('Usá una imagen JPG, PNG o WebP', 'error');
       event.target.value = '';
       return;
     }
     const reader = new FileReader();
-    reader.onload = e => {
-      window.state.userAvatar = String(e.target?.result || '');
-      window.state.userAvatarMode = 'upload';
-      persistProfileShell();
-      window.showToast?.('Imagen de perfil actualizada', 'success');
+    reader.onload = async e => {
+      try{
+        const raw = String(e.target?.result || '');
+        const compact = await downscaleImage(raw, 384);
+        window.state.userAvatar = compact;
+        // Lógica de prioridad: la nueva imagen pasa a ser la activa.
+        window.state.userAvatarMode = 'upload';
+        persistProfileShell();
+        window.showToast?.('Imagen de perfil actualizada', 'success');
+      } catch(err){
+        console.error('avatar upload', err);
+        window.showToast?.('No pude procesar la imagen', 'error');
+      }
     };
+    reader.onerror = () => window.showToast?.('No pude leer el archivo', 'error');
     reader.readAsDataURL(file);
     event.target.value = '';
   }
