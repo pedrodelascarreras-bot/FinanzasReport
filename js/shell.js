@@ -430,16 +430,18 @@
       return `
         <details class="settings-category-group" ${meta.name === 'Sin clasificar' ? 'open' : ''}>
           <summary class="settings-category-summary">
-            <div class="settings-category-summary-main">
-              <span class="settings-category-group-badge" style="background:${esc(meta.color)}22;color:${esc(meta.color)}">${esc(meta.emoji)}</span>
-              <div>
-                <strong>${esc(meta.name)}</strong>
-                <small>${groupCategories.length} categoría${groupCategories.length===1?'':'s'} · ${total} movimiento${total===1?'':'s'}</small>
+            <div class="settings-category-summary-inner">
+              <div class="settings-category-summary-main">
+                <span class="settings-category-group-badge" style="background:${esc(meta.color)}22;color:${esc(meta.color)}">${esc(meta.emoji)}</span>
+                <div>
+                  <strong>${esc(meta.name)}</strong>
+                  <small>${groupCategories.length} categoría${groupCategories.length===1?'':'s'} · ${total} movimiento${total===1?'':'s'}</small>
+                </div>
               </div>
-            </div>
-            <div class="settings-fintech-actions">
-              <button class="dashboard-widget-mini" type="button" onclick="event.preventDefault();event.stopPropagation();startSettingsGroupEdit(${jsString(meta.id)})">Renombrar</button>
-              <button class="dashboard-widget-mini" type="button" onclick="event.preventDefault();event.stopPropagation();startSettingsCategoryCreate(${jsString(meta.id)})">Agregar categoría</button>
+              <div class="settings-fintech-actions">
+                <button class="dashboard-widget-mini" type="button" onclick="event.preventDefault();event.stopPropagation();startSettingsGroupEdit(${jsString(meta.id)})">Renombrar</button>
+                <button class="dashboard-widget-mini" type="button" onclick="event.preventDefault();event.stopPropagation();startSettingsCategoryCreate(${jsString(meta.id)})">Agregar categoría</button>
+              </div>
             </div>
           </summary>
           <div class="settings-category-items">

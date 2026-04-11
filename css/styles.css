@@ -12938,12 +12938,16 @@ body.light-mode .balance-view-btn.active {
 
 .settings-category-summary {
   list-style: none;
+  display: block;
+  padding: 16px 18px;
+  cursor: pointer;
+}
+
+.settings-category-summary-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  padding: 16px 18px;
-  cursor: pointer;
 }
 
 .settings-category-summary::-webkit-details-marker {
