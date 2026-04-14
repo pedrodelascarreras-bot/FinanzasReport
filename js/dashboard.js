@@ -446,27 +446,60 @@ function fallbackInsights(summary){
 function renderDecisionCenter(model){
   const el=document.getElementById('dash-decision-center');
   if(!el)return;
-  if(!model||!model.cards?.length){
+  // Auto-clean tasks completed >24h ago
+  const now=Date.now();
+  state.tasks=(state.tasks||[]).filter(t=>!t.done||!t.doneAt||(now-t.doneAt)<86400000);
+  const hasCards=model&&model.cards?.length;
+  const hasTasks=(state.tasks||[]).length>0;
+  if(!hasCards&&!hasTasks){
     el.style.display='none';
     return;
   }
   const collapsed=!!state.decisionCenterCollapsed;
   el.style.display='block';
+  const pendingTasks=(state.tasks||[]).filter(t=>!t.done);
+  const doneTasks=(state.tasks||[]).filter(t=>t.done);
+  const tasksHtml=`
+    <div class="dash-tasks" style="display:${collapsed?'none':'block'};">
+      <div class="dash-tasks-head">
+        <span class="dash-tasks-title">Pendientes${pendingTasks.length?' ('+pendingTasks.length+')':''}</span>
+        ${doneTasks.length?'<button class="dash-tasks-clear" onclick="event.stopPropagation();clearDoneTasks()">Limpiar</button>':''}
+      </div>
+      <div class="dash-tasks-list">
+        ${pendingTasks.map(t=>`
+          <div class="dash-task-item">
+            <button class="dash-task-check" onclick="event.stopPropagation();toggleTask('${t.id}')"></button>
+            <span class="dash-task-text">${esc(t.text)}</span>
+            <button class="dash-task-del" onclick="event.stopPropagation();deleteTask('${t.id}')">✕</button>
+          </div>`).join('')}
+        ${doneTasks.map(t=>`
+          <div class="dash-task-item done">
+            <button class="dash-task-check checked" onclick="event.stopPropagation();toggleTask('${t.id}')">✓</button>
+            <span class="dash-task-text">${esc(t.text)}</span>
+            <button class="dash-task-del" onclick="event.stopPropagation();deleteTask('${t.id}')">✕</button>
+          </div>`).join('')}
+      </div>
+      <div class="dash-tasks-add">
+        <input type="text" id="dash-task-input" class="dash-task-input" placeholder="Anotar tarea…" onkeydown="if(event.key==='Enter')addTask()">
+        <button class="dash-task-add-btn" onclick="addTask()">+</button>
+      </div>
+    </div>`;
   el.innerHTML=`
     <div class="decision-center ${collapsed?'is-collapsed':''}">
       <div class="decision-center-head">
         <div>
-          <div class="section-kicker">${esc(model.kicker||'CENTRO DE ALERTAS Y DECISIONES')}</div>
-          <div class="decision-center-title">${esc(model.title||('Prioridades claras para '+model.periodLabel))}</div>
-          <div class="decision-center-sub">${model.summary}</div>
+          <div class="section-kicker">${esc(model?.kicker||'CENTRO DE ALERTAS Y DECISIONES')}</div>
+          <div class="decision-center-title">${esc(model?.title||('Prioridades claras para '+(model?.periodLabel||'')))}</div>
+          <div class="decision-center-sub">${model?.summary||''}</div>
         </div>
         <div class="decision-center-actions">
-          ${model.alertCount?`<div class="decision-center-badge alerts">${renderUiGlyph('alert')} ${model.alertCount} alerta${model.alertCount!==1?'s':''}</div>`:''}
+          ${model?.alertCount?`<div class="decision-center-badge alerts">${renderUiGlyph('alert')} ${model.alertCount} alerta${model.alertCount!==1?'s':''}</div>`:''}
+          ${pendingTasks.length?`<div class="decision-center-badge">${pendingTasks.length} tarea${pendingTasks.length!==1?'s':''}</div>`:''}
           <div class="decision-center-badge">${renderUiGlyph('ai')} Lectura asistida</div>
           <button class="decision-center-toggle" type="button" onclick="event.stopPropagation();toggleDecisionCenter()">${collapsed?'Mostrar':'Minimizar'}</button>
         </div>
       </div>
-      <div class="decision-card-grid" style="display:${collapsed?'none':'grid'};">
+      ${hasCards?`<div class="decision-card-grid" style="display:${collapsed?'none':'grid'};">
         ${model.cards.map(card=>`
           <button class="decision-card ${card.tone||'neutral'}" onclick="nav('${card.link||'dashboard'}')">
             <div class="decision-card-top">
@@ -481,8 +514,34 @@ function renderDecisionCenter(model){
             </div>
           </button>
         `).join('')}
-      </div>
+      </div>`:''}
+      ${tasksHtml}
     </div>`;
+}
+function addTask(){
+  const input=document.getElementById('dash-task-input');
+  if(!input)return;
+  const text=input.value.trim();
+  if(!text)return;
+  if(!state.tasks)state.tasks=[];
+  state.tasks.push({id:Math.random().toString(36).substr(2,9),text,done:false,createdAt:Date.now(),doneAt:null});
+  input.value='';
+  saveState();renderDashboard();
+}
+function toggleTask(id){
+  const t=(state.tasks||[]).find(x=>x.id===id);
+  if(!t)return;
+  t.done=!t.done;
+  t.doneAt=t.done?Date.now():null;
+  saveState();renderDashboard();
+}
+function deleteTask(id){
+  state.tasks=(state.tasks||[]).filter(x=>x.id!==id);
+  saveState();renderDashboard();
+}
+function clearDoneTasks(){
+  state.tasks=(state.tasks||[]).filter(t=>!t.done);
+  saveState();renderDashboard();
 }
 function toggleDecisionCenter(){
   state.decisionCenterCollapsed=!state.decisionCenterCollapsed;
@@ -792,7 +851,12 @@ function renderDashboard(){
     if(!expense.isPendingCuota && !expense.isPendingSubscription) return true;
     return _hasReachedChargeDate(expense.date);
   };
-  const billableTxns=monthTxns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription&&(_tcModeActive?!_isNonCC(t):true));
+  const _allBillable=monthTxns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription&&(_tcModeActive?!_isNonCC(t):true));
+  const billableTxns=_allBillable.filter(t=>!t.isThirdParty);
+  const thirdPartyTxns=_allBillable.filter(t=>!!t.isThirdParty);
+  const tpArs=thirdPartyTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  const tpUsd=thirdPartyTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+  const tpPending=thirdPartyTxns.filter(t=>t.thirdPartyStatus!=='settled');
   let arsMonth=billableTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   let usdMonth=billableTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
   let cntMonth=billableTxns.length;
@@ -1316,6 +1380,21 @@ function renderDashboard(){
 
   if(incTotalARS>0)animateNumberText(document.getElementById('kpi-inc-total'),incTotalARS,{prefix:'$',decimals:2,duration:760});
   else{const _incEl=document.getElementById('kpi-inc-total');if(_incEl)_incEl.textContent='—';}
+
+  // ── Third-party expenses indicator ──
+  const _tpEl=document.getElementById('dash-tp-indicator');
+  if(_tpEl){
+    if(tpArs>0||tpUsd>0){
+      const _tpParts=[];
+      if(tpArs>0)_tpParts.push('$'+fmtN(tpArs));
+      if(tpUsd>0)_tpParts.push('U$D '+fmtN(tpUsd));
+      const _tpPendingAmt=tpPending.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(t.thirdPartyAmount||t.amount),0);
+      _tpEl.innerHTML='<span class="tp-indicator">👤 '+_tpParts.join(' + ')+' de terceros'+(_tpPendingAmt>0?' · <strong>$'+fmtN(_tpPendingAmt)+' por cobrar</strong>':'')+'</span>';
+      _tpEl.style.display='block';
+    } else {
+      _tpEl.style.display='none';
+    }
+  }
 
   // ── Balance (hidden compat) ──
   const balRow=document.getElementById('dhc-balance-row');

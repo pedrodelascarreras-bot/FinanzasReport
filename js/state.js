@@ -32,6 +32,7 @@ let state={
   dismissedNotifs: [],   // IDs of notifications the user dismissed
   decisionCenterCollapsed:false,
   dismissedAutoCuotas:[], // keys of auto-cuotas permanently dismissed
+  tasks: [],             // [{id,text,done,createdAt,doneAt}]
   ccCards: [],           // [{id,name,type,color,...}]
   ccCycles: [],          // [{id,cardId,tcCycleId,status,manualExpenses,excludedIds,...}]
   ccActiveCard: null,    // currently selected card ID for CC compare
@@ -91,6 +92,7 @@ function getStateSnapshot(){
     dismissedNotifs:state.dismissedNotifs||[],
     decisionCenterCollapsed:!!state.decisionCenterCollapsed,
     dismissedAutoCuotas:state.dismissedAutoCuotas||[],
+    tasks:state.tasks||[],
     txnCardFilter:state.txnCardFilter||''
   };
 }
@@ -336,6 +338,7 @@ async function loadFromDrive(){
     state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
+    state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';
     if(typeof normalizeCategoryState === 'function'){
       try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
@@ -405,6 +408,7 @@ function loadState(){
     state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
+    state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';
     state.apiKey=localStorage.getItem('fin_apikey')||'';
     if(typeof normalizeCategoryState === 'function'){

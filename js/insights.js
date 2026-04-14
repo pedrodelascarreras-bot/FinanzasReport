@@ -122,7 +122,7 @@ function _renderInsightsConfig(data){
 // ── Data computation ──────────────────────────────────────
 function _computeInsightsData() {
   const today  = new Date();
-  const txns   = (state.transactions||[]).filter(t => !t.isPendingCuota && !t.isPendingSubscription);
+  const txns   = (state.transactions||[]).filter(t => !t.isPendingCuota && !t.isPendingSubscription && !t.isThirdParty);
   const MNAMES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 
   const currentMonth = getMonthKey(today);

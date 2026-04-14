@@ -313,6 +313,8 @@ function renderTransactions(){
   const estadoF = state.txnEstadoFilter||'all';
   if(estadoF==='sin_categoria'){
     txns = txns.filter(t=>!t.category||t.category==='Procesando...'||t.category==='Uncategorized');
+  } else if(estadoF==='terceros'){
+    txns = txns.filter(t=>!!t.isThirdParty);
   }
 
   txns.sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -346,6 +348,7 @@ function renderTransactions(){
   const estadoCounts = {
     sin_categoria: allPeriodTxns.filter(t=>!t.category||t.category==='Procesando...'||t.category==='Uncategorized').length,
     duplicado_sospechoso: _dupKeysForCount.size>0?allPeriodTxns.filter(t=>_dupKeysForCount.has(txnDupKey(t))).length:0,
+    terceros: allPeriodTxns.filter(t=>!!t.isThirdParty).length,
   };
 
   // Actualizar estado tabs
@@ -355,6 +358,7 @@ function renderTransactions(){
       {k:'all',label:'Todos',cls:''},
       {k:'sin_categoria',label:'⏳ Sin categoría',cls:'pendiente'},
       {k:'duplicado_sospechoso',label:'⊘ Duplicados',cls:'duplicado'},
+      ...(estadoCounts.terceros>0?[{k:'terceros',label:'👤 De terceros',cls:'terceros'}]:[]),
     ].map(tab=>{
       const cnt=tab.k==='all'?allPeriodTxns.length:(estadoCounts[tab.k]||0);
       const act=estadoF===tab.k;
@@ -468,6 +472,7 @@ function renderTransactions(){
               +'<span style="color:var(--border2);">·</span>'
               +'<span style="display:inline-flex;align-items:center;">'+catDot+esc(t.category||'—')+'</span>'
               +(t.isPendingCuota?'<span style="color:var(--accent3);font-weight:700;">📋 '+t.cuotaNum+'/'+t.cuotaTotal+'</span>':'')
+              +(t.isThirdParty?'<span class="tp-badge'+(t.thirdPartyStatus==='settled'?' settled':'')+'">3ro'+(t.thirdPartyStatus==='settled'?' ✓':t.thirdPartyStatus==='partial'?' ~':'')+'</span>':'')
             +'</div>'
           +'</div>'
           +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">'
@@ -498,9 +503,10 @@ function renderTransactions(){
           const _dupBg=state._dupFilterOn&&_dupAmtGroupMap[t.id]%2===0?'background:rgba(200,240,96,0.03);':'';
           const _isSelected=state._detailTxnId===t.id?'selected':'';
           const amtColor=t.currency==='USD'?'color:var(--accent2)':t.isPendingCuota?'color:var(--accent3)':'';
+          const _tpBadge=t.isThirdParty?'<span class="tp-badge'+(t.thirdPartyStatus==='settled'?' settled':'')+'">3ro'+(t.thirdPartyStatus==='settled'?' ✓':t.thirdPartyStatus==='partial'?' ~':'')+'</span>':'';
           const comercioHtml=t.comercio_detectado&&t.comercio_detectado.toLowerCase()!==t.description.toLowerCase()
-            ?'<span class="td-desc-secondary"><span class="comercio-detected">'+esc(t.comercio_detectado)+'</span>'+origenChip(t)+cuotaProjectedChip(t)+subscriptionProjectedChip(t)+sugerenciaBadge(t)+'</span>'
-            :'<span class="td-desc-secondary">'+origenChip(t)+cuotaProjectedChip(t)+subscriptionProjectedChip(t)+sugerenciaBadge(t)+'</span>';
+            ?'<span class="td-desc-secondary"><span class="comercio-detected">'+esc(t.comercio_detectado)+'</span>'+_tpBadge+origenChip(t)+cuotaProjectedChip(t)+subscriptionProjectedChip(t)+sugerenciaBadge(t)+'</span>'
+            :'<span class="td-desc-secondary">'+_tpBadge+origenChip(t)+cuotaProjectedChip(t)+subscriptionProjectedChip(t)+sugerenciaBadge(t)+'</span>';
           const _checked=state._selectedTxns&&state._selectedTxns.has(t.id)?' checked':'';
           const _projStyle=t.isPendingCuota?'border-left:3px solid var(--accent3);':'';
           return '<tr class="txn-row-v2 '+_isSelected+(_checked?' multi-selected':'')+'" data-txnid="'+t.id+'" style="'+_dupBg+_projStyle+'">'
@@ -906,6 +912,51 @@ function openTxnDetail(txnId){
         ${t.payMethod?'<div class="tdp-field"><div class="tdp-field-label">Tag de pago</div><div class="tdp-field-value">'+({visa:'💳 Santander VISA',amex:'💳 Santander AMEX',deb:'🏦 Santander Débito',ef:'💵 Efectivo'}[t.payMethod]||t.payMethod)+'</div></div>':''}
       </div>
 
+      <!-- Third-party / reimbursable -->
+      <div class="tdp-section">
+        <div class="tdp-section-label">Gasto de tercero</div>
+        <label class="tdp-toggle-row" style="cursor:pointer;">
+          <span style="font-size:12px;color:var(--text2);">Marcar como gasto de tercero</span>
+          <input type="checkbox" class="tdp-toggle-cb" ${t.isThirdParty?'checked':''} onchange="toggleThirdParty('${txnId}',this.checked)">
+        </label>
+        <div id="tdp-tp-details-${txnId}" style="display:${t.isThirdParty?'block':'none'};margin-top:8px;">
+          <div class="tdp-field" style="margin-bottom:6px;">
+            <div class="tdp-field-label">Nota</div>
+            <input type="text" class="tdp-tp-input" placeholder="Ej: Wifi de Caro" value="${esc(t.thirdPartyNote||'')}" onchange="setThirdPartyField('${txnId}','thirdPartyNote',this.value)">
+          </div>
+          <div class="tdp-field" style="margin-bottom:6px;">
+            <div class="tdp-field-label">Monto a recuperar</div>
+            <input type="number" class="tdp-tp-input" placeholder="${t.amount}" value="${t.thirdPartyAmount||''}" onchange="setThirdPartyField('${txnId}','thirdPartyAmount',parseFloat(this.value)||0)">
+          </div>
+          <div class="tdp-field" style="margin-bottom:6px;">
+            <div class="tdp-field-label">Estado del reembolso</div>
+            <select class="tdp-tp-input" onchange="setThirdPartyField('${txnId}','thirdPartyStatus',this.value)">
+              <option value="pending" ${(t.thirdPartyStatus||'pending')==='pending'?'selected':''}>Pendiente de cobro</option>
+              <option value="partial" ${t.thirdPartyStatus==='partial'?'selected':''}>Cobro parcial</option>
+              <option value="settled" ${t.thirdPartyStatus==='settled'?'selected':''}>Cobrado</option>
+            </select>
+          </div>
+          ${t.thirdPartyStatus==='partial'||t.thirdPartyStatus==='settled'?`
+          <div class="tdp-field" style="margin-bottom:6px;">
+            <div class="tdp-field-label">Monto cobrado</div>
+            <input type="number" class="tdp-tp-input" value="${t.thirdPartySettledAmount||''}" placeholder="0" onchange="setThirdPartyField('${txnId}','thirdPartySettledAmount',parseFloat(this.value)||0)">
+          </div>
+          <div class="tdp-field" style="margin-bottom:6px;">
+            <div class="tdp-field-label">Fecha de cobro</div>
+            <input type="date" class="tdp-tp-input" value="${t.thirdPartySettledDate||''}" onchange="setThirdPartyField('${txnId}','thirdPartySettledDate',this.value)">
+          </div>
+          ${(state.savAccounts||[]).length?`
+          <div class="tdp-field" style="margin-bottom:6px;">
+            <div class="tdp-field-label">Cuenta destino</div>
+            <select class="tdp-tp-input" onchange="setThirdPartyField('${txnId}','thirdPartyAccountId',this.value)">
+              <option value="">— Sin asignar —</option>
+              ${(state.savAccounts||[]).map(a=>'<option value="'+a.id+'" '+(t.thirdPartyAccountId===a.id?'selected':'')+'>'+esc((a.emoji||'')+' '+a.name)+'</option>').join('')}
+            </select>
+          </div>`:''}
+          `:''}
+        </div>
+      </div>
+
       <!-- Actions -->
       <div class="tdp-section">
         <div style="display:flex;gap:8px;">
@@ -921,6 +972,26 @@ function openTxnDetail(txnId){
   // Marcar fila seleccionada
   document.querySelectorAll('.txn-row-v2').forEach(r=>r.classList.toggle('selected',r.dataset.txnid===txnId));
   setTimeout(()=>{ document.addEventListener('click', _closePanelsOnOutside); }, 50);
+}
+
+// ══ THIRD-PARTY / REIMBURSABLE ══
+function toggleThirdParty(txnId,checked){
+  const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
+  t.isThirdParty=!!checked;
+  if(checked){
+    if(!t.thirdPartyStatus) t.thirdPartyStatus='pending';
+    if(!t.thirdPartyAmount) t.thirdPartyAmount=t.amount;
+  }
+  saveState();
+  openTxnDetail(txnId); // re-render panel to show/hide details
+  renderDashboard();
+}
+function setThirdPartyField(txnId,field,value){
+  const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
+  t[field]=value;
+  saveState();
+  // Re-render panel if status changed (shows/hides settled fields)
+  if(field==='thirdPartyStatus') openTxnDetail(txnId);
 }
 
 function closeTxnDetail(){
