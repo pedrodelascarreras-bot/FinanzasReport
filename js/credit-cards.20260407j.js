@@ -565,6 +565,8 @@ function renderCcConfigPanel(){
   const el=document.getElementById('cc-config-panel-body');if(!el)return;
   const cycles=getTcCycles();
   const cards=state.ccCards||[];
+  const cardOptions=cards.map(card=>`<option value="${esc(card.id)}" ${card.id===(state.ccActiveCard||cards[0]?.id)?'selected':''}>${esc(card.name)}</option>`).join('');
+  const cardNameById=id=>cards.find(card=>card.id===id)?.name||'Tarjeta';
 
   // ── Cards section ──
   const cardsHtml=cards.map((card,ci)=>`
@@ -582,14 +584,16 @@ function renderCcConfigPanel(){
     ? cycles.map((c,idx)=>{
         const open=getTcCycleOpen(cycles,idx);
         const fmtD=s=>new Date(s+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
-        const exp=ccGetCycleExpenses(state.ccActiveCard||cards[0]?.id, c.id);
+        const ownerCardId=c.cardId||state.ccActiveCard||cards[0]?.id;
+        const exp=ccGetCycleExpenses(ownerCardId, c.id);
         const tot=ccGetTotals(exp);
-        const statusEntry=state.ccCycles.find(x=>x.tcCycleId===c.id&&x.cardId===(state.ccActiveCard||cards[0]?.id));
+        const statusEntry=state.ccCycles.find(x=>x.tcCycleId===c.id&&x.cardId===ownerCardId);
         const isPaid=statusEntry?.status==='paid';
         return `<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;${idx>0?'border-top:1px solid var(--border)':''};">
           <div style="flex:1;min-width:0;">
             <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
               ${isPaid?'<span style="background:rgba(52,199,89,0.15);color:var(--green-sys);font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.04em;">✓ PAGADO</span>':'<span style="background:rgba(255,149,0,0.12);color:var(--orange);font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.04em;">⏳ PENDIENTE</span>'}
+              <span style="background:rgba(255,255,255,0.06);color:var(--text2);font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.04em;">${esc(cardNameById(c.cardId))}</span>
               <span style="font-size:13px;font-weight:700;color:var(--text);">${esc(c.label)}</span>
             </div>
             <div style="font-size:11px;color:var(--text3);">${fmtD(open)} → ${fmtD(c.closeDate)}${c.dueDate?' · Vto: <strong>'+fmtD(c.dueDate)+'</strong>':''}</div>
@@ -615,10 +619,18 @@ function renderCcConfigPanel(){
     <div style="margin-bottom:20px;">
       <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Nuevo ciclo</div>
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;">
-        <div style="display:grid;grid-template-columns:1fr 140px 140px;gap:12px;margin-bottom:14px;align-items:end;">
+        <div style="display:grid;grid-template-columns:1fr 1fr 160px 160px 160px;gap:12px;margin-bottom:14px;align-items:end;">
           <div>
             <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Nombre del ciclo</div>
             <input class="cc-cfg-input" id="tc-cycle-label-cc" placeholder="Ej: Marzo 2026" autocomplete="off">
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Tarjeta</div>
+            <select class="cc-cfg-input" id="tc-cycle-card-cc">${cardOptions}</select>
+          </div>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Fecha de apertura</div>
+            <input type="date" class="cc-cfg-input" id="tc-cycle-open-cc">
           </div>
           <div>
             <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Fecha de cierre</div>
@@ -645,6 +657,8 @@ function renderCcConfigPanel(){
 function renderCcTcConfig(){
   const el=document.getElementById('cc-tc-config-list');if(!el)return;
   const cycles=getTcCycles();
+  const cards=state.ccCards||[];
+  const cardNameById=id=>cards.find(card=>card.id===id)?.name||'Tarjeta';
   if(!cycles.length){
     el.innerHTML='<div style="color:var(--text3);font-size:12px;font-family:var(--font);padding:16px 0;text-align:center;">Sin ciclos registrados.<br>Agregá el primero arriba.</div>';
     return;
@@ -659,7 +673,7 @@ function renderCcTcConfig(){
     const total=txns.reduce((s,t)=>s+(t.currency==='USD'?t.amount*USD_TO_ARS:t.amount),0);
     return '<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;border:1px solid var(--border);">'+
       '<div style="flex:1;min-width:0;">'+
-        '<div style="font-size:13px;font-weight:700;color:var(--text);">'+esc(c.label)+'</div>'+
+        '<div style="font-size:13px;font-weight:700;color:var(--text);">'+esc(c.label)+' · <span style="color:var(--text3);font-weight:600;">'+esc(cardNameById(c.cardId))+'</span></div>'+
         '<div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;">'+fmtD(openD)+' → '+fmtD(closeD)+dueDStr+'</div>'+
       '</div>'+
       '<div style="font-size:13px;font-weight:700;color:var(--accent);font-family:var(--font);">'+(total>0?'$'+fmtN(total):'sin gastos')+'</div>'+

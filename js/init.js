@@ -14,21 +14,21 @@ function openTcConfigModal(){ openTcConfig(); }
 
 // ══ TC CYCLE SYSTEM ══
 
-// state.tcCycles = [{id, label, closeDate:'YYYY-MM-DD'}] sorted desc by closeDate
-// Derived: openDate = day after previous cycle's closeDate (or closeDate - ~30d if first)
+// state.tcCycles = [{id, label, cardId, openDate, closeDate, dueDate}] sorted desc by closeDate
 
 function getTcCycles(){
   return (state.tcCycles||[]).slice().sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
 }
 
 function getTcCycleOpen(cycles, idx){
-  // cycles is sorted DESC. idx is position in that desc array.
-  // Open = day after previous cycle's close (in asc order).
   if(idx<0||idx>=cycles.length)return null;
-  const sorted=[...cycles].sort((a,b)=>a.closeDate.localeCompare(b.closeDate)); // asc
-  const ascIdx=sorted.findIndex(c=>c.id===cycles[idx].id);
+  const cycle=cycles[idx];
+  if(cycle?.openDate) return cycle.openDate;
+  const sorted=[...cycles]
+    .filter(c=>(c.cardId||'')===(cycle?.cardId||''))
+    .sort((a,b)=>a.closeDate.localeCompare(b.closeDate)); // asc, misma tarjeta
+  const ascIdx=sorted.findIndex(c=>c.id===cycle.id);
   if(ascIdx===0){
-    // First ever cycle: open = closeDate - 30 days
     const d=new Date(sorted[0].closeDate+'T12:00:00');
     d.setDate(d.getDate()-30);
     return dateToYMD(d);
@@ -89,21 +89,30 @@ function addTcCycle(){
 // Removed duplicate function
 function addTcCycleFromCC(){
   const labelEl=document.getElementById('tc-cycle-label-cc');
+  const cardEl=document.getElementById('tc-cycle-card-cc');
+  const openEl=document.getElementById('tc-cycle-open-cc');
   const closeEl=document.getElementById('tc-cycle-close-cc');
   const dueEl=document.getElementById('tc-cycle-due-cc');
   const label=(labelEl?labelEl.value:'').trim();
+  const cardId=(cardEl?cardEl.value:'').trim();
+  const openDate=(openEl?openEl.value:'').trim();
   const closeDate=(closeEl?closeEl.value:'');
   const dueDate=(dueEl?dueEl.value:'');
-  if(!label||!closeDate){showToast('⚠️ Completá nombre y fecha de cierre','error');return;}
+  if(!cardId||!openDate||!closeDate||!dueDate){showToast('⚠️ Completá tarjeta, apertura, cierre y vencimiento','error');return;}
+  if(!label){showToast('⚠️ Completá el nombre del ciclo','error');return;}
+  if(openDate>closeDate){showToast('⚠️ La apertura no puede ser posterior al cierre','error');return;}
+  if(dueDate<closeDate){showToast('⚠️ El vencimiento no puede ser anterior al cierre','error');return;}
   if(!state.tcCycles)state.tcCycles=[];
-  if(state.tcCycles.find(c=>c.closeDate===closeDate)){showToast('⚠️ Ya existe un ciclo con esa fecha de cierre','error');return;}
+  if(state.tcCycles.find(c=>(c.cardId||'')===cardId&&c.closeDate===closeDate)){showToast('⚠️ Ya existe un ciclo para esa tarjeta con esa fecha de cierre','error');return;}
   const id='tc_'+Date.now().toString(36);
-  state.tcCycles.push({id,label,closeDate,dueDate});
+  state.tcCycles.push({id,label,cardId,openDate,closeDate,dueDate});
   saveState();
   renderCcTcConfig();
   if(typeof renderCcConfigPanel==='function') renderCcConfigPanel();
   showToast('✓ Ciclo agregado: '+label,'success');
   if(labelEl)labelEl.value='';
+  if(cardEl)cardEl.value=state.ccActiveCard||state.ccCards?.[0]?.id||'';
+  if(openEl)openEl.value='';
   if(closeEl)closeEl.value='';
   if(dueEl)dueEl.value='';
 }

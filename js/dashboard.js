@@ -773,6 +773,8 @@ function renderDashboard(){
         const _hdrIdx=_cycListHdr.findIndex(c=>c.id===_hdrCycle.id);
         const _openYmd=getTcCycleOpen(_cycListHdr,_hdrIdx);
         const _card=(state.ccCards||[]).find(c=>c.id===_hdrCycle.cardId);
+        const _ccState=(state.ccCycles||[]).find(c=>c.tcCycleId===_hdrCycle.id && (!_hdrCycle.cardId || c.cardId===_hdrCycle.cardId));
+        const _dueYmd=_ccState?.dueDate||_hdrCycle.dueDate||null;
         const _fmt=ymd=>{
           if(!ymd) return '—';
           try{ return new Date(ymd+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'2-digit'}); }
@@ -785,7 +787,7 @@ function renderDashboard(){
         if(_nameEl) _nameEl.textContent=(_card?.name||'Tarjeta')+' · '+expandPeriodYearLabel(_hdrCycle.label||'Ciclo');
         if(_openEl) _openEl.textContent=_fmt(_openYmd);
         if(_closeEl) _closeEl.textContent=_fmt(_hdrCycle.closeDate);
-        if(_dueEl) _dueEl.textContent=_fmt(_hdrCycle.dueDate);
+        if(_dueEl) _dueEl.textContent=_fmt(_dueYmd);
         _tcHeader.style.display='block';
       } else {
         _tcHeader.style.display='none';

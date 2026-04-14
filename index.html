@@ -705,13 +705,6 @@
 
   <div class="settings-shell settings-shell-simple fade-up d1">
     <div class="settings-main">
-      <div class="settings-card settings-card-hero settings-card-hero-compact settings-card-hero-clean">
-        <div class="settings-hero-copy">
-          <div class="settings-kicker">Configuration Center</div>
-          <div class="settings-title">Accesos rápidos para mantener la app ordenada y fácil de editar.</div>
-          <div class="settings-note">Dejé solo lo que realmente suma: tarjetas, categorías y reglas de automatización.</div>
-        </div>
-      </div>
       <div class="settings-center-grid">
         <section class="profile-card settings-section-card settings-card-span-2">
           <div class="profile-card-head">
@@ -730,13 +723,21 @@
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M7 12h10"/><path d="M10 17h4"/></svg>
             <span>Gestión de categorías</span>
           </div>
-          <div class="settings-linkout-copy">
-            <strong>Editá categorías desde su pantalla dedicada</strong>
-            <p>Ahí podés crear, renombrar, mover o eliminar categorías y grupos sin que se pisen entre sí.</p>
+          <div class="settings-categories-hero">
+            <div class="settings-categories-copy">
+              <strong>Ordená y editá tus categorías en una vista más cómoda</strong>
+              <p>Abrí la pantalla dedicada para crear nuevas, moverlas entre grupos o limpiar las que ya no usás.</p>
+            </div>
+            <div class="settings-categories-tags">
+              <span>Crear</span>
+              <span>Editar</span>
+              <span>Reordenar</span>
+              <span>Eliminar</span>
+            </div>
           </div>
-          <div class="profile-inline-actions">
+          <div class="profile-inline-actions settings-categories-actions">
             <button class="btn btn-primary btn-sm" onclick="nav('categories')">Abrir gestión de categorías</button>
-            <button class="btn btn-ghost btn-sm" onclick="nav('categories');openCat()">Nueva categoría</button>
+            <button class="btn btn-ghost btn-sm" onclick="nav('categories');openCat()">Crear nueva</button>
           </div>
         </section>
 

@@ -646,6 +646,24 @@ function renderTransactions(){
       });
     });
 
+    txns.filter(t=>!t.isPendingSubscription).forEach(t=>{
+      const sub=(state.subscriptions||[]).find(s=>typeof txnMatchesSubscription==='function' && txnMatchesSubscription(t,s));
+      if(!sub) return;
+      pushEntry(`sub-real-${t.id}`,{
+        date:t.date,
+        title:sub.name||t.subscriptionName||t._baseDesc||t.description,
+        amount:t.amount,
+        currency:t.currency||sub.currency||'ARS',
+        group:'suscripciones',
+        kind:'Suscripción registrada',
+        meta:'Cobro ya recibido',
+        includeInTotal:true,
+        synthetic:false,
+        isSettled:true,
+        tone:'#34c759'
+      });
+    });
+
     if(typeof getNextCuotaDate==='function'){
       (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
         getRecurringDatesInRange(s.day, openDate, closeDate).forEach(dueDate=>{
@@ -685,7 +703,7 @@ function renderTransactions(){
       });
     }
 
-    (state.transactions||[]).filter(t=>t.isThirdParty&&inCycle(t.date)).forEach(t=>{
+    txns.filter(t=>t.isThirdParty).forEach(t=>{
       const status=t.thirdPartyStatus||'pending';
       const recoverBase=Number(t.thirdPartyAmount)||Number(t.amount)||0;
       const settledBase=Math.min(recoverBase, Number(t.thirdPartySettledAmount)||0);

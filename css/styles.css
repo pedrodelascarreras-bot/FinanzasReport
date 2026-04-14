@@ -13365,6 +13365,65 @@ body.light-mode .balance-view-btn.active {
   color: var(--text3);
 }
 
+.settings-categories-hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(240px, 0.7fr);
+  gap: 18px;
+  padding: 20px 22px;
+  border-radius: 22px;
+  background:
+    radial-gradient(circle at top right, rgba(168,85,247,0.18), transparent 42%),
+    linear-gradient(180deg, rgba(255,255,255,0.045), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 14px;
+}
+
+.settings-categories-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-categories-copy strong {
+  font-size: 17px;
+  line-height: 1.28;
+  letter-spacing: -0.02em;
+}
+
+.settings-categories-copy p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text3);
+  max-width: 54ch;
+}
+
+.settings-categories-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-content: flex-start;
+  justify-content: flex-end;
+}
+
+.settings-categories-tags span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 36px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.settings-categories-actions {
+  margin-top: 2px;
+}
+
 .settings-category-list {
   max-height: 420px;
   overflow: auto;
