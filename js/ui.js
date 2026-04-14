@@ -767,7 +767,7 @@ const DASHBOARD_WIDGET_META = {
   'credit-kpi': { label:'Ciclo tarjetas', group:'dashboard-kpis', desc:'Resumen del ciclo actual por tarjeta.', titleSelector:'.dkpi-label' },
   'projection-kpi': { label:'Proyección al cierre', group:'dashboard-kpis', desc:'Estimación del cierre si seguís al ritmo actual.', titleSelector:'#kpi-proj-title' },
   'commitments-kpi': { label:'Compromisos próximos', group:'dashboard-kpis', desc:'Cuánto del ingreso ya está comprometido el próximo mes.', titleSelector:'.dkpi-label' },
-  'history-kpis': { label:'Promedios históricos', group:'dashboard-kpis', desc:'Promedio diario y mensual sobre toda tu historia cargada.' },
+  'history-kpis': { label:'Gastos de terceros', group:'dashboard-kpis', desc:'Seguimiento consolidado de lo que ya te devolvieron y lo que todavía falta cobrar.' },
   'main-chart': { label:'Gráfico principal', group:'dashboard-charts', desc:'Lectura mensual, diaria o semanal del gasto.', titleSelector:'#dash-chart-title' },
   'categories-chart': { label:'Categorías del mes', group:'dashboard-charts', desc:'Distribución y peso de cada categoría en el período.', titleSelector:'.chart-card-title' },
   'margin-widget': { label:'Margen disponible', group:'dashboard-widgets', desc:'Lo que todavía podés gastar sin pasarte del ingreso.', titleSelector:'.dw-label' },
@@ -1167,6 +1167,7 @@ function getCustomMetricLabel(metric){
     largest_expense:'Gasto más alto',
     avg_daily:'Promedio diario',
     avg_monthly:'Promedio mensual',
+    third_party_tracker:'Gastos de terceros',
     commitments_total:'Compromisos próximos',
     projected_close:'Proyección al cierre'
   };
@@ -1273,6 +1274,7 @@ function renderDashboardWidgetEditor(){
               <option value="largest_expense" ${currentMetric==='largest_expense'?'selected':''}>Gasto más alto</option>
               <option value="avg_daily" ${currentMetric==='avg_daily'?'selected':''}>Promedio diario</option>
               <option value="avg_monthly" ${currentMetric==='avg_monthly'?'selected':''}>Promedio mensual</option>
+              <option value="third_party_tracker" ${currentMetric==='third_party_tracker'?'selected':''}>Gastos de terceros</option>
               <option value="commitments_total" ${currentMetric==='commitments_total'?'selected':''}>Compromisos próximos</option>
               <option value="projected_close" ${currentMetric==='projected_close'?'selected':''}>Proyección al cierre</option>
             </select>

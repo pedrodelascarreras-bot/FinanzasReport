@@ -377,14 +377,16 @@ function renderTransactions(){
   }
 
   // ── Resumen ──
-  const arsTotal=txns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const usdTotal=txns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+  const summaryTxns=estadoF==='terceros'?txns:txns.filter(t=>!t.isThirdParty);
+  const excludedThirdPartyCount=estadoF==='terceros'?0:txns.filter(t=>!!t.isThirdParty).length;
+  const arsTotal=summaryTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  const usdTotal=summaryTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
   const grandTotal=arsTotal+(usdTotal*USD_TO_ARS);
   const mainEl=document.getElementById('txns-main');const detailEl=document.getElementById('txns-detail');
   const arsEl=document.getElementById('txns-total-ars');const usdEl=document.getElementById('txns-total-usd');
-  if(searchVal){const sArs=txns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);const sUsd=txns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);if(mainEl)mainEl.textContent=txns.length+' resultado'+(txns.length!==1?'s':'');if(arsEl)arsEl.textContent=sArs>0?'$'+fmtN(sArs):'—';if(usdEl)usdEl.textContent=sUsd>0?'U$D '+fmtN(sUsd):'—';}
+  if(searchVal){const sArs=summaryTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);const sUsd=summaryTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);if(mainEl)mainEl.textContent=txns.length+' resultado'+(txns.length!==1?'s':'');if(arsEl)arsEl.textContent=sArs>0?'$'+fmtN(sArs):'—';if(usdEl)usdEl.textContent=sUsd>0?'U$D '+fmtN(sUsd):'—';}
   else{if(mainEl)mainEl.textContent='$'+fmtN(grandTotal);if(arsEl)arsEl.textContent='$'+fmtN(arsTotal);if(usdEl)usdEl.textContent=usdTotal>0?'U$D '+fmtN(usdTotal):'—';}
-  if(detailEl){const parts=[];if(searchVal)parts.push('"'+searchVal+'"');else parts.push(periodoLabel||'Todos');parts.push('Mostrando '+txns.length+' de '+state.transactions.length+' movimientos');if(cfv)parts.push(cfv);detailEl.textContent=parts.join(' · ');}
+  if(detailEl){const parts=[];if(searchVal)parts.push('"'+searchVal+'"');else parts.push(periodoLabel||'Todos');parts.push('Mostrando '+txns.length+' de '+state.transactions.length+' movimientos');if(cfv)parts.push(cfv);if(excludedThirdPartyCount>0)parts.push(excludedThirdPartyCount+' de terceros fuera del total');detailEl.textContent=parts.join(' · ');}
 
   // ── Helpers visuales ──
   const highlight=(text,q)=>{if(!q)return esc(text);const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');return esc(text).replace(re,'<mark style="background:rgba(200,240,96,0.2);color:var(--accent);border-radius:2px;padding:0 1px;">$1</mark>');};
@@ -984,6 +986,7 @@ function toggleThirdParty(txnId,checked){
   }
   saveState();
   openTxnDetail(txnId); // re-render panel to show/hide details
+  renderTransactions();
   renderDashboard();
 }
 function setThirdPartyField(txnId,field,value){
@@ -992,6 +995,8 @@ function setThirdPartyField(txnId,field,value){
   saveState();
   // Re-render panel if status changed (shows/hides settled fields)
   if(field==='thirdPartyStatus') openTxnDetail(txnId);
+  renderTransactions();
+  renderDashboard();
 }
 
 function closeTxnDetail(){

@@ -465,15 +465,31 @@
           </div>
         </div>
         <div class="dash-history-row layout-widget" data-widget-key="history-kpis">
-          <div class="dkpi dash-history-card dash-history-card-clickable" onclick="setChartMode('daily')" title="Ver ritmo histórico diario">
-            <div class="dash-history-label">PROMEDIO DIARIO</div>
-            <div class="dash-history-value" id="kpi-hist-daily">—</div>
-            <div class="dash-history-sub" id="kpi-hist-daily-sub">Histórico de toda la app</div>
-          </div>
-          <div class="dkpi dash-history-card dash-history-card-clickable" onclick="setChartMode('bars')" title="Ver promedio mensual histórico">
-            <div class="dash-history-label">PROMEDIO MENSUAL</div>
-            <div class="dash-history-value" id="kpi-hist-monthly">—</div>
-            <div class="dash-history-sub" id="kpi-hist-monthly-sub">Histórico de toda la app</div>
+          <div class="dkpi dash-history-card dash-third-party-card dash-history-card-clickable" onclick="openThirdPartyTransactions()" title="Ver seguimiento de gastos de terceros">
+            <div class="dash-third-party-head">
+              <div class="dash-history-label">GASTOS DE TERCEROS</div>
+              <span class="dash-third-party-badge" id="kpi-third-party-badge">sin casos</span>
+            </div>
+            <div>
+              <div class="dash-history-value" id="kpi-third-party-pending">—</div>
+              <div class="dash-history-sub" id="kpi-third-party-sub">Lo que todavía te falta cobrar</div>
+            </div>
+            <div class="dw-bar-track"><div class="dw-bar-fill" id="kpi-third-party-bar" style="width:0%;background:#a882ff;"></div></div>
+            <div class="dash-third-party-stats">
+              <div class="dash-third-party-stat">
+                <span class="dash-third-party-stat-label">Total</span>
+                <strong id="kpi-third-party-total">—</strong>
+              </div>
+              <div class="dash-third-party-stat">
+                <span class="dash-third-party-stat-label">Cobrado</span>
+                <strong id="kpi-third-party-collected">—</strong>
+              </div>
+              <div class="dash-third-party-stat">
+                <span class="dash-third-party-stat-label">Por cobrar</span>
+                <strong id="kpi-third-party-open">—</strong>
+              </div>
+            </div>
+            <div class="dash-history-sub" id="kpi-third-party-foot">Seguimiento consolidado de todos tus gastos de terceros.</div>
           </div>
         </div>
       </div>
@@ -1569,15 +1585,15 @@
         </div>
         <div class="balance-top-metrics">
           <article class="balance-top-metric">
-            <span>Ingresos</span>
+            <span>Promedio diario</span>
             <strong id="balance-top-income">—</strong>
           </article>
           <article class="balance-top-metric">
-            <span>Gastos</span>
+            <span>Promedio mensual</span>
             <strong id="balance-top-expenses">—</strong>
           </article>
           <article class="balance-top-metric">
-            <span>Resultado</span>
+            <span>Resultado promedio</span>
             <strong id="balance-top-net">—</strong>
           </article>
         </div>

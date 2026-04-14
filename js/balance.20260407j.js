@@ -55,6 +55,32 @@
     return [...months].filter(Boolean).sort().reverse();
   }
 
+  function balanceHistoricalSummary(){
+    const months=balanceMonthKeys();
+    const txns=(state.transactions||[]).filter(t=>
+      Number(t.amount)>0 &&
+      !t.isPendingCuota &&
+      !t.isPendingSubscription &&
+      !t.isThirdParty &&
+      t.estado_revision!=='duplicado_sospechoso'
+    );
+    const totalHistory=txns.reduce((sum,t)=>sum+balanceConvert(t.amount,t.currency),0);
+    const dateKeys=[...new Set(txns.map(t=>dateToYMD(t.date)).filter(Boolean))].sort();
+    const firstDate=dateKeys.length?new Date(dateKeys[0]+'T12:00:00'):null;
+    const lastDate=dateKeys.length?new Date(dateKeys[dateKeys.length-1]+'T12:00:00'):null;
+    const daySpan=firstDate&&lastDate?Math.max(1,Math.round((lastDate-firstDate)/(1000*60*60*24))+1):Math.max(0,dateKeys.length);
+    const avgNet=months.length
+      ? months.reduce((sum,month)=>sum+balanceMonthData(month).freeCash,0)/months.length
+      : 0;
+    return {
+      monthCount: months.length,
+      daySpan,
+      dailyAvg: daySpan>0?totalHistory/daySpan:0,
+      monthlyAvg: months.length?totalHistory/months.length:0,
+      avgNet
+    };
+  }
+
   function balanceIncomeBreakdown(monthKey){
     const monthEntry=(state.incomeMonths||[]).find(m=>m.month===monthKey)||null;
     const rate=USD_TO_ARS||state.usdRate||1420;
@@ -123,7 +149,7 @@
     if(!months.length) return 0;
     const values=months.map(month=>{
       return (state.transactions||[])
-        .filter(t=>(t.month||getMonthKey(t.date))===month && !t.isPendingCuota && !t.isPendingSubscription)
+        .filter(t=>(t.month||getMonthKey(t.date))===month && !t.isPendingCuota && !t.isPendingSubscription && !t.isThirdParty)
         .filter(t=>t.category===category)
         .reduce((sum,t)=>sum+balanceConvert(t.amount,t.currency),0);
     });
@@ -133,12 +159,12 @@
   function balanceMonthData(monthKey){
     const txns=(state.transactions||[])
       .filter(t=>(t.month||getMonthKey(t.date))===monthKey)
-      .filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
+      .filter(t=>!t.isPendingCuota&&!t.isPendingSubscription&&!t.isThirdParty);
     const prevMonth=balanceMonthKeys().find(m=>m<monthKey)||null;
     const prevTxns=prevMonth
       ? (state.transactions||[])
           .filter(t=>(t.month||getMonthKey(t.date))===prevMonth)
-          .filter(t=>!t.isPendingCuota&&!t.isPendingSubscription)
+          .filter(t=>!t.isPendingCuota&&!t.isPendingSubscription&&!t.isThirdParty)
       : [];
     const income=balanceIncomeBreakdown(monthKey);
     const prevIncome=prevMonth?balanceIncomeBreakdown(prevMonth):{total:0};
@@ -771,7 +797,8 @@
     `;
   }
 
-  function renderBalanceViewState(){
+  function renderBalanceViewState(generalSummary){
+    generalSummary = generalSummary || balanceHistoricalSummary();
     const current = state.balanceView === 'compare' ? 'compare' : 'summary';
     const summaryBtn = document.getElementById('balance-tab-summary');
     const compareBtn = document.getElementById('balance-tab-compare');
@@ -789,21 +816,21 @@
     }
     if(summaryView) summaryView.style.display = current === 'summary' ? 'flex' : 'none';
     if(compareView) compareView.style.display = current === 'compare' ? 'flex' : 'none';
-    if(title) title.textContent = current === 'compare' ? 'Comparación operativa' : 'Resumen del período';
+    if(title) title.textContent = current === 'compare' ? 'Comparación operativa' : 'Resumen general';
     if(sub) sub.textContent = current === 'compare'
       ? 'Compará dos períodos con foco en diferencias, desvíos y evolución acumulada.'
-      : 'Leé el cierre del mes y detectá dónde conviene ajustar antes del próximo arranque.';
+      : `${generalSummary?.monthCount||0} meses cerrados · ${generalSummary?.daySpan||0} días registrados · lectura histórica consolidada.`;
   }
 
-  function renderBalanceTopMetrics(data){
+  function renderBalanceTopMetrics(summary){
     const incomeEl = document.getElementById('balance-top-income');
     const expensesEl = document.getElementById('balance-top-expenses');
     const netEl = document.getElementById('balance-top-net');
-    if(incomeEl) incomeEl.textContent = balanceFmtMoney(data?.income?.total || 0);
-    if(expensesEl) expensesEl.textContent = balanceFmtMoney(data?.totalExpenses || 0);
+    if(incomeEl) incomeEl.textContent = summary?.daySpan ? balanceFmtMoney(summary.dailyAvg) : '—';
+    if(expensesEl) expensesEl.textContent = summary?.monthCount ? balanceFmtMoney(summary.monthlyAvg) : '—';
     if(netEl){
-      netEl.textContent = balanceFmtMoney(data?.freeCash || 0);
-      netEl.style.color = (data?.freeCash || 0) < 0 ? 'var(--danger)' : ((data?.freeCash || 0) === 0 ? 'var(--text)' : 'var(--accent2)');
+      netEl.textContent = summary?.monthCount ? balanceFmtMoney(summary.avgNet) : '—';
+      netEl.style.color = (summary?.avgNet || 0) < 0 ? 'var(--danger)' : ((summary?.avgNet || 0) === 0 ? 'var(--text)' : 'var(--accent2)');
     }
   }
 
@@ -844,11 +871,12 @@
     empty.style.display='none';
     content.style.display='flex';
     const data=balanceMonthData(preferred);
-    renderBalanceTopMetrics(data);
+    const generalSummary=balanceHistoricalSummary();
+    renderBalanceTopMetrics(generalSummary);
     renderBalanceHero(data);
     renderBalanceGrid(data);
     renderBalanceNext(data);
-    renderBalanceViewState();
+    renderBalanceViewState(generalSummary);
     if(state.balanceView === 'compare' && typeof renderCompareSelectors === 'function'){
       renderCompareSelectors();
       renderCompare();

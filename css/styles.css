@@ -1925,7 +1925,7 @@ body.light-mode .dash-timeline-block {
 .dash-kpis-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 .dash-history-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 14px;
 }
 .dash-history-card {
@@ -1955,6 +1955,67 @@ body.light-mode .dash-timeline-block {
   font-size: 11px;
   line-height: 1.45;
   color: var(--text3);
+}
+.dash-third-party-card {
+  min-height: 168px;
+  align-items: stretch;
+}
+.dash-third-party-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.dash-third-party-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--text3);
+  background: rgba(148,163,184,0.12);
+  border: 1px solid rgba(148,163,184,0.2);
+}
+.dash-third-party-badge.pending {
+  color: #a882ff;
+  background: rgba(168,130,255,0.12);
+  border-color: rgba(168,130,255,0.24);
+}
+.dash-third-party-badge.settled {
+  color: var(--green-sys);
+  background: rgba(52,199,89,0.12);
+  border-color: rgba(52,199,89,0.24);
+}
+.dash-third-party-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.dash-third-party-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(168,130,255,0.06);
+  border: 1px solid rgba(168,130,255,0.12);
+}
+.dash-third-party-stat-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+.dash-third-party-stat strong {
+  font-size: 16px;
+  font-weight: 740;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  font-family: var(--font);
 }
 .dkpi {
   background:
@@ -4610,6 +4671,7 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   .dhc-amount { font-size: clamp(24px,7vw,34px); }
   .dash-kpis-col { grid-template-columns: 1fr !important; }
   .dash-history-row { grid-template-columns: 1fr !important; }
+  .dash-third-party-stats { grid-template-columns: 1fr; }
   .inc-kpi-row, .sav-accounts-grid, .sav-goals-grid, .inc-top-grid, .sav-kpi-grid { grid-template-columns: 1fr; }
   .inc-hero-value, .sav-hero-value { font-size: clamp(26px,8vw,36px); }
   table { font-size: 11px; min-width: 400px; }
