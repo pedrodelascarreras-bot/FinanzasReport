@@ -2004,12 +2004,12 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
   const historyCard=historyWrap?historyWrap.querySelector('.dash-third-party-card'):null;
   const _layoutState=typeof loadLayoutState==='function'?loadLayoutState():{};
   const _hiddenWidgets=_layoutState.dashboard?.widgetHidden||[];
+  const thirdPartySummary=getThirdPartyDashboardSummary();
   if(historyWrap){
     const shouldHide=_hiddenWidgets.includes('history-kpis') || !thirdPartySummary.count;
     historyWrap.hidden=shouldHide;
     historyWrap.style.display=shouldHide?'none':'';
   }
-  const thirdPartySummary=getThirdPartyDashboardSummary();
   if(tpPendingEl&&tpSubEl&&tpBadgeEl&&tpTotalEl&&tpCollectedEl&&tpOpenEl&&tpFootEl&&tpBarEl&&thirdPartySummary.count){
     historyWrap&&historyWrap.classList.remove('is-empty');
     historyCard&&historyCard.classList.remove('is-empty');
