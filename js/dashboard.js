@@ -2005,7 +2005,7 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
   const _layoutState=typeof loadLayoutState==='function'?loadLayoutState():{};
   const _hiddenWidgets=_layoutState.dashboard?.widgetHidden||[];
   if(historyWrap){
-    const shouldHide=_hiddenWidgets.includes('history-kpis');
+    const shouldHide=_hiddenWidgets.includes('history-kpis') || !thirdPartySummary.count;
     historyWrap.hidden=shouldHide;
     historyWrap.style.display=shouldHide?'none':'';
   }
