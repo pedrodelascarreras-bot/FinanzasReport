@@ -2005,10 +2005,10 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
   const _layoutState=typeof loadLayoutState==='function'?loadLayoutState():{};
   const _hiddenWidgets=_layoutState.dashboard?.widgetHidden||[];
   const thirdPartySummary=getThirdPartyDashboardSummary();
+  const shouldHideThirdPartyWidget=_hiddenWidgets.includes('history-kpis') || !thirdPartySummary.count;
   if(historyWrap){
-    const shouldHide=_hiddenWidgets.includes('history-kpis') || !thirdPartySummary.count;
-    historyWrap.hidden=shouldHide;
-    historyWrap.style.display=shouldHide?'none':'';
+    historyWrap.hidden=shouldHideThirdPartyWidget;
+    historyWrap.style.display=shouldHideThirdPartyWidget?'none':'';
   }
   if(tpPendingEl&&tpSubEl&&tpBadgeEl&&tpTotalEl&&tpCollectedEl&&tpOpenEl&&tpFootEl&&tpBarEl&&thirdPartySummary.count){
     historyWrap&&historyWrap.classList.remove('is-empty');
@@ -2043,9 +2043,8 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     if(tpBarEl)tpBarEl.style.width='0%';
   }
   if(historyWrap){
-    const shouldHide=_hiddenWidgets.includes('history-kpis');
-    historyWrap.hidden=shouldHide;
-    historyWrap.style.display=shouldHide?'none':'';
+    historyWrap.hidden=shouldHideThirdPartyWidget;
+    historyWrap.style.display=shouldHideThirdPartyWidget?'none':'';
   }
 
   /* ── Widget extra: ingreso del período ── */
