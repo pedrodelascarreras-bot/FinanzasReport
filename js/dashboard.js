@@ -1059,6 +1059,12 @@ function renderDashboard(){
     usdMonth=dashboardCardsUsd+syntheticUSD;
     cntMonth=dashboardCardsCount+syntheticCount;
   }
+  const operationalArsMonth=(billableTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0)) + (_tcModeActive?syntheticARS:0);
+  const operationalUsdMonth=(billableTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0)) + (_tcModeActive?syntheticUSD:0);
+  const operationalCntMonth=billableTxns.length + (_tcModeActive?syntheticCount:0);
+  const creditCycleArsTotal=arsMonth;
+  const creditCycleUsdTotal=usdMonth;
+  const creditCycleCntTotal=cntMonth;
 
   // ── Ingresos ──
   // Priority: 1) income month linked to active TC cycle open month  2) exact active month
@@ -1090,6 +1096,9 @@ function renderDashboard(){
   }
   // (Sync button removed from margin widget)
   const incTotalARS=incARS+(incUSD*USD_TO_ARS);
+  arsMonth=operationalArsMonth;
+  usdMonth=operationalUsdMonth;
+  cntMonth=operationalCntMonth;
   const totalGastoARS=arsMonth+(usdMonth*USD_TO_ARS);
   const pct=incTotalARS>0?Math.round((totalGastoARS/incTotalARS)*100):null;
   const spendBudget=incTotalARS>0?incTotalARS*(state.spendPct||100)/100:0;
@@ -1527,8 +1536,8 @@ function renderDashboard(){
   // Hidden compat element
   let compatCycleTotal;
   if(isTcView){
-    // Keep the cycle widget aligned with the main dashboard total in TC mode.
-    compatCycleTotal=arsMonth;
+    // Keep the cycle widget aligned with the card cycle totals in TC mode.
+    compatCycleTotal=creditCycleArsTotal;
   }else if(dashboardCycleForCards&&dashboardCards.length){
     compatCycleTotal=dashboardCardsArs;
   }else if(hasPayTagsWidget){
@@ -2040,6 +2049,11 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     if(tpOpenEl)tpOpenEl.textContent='—';
     if(tpFootEl)tpFootEl.textContent='Cuando marques un movimiento como tercero, este resumen se va a actualizar solo.';
     if(tpBarEl)tpBarEl.style.width='0%';
+  }
+  if(historyWrap){
+    const shouldHide=_hiddenWidgets.includes('history-kpis') || !thirdPartySummary.count;
+    historyWrap.hidden=shouldHide;
+    historyWrap.style.display=shouldHide?'none':'';
   }
 
   /* ── Widget extra: ingreso del período ── */

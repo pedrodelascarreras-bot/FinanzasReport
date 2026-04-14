@@ -1959,6 +1959,11 @@ body.light-mode .dash-timeline-block {
 .dash-third-party-card {
   min-height: 168px;
   align-items: stretch;
+  background:
+    radial-gradient(circle at top right, rgba(168,130,255,0.18), transparent 38%),
+    linear-gradient(180deg, rgba(255,255,255,0.08), rgba(255,255,255,0.025)),
+    var(--surface-solid);
+  border-color: rgba(168,130,255,0.18);
 }
 .dash-third-party-head {
   display: flex;
@@ -2000,8 +2005,9 @@ body.light-mode .dash-timeline-block {
   gap: 4px;
   padding: 10px 12px;
   border-radius: 12px;
-  background: rgba(168,130,255,0.06);
-  border: 1px solid rgba(168,130,255,0.12);
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(168,130,255,0.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
 }
 .dash-third-party-stat-label {
   font-size: 10px;
@@ -2016,6 +2022,12 @@ body.light-mode .dash-timeline-block {
   letter-spacing: -0.03em;
   color: var(--text);
   font-family: var(--font);
+}
+.dash-third-party-card .dash-history-value {
+  color: #e8dcff;
+}
+.dash-third-party-card .dash-history-sub {
+  color: rgba(226,216,248,0.78);
 }
 .dkpi {
   background:
