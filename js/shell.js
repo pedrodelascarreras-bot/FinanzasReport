@@ -318,7 +318,18 @@
   function renderSettingsCardsList(){
     const el = document.getElementById('settings-cards-list');
     if(!el) return;
-    const cards = window.state?.ccCards || [];
+    const cards = [...(window.state?.ccCards || [])];
+    const legacyTcConfig = window.state?.tcConfig || {};
+    if(!cards.length && (legacyTcConfig.cardName || (window.state?.tcCycles || []).length)){
+      cards.push({
+        id:'legacy-tc-card',
+        name:legacyTcConfig.cardName || 'Tarjeta principal',
+        color:'#a855f7',
+        type:'credit-card',
+        payMethodKey:'tc',
+        legacy:true
+      });
+    }
     const cycles = typeof window.getTcCycles === 'function' ? window.getTcCycles() : [];
     if(!cards.length){
       el.innerHTML = `<div class="settings-empty-block">No hay tarjetas registradas todavía. Agregalas desde el módulo de Tarjetas para ver sus ciclos acá.</div>`;
@@ -332,7 +343,9 @@
     const today = new Date(); today.setHours(0,0,0,0);
     el.innerHTML = cards.map(card => {
       // Filter cycles that belong to this card (or general cycles if no cardId set)
-      const cardCycles = cycles.filter(c => !c.cardId || c.cardId === card.id);
+      const cardCycles = card.legacy
+        ? cycles.filter(c => !c.cardId)
+        : cycles.filter(c => !c.cardId || c.cardId === card.id);
       // Pick the next upcoming (or current) cycle: smallest dueDate >= today, else most recent
       let activeCycle = null;
       const sortedAsc = [...cardCycles].sort((a,b)=>(a.dueDate||a.closeDate||'').localeCompare(b.dueDate||b.closeDate||''));
@@ -372,7 +385,7 @@
           ` : `<div class="settings-empty-block">Sin ciclos cargados para esta tarjeta.</div>`}
           <div class="settings-card-redesign-actions">
             <button class="dashboard-widget-mini primary" type="button" onclick="nav('credit-cards');if(typeof ccSelectPageTab==='function')ccSelectPageTab('config')">Gestionar ciclos</button>
-            <button class="dashboard-widget-mini" type="button" onclick="nav('credit-cards');if(typeof state!=='undefined'){state.ccActiveCard='${esc(card.id)}';}if(typeof renderCcPage==='function')renderCcPage()">Ver tarjeta</button>
+            <button class="dashboard-widget-mini" type="button" onclick="nav('credit-cards');if(typeof state!=='undefined' && ${card.legacy ? 'false' : 'true'}){state.ccActiveCard='${esc(card.id)}';}if(typeof renderCcPage==='function')renderCcPage()">Ver tarjeta</button>
           </div>
         </div>
       `;
@@ -499,11 +512,7 @@
 
   function renderSettingsCenter(){
     renderSettingsGoogleSection();
-    renderSettingsAccountsList();
     renderSettingsCardsList();
-    renderSettingsCategoriesList();
-    renderSettingsCategoryEditor();
-    renderSettingsGroupEditor();
     renderSettingsGmailRulesList();
     renderSetupGuide();
   }

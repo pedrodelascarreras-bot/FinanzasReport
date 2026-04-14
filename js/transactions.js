@@ -84,7 +84,8 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
     {key:'all', label:'Todo'},
     {key:'cuotas', label:'Cuotas'},
     {key:'suscripciones', label:'Suscripciones'},
-    {key:'fijos', label:'Fijos'}
+    {key:'fijos', label:'Fijos'},
+    ...(entries.some(e=>e.group==='terceros') ? [{key:'terceros', label:'Terceros'}] : [])
   ];
   const counts=tabs.reduce((acc,tab)=>{
     acc[tab.key]=tab.key==='all'?entries.length:entries.filter(e=>e.group===tab.key).length;
@@ -109,7 +110,7 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
       visible.length
         ? '<div class="txn-cycle-list">'+visible.map(item=>{
             const amount=(item.currency==='USD'?'U$D ':'$')+fmtN(item.amount);
-            const settled=item.includeInTotal===true;
+            const settled=item.isSettled===true || item.includeInTotal===true;
             return '<div class="txn-cycle-entry">'
               +`<div class="txn-cycle-dot" style="--entry-tone:${item.tone};"></div>`
               +'<div class="txn-cycle-copy">'
@@ -665,7 +666,7 @@ function renderTransactions(){
           });
         });
       });
-      (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
+    (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
         getRecurringDatesInRange(f.day, openDate, closeDate).forEach(dueDate=>{
           const matured=hasReachedChargeDate(dueDate);
           pushEntry(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,{
@@ -683,6 +684,31 @@ function renderTransactions(){
         });
       });
     }
+
+    (state.transactions||[]).filter(t=>t.isThirdParty&&inCycle(t.date)).forEach(t=>{
+      const status=t.thirdPartyStatus||'pending';
+      const recoverBase=Number(t.thirdPartyAmount)||Number(t.amount)||0;
+      const settledBase=Math.min(recoverBase, Number(t.thirdPartySettledAmount)||0);
+      const pendingBase=Math.max(0, recoverBase-settledBase);
+      const isSettled=status==='settled';
+      const isPartial=status==='partial';
+      let meta='Pendiente de cobro';
+      if(isSettled) meta='Cobrado';
+      else if(isPartial) meta=`Cobro parcial · faltan ${(t.currency||'ARS')==='USD'?'U$D ':'$'}${fmtN(pendingBase)}`;
+      pushEntry(`third-party-${t.id}`,{
+        date:t.date,
+        title:t.thirdPartyNote||t._baseDesc||t.description,
+        amount:recoverBase,
+        currency:t.currency||'ARS',
+        group:'terceros',
+        kind:'Gasto de terceros',
+        meta,
+        includeInTotal:false,
+        isSettled:isSettled,
+        synthetic:false,
+        tone:isSettled?'#34c759':'#ffcc00'
+      });
+    });
 
     entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
     renderTxnCycleCommitmentsPanel(wrap, entries);
