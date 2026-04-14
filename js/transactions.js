@@ -79,19 +79,21 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
   if(oldPanel) oldPanel.remove();
   if(!wrap || !entries.length) return;
 
-  const activeTab=getTxnCycleCommitmentsTab();
-  const tabs=[
+  const groupTabs=[
     {key:'all', label:'Todo'},
-    {key:'cuotas', label:'Cuotas'},
-    {key:'suscripciones', label:'Suscripciones'},
-    {key:'fijos', label:'Fijos'},
+    ...(entries.some(e=>e.group==='cuotas') ? [{key:'cuotas', label:'Cuotas'}] : []),
+    ...(entries.some(e=>e.group==='suscripciones') ? [{key:'suscripciones', label:'Suscripciones'}] : []),
+    ...(entries.some(e=>e.group==='fijos') ? [{key:'fijos', label:'Fijos'}] : []),
     ...(entries.some(e=>e.group==='terceros') ? [{key:'terceros', label:'Terceros'}] : [])
   ];
+  const activeTab=getTxnCycleCommitmentsTab();
+  const tabs=groupTabs;
   const counts=tabs.reduce((acc,tab)=>{
     acc[tab.key]=tab.key==='all'?entries.length:entries.filter(e=>e.group===tab.key).length;
     return acc;
   },{});
-  const visible=activeTab==='all'?entries:entries.filter(e=>e.group===activeTab);
+  const effectiveTab=tabs.some(tab=>tab.key===activeTab)?activeTab:'all';
+  const visible=effectiveTab==='all'?entries:entries.filter(e=>e.group===effectiveTab);
   const panel=document.createElement('div');
   panel.id='txn-cycle-commitments';
   panel.className='txn-cycle-panel';
@@ -104,7 +106,7 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
       +`<div class="txn-cycle-panel-count">${entries.length} item${entries.length!==1?'s':''}</div>`
     +'</div>'
     +'<div class="txn-cycle-tabs">'
-      +tabs.map(tab=>`<button class="txn-cycle-tab ${activeTab===tab.key?'active':''}" onclick="setTxnCycleCommitmentsTab('${tab.key}')">${tab.label} <span>${counts[tab.key]||0}</span></button>`).join('')
+      +tabs.map(tab=>`<button class="txn-cycle-tab ${effectiveTab===tab.key?'active':''}" onclick="setTxnCycleCommitmentsTab('${tab.key}')">${tab.label} <span>${counts[tab.key]||0}</span></button>`).join('')
     +'</div>'
     +(
       visible.length

@@ -762,13 +762,34 @@ function renderDashboard(){
     }
   }
   const isCurrentMonth=activeMk===getMonthKey(today);
+  const _resolveDashboardTcCycle=cyclesArg=>{
+    const list=cyclesArg||[];
+    if(!list.length) return null;
+    const selectedId=state.dashTcCycle||'';
+    if(selectedId){
+      const selected=list.find(c=>c.id===selectedId);
+      if(selected) return selected;
+    }
+    const todayStr=dateToYMD(today);
+    const current=list.find(c=>{
+      const idx=list.findIndex(x=>x.id===c.id);
+      const open=getTcCycleOpen(list,idx);
+      return open&&todayStr>=open&&todayStr<=c.closeDate;
+    });
+    if(current) return current;
+    const pending=list.find(c=>{
+      const ownerCardId=c.cardId||state.ccActiveCard||null;
+      const status=(state.ccCycles||[]).find(x=>x.tcCycleId===c.id&&(!ownerCardId||x.cardId===ownerCardId));
+      return !status||status.status!=='paid';
+    });
+    return pending||list[0];
+  };
   // ── Cabecera de ciclo de tarjeta (apertura / cierre / vencimiento) ──
   const _tcHeader=document.getElementById('dash-tc-cycle-header');
   if(_tcHeader){
     if(isTcView){
       const _cycListHdr=getTcCycles();
-      const _selIdHdr=state.dashTcCycle||'';
-      const _hdrCycle=(_selIdHdr&&_cycListHdr.find(c=>c.id===_selIdHdr))||_cycListHdr[0]||null;
+      const _hdrCycle=_resolveDashboardTcCycle(_cycListHdr);
       if(_hdrCycle){
         const _hdrIdx=_cycListHdr.findIndex(c=>c.id===_hdrCycle.id);
         const _openYmd=getTcCycleOpen(_cycListHdr,_hdrIdx);
@@ -800,9 +821,7 @@ function renderDashboard(){
   if(isTcView){
     const cycles=getTcCycles(); // sorted desc by closeDate
     if(cycles.length){
-      // Pick selected cycle, fall back to most recent (cycles[0])
-      const selId=state.dashTcCycle||'';
-      activeTcCycle=(selId&&cycles.find(c=>c.id===selId))||cycles[0];
+      activeTcCycle=_resolveDashboardTcCycle(cycles);
       // Sync selector value
       if(_dashSel) _dashSel.value=activeTcCycle.id;
       state.dashTcCycle=activeTcCycle.id;
