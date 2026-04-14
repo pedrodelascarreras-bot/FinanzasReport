@@ -1059,12 +1059,13 @@ function renderDashboard(){
     usdMonth=dashboardCardsUsd+syntheticUSD;
     cntMonth=dashboardCardsCount+syntheticCount;
   }
-  const operationalArsMonth=(billableTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0)) + (_tcModeActive?syntheticARS:0);
-  const operationalUsdMonth=(billableTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0)) + (_tcModeActive?syntheticUSD:0);
-  const operationalCntMonth=billableTxns.length + (_tcModeActive?syntheticCount:0);
+  const rawPeriodArsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticARS:0);
+  const rawPeriodUsdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticUSD:0);
+  const rawPeriodCntMonth=_allBillable.length + (_tcModeActive?syntheticCount:0);
+  const operationalArsMonth=Math.max(0,rawPeriodArsMonth-tpArs);
+  const operationalUsdMonth=Math.max(0,rawPeriodUsdMonth-tpUsd);
+  const operationalCntMonth=Math.max(0,rawPeriodCntMonth-thirdPartyTxns.length);
   const creditCycleArsTotal=arsMonth;
-  const creditCycleUsdTotal=usdMonth;
-  const creditCycleCntTotal=cntMonth;
 
   // ── Ingresos ──
   // Priority: 1) income month linked to active TC cycle open month  2) exact active month
@@ -1393,22 +1394,8 @@ function renderDashboard(){
   // ── Third-party expenses indicator ──
   const _tpEl=document.getElementById('dash-tp-indicator');
   if(_tpEl){
-    if(tpArs>0||tpUsd>0){
-      const _tpParts=[];
-      if(tpArs>0)_tpParts.push('$'+fmtN(tpArs));
-      if(tpUsd>0)_tpParts.push('U$D '+fmtN(tpUsd));
-      const _tpPendingAmt=tpPending.filter(t=>t.currency==='ARS').reduce((s,t)=>{
-        const _base=Number(t.thirdPartyAmount)||Number(t.amount)||0;
-        const _settled=(t.thirdPartyStatus==='partial'||t.thirdPartyStatus==='settled')
-          ?Math.min(Number(t.thirdPartySettledAmount)||0,_base)
-          :0;
-        return s+Math.max(0,_base-_settled);
-      },0);
-      _tpEl.innerHTML='<span class="tp-indicator">👤 '+_tpParts.join(' + ')+' de terceros'+(_tpPendingAmt>0?' · <strong>$'+fmtN(_tpPendingAmt)+' por cobrar</strong>':'')+'</span>';
-      _tpEl.style.display='block';
-    } else {
-      _tpEl.style.display='none';
-    }
+    _tpEl.style.display='none';
+    _tpEl.innerHTML='';
   }
 
   // ── Balance (hidden compat) ──
