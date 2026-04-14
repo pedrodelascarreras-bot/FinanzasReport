@@ -1965,6 +1965,12 @@ body.light-mode .dash-timeline-block {
     var(--surface-solid);
   border-color: rgba(168,130,255,0.18);
 }
+.dash-history-row.is-empty {
+  gap: 0;
+}
+.dash-third-party-card.is-empty {
+  min-height: 96px;
+}
 .dash-third-party-head {
   display: flex;
   align-items: center;
@@ -2028,6 +2034,18 @@ body.light-mode .dash-timeline-block {
 }
 .dash-third-party-card .dash-history-sub {
   color: rgba(226,216,248,0.78);
+}
+.dash-third-party-card.is-empty .dw-bar-track,
+.dash-third-party-card.is-empty .dash-third-party-stats {
+  display: none;
+}
+.dash-third-party-card.is-empty .dash-history-value {
+  font-size: clamp(18px, 1.3vw, 24px);
+  color: rgba(232,220,255,0.84);
+}
+.dash-third-party-card.is-empty .dash-history-sub:last-child {
+  margin-top: 2px;
+  max-width: 560px;
 }
 .dkpi {
   background:

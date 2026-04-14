@@ -2014,6 +2014,7 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
   const tpFootEl=document.getElementById('kpi-third-party-foot');
   const tpBarEl=document.getElementById('kpi-third-party-bar');
   const historyWrap=document.querySelector('.dash-history-row[data-widget-key="history-kpis"]');
+  const historyCard=historyWrap?historyWrap.querySelector('.dash-third-party-card'):null;
   const _layoutState=typeof loadLayoutState==='function'?loadLayoutState():{};
   const _hiddenWidgets=_layoutState.dashboard?.widgetHidden||[];
   if(historyWrap){
@@ -2023,6 +2024,8 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
   }
   const thirdPartySummary=getThirdPartyDashboardSummary();
   if(tpPendingEl&&tpSubEl&&tpBadgeEl&&tpTotalEl&&tpCollectedEl&&tpOpenEl&&tpFootEl&&tpBarEl&&thirdPartySummary.count){
+    historyWrap&&historyWrap.classList.remove('is-empty');
+    historyCard&&historyCard.classList.remove('is-empty');
     const openCount=thirdPartySummary.pendingCount+thirdPartySummary.partialCount;
     const recoveredPct=thirdPartySummary.totalRecoverArs>0
       ?Math.round((thirdPartySummary.collectedArs/thirdPartySummary.totalRecoverArs)*100)
@@ -2038,20 +2041,22 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     animateProgressBar(tpBarEl,recoveredPct);
     tpBarEl.style.background=openCount?'#a882ff':'var(--green-sys)';
   } else {
+    historyWrap&&historyWrap.classList.add('is-empty');
+    historyCard&&historyCard.classList.add('is-empty');
     if(tpPendingEl)tpPendingEl.textContent='—';
-    if(tpSubEl)tpSubEl.textContent='Marcá movimientos como gastos de terceros para seguirlos acá';
+    if(tpSubEl)tpSubEl.textContent='Sin gastos de terceros por ahora';
     if(tpBadgeEl){
-      tpBadgeEl.textContent='sin casos';
+      tpBadgeEl.textContent='todo limpio';
       tpBadgeEl.className='dash-third-party-badge';
     }
     if(tpTotalEl)tpTotalEl.textContent='—';
     if(tpCollectedEl)tpCollectedEl.textContent='—';
     if(tpOpenEl)tpOpenEl.textContent='—';
-    if(tpFootEl)tpFootEl.textContent='Cuando marques un movimiento como tercero, este resumen se va a actualizar solo.';
+    if(tpFootEl)tpFootEl.textContent='Cuando marques uno, esta tarjeta se expande sola con el seguimiento completo.';
     if(tpBarEl)tpBarEl.style.width='0%';
   }
   if(historyWrap){
-    const shouldHide=_hiddenWidgets.includes('history-kpis') || !thirdPartySummary.count;
+    const shouldHide=_hiddenWidgets.includes('history-kpis');
     historyWrap.hidden=shouldHide;
     historyWrap.style.display=shouldHide?'none':'';
   }
