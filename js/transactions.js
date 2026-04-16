@@ -18,51 +18,56 @@ function setCardFilter(key){
   state.txnCardFilter=key||'';
   document.getElementById('tcf-all')?.classList.toggle('active',!key);
   document.getElementById('tcf-visa')?.classList.toggle('active',key==='visa');
-}
-
-window.exportTransactionsCSV = function() {
-  const txns = window.currentRenderedTxns || state.transactions || [];
-  if (!txns || txns.length === 0) {
-    if(window.showToast) window.showToast(t('global_no_results'), 'warning');
-    return;
-  }
-  
-  const data = txns.map(t => ({
-    [window.t('global_date')]: t.date || '',
-    [window.t('global_description')]: t.name || t.description || '',
-    [window.t('global_category')]: t.category || '',
-    [window.t('global_amount')]: t.amount || 0,
-    [window.t('global_method')]: t.payMethod || '',
-    Moneda: t.currency || 'ARS',
-    Notas: t.notes || ''
-  }));
-  
-  // Use PapaParse if available
-  let csv = '';
-  if (typeof Papa !== 'undefined') {
-    csv = Papa.unparse(data);
-  } else {
-    // Fallback manual CSV generation
-    const headers = Object.keys(data[0]);
-    csv = headers.join(',') + '\\n';
-    data.forEach(row => {
-      csv += headers.map(h => \`"\${String(row[h]).replace(/"/g, '""')}"\`).join(',') + '\\n';
-    });
-  }
-  
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.setAttribute('href', url);
-  a.setAttribute('download', \`finanzas_movimientos_\${new Date().toISOString().slice(0,10)}.csv\`);
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  if(window.showToast) window.showToast('CSV Exportado exitosamente', 'success');
-};
   document.getElementById('tcf-amex')?.classList.toggle('active',key==='amex');
   renderTransactions();
 }
+
+window.exportTransactionsCSV = function() {
+  var txns = window.currentRenderedTxns || state.transactions || [];
+  if (!txns || txns.length === 0) {
+    if(window.showToast) window.showToast(window.t('global_no_results'), 'warning');
+    return;
+  }
+  
+  var dateLabel = window.t('global_date');
+  var descLabel = window.t('global_description');
+  var catLabel = window.t('global_category');
+  var amtLabel = window.t('global_amount');
+  var methLabel = window.t('global_method');
+
+  var data = txns.map(function(tx) {
+    var row = {};
+    row[dateLabel] = tx.date || '';
+    row[descLabel] = tx.name || tx.description || '';
+    row[catLabel] = tx.category || '';
+    row[amtLabel] = tx.amount || 0;
+    row[methLabel] = tx.payMethod || '';
+    row['Moneda'] = tx.currency || 'ARS';
+    row['Notas'] = tx.notes || '';
+    return row;
+  });
+  
+  var csv = '';
+  if (typeof Papa !== 'undefined') {
+    csv = Papa.unparse(data);
+  } else {
+    var headers = Object.keys(data[0]);
+    csv = headers.join(',') + '\n';
+    data.forEach(function(row) {
+      csv += headers.map(function(h) { return '"' + String(row[h]).replace(/"/g, '""') + '"'; }).join(',') + '\n';
+    });
+  }
+  
+  var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.setAttribute('href', url);
+  a.setAttribute('download', 'finanzas_movimientos_' + new Date().toISOString().slice(0,10) + '.csv');
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  if(window.showToast) window.showToast('CSV ✓', 'success');
+};
 
 // Toggle modo filtro: 'mes' | 'tc'
 function setTxnFilterMode(mode){
@@ -480,12 +485,12 @@ function renderTransactions(){
     wrap.innerHTML=`
       <div class="empty-state fade-up">
         <div class="empty-icon">📊</div>
-        <div class="empty-title">\${searchVal ? t('global_no_results') : 'Sin movimientos aún'}</div>
-        <p class="empty-sub">\${searchVal ? 'No encontramos nada que coincida con "' + esc(searchVal) + '" en este período. Probá con otra categoría, monto o descripción.' : 'Todavía no hay movimientos para revisar. Importá datos o cargá un gasto manual para empezar a ordenar el día a día.'}</p>
+        <div class="empty-title">${searchVal ? t('global_no_results') : 'Sin movimientos aún'}</div>
+        <p class="empty-sub">${searchVal ? 'No encontramos nada que coincida con "' + esc(searchVal) + '" en este período. Probá con otra categoría, monto o descripción.' : 'Todavía no hay movimientos para revisar. Importá datos o cargá un gasto manual para empezar a ordenar el día a día.'}</p>
         <div class="empty-actions">
-           \${searchVal ? '<button class="btn btn-secondary" onclick="clearSearch()">Limpiar búsqueda</button>' : '<button class="btn btn-primary" onclick="nav(\\'import\\')">Importar datos</button><button class="btn btn-ghost" onclick="openNewExpenseModal()">Nuevo gasto</button>'}
+           ${searchVal ? '<button class="btn btn-secondary" onclick="clearSearch()">Limpiar búsqueda</button>' : '<button class="btn btn-primary" onclick="nav(\'import\')">Importar datos</button><button class="btn btn-ghost" onclick="openNewExpenseModal()">Nuevo gasto</button>'}
         </div>
-      </div>\`;
+      </div>`;
     return;
   }
 

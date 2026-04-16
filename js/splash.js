@@ -165,20 +165,37 @@
     const content = document.getElementById('sp-content');
     if(!content) return;
 
+    // ── Pre-compute Daily Briefing HTML ──
+    var briefingHtml = '';
+    if(curTotal > 0){
+      var deltaHtml = '';
+      if(prevTotal > 0){
+        var deltaPct = Math.round(Math.abs(curTotal-prevTotal)/prevTotal*100);
+        var isUp = curTotal > prevTotal;
+        deltaHtml = '<div style="background:'+(isUp?'rgba(255,59,48,0.12)':'rgba(52,199,89,0.12)')+';color:'+(isUp?'#ff3b30':'#34c759')+';padding:4px 8px;border-radius:8px;font-size:12px;font-weight:600;">'
+          +(isUp?'▲':'▼')+' '+deltaPct+'% vs anterior</div>';
+      }
+      briefingHtml = '<div style="margin-top:24px;background:var(--surface2);border-radius:16px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);">'
+        +'<div style="display:flex;flex-direction:column;gap:4px;">'
+        +'<span style="font-size:12px;font-weight:600;color:var(--text3);opacity:0.8;letter-spacing:0.02em;">'+t('global_total_spent')+'</span>'
+        +'<span style="font-size:24px;font-weight:700;color:var(--text);letter-spacing:-0.03em;">$ '+(typeof fmtN==='function'?fmtN(curTotal):curTotal)+'</span>'
+        +'</div>'
+        +deltaHtml
+        +'</div>';
+    }
+
+    var closePillHtml = closePillText ? '<div class="fos-hero-pill" style="margin-top:16px;"><span class="fos-pill-dot"></span>'+closePillText+'</div>' : '';
+
     if(isMobile){
       content.innerHTML = `
       <div class="fos-shell fos-mobile fade-in">
         <div class="fos-container">
           <!-- Hero -->
           <div class="fos-hero-card fade-in">
-            <div class="fos-hero-title">\${greeting},<br>\${userName}</div>
-            <div class="fos-hero-date">\${dateStr}</div>
-            \${curTotal > 0 ? 
-              \`<div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
-                  <div style="color:var(--text3);font-size:12px;font-weight:600;">\${t('global_total_spent')}</div>
-                  <div style="color:var(--text);font-size:18px;font-weight:700;">$ \${typeof fmtN === 'function' ? fmtN(curTotal) : curTotal}</div>
-               </div>\` : ''}
-            \${closePillText ? \`<div class="fos-hero-pill" style="margin-top:16px;"><span class="fos-pill-dot"></span>\${closePillText}</div>\` : ''}
+            <div class="fos-hero-title">${greeting},<br>${userName}</div>
+            <div class="fos-hero-date">${dateStr}</div>
+            ${briefingHtml}
+            ${closePillHtml}
           </div>
 
           <!-- Google Connect -->
@@ -244,24 +261,10 @@
 
         <!-- Hero Card -->
         <div class="fos-hero-card fade-in d1">
-          <div class="fos-hero-title">\${greeting}, \${userName}</div>
-          <div class="fos-hero-date">\${dateStr}</div>
-          
-          \${curTotal > 0 ? 
-            \`<div style="margin-top:24px;background:var(--surface2);border-radius:16px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;border:1px solid var(--border);">
-               <div style="display:flex;flex-direction:column;gap:4px;">
-                 <span style="font-size:12px;font-weight:600;color:var(--text3);opacity:0.8;letter-spacing:0.02em;">\${t('global_total_spent')}</span>
-                 <span style="font-size:24px;font-weight:700;color:var(--text);letter-spacing:-0.03em;">$ \${typeof fmtN === 'function' ? fmtN(curTotal) : curTotal}</span>
-               </div>
-               \${prevTotal > 0 ?
-                 \`<div style="background:\${curTotal > prevTotal ? 'var(--danger-dim)' : 'var(--accent-dim)'};color:\${curTotal > prevTotal ? 'var(--danger)' : 'var(--accent)'};padding:4px 8px;border-radius:8px;font-size:12px;font-weight:600;">
-                    \${curTotal > prevTotal ? '▲' : '▼'} \${Math.round(Math.abs(curTotal-prevTotal)/prevTotal*100)}% \${t('vs_last_month','vs anterior')}
-                  </div>\` 
-               : ''}
-             </div>\` 
-          : ''}
-
-          \${closePillText ? \`<div class="fos-hero-pill" style="margin-top:16px;"><span class="fos-pill-dot"></span>\${closePillText}</div>\` : ''}
+          <div class="fos-hero-title">${greeting}, ${userName}</div>
+          <div class="fos-hero-date">${dateStr}</div>
+          ${briefingHtml}
+          ${closePillHtml}
         </div>
 
         <!-- Google Connect Card -->
