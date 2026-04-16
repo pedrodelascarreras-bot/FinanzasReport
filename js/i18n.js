@@ -261,7 +261,14 @@
 
   // ── Core translation function ──
   function t(key, lang) {
-    const l = lang || window.state?.userPrefs?.language || 'es';
+    let l = lang || window.state?.userPrefs?.language;
+    if (!l) {
+      try {
+        const raw = localStorage.getItem('fin_state');
+        if(raw) { const s = JSON.parse(raw); l = s.userPrefs?.language; }
+      } catch(e) {}
+    }
+    l = l || 'es';
     const dict = translations[l] || translations.es;
     return dict[key] !== undefined ? dict[key] : (translations.es[key] || key);
   }
@@ -570,8 +577,19 @@
   };
 
   let _translating = false;
+  function _isEnglish() {
+    if(document.documentElement.lang === 'en') return true;
+    if(window.state?.userPrefs?.language === 'en') return true;
+    try {
+      const raw = localStorage.getItem('fin_state');
+      if(raw) { const s = JSON.parse(raw); if(s.userPrefs?.language === 'en') return true; }
+    } catch(e) {}
+    return false;
+  }
   window.translateDOM = function() {
-    if(document.documentElement.lang !== 'en') return; // Only translate when English
+    if(!_isEnglish()) return;
+    // Also ensure lang attr is set
+    document.documentElement.lang = 'en';
     if(_translating) return;
     _translating = true;
     
@@ -621,7 +639,7 @@
   // Setup mutation observer to automatically translate any newly injected HTML
   document.addEventListener('DOMContentLoaded', () => {
     const observer = new MutationObserver(mutations => {
-       if(document.documentElement.lang !== 'en') return;
+       if(!_isEnglish()) return;
        // Only trigger translateDOM if real nodes were added
        let shouldTranslate = false;
        for(let m of mutations) {
@@ -635,9 +653,11 @@
     });
     observer.observe(document.body, { childList: true, subtree: true });
     
-    // Initial paint translation
+    // Multiple passes at startup to catch splash, dashboard, and late-rendered content
+    setTimeout(window.translateDOM, 100);
     setTimeout(window.translateDOM, 500);
+    setTimeout(window.translateDOM, 1500);
+    setTimeout(window.translateDOM, 3000);
   });
 
 })();
-
