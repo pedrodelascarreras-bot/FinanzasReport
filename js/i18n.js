@@ -300,12 +300,18 @@
     if (settingsLang) settingsLang.value = lang;
 
     // Update state
-    if (window.state?.userPrefs) window.state.userPrefs.language = lang;
+    if (window.state) {
+      if(!window.state.userPrefs) window.state.userPrefs = {};
+      window.state.userPrefs.language = lang;
+    }
   }
 
   // ── Called from the language dropdown (instant apply) ──
   function applyLanguageFromPref(lang) {
-    if (window.state?.userPrefs) window.state.userPrefs.language = lang;
+    if (window.state) {
+      if(!window.state.userPrefs) window.state.userPrefs = {};
+      window.state.userPrefs.language = lang;
+    }
     applyLanguage(lang);
     window.saveState?.();
     const msg = lang === 'en'
