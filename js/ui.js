@@ -15,7 +15,7 @@ function openCatReview(mode){
         .map(t=>t.id);
 
   if(!uncat.length){
-    showToast('✓ Todos los movimientos están categorizados','success');
+    showToast(t('all_categorized', '✓ Todos los movimientos están categorizados'),'success');
     return;
   }
   _qrQueue = uncat;
@@ -239,7 +239,7 @@ function nav(page){
   if(typeof closeImportHistoryMenu === 'function') closeImportHistoryMenu();
   if(typeof closeProfileDropdown === 'function') closeProfileDropdown();
   if(isMobileBlockedPage(page)){
-    showToast('Esa pantalla quedó disponible solo en desktop', 'info');
+    showToast(t('desktop_only_page', 'Esa pantalla quedó disponible solo en desktop'), 'info');
     page='dashboard';
   }
   if(page==='credit-cards') state.ccPageTab='resumen';

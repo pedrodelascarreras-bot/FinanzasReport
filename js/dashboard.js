@@ -588,7 +588,7 @@ function updateMonthPicker(){
   if(!sel)return;
   const months=getAvailableMonths();
   const cur=state.dashMonth||'';
-  const MNAMES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const MNAMES=[t('month_1'),t('month_2'),t('month_3'),t('month_4'),t('month_5'),t('month_6'),t('month_7'),t('month_8'),t('month_9'),t('month_10'),t('month_11'),t('month_12')];
   sel.innerHTML='<option value="">Mes actual</option>'+months.reverse().map(m=>{
     const[y,mo]=m.split('-');
     return'<option value="'+m+'" '+(m===cur?'selected':'')+'>'+MNAMES[+mo-1]+' '+y+'</option>';
@@ -611,7 +611,7 @@ async function generateDashInsights(){
   if(!monthTxns.length){feedEl.innerHTML='<div style="padding:16px;color:var(--text3);font-size:13px;">Sin movimientos para este mes.</div>';return;}
   const activeMk=getActiveDashMonth();
   const[iY,iM]=activeMk.split('-').map(Number);
-  const MNAMES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const MNAMES=[t('month_1'),t('month_2'),t('month_3'),t('month_4'),t('month_5'),t('month_6'),t('month_7'),t('month_8'),t('month_9'),t('month_10'),t('month_11'),t('month_12')];
   if(monthLabelEl)monthLabelEl.textContent=MNAMES[iM-1]+' '+iY;
   loadEl.style.display='flex';feedEl.style.display='none';
   const arsT=monthTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
@@ -1150,7 +1150,7 @@ function renderDashboard(){
     projected = isCurrentMonth ? Math.round(dailyRate * daysInMonth) : totalGastoARS;
   }
 
-  const dashMonthNames=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const dashMonthNames=[t('month_1'),t('month_2'),t('month_3'),t('month_4'),t('month_5'),t('month_6'),t('month_7'),t('month_8'),t('month_9'),t('month_10'),t('month_11'),t('month_12')];
   const insightSummary={
     mes:isTcView?(activeTcCycle?.label||'Ciclo actual'):(dashMonthNames[pM-1]+' '+pY),
     total_ars:arsMonth,
@@ -1288,7 +1288,7 @@ function renderDashboard(){
 
   // ── Selector y fecha ──
   updateMonthPicker();
-  const MNAMES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const MNAMES=[t('month_1'),t('month_2'),t('month_3'),t('month_4'),t('month_5'),t('month_6'),t('month_7'),t('month_8'),t('month_9'),t('month_10'),t('month_11'),t('month_12')];
   const _spendLabel = totalGastoARS>0 ? ' · $'+fmtN(totalGastoARS)+' gastados' : '';
   document.getElementById('dash-date').textContent=isTcView
     ?tcPeriodLabel
@@ -1300,7 +1300,7 @@ function renderDashboard(){
   const _titleEl=document.getElementById('dash-page-title');
   if(_titleEl){
     const _h=today.getHours();
-    const _greeting=_h<12?'Buenos días':_h<20?'Buenas tardes':'Buenas noches';
+    const _greeting=_h<12?t('splash_good_morning'):_h<20?t('splash_good_afternoon'):t('splash_good_evening');
     _titleEl.textContent=_greeting+', '+(state.userName||'Pedro');
   }
   const timelineData=getDashboardTimelineData(today);

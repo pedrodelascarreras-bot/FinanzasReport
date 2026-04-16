@@ -135,11 +135,10 @@
     ccAlerts.sort((a,b)=> a.days - b.days);
 
     // ── Strings ──
-    const DAYS   = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
-    const MONTHS = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto',
-                    'septiembre','octubre','noviembre','diciembre'];
+    const DAYS   = [t('day_0'),t('day_1'),t('day_2'),t('day_3'),t('day_4'),t('day_5'),t('day_6')];
+    const MONTHS = [t('month_1'),t('month_2'),t('month_3'),t('month_4'),t('month_5'),t('month_6'),t('month_7'),t('month_8'),t('month_9'),t('month_10'),t('month_11'),t('month_12')];
     const h = today.getHours();
-    const greeting = h<12 ? 'Buenos días' : h<20 ? 'Buenas tardes' : 'Buenas noches';
+    const greeting = h<12 ? t('splash_good_morning') : h<20 ? t('splash_good_afternoon') : t('splash_good_evening');
     const dateStr  = DAYS[today.getDay()]+' '+today.getDate()+' de '+MONTHS[today.getMonth()]+', '+today.getFullYear();
 
     const nextCloseAlert = ccAlerts[0] || null;

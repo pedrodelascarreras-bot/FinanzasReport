@@ -85,6 +85,49 @@
       remove_btn: 'Quitar',
       export_backup: 'Exportar backup',
       reset_data: 'Resetear datos',
+      // Dynamic strings
+      global_total_spent: 'GASTO TOTAL',
+      global_ars_spent: 'GASTO ARS',
+      global_usd_spent: 'GASTO USD',
+      global_available_margin: 'MARGEN DISPONIBLE',
+      global_payment_methods: 'MEDIOS DE PAGO',
+      global_official_dollar: 'DÓLAR OFICIAL',
+      global_live_agenda: 'Agenda viva',
+      global_spending_evolution: 'Evolución del gasto',
+      global_month_categories: 'Categorías del mes',
+      global_rising_category: 'CATEGORÍA EN ALZA',
+      global_closest_goal: 'META MÁS CERCANA',
+      global_period_income: 'INGRESO DEL PERÍODO',
+      global_usd_exposure: 'EXPOSICIÓN USD',
+      global_highest_expense: 'GASTO MÁS ALTO',
+      global_card_close: 'Cierre tarjeta',
+      global_card_due: 'Vencimiento tarjeta',
+      global_subscription: 'Suscripción',
+      global_fixed_expense: 'Gasto fijo',
+      global_next_installment: 'Próxima cuota',
+      global_date: 'Fecha',
+      global_description: 'Descripción',
+      global_category: 'Categoría',
+      global_method: 'Medio',
+      global_amount: 'Monto',
+      global_all_months: 'Todos los meses',
+      global_all_categories: 'Todas las categorías',
+      global_no_results: 'Sin resultados',
+      global_decision_center: 'CENTRO DE DECISIONES',
+      global_alerts_center: 'CENTRO DE ALERTAS Y DECISIONES',
+      splash_good_morning: 'Buenos días',
+      splash_good_afternoon: 'Buenas tardes',
+      splash_good_evening: 'Buenas noches',
+      splash_preparing: 'Preparando tu día...',
+      tab_title_dashboard: 'Finanzas · Dashboard',
+      all_categorized: '✓ Todos los movimientos están categorizados',
+      marked_not_duplicate: '✓ Marcados como gastos distintos',
+      desktop_only_page: 'Esa pantalla quedó disponible solo en desktop',
+      // month/days
+      month_1: 'Enero', month_2: 'Febrero', month_3: 'Marzo', month_4: 'Abril',
+      month_5: 'Mayo', month_6: 'Junio', month_7: 'Julio', month_8: 'Agosto',
+      month_9: 'Septiembre', month_10: 'Octubre', month_11: 'Noviembre', month_12: 'Diciembre',
+      day_0: 'Domingo', day_1: 'Lunes', day_2: 'Martes', day_3: 'Miércoles', day_4: 'Jueves', day_5: 'Viernes', day_6: 'Sábado'
     },
     en: {
       // Sidebar navigation
@@ -170,6 +213,49 @@
       remove_btn: 'Remove',
       export_backup: 'Export backup',
       reset_data: 'Reset data',
+      // Dynamic strings
+      global_total_spent: 'TOTAL SPENT',
+      global_ars_spent: 'ARS SPENT',
+      global_usd_spent: 'USD SPENT',
+      global_available_margin: 'AVAILABLE MARGIN',
+      global_payment_methods: 'PAYMENT METHODS',
+      global_official_dollar: 'OFFICIAL DOLLAR',
+      global_live_agenda: 'Live Agenda',
+      global_spending_evolution: 'Spending Evolution',
+      global_month_categories: 'Month Categories',
+      global_rising_category: 'RISING CATEGORY',
+      global_closest_goal: 'CLOSEST GOAL',
+      global_period_income: 'PERIOD INCOME',
+      global_usd_exposure: 'USD EXPOSURE',
+      global_highest_expense: 'HIGHEST EXPENSE',
+      global_card_close: 'Card Close',
+      global_card_due: 'Card Due',
+      global_subscription: 'Subscription',
+      global_fixed_expense: 'Fixed expense',
+      global_next_installment: 'Next installment',
+      global_date: 'Date',
+      global_description: 'Description',
+      global_category: 'Category',
+      global_method: 'Method',
+      global_amount: 'Amount',
+      global_all_months: 'All months',
+      global_all_categories: 'All categories',
+      global_no_results: 'No results',
+      global_decision_center: 'DECISION CENTER',
+      global_alerts_center: 'ALERTS & DECISIONS CENTER',
+      splash_good_morning: 'Good morning',
+      splash_good_afternoon: 'Good afternoon',
+      splash_good_evening: 'Good evening',
+      splash_preparing: 'Preparing your day...',
+      tab_title_dashboard: 'Finance · Dashboard',
+      all_categorized: '✓ All transactions are categorized',
+      marked_not_duplicate: '✓ Marked as unique expenses',
+      desktop_only_page: 'That screen is only available on desktop',
+      // month/days
+      month_1: 'January', month_2: 'February', month_3: 'March', month_4: 'April',
+      month_5: 'May', month_6: 'June', month_7: 'July', month_8: 'August',
+      month_9: 'September', month_10: 'October', month_11: 'November', month_12: 'December',
+      day_0: 'Sunday', day_1: 'Monday', day_2: 'Tuesday', day_3: 'Wednesday', day_4: 'Thursday', day_5: 'Friday', day_6: 'Saturday'
     }
   };
 
@@ -200,6 +286,13 @@
     // Set html lang attribute
     document.documentElement.lang = lang;
 
+    // Set document title
+    if (T['tab_title_dashboard']) {
+      document.title = T['tab_title_dashboard'];
+      const metaTitle = document.querySelector('meta[name="apple-mobile-web-app-title"]');
+      if (metaTitle) metaTitle.content = T['tab_title_dashboard'].split(' · ')[0];
+    }
+
     // Sync language selects so they stay in sync
     const pfLang = document.getElementById('pf-lang');
     if (pfLang) pfLang.value = lang;
@@ -219,6 +312,10 @@
       ? '🌐 Language switched to English'
       : '🌐 Idioma cambiado a Español';
     window.showToast?.(msg, 'success');
+    
+    // For widgets that need re-rendering
+    if(window.renderDashboard) window.renderDashboard();
+    if(window.renderTransactions) window.renderTransactions();
   }
 
   // ── Toggle between es and en ──
@@ -234,3 +331,4 @@
   window.applyLanguageFromPref = applyLanguageFromPref;
   window.toggleLanguage = toggleLanguage;
 })();
+

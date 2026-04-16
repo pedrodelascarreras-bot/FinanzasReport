@@ -109,6 +109,11 @@
       <span class="theme-toggle-icon">🌐</span>
       <span data-i18n="lang_toggle_btn">Switch to English</span>
     </button>
+    <div class="ai-badge-wrap" style="margin-top: 12px; display: flex; justify-content: center; opacity: 0.7; transition: opacity 0.2s ease;">
+      <div class="ai-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; background: var(--surface2); border: 1px solid var(--border); font-size: 11px; color: var(--text2); font-weight: 500; cursor: default;" onmouseover="this.parentElement.style.opacity='1'" onmouseout="this.parentElement.style.opacity='0.7'">
+        <span style="font-size: 12px;">✨</span> Built with Claude AI
+      </div>
+    </div>
   </div>
 
 </aside>
@@ -275,23 +280,23 @@
       <div class="dash-hero-main-col">
         <!-- Card principal: gasto del mes -->
         <div class="dash-hero-card dash-hero-clickable" onclick="nav('transactions')" title="Ver detalle de gastos">
-          <div class="dhc-eyebrow">GASTO TOTAL · <span id="dhc-month-label">—</span></div>
+          <div class="dhc-eyebrow"><span data-i18n="global_total_spent">GASTO TOTAL</span> · <span id="dhc-month-label">—</span></div>
           <div class="dhc-main">
             <div class="dhc-amount" id="kpi-ars">—</div>
             <span id="dhc-pct-inline" class="metric-inline"></span>
           </div>
           <div id="dhc-inner-grid" class="hero-inner-grid">
             <div class="hero-mini-card">
-              <div class="hero-mini-card-title">GASTO ARS</div>
+              <div class="hero-mini-card-title" data-i18n="global_ars_spent">GASTO ARS</div>
               <div class="hero-mini-card-value" id="dhc-ars-line">—</div>
             </div>
             <div class="hero-mini-card">
-              <div class="hero-mini-card-title">GASTO USD</div>
+              <div class="hero-mini-card-title" data-i18n="global_usd_spent">GASTO USD</div>
               <div class="hero-mini-card-value accent" id="dhc-usd-line">—</div>
             </div>
             <div id="dhc-margin-section" class="hero-wide-card clickable" style="display:none;" onclick="nav('income')" title="Ver ingresos y configuración">
               <div class="hero-wide-card-header">
-                <span class="hero-wide-card-title">MARGEN DISPONIBLE</span>
+                <span class="hero-wide-card-title" data-i18n="global_available_margin">MARGEN DISPONIBLE</span>
                 <span id="dhc-margin-val" class="hero-wide-card-value"></span>
               </div>
               <div class="hero-progress">
@@ -304,7 +309,7 @@
             </div>
             <div id="dash-tp-indicator" style="display:none;"></div>
             <div id="dhc-pay-method-section" class="hero-wide-card" style="display:none;">
-              <div class="hero-wide-card-title">MEDIOS DE PAGO</div>
+              <div class="hero-wide-card-title" data-i18n="global_payment_methods">MEDIOS DE PAGO</div>
               <div class="hero-pay-bar" id="dhc-pay-bar"></div>
               <div id="dhc-pay-labels" class="hero-pay-labels"></div>
             </div>
@@ -315,7 +320,7 @@
             <div class="dash-utility-topline">
               <div class="dash-dollar-heading">
                 <span class="dash-dollar-flag">🇺🇸</span>
-                <span class="dash-dollar-title">DÓLAR OFICIAL</span>
+                <span class="dash-dollar-title" data-i18n="global_official_dollar">DÓLAR OFICIAL</span>
               </div>
               <span id="usd-rate-source-badge" class="dash-utility-pill">manual</span>
             </div>
@@ -336,7 +341,7 @@
           </div>
           <button class="dash-utility-card dash-utility-card-timeline layout-widget" data-widget-key="timeline-card" id="timeline-card" onclick="nav('cuotas')">
             <div class="dash-utility-topline dash-utility-topline-compact">
-              <span class="dash-utility-title-main">Agenda viva</span>
+              <span class="dash-utility-title-main" data-i18n="global_live_agenda">Agenda viva</span>
               <span id="timeline-card-pill" class="dash-utility-pill">3 eventos</span>
             </div>
             <div class="dash-timeline-shell">
@@ -506,7 +511,7 @@
       <div class="chart-card layout-widget" data-widget-key="main-chart">
         <div class="chart-card-header">
           <div>
-            <div class="chart-card-title" id="dash-chart-title">Evolución del gasto</div>
+            <div class="chart-card-title" id="dash-chart-title" data-i18n="global_spending_evolution">Evolución del gasto</div>
             <div class="chart-card-sub" id="weekly-chart-sub">ARS acumulado</div>
           </div>
           <div class="chart-toolbar">
@@ -521,7 +526,7 @@
         <div class="chart-wrap chart-wrap-sm"><canvas id="chart-weekly"></canvas></div>
       </div>
       <div class="chart-card chart-card-clickable layout-widget" data-widget-key="categories-chart" onclick="nav('tendencia')" title="Ver tendencias por categoría">
-        <div class="chart-card-title chart-card-title-spaced">Categorías del mes</div>
+        <div class="chart-card-title chart-card-title-spaced" data-i18n="global_month_categories">Categorías del mes</div>
         <div id="cat-bars" class="cat-list"></div>
       </div>
     </div>
@@ -533,7 +538,7 @@
 
       <!-- Widget 1: Margen disponible -->
       <div class="dw-card dw-margin dw-card-clickable layout-widget" data-widget-key="margin-widget" onclick="nav('income')" title="Ver ingresos y configuración">
-        <div class="dw-label">MARGEN DISPONIBLE</div>
+        <div class="dw-label" data-i18n="global_available_margin">MARGEN DISPONIBLE</div>
         <div class="dw-value" id="dw-margen-val">—</div>
         <div class="dw-sub" id="dw-margen-sub">hasta fin de mes</div>
         <div class="dw-bar-track"><div class="dw-bar-fill" id="dw-margen-bar" style="background:var(--accent);width:0%;"></div></div>
@@ -542,7 +547,7 @@
 
       <!-- Widget 2: Categoría que más creció vs mes anterior -->
       <div class="dw-card dw-trend dw-card-clickable layout-widget" data-widget-key="trend-widget" onclick="openTrendDetail()" title="Ver comparación">
-        <div class="dw-label">CATEGORÍA EN ALZA</div>
+        <div class="dw-label" data-i18n="global_rising_category">CATEGORÍA EN ALZA</div>
         <div class="dw-value widget-value-tight" id="dw-trend-val">—</div>
         <div class="dw-sub" id="dw-trend-sub">vs mes anterior</div>
         <div class="widget-inline-row">
@@ -554,7 +559,7 @@
 
       <!-- Widget 3: Meta de ahorro más cercana -->
       <div class="dw-card dw-goal dw-card-clickable layout-widget" data-widget-key="goal-widget" onclick="nav('savings')" title="Ver ahorros">
-        <div class="dw-label">META MÁS CERCANA</div>
+        <div class="dw-label" data-i18n="global_closest_goal">META MÁS CERCANA</div>
         <div class="dw-value widget-value-tight" id="dw-goal-val">—</div>
         <div class="dw-sub" id="dw-goal-sub">Sin metas configuradas</div>
         <div class="dw-bar-track"><div class="dw-bar-fill" id="dw-goal-bar" style="background:var(--accent3);width:0%;"></div></div>
@@ -562,7 +567,7 @@
       </div>
 
       <div class="dw-card dw-income layout-widget" data-widget-key="income-widget" hidden>
-        <div class="dw-label">INGRESO DEL PERÍODO</div>
+        <div class="dw-label" data-i18n="global_period_income">INGRESO DEL PERÍODO</div>
         <div class="dw-value widget-value-tight" id="dw-income-val">—</div>
         <div class="dw-sub" id="dw-income-sub">ARS + USD convertidos</div>
         <div class="widget-inline-row">
@@ -573,7 +578,7 @@
       </div>
 
       <div class="dw-card dw-usd layout-widget" data-widget-key="usd-exposure-widget" hidden>
-        <div class="dw-label">EXPOSICIÓN USD</div>
+        <div class="dw-label" data-i18n="global_usd_exposure">EXPOSICIÓN USD</div>
         <div class="dw-value widget-value-tight" id="dw-usd-val">—</div>
         <div class="dw-sub" id="dw-usd-sub">del gasto del período</div>
         <div class="dw-bar-track"><div class="dw-bar-fill" id="dw-usd-bar" style="background:var(--accent2);width:0%;"></div></div>
@@ -581,7 +586,7 @@
       </div>
 
       <div class="dw-card dw-ticket layout-widget" data-widget-key="largest-widget" hidden>
-        <div class="dw-label">GASTO MÁS ALTO</div>
+        <div class="dw-label" data-i18n="global_highest_expense">GASTO MÁS ALTO</div>
         <div class="dw-value widget-value-tight" id="dw-largest-val">—</div>
         <div class="dw-sub" id="dw-largest-sub">mayor ticket registrado</div>
         <div class="widget-inline-row">
@@ -1275,8 +1280,12 @@
         <input id="f-search" class="search-input search-input-compact" type="text" placeholder="Buscar descripción, monto o categoría..." oninput="onSearchInput(this)">
         <button class="search-clear" id="search-clear-btn" onclick="clearSearch()">✕</button>
       </div>
-      <button class="btn btn-ghost" onclick="openRulesPanel()">Crear regla</button>
-      <button class="btn btn-ghost" onclick="openNewExpenseModal()">Nuevo gasto</button>
+      <button class="btn btn-ghost" onclick="openRulesPanel()" data-i18n="create_rule">Crear regla</button>
+      <button class="btn btn-ghost" onclick="exportTransactionsCSV()" title="Export CSV" style="display:flex;align-items:center;gap:4px;">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        CSV
+      </button>
+      <button class="btn btn-ghost" onclick="openNewExpenseModal()" data-i18n="new_expense">Nuevo gasto</button>
       <button class="btn btn-primary quick-review-btn" id="btn-quick-cat" onclick="openCatReview()">Revisar categorías <span id="qr-badge" class="quick-review-badge">0</span></button>
     </div>
   </div>
