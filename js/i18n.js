@@ -316,6 +316,11 @@
     // For widgets that need re-rendering
     if(window.renderDashboard) window.renderDashboard();
     if(window.renderTransactions) window.renderTransactions();
+    
+    // Auto translate dom if switching or rendering
+    setTimeout(() => {
+        if(window.translateDOM) window.translateDOM();
+    }, 50);
   }
 
   // ── Toggle between es and en ──
@@ -330,5 +335,204 @@
   window.applyLanguage = applyLanguage;
   window.applyLanguageFromPref = applyLanguageFromPref;
   window.toggleLanguage = toggleLanguage;
+
+  // ── Auto-translate DOM for English Demo ──
+  const DEMO_EN_DICT = {
+    'Suscripciones': 'Subscriptions',
+    'Ingreso consolidado del período': 'Consolidated income for the period',
+    'Prioridades claras para ': 'Clear priorities for ',
+    'Aparece cuando hay movimientos reales en el período': 'Appears when there are real transactions in the period',
+    'Gasto mensual': 'Monthly expense',
+    'Gasto semanal': 'Weekly expense',
+    'Gasto diario': 'Daily expense',
+    'Ingreso consolidado del período activo': 'Consolidated income of active period',
+    'Tu ticket individual más pesado del período activo': 'Your heaviest individual ticket of the active period',
+    'El período viene estable': 'The period is stable',
+    'El ritmo del período está bajo control': 'The period rhythm is under control',
+    'El ritmo actual proyecta cierre en rojo': 'Current rhythm projects closing in red',
+    'Gasto fijo': 'Fixed expense',
+    'Buscar, revisar y corregir movimientos': 'Search, review and correct transactions',
+    'Ordenar movimientos': 'Sort transactions',
+    'Definí el ingreso mensual para activar decisiones más precisas': 'Define monthly income to enable precise decisions',
+    'Definí tu base de ingresos': 'Define your income base',
+    'Ya estás al límite': 'You are already at the limit',
+    'Todavía tenés margen': 'You still have margin',
+    'Cuánto ya está tomado antes de arrancar el próximo período': 'How much is already taken before starting the next period',
+    'Porcentaje del ingreso comprometido': 'Percentage of committed income',
+    'Ciclos, vencimientos y detalle de tarjetas': 'Cycles, expirations and card details',
+    'Marcá un movimiento como tercero para seguirlo acá': 'Mark a transaction as third-party to track it here',
+    'No hay gastos de terceros': 'No third-party expenses',
+    'Tu ritmo diario promedio usando toda la historia': 'Your average daily rhythm using all history',
+    'Tu gasto mensual promedio con toda la historia': 'Your average monthly expense with all history',
+    'Rutina financiera': 'Financial routine',
+    'Gastos manuales': 'Manual expenses',
+    'Gastos de terceros': 'Third-party expenses',
+    'Presión semanal': 'Weekly pressure',
+    'Volumen operativo': 'Operational volume',
+    'Concentración': 'Concentration',
+    'Ritmo alto para este mes': 'High rhythm for this month',
+    'Seguir monitoreando': 'Keep monitoring',
+    'Sin urgencias': 'No urgencies',
+    'Semana despejada': 'Clear week',
+    'Control de ritmo': 'Rhythm control',
+    'El ticket individual más alto del período': 'The highest individual ticket of the period',
+    'Zona de control': 'Control zone',
+    'Palanca principal': 'Main lever',
+    'Cierre estimado al ritmo actual': 'Estimated close at current rhythm',
+    'Lo que todavía podés gastar sin pasarte del objetivo': 'What you can still spend without exceeding the target',
+    'Proyección automática del período activo': 'Automatic projection of active period',
+    'Calidad de datos': 'Data quality',
+    'Backup desactualizado': 'Outdated backup',
+    'Backup al día': 'Backup up to date',
+    'Exportar una copia de seguridad ahora': 'Export a backup now',
+    'Conviene renovar backup': 'Advisable to renew backup',
+    'Sin datos cargados en este ciclo': 'No data loaded in this cycle',
+    'Sin gastos de terceros por ahora': 'No third-party expenses for now',
+    'Todas las categorías': 'All categories',
+    'Todos los meses': 'All months',
+    'Sin movimientos aún': 'No transactions yet',
+    'Todavía no hay movimientos para revisar. Importá datos o cargá un gasto manual para empezar a ordenar el día a día.': 'No transactions to review yet. Import data or add a manual expense to start organizing your day.',
+    'Limpiar búsqueda': 'Clear search',
+    'Importar datos': 'Import data',
+    'Nuevo gasto': 'New expense',
+    'Sin ciclo activo': 'No active cycle',
+    'Sin conexión': 'No connection',
+    'Sin resultados': 'No results',
+    'Efectivo': 'Cash',
+    'Débito': 'Debit',
+    'Tarjeta': 'Card',
+    'Tarjeta de crédito': 'Credit card',
+    'Ahorro': 'Savings',
+    'Ahorros': 'Savings',
+    'Terceros': 'Third parties',
+    'Otros': 'Others',
+    'Siguiente paso': 'Next step',
+    'Resolver': 'Resolve',
+    'Ver detalle': 'View details',
+    'Ver tendencias': 'View trends',
+    'Abrir insights': 'Open insights',
+    'Abrir tarjetas': 'Open cards',
+    'Abrir ingresos': 'Open income',
+    'Volver al tablero principal': 'Back to main board',
+    'Cierre tarjeta': 'Card closing',
+    'Vencimiento tarjeta': 'Card expiration',
+    'Próxima cuota': 'Next installment',
+    'Próximo cobro': 'Next payment',
+    'Ritmo estimado al cierre mensual': 'Estimated rhythm at monthly close',
+    'Categoría líder': 'Leading category',
+    'Mes cerrado': 'Closed month',
+    'Lectura general': 'General reading',
+    'Alerta real': 'Real alert',
+    'Suscripción': 'Subscription',
+    'Cuotas': 'Installments',
+    'Compromisos': 'Commitments',
+    'Gasto de terceros': 'Third-party expense',
+    'Sin movimientos este mes': 'No transactions this month',
+    'Sin categoría': 'No category',
+    'Sin grupo': 'No group',
+    'Uncategorized': 'Uncategorized',
+    'Nuevo grupo': 'New group',
+    'Renombrar grupo': 'Rename group',
+    'Eliminar grupo': 'Delete group',
+    'Nueva categoría': 'New category',
+    'Editar categoría': 'Edit category',
+    'Eliminar categoría': 'Delete category',
+    'Categoría guardada': 'Category saved',
+    'Categoría eliminada': 'Category deleted',
+    'Grupo eliminado': 'Group deleted',
+    'Atajos': 'Shortcuts',
+    'Agenda': 'Agenda',
+    'Saldo': 'Balance',
+    'Movimientos': 'Transactions',
+    'Presupuesto': 'Budget',
+    'Notas': 'Notes',
+    'Dashboard': 'Dashboard',
+    'Fin de mes': 'End of month',
+    'Hoy': 'Today',
+    'Mañana': 'Tomorrow',
+    'Nunca': 'Never',
+    'Todo': 'All',
+    'Todos': 'All',
+    'Activa': 'Active',
+    'Pausada': 'Paused',
+    'Activar': 'Activate',
+    'Pausar': 'Pause',
+    'Premium': 'Premium',
+    'Configuración': 'Settings',
+    'Config': 'Config',
+    'Perfil actualizado': 'Profile updated',
+    'Cuenta eliminada': 'Account deleted',
+    'Diseño restablecido': 'Design reset',
+    'Preferencias guardadas': 'Preferences saved',
+    'Gasto agregado': 'Expense added',
+    'Gasto eliminado': 'Expense deleted',
+    'Conectá tu cuenta de Google': 'Connect your Google account',
+    'Tu cuenta ya está sincronizada. Podés continuar al dashboard.': 'Your account is already synchronized. You can continue to the dashboard.',
+    'Sincronizá tus datos bancarios y accedé desde cualquier dispositivo.': 'Synchronize your bank data and access from any device.',
+    'Continuar': 'Continue',
+    'Contectar con Google': 'Connect with Google',
+    'Saldo actual': 'Current balance',
+    'Total gastado': 'Total spent',
+    'Sin margen calculado': 'No margin calculated',
+    'Necesitás más historial': 'You need more history',
+    'Comparador de tarjetas': 'Card comparator'
+  };
+
+  let _translating = false;
+  window.translateDOM = function() {
+    if(window.state?.userPrefs?.language !== 'en') return; // Only translate when English
+    if(_translating) return;
+    _translating = true;
+    
+    const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
+    let node;
+    while(node = walker.nextNode()) {
+      const text = node.nodeValue;
+      if(!text) continue;
+      const tTrim = text.trim();
+      if(!tTrim) continue;
+      
+      // Exact match
+      if(DEMO_EN_DICT[tTrim]) {
+         node.nodeValue = text.replace(tTrim, DEMO_EN_DICT[tTrim]);
+         continue;
+      }
+      
+      // Partial matches (sort by length descending to not overlap words)
+      const keys = Object.keys(DEMO_EN_DICT).sort((a,b)=>b.length - a.length);
+      let newText = text;
+      for(let k of keys) {
+        if(newText.includes(k)) {
+          newText = newText.replace(new window.RegExp(k, 'g'), DEMO_EN_DICT[k]);
+        }
+      }
+      if(newText !== text) {
+        node.nodeValue = newText;
+      }
+    }
+    _translating = false;
+  };
+
+  // Setup mutation observer to automatically translate any newly injected HTML
+  document.addEventListener('DOMContentLoaded', () => {
+    const observer = new MutationObserver(mutations => {
+       if(window.state?.userPrefs?.language !== 'en') return;
+       // Only trigger translateDOM if real nodes were added
+       let shouldTranslate = false;
+       for(let m of mutations) {
+         if(m.addedNodes.length > 0) shouldTranslate = true;
+       }
+       if(shouldTranslate) {
+         // Debounce translation
+         clearTimeout(window._domTranslateTimer);
+         window._domTranslateTimer = setTimeout(window.translateDOM, 10);
+       }
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
+    
+    // Initial paint translation
+    setTimeout(window.translateDOM, 500);
+  });
+
 })();
 
