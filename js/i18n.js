@@ -555,7 +555,7 @@
 
   let _translating = false;
   window.translateDOM = function() {
-    if(window.state?.userPrefs?.language !== 'en') return; // Only translate when English
+    if(document.documentElement.lang !== 'en') return; // Only translate when English
     if(_translating) return;
     _translating = true;
     
@@ -605,7 +605,7 @@
   // Setup mutation observer to automatically translate any newly injected HTML
   document.addEventListener('DOMContentLoaded', () => {
     const observer = new MutationObserver(mutations => {
-       if(window.state?.userPrefs?.language !== 'en') return;
+       if(document.documentElement.lang !== 'en') return;
        // Only trigger translateDOM if real nodes were added
        let shouldTranslate = false;
        for(let m of mutations) {
