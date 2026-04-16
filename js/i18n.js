@@ -475,7 +475,82 @@
     'Total gastado': 'Total spent',
     'Sin margen calculado': 'No margin calculated',
     'Necesitás más historial': 'You need more history',
-    'Comparador de tarjetas': 'Card comparator'
+    'Comparador de tarjetas': 'Card comparator',
+    
+    // Additional strings from screenshots
+    'CENTRO DE ALERTAS Y DECISIONES': 'ALERTS AND DECISIONS CENTER',
+    'Alertas reales y próximos pasos para': 'Real alerts and next steps for',
+    'Última copia hace': 'Last backup was',
+    'Tener una copia reciente te protege antes de grandes cambios o importaciones.': 'Having a recent backup protects you before big changes or imports.',
+    'del ingreso': 'of income',
+    'Te quedan': 'You have left',
+    'disponibles': 'available',
+    'Presupuesto': 'Budget',
+    'PROMEDIO / DÍA': 'AVERAGE / DAY',
+    'ESTIMACIÓN ACTIVA HASTA': 'ACTIVE ESTIMATION UNTIL',
+    'Mostrando': 'Showing',
+    'movimientos': 'transactions',
+    'FECHA': 'DATE',
+    'DESCRIPCIÓN': 'DESCRIPTION',
+    'CATEGORÍA': 'CATEGORY',
+    'MEDIO': 'METHOD',
+    'MONTO': 'AMOUNT',
+    'Cambiar a Español': 'Switch to Spanish',
+    'Crear regla': 'Create rule',
+    'Revisar categorías': 'Review categories',
+    'Buscar descripción, mo': 'Search description, am', // placeholder prefix
+    'Por mes': 'By month',
+    'Todas las categorías': 'All categories',
+    'Mes': 'Month',
+    'Editar diseño': 'Edit layout',
+    'APERTURA': 'OPENING',
+    'CIERRE': 'CLOSING',
+    'VENCIMIENTO': 'EXPIRATION',
+    'TOTAL SPENT': 'TOTAL SPENT',
+    'ARS SPENT': 'ARS SPENT',
+    'USD SPENT': 'USD SPENT',
+    'AVAILABLE MARGIN': 'AVAILABLE MARGIN',
+    'PAYMENT METHODS': 'PAYMENT METHODS',
+    'CICLO TARJETAS': 'CARD CYCLES',
+    'PROYECCIÓN AL CIERRE': 'CLOSING PROJECTION',
+    'ALERTAS': 'ALERTS',
+    'TAREA': 'TASK',
+    'LECTURA ASISTIDA': 'ASSISTED READING',
+    'MOSTRAR': 'SHOW',
+    'Ocultar': 'Hide',
+    'Ver detalle de gastos': 'View expense details',
+    'Ciclo actual': 'Current cycle',
+    'Todas': 'All',
+    'Duplicados': 'Duplicates',
+    'De terceros': 'Third-party',
+    'Sin categoría': 'Uncategorized',
+    
+    // Dates & Months (Lowercase / Capitalized / Uppercase)
+    ' de mar de ': ' of Mar ',
+    ' de abr de ': ' of Apr ',
+    ' de may de ': ' of May ',
+    ' de jun de ': ' of Jun ',
+    ' de jul de ': ' of Jul ',
+    ' de ago de ': ' of Aug ',
+    ' de sep de ': ' of Sep ',
+    ' de oct de ': ' of Oct ',
+    ' de nov de ': ' of Nov ',
+    ' de dic de ': ' of Dec ',
+    ' de ene de ': ' of Jan ',
+    ' de feb de ': ' of Feb ',
+    'Enero': 'January', 'Febrero': 'February', 'Marzo': 'March', 'Abril': 'April',
+    'Mayo': 'May', 'Junio': 'June', 'Julio': 'July', 'Agosto': 'August',
+    'Septiembre': 'September', 'Octubre': 'October', 'Noviembre': 'November', 'Diciembre': 'December',
+    'enero': 'january', 'febrero': 'february', 'marzo': 'march', 'abril': 'april',
+    'mayo': 'may', 'junio': 'june', 'julio': 'july', 'agosto': 'august',
+    'septiembre': 'september', 'octubre': 'october', 'noviembre': 'november', 'diciembre': 'december',
+    'ENERO': 'JANUARY', 'FEBRERO': 'FEBRUARY', 'MARZO': 'MARCH', 'ABRIL': 'APRIL',
+    'MAYO': 'MAY', 'JUNIO': 'JUNE', 'JULIO': 'JULY', 'AGOSTO': 'AUGUST',
+    'SEPTIEMBRE': 'SEPTEMBER', 'OCTUBRE': 'OCTOBER', 'NOVIEMBRE': 'NOVEMBER', 'DICIEMBRE': 'DECEMBER',
+    ' d\u00edas': ' days', // ' días'
+    ' d\u00eda': ' day', // ' día'
+    // Ensure boundary space for " de " inside dates etc
+    ' de ': ' of '
   };
 
   let _translating = false;
@@ -486,6 +561,8 @@
     
     const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, null, false);
     let node;
+    const keys = Object.keys(DEMO_EN_DICT).sort((a,b)=>b.length - a.length);
+    
     while(node = walker.nextNode()) {
       const text = node.nodeValue;
       if(!text) continue;
@@ -498,18 +575,30 @@
          continue;
       }
       
-      // Partial matches (sort by length descending to not overlap words)
-      const keys = Object.keys(DEMO_EN_DICT).sort((a,b)=>b.length - a.length);
+      // Partial matches
       let newText = text;
       for(let k of keys) {
         if(newText.includes(k)) {
-          newText = newText.replace(new window.RegExp(k, 'g'), DEMO_EN_DICT[k]);
+          // Use split/join instead of regex to avoid escaping issues
+          newText = newText.split(k).join(DEMO_EN_DICT[k]);
         }
       }
       if(newText !== text) {
         node.nodeValue = newText;
       }
     }
+    
+    // Also translate placeholders
+    document.querySelectorAll('input,textarea').forEach(inp => {
+       if(inp.placeholder) {
+         let pText = inp.placeholder;
+         for(let k of keys) {
+           if(pText.includes(k)) pText = pText.split(k).join(DEMO_EN_DICT[k]);
+         }
+         if(pText !== inp.placeholder) inp.placeholder = pText;
+       }
+    });
+
     _translating = false;
   };
 
