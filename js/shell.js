@@ -1087,6 +1087,11 @@
     window.loadState = function(...args){
       const result = originalLoadState.apply(this, args);
       queueUiSync();
+      // Apply saved language preference after state is restored
+      requestAnimationFrame(() => {
+        const lang = window.state?.userPrefs?.language || 'es';
+        window.applyLanguage?.(lang);
+      });
       return result;
     };
   }
