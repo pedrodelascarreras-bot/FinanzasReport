@@ -121,7 +121,6 @@ function renderIncomePage() {
   }).join('');
 
   // 6. Insights Right Panel calcs
-  const usdPctChange = -12.4; // simulated
   const nextIncomes = state.incomeSources.slice(0,3).map((s,i)=>`
     <div class="i-next-row">
       <div class="i-next-date"><span>${10+(i*5)}</span><small>ABR</small></div>
@@ -133,7 +132,50 @@ function renderIncomePage() {
   const arsPct = curCombined>0? Math.round((curARS/curCombined)*100) : 0;
   const usdPct = curCombined>0? Math.round(((curUSD*TC)/curCombined)*100) : 0;
 
+  // New generic dynamic logic for insights
+  let biggestSourceAmt = 0;
+  let biggestSourceName = "—";
+  let biggestSourceType = "N";
+  let biggestSourceColor = "#7c3aed";
+  let activeSrcs = [];
+  state.incomeSources.forEach(s => {
+    let amt = curItem.sources?.[s.id] || 0;
+    if (s.currency === 'USD') amt *= TC;
+    if (amt > 0) activeSrcs.push({ name: s.name, color: s.color||'#7c3aed', amt });
+    if (amt > biggestSourceAmt) {
+      biggestSourceAmt = amt;
+      biggestSourceName = s.name;
+      biggestSourceColor = s.color || "#7c3aed";
+      biggestSourceType = s.name.charAt(0).toUpperCase();
+    }
+  });
+
+  const biggestHtml = biggestSourceAmt > 0 ? `<div style="display:flex;align-items:center;gap:8px;margin-top:6px;"><div style="width:24px;height:24px;background:${biggestSourceColor}22;color:${biggestSourceColor};border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;">${biggestSourceType}</div><div><div style="font-size:12px;font-weight:700;color:#1e293b;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90px;">${esc(biggestSourceName)}</div><div style="font-size:12px;font-weight:800;">$${fmtN(biggestSourceAmt)}</div></div></div>` : '<div style="font-size:12px;font-weight:700;color:#64748b;margin-top:10px;">—</div>';
+
+  let alertHtml = '';
+  if (months.length > 1) {
+    const prevMk = months[1].month;
+    const prevUsd = getMonthTotalUSD(months[1]);
+    const diffUsd = curUSD - prevUsd;
+    if (diffUsd < 0 && prevUsd > 0) {
+      const pctDrop = Math.abs((diffUsd / prevUsd) * 100).toFixed(1);
+      alertHtml = `<div class="ipalert"><div class="ipalert-k">⚠️ ATENCIÓN</div><div class="ipalert-t">Tu ingreso en USD bajó</div><div class="ipalert-s">Recibiste USD ${fmtN(Math.abs(diffUsd))} menos que el mes anterior.</div><div class="ipalert-circ"><div class="ipalert-circ-t">-${pctDrop}%</div><div class="ipalert-circ-s">vs. ${fmtMonthLabel(prevMk)}</div></div></div>`;
+    }
+  }
+
+  activeSrcs.sort((a,b)=>b.amt-a.amt);
+  let dOff = 0;
+  const totDist = activeSrcs.reduce((sum, s)=>sum+s.amt, 0) || 1;
+  const donutCircles = activeSrcs.slice(0,3).map(s => {
+     let cPct = (s.amt/totDist) * 220;
+     let html = `<circle cx="45" cy="45" r="35" fill="none" stroke="${s.color}" stroke-width="12" stroke-dasharray="220" stroke-dashoffset="${220 - cPct}" style="transform: rotate(${(dOff/220)*360}deg); transform-origin: center;"/>`;
+     dOff += cPct;
+     return html;
+  }).join('');
+  const distribListHtml = activeSrcs.slice(0,3).map(s => `<div style="display:flex;justify-content:space-between;"><span><span style="color:${s.color};">●</span> ${esc(s.name)}</span> <span>${Math.round((s.amt/totDist)*100)}%</span></div>`).join('');
+
   // 7. Inject DOM
+  const incInsightsHidden = localStorage.getItem('fin_inc_insights') === 'hidden';
   root.innerHTML = `
     <style>
       #income-native-root {
@@ -146,8 +188,11 @@ function renderIncomePage() {
       .inc-hdr-title { font-size: 38px; font-weight: 800; letter-spacing: -0.04em; color: #1a1a24; line-height: 1; margin-bottom: 6px; }
       .inc-hdr-sub { font-size: 13px; color: #6e6b81; }
       
-      .inc-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; }
-      @media(max-width:1100px){ .inc-layout{ grid-template-columns: 1fr; } }
+      .inc-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; transition: grid-template-columns 0.35s cubic-bezier(.22,1,.36,1); }
+      .inc-layout.insights-hidden { grid-template-columns: 1fr 0px !important; }
+      .inc-layout.insights-hidden .ipan { width:0; overflow:hidden; padding:0; opacity:0; pointer-events:none; min-width:0; }
+      .ipan { transition: width 0.35s cubic-bezier(.22,1,.36,1), opacity 0.25s ease, padding 0.3s ease; overflow:hidden; min-width:0; }
+      @media(max-width:1100px){ .inc-layout{ grid-template-columns: 1fr !important; } }
       
       /* Top Widgets */
       .inc-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
@@ -263,7 +308,7 @@ function renderIncomePage() {
       </div>
     </div>
 
-    <div class="inc-layout">
+    <div class="inc-layout ${incInsightsHidden ? 'insights-hidden' : ''}">
       <!-- MAIN LEFT -->
       <div class="inc-main fade-up">
         
@@ -425,31 +470,18 @@ function renderIncomePage() {
       <!-- INSIGHTS RIGHT PANE -->
       <div class="ipan fade-up" style="animation-delay:0.1s;">
         <div class="ipan-hdr">
-          <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:16px;">💡</span> INSIGHTS</div>
-          <div style="width:36px;height:20px;background:#7c3aed;border-radius:10px;display:flex;align-items:center;padding:2px;justify-content:flex-end;"><div style="width:16px;height:16px;background:#fff;border-radius:50%;"></div></div>
+          <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:16px;">💡</span> REPORTE MENSUAL</div>
+          <button class="ipan-toggle-btn" onclick="toggleIncomeInsights()" title="Ocultar insights">×</button>
         </div>
 
-        <div class="ipalert">
-          <div class="ipalert-k">⚠️ ATENCIÓN</div>
-          <div class="ipalert-t">Tu ingreso en USD bajó</div>
-          <div class="ipalert-s">Recibiste USD 120,00 menos que el mes anterior.</div>
-          <div class="ipalert-circ">
-            <div class="ipalert-circ-t">-12,4%</div>
-            <div class="ipalert-circ-s">vs. ${months[1]?fmtMonthLabel(months[1].month):'Marzo'}</div>
-          </div>
-        </div>
-
-        <div class="ipan-box">
-          <div class="ip-title">PRÓXIMOS INGRESOS <a href="#">Ver calendario</a></div>
-          ${nextIncomes || '<div class="empty-state">No hay próximos ingresos</div>'}
-        </div>
+        ${alertHtml}
 
         <div class="ipan-box" style="display:flex;gap:16px;align-items:center;">
-          <div style="width:40px;height:40px;border-radius:8px;background:#fff7ed;color:#ea580c;display:flex;align-items:center;justify-content:center;font-size:20px;">💡</div>
+          <div style="width:40px;height:40px;border-radius:8px;background:#f3e8ff;color:#9333ea;display:flex;align-items:center;justify-content:center;font-size:20px;">💼</div>
           <div style="flex:1;">
-            <div style="font-size:10px;font-weight:700;color:#8e8b9e;letter-spacing:0.04em;">PODRÍAS SUMAR</div>
-            <div style="font-size:18px;font-weight:800;color:#1e293b;margin:2px 0;">$35.884,00</div>
-            <div style="font-size:11px;color:#64748b;">Si cobrás tus 2 proyectos pendientes.</div>
+            <div style="font-size:10px;font-weight:800;color:#8e8b9e;letter-spacing:0.04em;">POTENCIAL BASE</div>
+            <div style="font-size:18px;font-weight:800;color:#1e293b;margin:2px 0;">$${fmtN(state.incomeSources.reduce((s,i)=>s+(i.currency==='USD'?i.base*TC:i.base),0))}</div>
+            <div style="font-size:11px;color:#64748b;">Si cobrás todos tus fijos configurados.</div>
           </div>
         </div>
 
@@ -457,17 +489,11 @@ function renderIncomePage() {
           <div class="ip-mini">
             <div class="ip-mini-lbl">PROMEDIO MENSUAL</div>
             <div class="ip-mini-val">$${fmtN(avg3)}</div>
-            <div style="font-size:11px;font-weight:600;color:#10b981;">↑ 4% vs. abr.</div>
+            <div style="font-size:11px;font-weight:600;color:#7c3aed;">Últimos 3 meses.</div>
           </div>
           <div class="ip-mini">
             <div class="ip-mini-lbl">MAYOR INGRESO</div>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
-              <div style="width:24px;height:24px;background:#000;color:#e50914;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;">N</div>
-              <div>
-                <div style="font-size:12px;font-weight:700;color:#1e293b;">Netflix</div>
-                <div style="font-size:12px;font-weight:800;">$6.490,00</div>
-              </div>
-            </div>
+            ${biggestHtml}
           </div>
         </div>
 
@@ -488,20 +514,17 @@ function renderIncomePage() {
         </div>
 
         <div class="ipan-box">
-          <div class="ip-title">DISTRIBUCIÓN DE FUENTES <a href="#">Ver detalle →</a></div>
+          <div class="ip-title">DISTRIBUCIÓN DE FUENTES</div>
           <div style="display:flex;gap:20px;align-items:center;">
             <div style="position:relative;width:90px;height:90px;">
               <svg width="90" height="90" viewBox="0 0 90 90" style="transform:rotate(-90deg);">
                 <circle cx="45" cy="45" r="35" fill="none" stroke="#f1f5f9" stroke-width="12"/>
-                <circle cx="45" cy="45" r="35" fill="none" stroke="#7c3aed" stroke-width="12" stroke-dasharray="220" stroke-dashoffset="110"/>
-                <circle cx="45" cy="45" r="35" fill="none" stroke="#38bdf8" stroke-width="12" stroke-dasharray="220" stroke-dashoffset="180"/>
+                ${donutCircles}
               </svg>
               <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">$${fmtN(curCombined/1000)}k</div>
             </div>
             <div style="flex:1;font-size:10px;font-weight:600;display:flex;flex-direction:column;gap:8px;">
-              <div style="display:flex;justify-content:space-between;"><span><span style="color:#7c3aed;">●</span> Sueldo Ppal</span> <span>55,9%</span></div>
-              <div style="display:flex;justify-content:space-between;"><span><span style="color:#38bdf8;">●</span> Freelance</span> <span>22,4%</span></div>
-              <div style="display:flex;justify-content:space-between;"><span><span style="color:#fcd34d;">●</span> Rentas</span> <span>21,7%</span></div>
+              ${distribListHtml}
             </div>
           </div>
         </div>
@@ -670,6 +693,17 @@ function saveIncome(){
   state.income.ars=pn(document.getElementById('inc-ars').value);state.income.varArs=pn(document.getElementById('inc-var-ars').value);state.income.usd=pn(document.getElementById('inc-usd').value);state.income.varUsd=pn(document.getElementById('inc-var-usd').value);
   state.savingsGoal=parseInt(document.getElementById('inc-save').value)||20;state.alertThreshold=parseInt(document.getElementById('inc-alert').value)||80;
   saveState();showToast('✓ Guardado','success');refreshAll();
+}
+
+function toggleIncomeInsights() {
+  const layout = document.querySelector('.inc-layout');
+  if (!layout) return;
+  const isHidden = layout.classList.toggle('insights-hidden');
+  localStorage.setItem('fin_inc_insights', isHidden ? 'hidden' : 'visible');
+  
+  // Change button text/content
+  const btn = layout.querySelector('.ipan-toggle-btn');
+  if (btn) btn.textContent = isHidden ? '📊' : '×';
 }
 
 // ══ API KEY ══

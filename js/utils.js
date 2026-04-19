@@ -116,8 +116,6 @@ function toggleSidebar(){
   const app=document.querySelector('.app');
   const collapsed=app.classList.toggle('sidebar-collapsed');
   localStorage.setItem('fin_sidebar',collapsed?'collapsed':'open');
-  const btn=document.getElementById('sidebar-open-btn');
-  if(btn)btn.style.display=collapsed?'flex':'none';
 }
 window.addEventListener('load',()=>{
   const active=document.querySelector('.page.active');
