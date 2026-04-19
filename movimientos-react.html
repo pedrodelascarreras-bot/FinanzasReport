@@ -28,302 +28,633 @@
 <div id="root"></div>
 
 <script type="text/babel">
-const { useState, useRef, useEffect, useCallback } = React;
+const { useState, useRef, useEffect } = React;
 
-/* ─── palette ─── */
-const P = '#6B4FE8';
-const P_LIGHT = 'rgba(107,79,232,0.09)';
-const P_BORDER = 'rgba(107,79,232,0.18)';
-const GREEN = '#1a8a38';
-const RED = '#FF3B30';
+const P = '#5732F3';
+const P_DARK = '#2A1B68';
+const P_LIGHT = 'rgba(87,50,243,0.075)';
+const P_BORDER = 'rgba(87,50,243,0.14)';
+const GREEN = '#1EAD68';
+const ARS_DARK = '#221C38';
+const RED = '#FF5A6B';
+const TEXT = '#1A1633';
+const SUBTLE = '#7A7593';
+const BORDER = 'rgba(97, 89, 139, 0.10)';
+const SURFACE = '#FFFFFF';
+const PAGE_BG = '#F3F4FA';
+const PANEL_BG = '#F8F8FD';
 
-/* ─── helpers ─── */
-const fmt = (n, dec=2) =>
+const fmt = (n, dec = 2) =>
   '$' + Math.abs(n).toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
 const fmtShort = n => '$' + Math.round(Math.abs(n)).toLocaleString('es-AR');
+const fmtUSD = n => `USD ${Math.abs(n).toFixed(2).replace('.', ',')}`;
 
-/* ─── data ─── */
 const GROUPS = [
   {
-    date: '2026-04-19', day: 'SÁBADO', label: '19 ABRIL',
+    date: '2026-04-19',
+    day: 'SÁBADO',
+    label: '19 ABRIL',
     vsAvg: +12,
+    dailyAverage: '$14.361',
     txns: [
-      { id:1,  time:'00:46', name:'DLO',                        initials:'DLO', bg:'#1d1d1f', fg:'#fff',    cat:'Kiosco',         catC:'#9333ea', amt:-17775,    cur:'ARS', note:null },
-      { id:2,  time:'13:21', name:"McDonald's Acassuso",        initials:'M',   bg:'#FFC72C', fg:'#C8102E',  cat:'Restaurantes',   catC:'#f59e0b', amt:14.99,    cur:'USD', arsEq:14999, note:null },
-      { id:3,  time:'19:08', name:'PedidosYa – Shell San Isidro',initials:'P',  bg:'#FF3008', fg:'#fff',    cat:'Delivery',       catC:'#0ea5e9', amt:-13688,   cur:'ARS', note:'Cena con Juli' },
-    ]
+      { id: 1, time: '00:46', name: 'DLO', merchant: 'dlo', fallback: 'DLO', cat: 'Kiosco', catC: '#8F63FF', amt: -17775, cur: 'ARS' },
+      { id: 2, time: '13:21', name: "McDonald's Acassuso", merchant: 'mcd', fallback: 'M', cat: 'Restaurantes', catC: '#6F55F7', amt: 14.99, cur: 'USD', arsEq: 14999 },
+      { id: 3, time: '19:08', name: 'PedidosYa - Shell San Isidro', merchant: 'pedidosya', fallback: 'P', cat: 'Delivery', catC: '#5B6EF5', amt: -13688, cur: 'ARS', note: 'Cena con Juli' },
+    ],
   },
   {
-    date: '2026-04-18', day: 'VIERNES', label: '18 ABRIL',
+    date: '2026-04-18',
+    day: 'VIERNES',
+    label: '18 ABRIL',
     vsAvg: -5,
+    dailyAverage: '$14.361',
     txns: [
-      { id:4,  time:'19:43', name:"McDonald's Acassuso",        initials:'M',   bg:'#FFC72C', fg:'#C8102E',  cat:'Restaurantes',   catC:'#f59e0b', amt:-13688,   cur:'ARS', note:null },
-      { id:5,  time:'19:45', name:'PedidosYa – Shell San Isidro',initials:'P',  bg:'#FF3008', fg:'#fff',    cat:'Delivery',       catC:'#0ea5e9', amt:-13688,   cur:'ARS', note:null },
-      { id:6,  time:'14:32', name:'YPF ACA – Av. Libertador',   initials:'YPF', bg:'#00308F', fg:'#FFD100', cat:'Transporte',     catC:'#10b981', amt:9.85,     cur:'USD', arsEq:9850, note:'Carga de combustible' },
-      { id:7,  time:'11:18', name:'Café Martínez',               initials:'CM',  bg:'#2c1506', fg:'#d4a063', cat:'Cafeterías',     catC:'#8b5cf6', amt:-4250,    cur:'ARS', note:'Reunión de trabajo' },
-    ]
+      { id: 4, time: '19:43', name: "McDonald's Acassuso", merchant: 'mcd', fallback: 'M', cat: 'Restaurantes', catC: '#6F55F7', amt: -13688, cur: 'ARS' },
+      { id: 5, time: '19:45', name: 'PedidosYa - Shell San Isidro', merchant: 'pedidosya', fallback: 'P', cat: 'Delivery', catC: '#5B6EF5', amt: -13688, cur: 'ARS' },
+      { id: 6, time: '14:32', name: 'YPF ACA - Av. Libertador', merchant: 'ypf', fallback: 'YPF', cat: 'Transporte', catC: '#3DB98B', amt: 9.85, cur: 'USD', arsEq: 9850, note: 'Carga de combustible' },
+      { id: 7, time: '11:18', name: 'Café Martinez', merchant: 'martinez', fallback: 'M', cat: 'Cafeterías', catC: '#8F63FF', amt: -4250, cur: 'ARS', note: 'Reunión de trabajo', customLogoUrl: 'data:image/svg+xml;utf8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 64 64%22%3E%3Cdefs%3E%3ClinearGradient id=%22g%22 x1=%220%22 y1=%220%22 x2=%221%22 y2=%221%22%3E%3Cstop stop-color=%22%23121010%22/%3E%3Cstop offset=%221%22 stop-color=%22%23332A21%22/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width=%2264%22 height=%2264%22 rx=%2232%22 fill=%22url(%23g)%22/%3E%3Ctext x=%2232%22 y=%2237%22 text-anchor=%22middle%22 font-size=%2214%22 font-family=%22Arial%22 font-weight=%22700%22 fill=%22%23E7D1AA%22%3EMART%3C/text%3E%3C/svg%3E' },
+    ],
   },
   {
-    date: '2026-04-17', day: 'JUEVES', label: '17 ABRIL',
+    date: '2026-04-17',
+    day: 'JUEVES',
+    label: '17 ABRIL',
     vsAvg: -18,
+    dailyAverage: '$14.361',
     txns: [
-      { id:8,  time:'19:48', name:'Hiper Changomas',             initials:'HC',  bg:'#e8312a', fg:'#fff',    cat:'Supermercado',   catC:'#22c55e', amt:-14361.27,cur:'ARS', note:null },
-      { id:9,  time:'18:55', name:'Market Acassuso Av. Liber',   initials:'MA',  bg:'#1e40af', fg:'#fff',    cat:'Supermercado',   catC:'#22c55e', amt:-14261,   cur:'ARS', note:null },
-      { id:10, time:'12:11', name:'SBA* Netflix.com',            initials:'N',   bg:'#E50914', fg:'#fff',    cat:'Entretenimiento',catC:'#ec4899', amt:3.59,     cur:'USD', arsEq:3599, note:'Suscripción mensual' },
-      { id:11, time:'09:32', name:'Taxi Premun',                  initials:'TX',  bg:'#f59e0b', fg:'#1d1d1f',cat:'Transporte',     catC:'#10b981', amt:-3599,    cur:'ARS', note:null },
-      { id:12, time:'08:15', name:'Starbucks',                   initials:'SB',  bg:'#00704A', fg:'#fff',    cat:'Cafeterías',     catC:'#8b5cf6', amt:-2599,    cur:'ARS', note:null },
-    ]
+      { id: 8, time: '19:48', name: 'Hiper Changomas', merchant: 'changomas', fallback: 'C', cat: 'Supermercado', catC: '#58C97B', amt: -14361.27, cur: 'ARS' },
+      { id: 9, time: '18:35', name: 'Market Acassuso Av. Liber', merchant: 'market', fallback: 'M', cat: 'Supermercado', catC: '#58C97B', amt: -14261, cur: 'ARS' },
+      { id: 10, time: '12:11', name: 'SBA* Netflix.com', merchant: 'netflix', fallback: 'N', cat: 'Entretenimiento', catC: '#8F63FF', amt: 3.59, cur: 'USD', arsEq: 3599, note: 'Suscripción mensual' },
+      { id: 11, time: '09:32', name: 'Taxi Premium', merchant: 'taxi', fallback: 'T', cat: 'Transporte', catC: '#3DB98B', amt: -3599, cur: 'ARS' },
+      { id: 12, time: '08:15', name: 'Starbucks', merchant: 'starbucks', fallback: 'S', cat: 'Cafeterías', catC: '#8F63FF', amt: -2599, cur: 'ARS' },
+    ],
   },
+];
+
+const SUMMARY = [
+  { label: 'SALDO EN ARS', value: '$1.914.210,53', color: TEXT },
+  { label: 'EN USD', value: 'USD 26,29', color: GREEN },
+  { label: 'TOTAL DEL PERÍODO', value: '$1.950.490,73', color: P },
 ];
 
 const DONUT = [
-  { label:'Restaurantes', pct:28, amount:546250,  color:'#6B4FE8' },
-  { label:'Supermercado', pct:22, amount:429800,  color:'#10b981' },
-  { label:'Transporte',   pct:14, amount:273600,  color:'#0ea5e9' },
-  { label:'Delivery',     pct:12, amount:234900,  color:'#f59e0b' },
-  { label:'Otros',        pct:24, amount:465940,  color:'#e5e7eb' },
+  { label: 'Restaurantes', pct: 28, amount: 546250, color: '#6488FF' },
+  { label: 'Supermercado', pct: 22, amount: 429800, color: '#A88AFF' },
+  { label: 'Transporte', pct: 14, amount: 273600, color: '#41C8E2' },
+  { label: 'Delivery', pct: 12, amount: 234900, color: '#F774BA' },
+  { label: 'Otros', pct: 24, amount: 465940, color: '#83D3AF' },
 ];
 
-const SPARKLINE = [12400,15200,10800,18100,13600,16400,14361];
+const SPARKLINE = [12400, 11100, 13750, 11800, 14320, 12500, 14361];
 
-/* ─── SVG donut ─── */
-function DonutChart({ data, size=128, sw=18 }) {
-  const r = (size - sw) / 2;
-  const C = 2 * Math.PI * r;
-  const cx = size/2, cy = size/2;
-  let off = 0;
-  const segs = data.map(d => { const s={...d,off}; off+=d.pct; return s; });
+const FILTERS = [
+  { k: 'todos', label: 'Todos', activeDot: true },
+  { k: 'ciclo-tc', label: 'Ciclo TC' },
+  { k: 'ciclo-act', label: 'Ciclo actual' },
+  { k: 'ars-usd', label: 'ARS + USD' },
+  { k: 'sin-cat', label: 'Sin categoría' },
+];
+
+const MENU_ACTIONS = [
+  { label: 'Editar monto y fecha' },
+  { label: 'Editar comercio' },
+  { label: 'Cambiar categoría' },
+  { label: 'Agregar nota' },
+  { label: 'Eliminar movimiento', danger: true },
+];
+
+function strokeIcon(path, props = {}) {
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{transform:'rotate(-90deg)'}}>
-      {segs.map((s,i) => {
-        const da = (s.pct/100)*C;
+    <svg width={props.size || 17} height={props.size || 17} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={props.strokeWidth || 1.75} strokeLinecap="round" strokeLinejoin="round">
+      {path}
+    </svg>
+  );
+}
+
+const Icons = {
+  grid: () => strokeIcon(<><rect x="4" y="4" width="4" height="4" rx="1"/><rect x="10" y="4" width="4" height="4" rx="1"/><rect x="16" y="4" width="4" height="4" rx="1"/><rect x="4" y="10" width="4" height="4" rx="1"/><rect x="10" y="10" width="4" height="4" rx="1"/><rect x="16" y="10" width="4" height="4" rx="1"/><rect x="4" y="16" width="4" height="4" rx="1"/><rect x="10" y="16" width="4" height="4" rx="1"/><rect x="16" y="16" width="4" height="4" rx="1"/></>),
+  briefcase: () => strokeIcon(<><rect x="4" y="7" width="16" height="13" rx="2"/><path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7"/><path d="M4 12h16"/></>),
+  chart: () => strokeIcon(<><path d="M4 18h16"/><path d="M7 15v-4"/><path d="M12 15V7"/><path d="M17 15v-7"/></>),
+  target: () => strokeIcon(<><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/><path d="M21 3l-4 4"/></>),
+  card: () => strokeIcon(<><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 10h18"/><path d="M8 15h2"/></>),
+  settings: () => strokeIcon(<><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.6 1.6 0 0 0-1.82-.33 1.6 1.6 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.6 1.6 0 0 0-1-1.51 1.6 1.6 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.6 1.6 0 0 0 4.6 15a1.6 1.6 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.6 1.6 0 0 0 4.6 9a1.6 1.6 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.6 1.6 0 0 0 9 4.6a1.6 1.6 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.6 1.6 0 0 0 1 1.51 1.6 1.6 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.6 1.6 0 0 0 19.4 9a1.6 1.6 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.6 1.6 0 0 0-1.51 1z"/></>),
+  search: () => strokeIcon(<><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></>),
+  bell: () => strokeIcon(<><path d="M18 8a6 6 0 1 0-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M10 21a2 2 0 0 0 4 0"/></>),
+  plus: () => strokeIcon(<><path d="M12 5v14"/><path d="M5 12h14"/></>),
+  calendar: () => strokeIcon(<><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M8 3v4"/><path d="M16 3v4"/><path d="M3 10h18"/></>),
+  panelOff: () => strokeIcon(<><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M15 5v14"/><path d="M7 7l10 10"/></>),
+  filter: () => strokeIcon(<><path d="M4 7h16"/><path d="M7 12h10"/><path d="M10 17h4"/><circle cx="8" cy="7" r="1.2" fill="currentColor" stroke="none"/><circle cx="15" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="12" cy="17" r="1.2" fill="currentColor" stroke="none"/></>),
+  spark: () => strokeIcon(<><path d="M5 15l4-4 3 2 5-6"/><path d="M17 7h2v2"/></>),
+  fork: () => strokeIcon(<><path d="M8 4v6"/><path d="M6 4v3"/><path d="M10 4v3"/><path d="M8 10v10"/><path d="M16 4v9"/><path d="M14 9h4"/></>),
+  sliders: () => strokeIcon(<><path d="M4 7h8"/><path d="M16 7h4"/><path d="M10 7a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/><path d="M4 17h4"/><path d="M12 17h8"/><path d="M8 17a2 2 0 1 0 4 0 2 2 0 0 0-4 0Z"/></>),
+  pencil: () => strokeIcon(<><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></>),
+  store: () => strokeIcon(<><path d="M4 7l1.2-3h13.6L20 7"/><path d="M5 7h14v12H5z"/><path d="M9 11h6"/></>),
+  tag: () => strokeIcon(<><path d="M20 10 12 18l-8-8V4h6z"/><circle cx="8.5" cy="8.5" r="1.2" fill="currentColor" stroke="none"/></>),
+  note: () => strokeIcon(<><rect x="5" y="4" width="14" height="16" rx="2"/><path d="M8 9h8"/><path d="M8 13h6"/></>),
+  trash: () => strokeIcon(<><path d="M4 7h16"/><path d="M10 11v5"/><path d="M14 11v5"/><path d="M6 7l1 12h10l1-12"/><path d="M9 7V4h6v3"/></>),
+  dots: () => <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><circle cx="12" cy="5" r="1.65"/><circle cx="12" cy="12" r="1.65"/><circle cx="12" cy="19" r="1.65"/></svg>,
+  chevron: ({ up }) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ transform: up ? 'rotate(180deg)' : 'none' }}><path d="m6 9 6 6 6-6"/></svg>,
+};
+
+function NavIcon({ type }) {
+  const map = {
+    grid: <Icons.grid />,
+    briefcase: <Icons.briefcase />,
+    chart: <Icons.chart />,
+    target: <Icons.target />,
+    card: <Icons.card />,
+    settings: <Icons.settings />,
+  };
+  return map[type];
+}
+
+function DonutChart({ data, size = 128, sw = 18 }) {
+  const r = (size - sw) / 2;
+  const c = 2 * Math.PI * r;
+  const cx = size / 2;
+  const cy = size / 2;
+  let offset = 0;
+  const segs = data.map(segment => {
+    const current = { ...segment, offset };
+    offset += segment.pct;
+    return current;
+  });
+
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ transform: 'rotate(-90deg)' }}>
+      <circle cx={cx} cy={cy} r={r} fill="none" stroke="#EEF0F8" strokeWidth={sw} />
+      {segs.map((segment, index) => {
+        const dash = (segment.pct / 100) * c;
         return (
-          <circle key={i} cx={cx} cy={cy} r={r} fill="none"
-            stroke={s.color} strokeWidth={sw}
-            strokeDasharray={`${da} ${C-da}`}
-            strokeDashoffset={-(s.off/100)*C}
-            strokeLinecap="butt" />
+          <circle
+            key={index}
+            cx={cx}
+            cy={cy}
+            r={r}
+            fill="none"
+            stroke={segment.color}
+            strokeWidth={sw}
+            strokeDasharray={`${dash} ${c - dash}`}
+            strokeDashoffset={-(segment.offset / 100) * c}
+          />
         );
       })}
     </svg>
   );
 }
 
-/* ─── Sparkline ─── */
-function Sparkline({ data, color='#6B4FE8', w=80, h=28 }) {
+function Sparkline({ data, color = P, width = 90, height = 28, strokeWidth = 1.8 }) {
   if (!data || data.length < 2) return null;
-  const mn = Math.min(...data), mx = Math.max(...data), rng = mx-mn||1;
-  const pts = data.map((v,i) => `${(i/(data.length-1))*w},${h-((v-mn)/rng)*(h-4)-2}`).join(' ');
+  const min = Math.min(...data);
+  const max = Math.max(...data);
+  const range = max - min || 1;
+  const pts = data
+    .map((value, index) => `${(index / (data.length - 1)) * width},${height - ((value - min) / range) * (height - 4) - 2}`)
+    .join(' ');
+
   return (
-    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{display:'block'}}>
-      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.8}
-        strokeLinecap="round" strokeLinejoin="round"/>
+    <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: 'block' }}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }
 
-/* ─── Merchant avatar ─── */
-function Avatar({ initials, bg, fg, size=40 }) {
-  const fs = initials.length > 2 ? size*0.28 : initials.length===2 ? size*0.34 : size*0.42;
+function CategoryGlyph({ category, color = P, size = 18 }) {
+  const common = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: color, strokeWidth: 1.9, strokeLinecap: 'round', strokeLinejoin: 'round' };
+
+  if (category === 'Restaurantes') {
+    return (
+      <svg {...common}>
+        <path d="M7 3v7" />
+        <path d="M5 3v4" />
+        <path d="M9 3v4" />
+        <path d="M7 10v11" />
+        <path d="M16 3v8" />
+        <path d="M14 11h4" />
+      </svg>
+    );
+  }
+
+  if (category === 'Delivery') {
+    return (
+      <svg {...common}>
+        <path d="M3 8h11v8H3z" />
+        <path d="M14 11h3l2 2v3h-5z" />
+        <circle cx="8" cy="18" r="1.5" />
+        <circle cx="18" cy="18" r="1.5" />
+      </svg>
+    );
+  }
+
+  if (category === 'Transporte') {
+    return (
+      <svg {...common}>
+        <path d="M6 16V9l2-3h8l2 3v7" />
+        <path d="M4 13h16" />
+        <circle cx="8" cy="17" r="1.5" />
+        <circle cx="16" cy="17" r="1.5" />
+      </svg>
+    );
+  }
+
+  if (category === 'Cafeterías') {
+    return (
+      <svg {...common}>
+        <path d="M5 9h10v5a4 4 0 0 1-4 4H9a4 4 0 0 1-4-4Z" />
+        <path d="M15 10h1.5a2.5 2.5 0 0 1 0 5H15" />
+        <path d="M8 4c0 1-1 1.5-1 2.5S8 8 8 9" />
+        <path d="M11 4c0 1-1 1.5-1 2.5s1 1.5 1 2.5" />
+      </svg>
+    );
+  }
+
+  if (category === 'Supermercado') {
+    return (
+      <svg {...common}>
+        <path d="M4 6h2l2 9h9l2-6H7" />
+        <circle cx="10" cy="18" r="1.5" />
+        <circle cx="17" cy="18" r="1.5" />
+      </svg>
+    );
+  }
+
+  if (category === 'Entretenimiento') {
+    return (
+      <svg {...common}>
+        <rect x="4" y="5" width="16" height="14" rx="3" />
+        <path d="m10 9 5 3-5 3z" />
+      </svg>
+    );
+  }
+
+  if (category === 'Kiosco') {
+    return (
+      <svg {...common}>
+        <path d="M5 10h14v8H5z" />
+        <path d="M4 10l2-4h12l2 4" />
+        <path d="M9 14h6" />
+      </svg>
+    );
+  }
+
   return (
-    <div style={{
-      width:size, height:size, borderRadius:'50%', background:bg, flexShrink:0,
-      display:'flex', alignItems:'center', justifyContent:'center',
-      boxShadow:'0 1px 6px rgba(0,0,0,0.12)',
-    }}>
-      <span style={{fontSize:fs, fontWeight:800, color:fg, letterSpacing:initials.length>2?-1:0}}>
-        {initials}
-      </span>
-    </div>
+    <svg {...common}>
+      <circle cx="12" cy="12" r="7" />
+      <path d="M12 8v4l3 2" />
+    </svg>
   );
 }
 
-/* ─── Category chip ─── */
+function MerchantLogo({ merchant, fallback, size = 40, logoUrl, customLogoUrl, category, catC }) {
+  const [imageFailed, setImageFailed] = useState(false);
+  const common = {
+    width: size,
+    height: size,
+    borderRadius: '50%',
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    background: '#fff',
+    border: '1px solid rgba(0,0,0,0.04)',
+  };
+  const ring = {
+    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.75), 0 2px 8px rgba(23, 19, 31, 0.06)',
+  };
+  const merchantLogos = {
+    mcd: (
+      <div style={{ ...common, ...ring, background: '#D81F2A' }}>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <path d="M4.5 19.5V11c0-2.8 1.3-6 3.7-6 2 0 3.2 2.6 3.8 5 0.6-2.4 1.8-5 3.8-5 2.4 0 3.7 3.2 3.7 6v8.5" stroke="#FFC928" strokeWidth="2.8" strokeLinecap="round"/>
+        </svg>
+      </div>
+    ),
+    pedidosya: (
+      <div style={{ ...common, ...ring, background: '#EF4354' }}>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+          <path d="M7 6h6.2c2.7 0 4.8 1.8 4.8 4.2S15.9 14.5 13.2 14.5H9.5" stroke="#fff" strokeWidth="2.7" strokeLinecap="round"/>
+          <path d="M7 6v12" stroke="#fff" strokeWidth="2.7" strokeLinecap="round"/>
+        </svg>
+      </div>
+    ),
+    ypf: (
+      <div style={{ ...common, ...ring, background: '#1F64D8' }}>
+        <span style={{ color: '#fff', fontSize: 13, fontWeight: 900, letterSpacing: -0.4 }}>YPF</span>
+      </div>
+    ),
+    netflix: (
+      <div style={{ ...common, ...ring, background: '#F4F4F8' }}>
+        <span style={{ color: '#E30C18', fontSize: 24, fontWeight: 900, lineHeight: 1 }}>N</span>
+      </div>
+    ),
+    starbucks: (
+      <div style={{ ...common, ...ring, background: '#0B7A52' }}>
+        <span style={{ color: '#fff', fontSize: 18, fontWeight: 800 }}>☕</span>
+      </div>
+    ),
+    changomas: (
+      <div style={{ ...common, ...ring, background: '#fff' }}>
+        <svg width="30" height="30" viewBox="0 0 32 32" fill="none">
+          <circle cx="16" cy="16" r="13" fill="#EB3A44"/>
+          <path d="M21.5 9.5a8.5 8.5 0 1 0 0 13" stroke="#57D46C" strokeWidth="4.4" strokeLinecap="round"/>
+        </svg>
+      </div>
+    ),
+    taxi: (
+      <div style={{ ...common, ...ring, background: '#FFC92B' }}>
+        <span style={{ color: '#1A1633', fontSize: 14, fontWeight: 800 }}>🚕</span>
+      </div>
+    ),
+    market: (
+      <div style={{ ...common, ...ring, background: '#2F7D4D' }}>
+        <span style={{ color: '#DFF4E1', fontSize: 18, fontWeight: 800 }}>⌘</span>
+      </div>
+    ),
+    martinez: (
+      <div style={{ ...common, ...ring, background: '#121212' }}>
+        <span style={{ color: '#E8D0A8', fontSize: 10, fontWeight: 800, letterSpacing: 0.4 }}>MRTZ</span>
+      </div>
+    ),
+  };
+
+  const fallbackNode = (
+    <div style={{ ...common, ...ring, background: '#17131F', color: '#fff', fontSize: fallback.length > 2 ? 12 : 16, fontWeight: 800, letterSpacing: fallback.length > 2 ? -0.4 : 0 }}>
+      <span>{fallback}</span>
+    </div>
+  );
+
+  const categoryFallbackNode = (
+    <div style={{ ...common, ...ring, background: '#F6F3FF' }}>
+      <CategoryGlyph category={category || 'Otros'} color={catC || P} size={18} />
+    </div>
+  );
+
+  const imageCandidate = !imageFailed ? (logoUrl || customLogoUrl) : null;
+
+  if (merchantLogos[merchant]) {
+    return merchantLogos[merchant];
+  }
+
+  if (imageCandidate) {
+    return (
+      <div style={{ ...common, ...ring, background: '#fff', padding: 4 }}>
+        <img
+          src={imageCandidate}
+          alt=""
+          onError={() => setImageFailed(true)}
+          style={{ width: '100%', height: '100%', objectFit: 'contain', borderRadius: '50%' }}
+        />
+      </div>
+    );
+  }
+
+  if (category) {
+    return categoryFallbackNode;
+  }
+
+  return fallbackNode;
+}
+
 function Chip({ label, color }) {
   return (
     <span style={{
-      display:'inline-flex', alignItems:'center',
-      padding:'2px 9px', borderRadius:20,
-      background:`${color}15`, color, border:`1px solid ${color}28`,
-      fontSize:11, fontWeight:600, lineHeight:1.5, whiteSpace:'nowrap',
-    }}>{label}</span>
+      display: 'inline-flex',
+      alignItems: 'center',
+      gap: 4,
+      padding: '2px 8px',
+      borderRadius: 999,
+      background: `${color}16`,
+      color,
+      fontSize: 10.2,
+      fontWeight: 700,
+      lineHeight: 1.45,
+      whiteSpace: 'nowrap',
+    }}>
+      <span style={{ fontSize: 7 }}>◆</span>
+      {label}
+    </span>
   );
 }
 
-/* ─── Three-dot menu ─── */
-const MENU_ACTIONS = [
-  { icon:'✏️', label:'Editar monto y fecha' },
-  { icon:'🏪', label:'Editar comercio' },
-  { icon:'🏷️', label:'Cambiar categoría' },
-  { icon:'📝', label:'Agregar nota' },
-  { icon:'🗑️', label:'Eliminar movimiento', danger:true },
-];
+function ActionIcon({ action, danger }) {
+  const color = danger ? RED : '#605A78';
+  const map = {
+    'Editar monto y fecha': <span style={{ color }}><Icons.pencil /></span>,
+    'Editar comercio': <span style={{ color }}><Icons.store /></span>,
+    'Cambiar categoría': <span style={{ color }}><Icons.tag /></span>,
+    'Agregar nota': <span style={{ color }}><Icons.note /></span>,
+    'Eliminar movimiento': <span style={{ color }}><Icons.trash /></span>,
+  };
+  return map[action] || null;
+}
 
 function DropMenu({ onClose }) {
   return (
-    <div style={{
-      position:'absolute', right:0, top:32, zIndex:200,
-      background:'#fff', borderRadius:16,
-      boxShadow:'0 12px 48px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)',
-      border:'1px solid rgba(0,0,0,0.07)',
-      overflow:'hidden', minWidth:210,
-    }} onClick={e=>e.stopPropagation()}>
-      {MENU_ACTIONS.map((a,i) => (
-        <button key={i} onClick={onClose} style={{
-          width:'100%', padding:'11px 16px', background:'none', border:'none',
-          cursor:'pointer', display:'flex', alignItems:'center', gap:10,
-          fontSize:13.5, fontWeight:500, color:a.danger?RED:'#1d1d1f',
-          textAlign:'left',
-          borderBottom: i<MENU_ACTIONS.length-1 ? '1px solid rgba(0,0,0,0.045)' : 'none',
-        }}
-        onMouseEnter={e=>e.currentTarget.style.background=a.danger?'#fff5f5':'#f5f5f7'}
-        onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+    <div
+      style={{
+        position: 'absolute',
+        right: -2,
+        top: 26,
+        zIndex: 50,
+        width: 204,
+        borderRadius: 14,
+        background: '#fff',
+        border: `1px solid ${BORDER}`,
+        boxShadow: '0 14px 30px rgba(21, 17, 45, 0.14), 0 3px 10px rgba(21, 17, 45, 0.06)',
+        padding: '5px 0',
+      }}
+      onClick={e => e.stopPropagation()}
+    >
+      {MENU_ACTIONS.map(action => (
+        <button
+          key={action.label}
+          onClick={onClose}
+          style={{
+            width: '100%',
+            border: 'none',
+            background: 'transparent',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 9,
+            padding: '10px 14px',
+            fontSize: 12.2,
+            color: action.danger ? RED : '#2B2544',
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = action.danger ? '#FFF2F4' : '#F7F7FC'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
         >
-          <span style={{fontSize:15, lineHeight:1}}>{a.icon}</span>
-          {a.label}
+          {ActionIcon({ action: action.label, danger: action.danger })}
+          <span style={{ fontWeight: action.danger ? 600 : 500 }}>{action.label}</span>
         </button>
       ))}
     </div>
   );
 }
 
-/* ─── Transaction row ─── */
 function TxnRow({ tx, isLast }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+
   useEffect(() => {
     if (!open) return;
-    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return ()=>document.removeEventListener('mousedown', h);
+    const handler = event => {
+      if (ref.current && !ref.current.contains(event.target)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
   }, [open]);
 
-  const isUSD = tx.cur === 'USD';
-  const amtStr = isUSD
-    ? `USD ${Math.abs(tx.amt).toFixed(2).replace('.',',')}`
-    : fmt(tx.amt);
+  const amount = tx.cur === 'USD' ? fmtUSD(tx.amt) : `-${fmt(tx.amt)}`;
 
   return (
-    <div style={{
-      display:'flex', alignItems:'center', gap:12,
-      padding:'11px 16px',
-      borderBottom: isLast ? 'none' : '1px solid rgba(0,0,0,0.042)',
-      transition:'background 0.1s',
-    }}
-    onMouseEnter={e=>e.currentTarget.style.background='#fafafa'}
-    onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+    <div
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '40px 45px minmax(0, 1fr) auto 20px',
+        alignItems: 'center',
+        gap: 10,
+        padding: '9px 14px 9px 12px',
+        minHeight: 60,
+        borderBottom: isLast ? 'none' : '1px solid rgba(83, 74, 119, 0.062)',
+      }}
+      onMouseEnter={e => { e.currentTarget.style.background = '#FBFBFE'; }}
+      onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
     >
-      <Avatar initials={tx.initials} bg={tx.bg} fg={tx.fg} size={40} />
+      <MerchantLogo
+        merchant={tx.merchant}
+        fallback={tx.fallback}
+        size={34}
+        logoUrl={tx.logoUrl}
+        customLogoUrl={tx.customLogoUrl}
+        category={tx.cat}
+        catC={tx.catC}
+      />
 
-      <div style={{flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:3}}>
-        <div style={{display:'flex', alignItems:'center', gap:7}}>
-          <span style={{fontSize:12, color:'#bbb', fontVariantNumeric:'tabular-nums', flexShrink:0}}>{tx.time}</span>
-          <span style={{fontSize:14, fontWeight:600, color:'#1d1d1f', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
-            {tx.name}
-          </span>
+      <div style={{ fontSize: 10.9, fontWeight: 600, color: '#7E7997', fontVariantNumeric: 'tabular-nums' }}>
+        {tx.time}
+      </div>
+
+      <div style={{ minWidth: 0 }}>
+        <div style={{ fontSize: 12.8, fontWeight: 700, color: TEXT, lineHeight: 1.18, marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {tx.name}
         </div>
-        <div style={{display:'flex', alignItems:'center', gap:7, flexWrap:'wrap'}}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <Chip label={tx.cat} color={tx.catC} />
           {tx.note && (
-            <span style={{fontSize:11.5, color:'#aaa', display:'flex', alignItems:'center', gap:3}}>
-              <span style={{fontSize:10}}>↩</span>{tx.note}
+            <span style={{ fontSize: 10.7, color: SUBTLE, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ fontSize: 9 }}>↪</span>
+              {tx.note}
             </span>
           )}
         </div>
       </div>
 
-      <div style={{flexShrink:0, textAlign:'right', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2}}>
-        <span style={{
-          fontSize:14.5, fontWeight:700, fontVariantNumeric:'tabular-nums',
-          color: isUSD ? GREEN : '#1d1d1f',
-        }}>{amtStr}</span>
-        {isUSD && tx.arsEq && (
-          <span style={{fontSize:11, color:'#bbb', fontVariantNumeric:'tabular-nums'}}>
-            ({fmtShort(tx.arsEq)},00)
-          </span>
+      <div style={{ textAlign: 'right', minWidth: 90 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: tx.cur === 'USD' ? GREEN : ARS_DARK, fontVariantNumeric: 'tabular-nums', letterSpacing: -0.08 }}>
+          {amount}
+        </div>
+        {tx.cur === 'USD' && tx.arsEq && (
+          <div style={{ marginTop: 1, fontSize: 10.4, fontWeight: 600, color: '#8C88A2', fontVariantNumeric: 'tabular-nums' }}>
+            ({fmt(tx.arsEq)})
+          </div>
         )}
       </div>
 
-      <div ref={ref} style={{position:'relative', flexShrink:0}}>
-        <button onClick={e=>{e.stopPropagation();setOpen(!open);}} style={{
-          width:30, height:30, borderRadius:8, border:'none', cursor:'pointer',
-          background: open?P_LIGHT:'transparent',
-          color: open?P:'#ccc',
-          display:'flex', alignItems:'center', justifyContent:'center',
-          fontSize:18, lineHeight:1, transition:'all 0.12s',
-        }}
-        onMouseEnter={e=>{if(!open){e.currentTarget.style.background='#f0f0f5';e.currentTarget.style.color='#888';}}}
-        onMouseLeave={e=>{if(!open){e.currentTarget.style.background='transparent';e.currentTarget.style.color='#ccc';}}}
-        >⋮</button>
-        {open && <DropMenu onClose={()=>setOpen(false)}/>}
+      <div ref={ref} style={{ position: 'relative', justifySelf: 'end' }}>
+        <button
+          onClick={event => {
+            event.stopPropagation();
+            setOpen(!open);
+          }}
+          style={{
+            width: 18,
+            height: 18,
+            border: 'none',
+            borderRadius: 5,
+            background: open ? P_LIGHT : 'transparent',
+            color: open ? P : '#706B87',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            opacity: open ? 1 : 0.9,
+          }}
+        >
+          <Icons.dots />
+        </button>
+        {open && <DropMenu onClose={() => setOpen(false)} />}
       </div>
     </div>
   );
 }
 
-/* ─── Day group ─── */
 function DayGroup({ group }) {
   const [expanded, setExpanded] = useState(true);
-  const above = group.vsAvg > 0;
-  const dayARS = group.txns.reduce((s,t)=>{
-    if(t.cur==='ARS') return s+Math.abs(t.amt);
-    if(t.arsEq) return s+t.arsEq;
-    return s;
-  },0);
+  const dayARS = group.txns.reduce((sum, txn) => {
+    if (txn.cur === 'ARS') return sum + Math.abs(txn.amt);
+    if (txn.arsEq) return sum + txn.arsEq;
+    return sum;
+  }, 0);
+  const positive = group.vsAvg > 0;
 
   return (
-    <div style={{marginBottom:14}}>
-      {/* Day header row */}
-      <div onClick={()=>setExpanded(!expanded)} style={{
-        display:'flex', alignItems:'center', gap:8,
-        padding:'6px 2px', cursor:'pointer', userSelect:'none',
-      }}>
-        <span style={{fontSize:12, fontWeight:700, color:'#1d1d1f', letterSpacing:0.2}}>
+    <div style={{ marginBottom: 15 }}>
+      <div
+        onClick={() => setExpanded(!expanded)}
+        style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 4px 8px', cursor: 'pointer' }}
+      >
+        <div style={{ fontSize: 11.7, fontWeight: 800, color: TEXT, letterSpacing: 0.08 }}>
           {group.day} {group.label}
-        </span>
-        <span style={{
-          fontSize:11, fontWeight:600, padding:'2px 9px', borderRadius:20,
-          background: above?'rgba(255,59,48,0.09)':'rgba(52,199,89,0.1)',
-          color: above?RED:GREEN,
-        }}>
-          {above?'+':''}{group.vsAvg}% vs. promedio
-        </span>
-        <div style={{flex:1}}/>
-        <span style={{fontSize:12, color:'#bbb', fontWeight:500}}>
-          {group.txns.length} movimiento{group.txns.length!==1?'s':''}
-        </span>
-        <span style={{
-          fontSize:12, color:'#ccc', display:'inline-block',
-          transition:'transform 0.2s', transform:expanded?'rotate(0deg)':'rotate(-90deg)',
-        }}>∨</span>
+        </div>
+        <div
+          style={{
+            padding: '3px 9px',
+            borderRadius: 999,
+            background: positive ? 'rgba(255, 99, 114, 0.12)' : 'rgba(51, 196, 122, 0.12)',
+            color: positive ? RED : GREEN,
+            fontSize: 10,
+            fontWeight: 700,
+          }}
+        >
+          {positive ? '+' : ''}{group.vsAvg}% vs. promedio
+        </div>
+        <div style={{ flex: 1 }} />
+        <div style={{ fontSize: 10.8, color: '#6C6785', fontWeight: 700 }}>
+          {group.txns.length} movimientos
+        </div>
+        <div style={{ color: '#6C6785' }}>
+          <Icons.chevron up={expanded} />
+        </div>
       </div>
 
       {expanded && (
         <>
-          {/* Sub-header: daily total */}
-          <div style={{
-            display:'flex', alignItems:'center', justifyContent:'space-between',
-            padding:'7px 16px',
-            background:'linear-gradient(90deg, rgba(107,79,232,0.04) 0%, rgba(107,79,232,0) 100%)',
-            borderRadius:'12px 12px 0 0',
-            borderBottom:'1px solid rgba(0,0,0,0.04)',
-          }}>
-            <span style={{fontSize:12, color:'#888', display:'flex', alignItems:'center', gap:5}}>
-              <span style={{fontSize:13, color:P}}>↗</span>
-              Gasto del día: <strong style={{color:'#444', marginLeft:3}}>{fmtShort(dayARS)}</strong>
-            </span>
-            <span style={{fontSize:12, color:'#bbb'}}>
-              Promedio diario: <strong style={{color:'#888'}}>$14.361</strong>
-            </span>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              padding: '8px 16px',
+              background: '#EEF0FF',
+              borderRadius: 13,
+              marginBottom: 4,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 11.6, color: '#46415D', fontWeight: 600 }}>
+              <span style={{ color: P, display: 'flex' }}><Icons.spark /></span>
+              <span>Gasto del día: <strong style={{ color: TEXT }}>{fmtShort(dayARS)}</strong></span>
+            </div>
+            <div style={{ fontSize: 11.6, color: '#5B5674', fontWeight: 600 }}>
+              Promedio diario: <strong>{group.dailyAverage}</strong>
+            </div>
           </div>
-          {/* Transactions */}
-          <div style={{
-            background:'#fff', borderRadius:'0 0 14px 14px',
-            border:'1px solid rgba(0,0,0,0.06)', borderTop:'none',
-            overflow:'hidden',
-          }}>
-            {group.txns.map((tx,i) => (
-              <TxnRow key={tx.id} tx={tx} isLast={i===group.txns.length-1}/>
+
+          <div style={{ background: SURFACE, borderRadius: 16, border: `1px solid ${BORDER}`, overflow: 'hidden', boxShadow: '0 3px 10px rgba(43,37,68,0.025)' }}>
+            {group.txns.map((tx, index) => (
+              <TxnRow key={tx.id} tx={tx} isLast={index === group.txns.length - 1} />
             ))}
           </div>
         </>
@@ -332,421 +663,368 @@ function DayGroup({ group }) {
   );
 }
 
-/* ─── Right insights panel ─── */
+function InsightCard({ children, style = {} }) {
+  return (
+    <div style={{ background: SURFACE, borderRadius: 16, border: `1px solid ${BORDER}`, boxShadow: '0 4px 14px rgba(43, 37, 68, 0.035)', ...style }}>
+      {children}
+    </div>
+  );
+}
+
 function InsightsPanel({ onHide }) {
   return (
-    <div style={{
-      width:282, flexShrink:0,
-      display:'flex', flexDirection:'column', gap:11,
-      overflowY:'auto', paddingBottom:16,
-    }}>
-      {/* Toggle row */}
-      <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 2px'}}>
-        <span style={{fontSize:12, color:'#bbb', fontWeight:500}}>Mostrando insights</span>
-        <div onClick={onHide} style={{
-          width:44, height:26, borderRadius:14, background:P, cursor:'pointer',
-          position:'relative', boxShadow:`0 2px 8px ${P}55`,
-        }}>
-          <div style={{
-            position:'absolute', right:3, top:3, width:20, height:20,
-            borderRadius:'50%', background:'#fff',
-            boxShadow:'0 1px 4px rgba(0,0,0,0.18)',
-          }}/>
-        </div>
+    <div style={{ width: 348, background: `linear-gradient(180deg, #FFFFFF 0px, #FFFFFF 126px, ${PANEL_BG} 126px, ${PANEL_BG} 100%)`, borderLeft: `1px solid ${BORDER}`, padding: '0 13px 16px 13px', overflowY: 'auto' }}>
+      <div style={{ height: 126 }} />
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, padding: '0 3px' }}>
+        <div style={{ fontSize: 11.8, color: '#615B79', fontWeight: 700 }}>Mostrando insights</div>
+        <button onClick={onHide} style={{ width: 44, height: 24, borderRadius: 999, border: 'none', background: P, padding: 2, cursor: 'pointer', position: 'relative' }}>
+          <span style={{ position: 'absolute', right: 2, top: 2, width: 20, height: 20, borderRadius: '50%', background: '#fff', boxShadow: '0 2px 5px rgba(0,0,0,0.18)' }} />
+        </button>
       </div>
 
-      {/* Main insight card */}
-      <div style={{
-        borderRadius:18, padding:20,
-        background:'linear-gradient(145deg,#1a0e3d,#2e1a6e)',
-        color:'#fff', position:'relative', overflow:'hidden',
-      }}>
-        <div style={{position:'absolute', top:16, right:16, opacity:0.45}}>
-          <Sparkline data={[8,12,9,15,11,14,17]} color="#a78bfa" w={72} h={40}/>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ borderRadius: 18, padding: '16px 17px 16px', minHeight: 208, background: 'linear-gradient(180deg, #32218E 0%, #271A77 100%)', color: '#fff', position: 'relative', overflow: 'hidden', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.08)' }}>
+          <div style={{ position: 'absolute', right: 9, top: 17, opacity: 0.88 }}>
+            <svg width="84" height="72" viewBox="0 0 82 70" fill="none">
+              <path d="M2 58c8-2 10-14 16-14 7 0 9 10 15 10 8 0 10-16 18-16 9 0 11 18 20 18 5 0 7-5 11-13" stroke="#FF5F75" strokeWidth="2.5" strokeLinecap="round"/>
+              <circle cx="72" cy="31" r="3" fill="#FF5F75"/>
+            </svg>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14, fontSize: 9.6, fontWeight: 800, letterSpacing: 0.45, opacity: 0.82 }}>
+            <span style={{ color: '#55D7A5' }}>✦</span>
+            HOY · 19 ABRIL
+          </div>
+          <div style={{ maxWidth: 215, fontSize: 15.8, fontWeight: 800, lineHeight: 1.34, marginBottom: 10 }}>
+            Vas un 12% por encima de tu promedio diario
+          </div>
+          <div style={{ maxWidth: 215, fontSize: 12, lineHeight: 1.48, color: 'rgba(255,255,255,0.82)', marginBottom: 14 }}>
+            Llevás gastado <strong style={{ color: '#fff' }}>$17.775</strong> de <strong style={{ color: '#fff' }}>$15.800</strong> presupuestado
+          </div>
+          <div style={{ height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.12)', marginBottom: 7 }}>
+            <div style={{ width: '74%', height: '100%', borderRadius: 999, background: 'linear-gradient(90deg,#FF6D76,#FF5E81)' }} />
+          </div>
+          <div style={{ textAlign: 'right', fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,0.78)' }}>$15.800</div>
         </div>
-        <div style={{fontSize:10, fontWeight:700, letterSpacing:0.6, opacity:0.55, marginBottom:10}}>
-          ⚡ HOY · 19 ABRIL
-        </div>
-        <div style={{fontSize:15.5, fontWeight:700, lineHeight:1.38, marginBottom:8, maxWidth:160}}>
-          Vas un 12% por encima de tu promedio diario
-        </div>
-        <div style={{fontSize:12, opacity:0.7, marginBottom:14, lineHeight:1.55}}>
-          Llevás gastado <strong style={{color:'#fff'}}>$17.775</strong> de{' '}
-          <strong style={{color:'#fff'}}>$15.800</strong> presupuestado
-        </div>
-        <div style={{height:5, borderRadius:5, background:'rgba(255,255,255,0.15)', overflow:'visible', marginBottom:6}}>
-          <div style={{height:'100%', width:'112%', borderRadius:5, background:'linear-gradient(90deg,#ff8f70,#ff3b30)'}}/>
-        </div>
-        <div style={{display:'flex', justifyContent:'flex-end'}}>
-          <span style={{fontSize:10.5, opacity:0.5}}>$15.800</span>
-        </div>
-      </div>
 
-      {/* Stats row */}
-      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
-        <div style={{background:'#fff', borderRadius:14, padding:'14px 13px', border:'1px solid rgba(0,0,0,0.06)'}}>
-          <div style={{fontSize:10, color:'#bbb', fontWeight:600, letterSpacing:0.3, marginBottom:6, lineHeight:1.3}}>
-            Gasto promedio diario
-          </div>
-          <div style={{fontSize:19, fontWeight:800, color:'#1d1d1f', letterSpacing:-0.5, marginBottom:4}}>
-            $14.361
-          </div>
-          <div style={{fontSize:10.5, color:GREEN, fontWeight:600, marginBottom:8}}>↑ 8,5% vs. período anterior</div>
-          <Sparkline data={SPARKLINE} color={P} w={80} h={24}/>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <InsightCard style={{ padding: '13px 13px 11px', minHeight: 126 }}>
+            <div style={{ fontSize: 10.1, fontWeight: 700, color: '#625D78', marginBottom: 8 }}>Gasto promedio diario</div>
+            <div style={{ fontSize: 17.5, fontWeight: 800, color: TEXT, marginBottom: 5 }}>$14.361</div>
+            <div style={{ fontSize: 10.2, color: GREEN, fontWeight: 700, marginBottom: 10 }}>↑ 8,5% vs. período anterior</div>
+            <Sparkline data={SPARKLINE} width={92} height={24} color={P_DARK} strokeWidth={1.6} />
+          </InsightCard>
+
+          <InsightCard style={{ padding: '13px', minHeight: 126 }}>
+            <div style={{ fontSize: 10.1, fontWeight: 700, color: '#625D78', marginBottom: 10 }}>Categoría dominante</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 32, height: 32, borderRadius: 10, background: '#F0ECFF', display: 'flex', alignItems: 'center', justifyContent: 'center', color: P }}>
+                <Icons.fork />
+              </div>
+              <div>
+                <div style={{ fontSize: 13, color: TEXT, fontWeight: 800 }}>Restaurantes</div>
+                <div style={{ marginTop: 3, fontSize: 11.1, color: P, fontWeight: 700 }}>28% del total</div>
+              </div>
+            </div>
+          </InsightCard>
         </div>
-        <div style={{background:'#fff', borderRadius:14, padding:'14px 13px', border:'1px solid rgba(0,0,0,0.06)'}}>
-          <div style={{fontSize:10, color:'#bbb', fontWeight:600, letterSpacing:0.3, marginBottom:6, lineHeight:1.3}}>
-            Categoría dominante
+
+        <InsightCard style={{ padding: '15px 15px 14px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+            <div style={{ fontSize: 12, fontWeight: 800, color: TEXT }}>CATEGORÍAS DEL PERÍODO</div>
+            <button style={{ border: 'none', background: 'transparent', color: P, fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Ver detalle</button>
           </div>
-          <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:4}}>
-            <div style={{
-              width:30, height:30, borderRadius:9,
-              background:`${P}12`, display:'flex', alignItems:'center',
-              justifyContent:'center', fontSize:17, flexShrink:0,
-            }}>🍽️</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
+            <div style={{ position: 'relative', width: 132, height: 132 }}>
+              <DonutChart data={DONUT} size={132} sw={18} />
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11.6, fontWeight: 800, color: TEXT }}>
+                $1.950.490
+              </div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {DONUT.map(item => (
+              <div key={item.label} style={{ display: 'grid', gridTemplateColumns: '12px 1fr 34px 82px', alignItems: 'center', gap: 8 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: item.color }} />
+                <span style={{ fontSize: 12.3, color: '#504B67', fontWeight: 500 }}>{item.label}</span>
+                <span style={{ fontSize: 11.8, color: '#5D5874', fontWeight: 700 }}>{item.pct}%</span>
+                <span style={{ textAlign: 'right', fontSize: 12.3, color: TEXT, fontWeight: 800 }}>${item.amount.toLocaleString('es-AR')}</span>
+              </div>
+            ))}
+          </div>
+        </InsightCard>
+
+        <InsightCard style={{ padding: '14px 15px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 12, background: '#F0ECFF', color: P, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icons.sliders />
+            </div>
             <div>
-              <div style={{fontSize:13, fontWeight:700, color:'#1d1d1f'}}>Restaurantes</div>
-              <div style={{fontSize:11, color:'#bbb'}}>28% del total</div>
+              <div style={{ fontSize: 12.8, fontWeight: 800, color: TEXT, marginBottom: 2 }}>Personalizá tus categorías</div>
+              <div style={{ fontSize: 11.2, color: SUBTLE }}>Arrastrá para ordenar o crear nuevas</div>
             </div>
           </div>
-        </div>
-      </div>
-
-      {/* Donut chart card */}
-      <div style={{background:'#fff', borderRadius:16, padding:'18px 16px', border:'1px solid rgba(0,0,0,0.06)'}}>
-        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14}}>
-          <span style={{fontSize:13, fontWeight:700, color:'#1d1d1f'}}>Categorías del período</span>
-          <button style={{fontSize:12, color:P, fontWeight:600, background:'none', border:'none', cursor:'pointer'}}>
-            Ver detalle
+          <button
+            style={{
+              marginTop: 14,
+              width: 150,
+              height: 36,
+              borderRadius: 999,
+              border: 'none',
+              background: '#F0ECFF',
+              color: P,
+              fontSize: 12.4,
+              fontWeight: 800,
+              cursor: 'pointer',
+            }}
+          >
+            Gestionar categorías
           </button>
-        </div>
-        <div style={{display:'flex', justifyContent:'center', marginBottom:14}}>
-          <div style={{position:'relative', width:128, height:128}}>
-            <DonutChart data={DONUT} size={128} sw={18}/>
-            <div style={{
-              position:'absolute', inset:0, display:'flex',
-              alignItems:'center', justifyContent:'center',
-            }}>
-              <span style={{fontSize:12, fontWeight:800, color:'#1d1d1f', textAlign:'center'}}>$1.950.490</span>
-            </div>
-          </div>
-        </div>
-        {DONUT.map((d,i) => (
-          <div key={i} style={{
-            display:'flex', alignItems:'center', gap:8,
-            padding:'7px 0',
-            borderBottom: i<DONUT.length-1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
-          }}>
-            <div style={{width:8, height:8, borderRadius:'50%', background:d.color, flexShrink:0}}/>
-            <span style={{fontSize:12.5, color:'#444', flex:1, fontWeight:500}}>{d.label}</span>
-            <span style={{fontSize:12, color:'#bbb', width:28, textAlign:'right'}}>{d.pct}%</span>
-            <span style={{
-              fontSize:12.5, fontWeight:600, color:'#1d1d1f',
-              fontVariantNumeric:'tabular-nums', width:72, textAlign:'right',
-            }}>
-              ${d.amount.toLocaleString('es-AR')}
-            </span>
-          </div>
-        ))}
+          <button
+            style={{
+              marginTop: 8,
+              width: 174,
+              height: 32,
+              borderRadius: 999,
+              border: `1px solid ${P_BORDER}`,
+              background: '#FFFFFF',
+              color: '#4A28D9',
+              fontSize: 11.8,
+              fontWeight: 800,
+              cursor: 'pointer',
+            }}
+          >
+            Reglas de categorización
+          </button>
+        </InsightCard>
       </div>
-
-      {/* Category management */}
-      <div style={{
-        background:'#fff', borderRadius:14, padding:'14px 14px 14px 14px',
-        border:'1px solid rgba(0,0,0,0.06)',
-        display:'flex', alignItems:'center', gap:12,
-      }}>
-        <div style={{
-          width:36, height:36, borderRadius:10,
-          background:`${P}10`, display:'flex', alignItems:'center',
-          justifyContent:'center', fontSize:18, flexShrink:0,
-        }}>⊞</div>
-        <div>
-          <div style={{fontSize:13, fontWeight:600, color:'#1d1d1f', marginBottom:2}}>
-            Personalizá tus categorías
-          </div>
-          <div style={{fontSize:11.5, color:'#bbb'}}>Arrastrá para ordenar o crear nuevas</div>
-        </div>
-      </div>
-      <button style={{
-        width:'100%', padding:'11px', borderRadius:24,
-        background:`${P}0d`, color:P, border:`1px solid ${P}22`,
-        cursor:'pointer', fontSize:13.5, fontWeight:600,
-        transition:'background 0.12s',
-      }}
-      onMouseEnter={e=>e.currentTarget.style.background=`${P}18`}
-      onMouseLeave={e=>e.currentTarget.style.background=`${P}0d`}
-      >Gestionar categorías</button>
     </div>
   );
 }
 
-/* ─── Sidebar ─── */
-const NAV = [
-  { icon:'▦',  label:'Dashboard',    active:false },
-  { icon:'⇅',  label:'Movimientos',  active:true  },
-  { icon:'◎',  label:'Metas',        active:false },
-  { icon:'⊡',  label:'Compromisos',  active:false },
-  { icon:'⚙',  label:'Configuración',active:false },
-];
+function SideButton({ active, children }) {
+  return (
+    <button
+      style={{
+        width: 38,
+        height: 38,
+        borderRadius: 12,
+        border: active ? `1px solid ${P_BORDER}` : '1px solid transparent',
+        background: active ? P : 'transparent',
+        color: active ? '#fff' : '#2B2643',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        boxShadow: active ? '0 8px 18px rgba(91,49,240,0.24)' : 'none',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
 
 function Sidebar() {
-  return (
-    <div style={{
-      width:70, flexShrink:0, display:'flex', flexDirection:'column',
-      alignItems:'center', gap:0,
-      background:'#fff', borderRadius:20, padding:'18px 0',
-      boxShadow:'0 2px 16px rgba(0,0,0,0.07)',
-      border:'1px solid rgba(0,0,0,0.055)',
-    }}>
-      {/* Brand */}
-      <div style={{
-        width:40, height:40, borderRadius:12, marginBottom:26,
-        background:`linear-gradient(135deg,${P},#9b7aff)`,
-        display:'flex', alignItems:'center', justifyContent:'center',
-        boxShadow:`0 4px 16px ${P}44`,
-      }}>
-        <span style={{color:'#fff', fontSize:20, fontWeight:900}}>$</span>
-      </div>
+  const items = [
+    { type: 'briefcase', active: true },
+    { type: 'chart' },
+    { type: 'target' },
+    { type: 'card' },
+    { type: 'settings' },
+  ];
 
-      {/* Nav */}
-      <div style={{display:'flex', flexDirection:'column', gap:4, width:'100%', padding:'0 10px', flex:1}}>
-        {NAV.map((n,i) => (
-          <button key={i} title={n.label} style={{
-            width:'100%', height:44, borderRadius:12, border:'none', cursor:'pointer',
-            background: n.active ? P_LIGHT : 'none',
-            color: n.active ? P : '#ccc',
-            display:'flex', alignItems:'center', justifyContent:'center',
-            fontSize:20, transition:'all 0.12s',
-            outline: n.active ? `1px solid ${P_BORDER}` : 'none',
-          }}
-          onMouseEnter={e=>{if(!n.active){e.currentTarget.style.background='#f5f5f7';e.currentTarget.style.color='#888';}}}
-          onMouseLeave={e=>{if(!n.active){e.currentTarget.style.background='none';e.currentTarget.style.color='#ccc';}}}
-          >{n.icon}</button>
+  return (
+    <aside style={{ width: 92, borderRight: `1px solid rgba(97, 89, 139, 0.09)`, padding: '10px 13px 12px', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+      <button style={{ width: 36, height: 36, border: 'none', background: 'transparent', color: '#2B2643', cursor: 'pointer', marginBottom: 34, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <Icons.grid />
+      </button>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 18, alignItems: 'center', flex: 1 }}>
+        {items.map(item => (
+          <SideButton key={item.type} active={item.active}>
+            <NavIcon type={item.type} />
+          </SideButton>
         ))}
       </div>
 
-      {/* Bottom user area */}
-      <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:10, paddingTop:16}}>
-        <div style={{
-          background:'linear-gradient(135deg,#f5c100,#e8890c)',
-          borderRadius:10, padding:'5px 7px', cursor:'pointer',
-          display:'flex', flexDirection:'column', alignItems:'center', gap:1,
-        }}>
-          <span style={{fontSize:15}}>👑</span>
-          <span style={{fontSize:8.5, fontWeight:700, color:'#7a4400', letterSpacing:0.3}}>Premium</span>
+      <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 10, alignItems: 'center' }}>
+        <div style={{ width: 64, borderRadius: 16, background: '#F6F3FF', padding: '12px 7px 10px', textAlign: 'center', boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.8)' }}>
+          <div style={{ color: P, marginBottom: 5, fontSize: 14 }}>♛</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: '#30294F', marginBottom: 3 }}>Premium</div>
+          <div style={{ fontSize: 9.9, lineHeight: 1.23, color: SUBTLE, marginBottom: 8 }}>Mejorá tu experiencia</div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '5px 9px', borderRadius: 999, background: P, color: '#fff', fontSize: 10, fontWeight: 800 }}>
+            Actualizar
+          </div>
         </div>
-        <div>
-          <div style={{
-            width:34, height:34, borderRadius:'50%', cursor:'pointer',
-            background:`linear-gradient(135deg,${P},#9b7aff)`,
-            display:'flex', alignItems:'center', justifyContent:'center',
-            boxShadow:`0 2px 8px ${P}44`,
-          }}>
-            <span style={{color:'#fff', fontSize:15, fontWeight:700}}>P</span>
-          </div>
-          <div style={{textAlign:'center', marginTop:4}}>
-            <div style={{fontSize:10.5, fontWeight:600, color:'#444'}}>Pedro</div>
-            <div style={{fontSize:9.5, color:'#bbb', cursor:'pointer'}}>Ver perfil</div>
-          </div>
+
+        <div style={{ width: 64, borderRadius: 16, padding: '10px 7px 9px', background: '#fff', border: `1px solid ${BORDER}`, textAlign: 'center' }}>
+          <div style={{ width: 34, height: 34, borderRadius: '50%', margin: '0 auto 8px', background: 'linear-gradient(135deg,#DBDCE7,#8F93A8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: 12 }}>P</div>
+          <div style={{ fontSize: 12, fontWeight: 800, color: TEXT, marginBottom: 4 }}>Pedro</div>
+          <div style={{ fontSize: 9.9, color: SUBTLE }}>Ver perfil</div>
         </div>
       </div>
+    </aside>
+  );
+}
+
+function HeaderButton({ icon, children, filled, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        height: 40,
+        borderRadius: 999,
+        border: filled ? 'none' : `1px solid ${BORDER}`,
+        background: filled ? P : '#fff',
+        color: filled ? '#fff' : '#352F52',
+        padding: filled ? '0 18px' : '0 14px',
+        fontSize: 12.2,
+        fontWeight: 800,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        cursor: 'pointer',
+        boxShadow: filled ? '0 10px 22px rgba(91,49,244,0.20)' : '0 1px 0 rgba(255,255,255,0.7) inset',
+      }}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+
+function SummaryCard({ card }) {
+  return (
+    <div style={{ background: SURFACE, borderRadius: 14, border: `1px solid ${BORDER}`, boxShadow: '0 3px 10px rgba(43,37,68,0.03)', padding: '12px 19px 14px', minHeight: 74 }}>
+      <div style={{ fontSize: 8.7, fontWeight: 800, color: '#7A7693', letterSpacing: 0.42, marginBottom: 8 }}>{card.label}</div>
+      <div style={{ fontSize: 17.2, fontWeight: 900, color: card.color, letterSpacing: -0.28 }}>{card.value}</div>
     </div>
   );
 }
 
-/* ─── Filter chips ─── */
-const FILTERS = [
-  { k:'todos',      label:'⊞ Todos'       },
-  { k:'ciclo-tc',   label:'Ciclo TC'      },
-  { k:'ciclo-act',  label:'Ciclo actual'  },
-  { k:'ars-usd',    label:'ARS + USD'     },
-  { k:'sin-cat',    label:'Sin categoría' },
-];
-
-/* ─── APP ─── */
 function App() {
-  const [filter, setFilter] = useState('todos');
-  const [panel, setPanel] = useState(true);
+  const [activeFilter, setActiveFilter] = useState('todos');
+  const [showPanel, setShowPanel] = useState(true);
   const [search, setSearch] = useState('');
 
+  const filteredGroups = GROUPS.map(group => ({
+    ...group,
+    txns: group.txns.filter(txn => {
+      if (!search.trim()) return true;
+      const term = search.trim().toLowerCase();
+      return [txn.name, txn.cat, txn.note].filter(Boolean).some(value => value.toLowerCase().includes(term));
+    }),
+  })).filter(group => group.txns.length > 0);
+
   return (
-    <div style={{
-      display:'flex', height:'100vh', overflow:'hidden',
-      background:'#ededf2', padding:12, gap:10,
-    }}>
-      <Sidebar/>
+    <div style={{ minHeight: '100vh', background: PAGE_BG, padding: 14 }}>
+      <div style={{ height: 'calc(100vh - 28px)', background: '#fff', borderRadius: 16, border: '1px solid rgba(94, 89, 120, 0.12)', boxShadow: '0 10px 30px rgba(31, 24, 61, 0.09)', display: 'flex', overflow: 'hidden' }}>
+        <Sidebar />
 
-      {/* Main content */}
-      <div style={{flex:1, display:'flex', flexDirection:'column', gap:10, minWidth:0, overflow:'hidden'}}>
-
-        {/* Top bar */}
-        <div style={{display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexShrink:0}}>
-          <div>
-            <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:2}}>
-              {/* brand hint */}
-              <span style={{
-                width:10, height:10, borderRadius:'50%',
-                background:`linear-gradient(135deg,${P},#9b7aff)`,
-                display:'inline-block', flexShrink:0,
-              }}/>
-              <span style={{fontSize:11, fontWeight:700, color:'#bbb', letterSpacing:0.5}}>FINANZAS</span>
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <header style={{ height: 48, borderBottom: `1px solid ${BORDER}`, padding: '0 18px 0 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 11, height: 11, borderRadius: '50%', background: P, boxShadow: '0 0 12px rgba(91,49,244,0.45)' }} />
+              <div style={{ fontSize: 13.5, fontWeight: 900, color: '#1D1836', letterSpacing: 0.35 }}>FINANZAS</div>
             </div>
-            <h1 style={{fontSize:26, fontWeight:800, color:'#1d1d1f', letterSpacing:-0.5, lineHeight:1.1}}>
-              Movimientos
-            </h1>
-            <p style={{fontSize:13, color:'#bbb', marginTop:3, fontWeight:400}}>
-              Controlá tus gastos, entendé tus hábitos.
-            </p>
-          </div>
-
-          <div style={{display:'flex', alignItems:'center', gap:8, flexShrink:0, paddingTop:4}}>
-            {/* icon buttons */}
-            {['🔍','🔔'].map((ic,i) => (
-              <button key={i} style={{
-                width:34, height:34, borderRadius:'50%',
-                background:'#fff', border:'1px solid rgba(0,0,0,0.08)',
-                display:'flex', alignItems:'center', justifyContent:'center',
-                cursor:'pointer', fontSize:14,
-                boxShadow:'0 1px 6px rgba(0,0,0,0.06)',
-              }}>{ic}</button>
-            ))}
-            <div style={{
-              width:34, height:34, borderRadius:'50%',
-              background:`linear-gradient(135deg,${P},#9b7aff)`,
-              display:'flex', alignItems:'center', justifyContent:'center',
-              cursor:'pointer', boxShadow:`0 2px 10px ${P}44`,
-            }}>
-              <span style={{color:'#fff', fontSize:15, fontWeight:700}}>P</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <button style={{ border: 'none', background: 'transparent', color: '#2F2850', cursor: 'pointer', display: 'flex' }}><Icons.search /></button>
+              <button style={{ border: 'none', background: 'transparent', color: '#2F2850', cursor: 'pointer', position: 'relative', display: 'flex' }}>
+                <Icons.bell />
+                <span style={{ position: 'absolute', right: -1, top: -1, width: 6, height: 6, borderRadius: '50%', background: P }} />
+              </button>
+              <div style={{ width: 36, height: 36, borderRadius: '50%', background: P, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 13, fontWeight: 800 }}>P</div>
             </div>
-            <div style={{width:1, height:24, background:'rgba(0,0,0,0.1)', margin:'0 4px'}}/>
-            {/* action buttons */}
-            <button style={{
-              padding:'9px 18px', borderRadius:22,
-              background:`linear-gradient(135deg,${P},#8b6bff)`,
-              color:'#fff', border:'none', cursor:'pointer',
-              fontSize:13.5, fontWeight:600,
-              boxShadow:`0 4px 14px ${P}44`,
-              display:'flex', alignItems:'center', gap:5,
-              transition:'transform 0.1s, box-shadow 0.1s',
-            }}
-            onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-1px)';e.currentTarget.style.boxShadow=`0 6px 20px ${P}55`;}}
-            onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=`0 4px 14px ${P}44`;}}
-            >
-              + Nuevo gasto
-            </button>
-            <button style={{
-              padding:'8px 12px', borderRadius:22,
-              background:'#fff', color:'#555',
-              border:'1px solid rgba(0,0,0,0.09)', cursor:'pointer',
-              fontSize:13, fontWeight:500, display:'flex', alignItems:'center', gap:5,
-              boxShadow:'0 1px 6px rgba(0,0,0,0.06)',
-            }}>
-              📅 19 mar – 23 abr ∨
-            </button>
-            <button onClick={()=>setPanel(!panel)} style={{
-              padding:'8px 12px', borderRadius:22,
-              background:'#fff', color:'#555',
-              border:'1px solid rgba(0,0,0,0.09)', cursor:'pointer',
-              fontSize:13, fontWeight:500, display:'flex', alignItems:'center', gap:5,
-              boxShadow:'0 1px 6px rgba(0,0,0,0.06)',
-            }}>
-              {panel ? '⊡ Ocultar panel' : '⊞ Mostrar panel'}
-            </button>
+          </header>
+
+          <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
+            <main style={{ flex: 1, minWidth: 0, padding: '15px 18px 14px 22px', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 14, marginBottom: 14 }}>
+                <div>
+                  <h1 style={{ fontSize: 22, lineHeight: 1.02, fontWeight: 900, color: TEXT, letterSpacing: -0.42, marginBottom: 4 }}>Movimientos</h1>
+                  <div style={{ fontSize: 12, color: SUBTLE, fontWeight: 600 }}>Controlá tus gastos, entendé tus hábitos.</div>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingTop: 1 }}>
+                  <HeaderButton filled icon={<Icons.plus />}>Nuevo gasto</HeaderButton>
+                  <HeaderButton icon={<Icons.calendar />}>19 mar - 23 abr <Icons.chevron /></HeaderButton>
+                  <HeaderButton icon={<Icons.panelOff />} onClick={() => setShowPanel(!showPanel)}>
+                    {showPanel ? 'Ocultar panel' : 'Mostrar panel'}
+                  </HeaderButton>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginBottom: 12 }}>
+                {FILTERS.map(filter => {
+                  const selected = activeFilter === filter.k;
+                  return (
+                    <button
+                      key={filter.k}
+                      onClick={() => setActiveFilter(filter.k)}
+                      style={{
+                        height: 27,
+                        borderRadius: 999,
+                        border: selected ? '1px solid transparent' : `1px solid ${BORDER}`,
+                        background: selected ? P : '#fff',
+                        color: selected ? '#fff' : '#59536F',
+                        padding: '0 9px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 5,
+                        fontSize: 10.5,
+                        fontWeight: 800,
+                        cursor: 'pointer',
+                        boxShadow: selected ? '0 8px 16px rgba(90,48,240,0.18)' : 'none',
+                      }}
+                    >
+                      {filter.activeDot && <span style={{ fontSize: 8.3 }}>✦</span>}
+                      {filter.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 10, marginBottom: 15 }}>
+                <div style={{ height: 36, borderRadius: 18, background: '#F3F3FA', border: `1px solid rgba(120,114,149,0.10)`, display: 'flex', alignItems: 'center', padding: '0 13px', gap: 10 }}>
+                  <span style={{ color: '#7B7694', display: 'flex' }}><Icons.search /></span>
+                  <input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Buscar movimiento, comercio o categoría..."
+                    style={{ border: 'none', outline: 'none', background: 'transparent', flex: 1, fontSize: 12, color: TEXT }}
+                  />
+                </div>
+                <button style={{ height: 36, borderRadius: 18, border: `1px solid rgba(120,114,149,0.10)`, background: '#fff', padding: '0 16px', display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer', color: '#3E3859', fontSize: 11.8, fontWeight: 800, position: 'relative' }}>
+                  <Icons.filter />
+                  Filtros
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: P, marginLeft: 2 }} />
+                </button>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, marginBottom: 17 }}>
+                {SUMMARY.map(card => <SummaryCard key={card.label} card={card} />)}
+              </div>
+
+              <div>
+                {filteredGroups.map(group => <DayGroup key={group.date} group={group} />)}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0 10px' }}>
+                <button style={{ border: 'none', background: 'transparent', color: P, fontSize: 12.8, fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  Ver todos los movimientos del día
+                  <Icons.chevron />
+                </button>
+              </div>
+            </main>
+
+            {showPanel && <InsightsPanel onHide={() => setShowPanel(false)} />}
           </div>
         </div>
-
-        {/* Filter chips */}
-        <div style={{display:'flex', gap:6, flexShrink:0}}>
-          {FILTERS.map(f=>(
-            <button key={f.k} onClick={()=>setFilter(f.k)} style={{
-              padding:'7px 14px', borderRadius:22,
-              background: filter===f.k ? P : '#fff',
-              color: filter===f.k ? '#fff' : '#555',
-              border: filter===f.k ? `1.5px solid ${P}` : '1px solid rgba(0,0,0,0.09)',
-              cursor:'pointer', fontSize:13, fontWeight:600,
-              boxShadow: filter===f.k ? `0 2px 10px ${P}33` : '0 1px 4px rgba(0,0,0,0.05)',
-              transition:'all 0.15s',
-            }}>{f.label}</button>
-          ))}
-        </div>
-
-        {/* Search + Filtros */}
-        <div style={{display:'flex', gap:8, flexShrink:0}}>
-          <div style={{
-            flex:1, display:'flex', alignItems:'center', gap:9,
-            background:'#fff', borderRadius:13,
-            border:'1px solid rgba(0,0,0,0.07)', padding:'9px 14px',
-            boxShadow:'0 1px 6px rgba(0,0,0,0.05)',
-          }}>
-            <span style={{color:'#ccc', fontSize:15, flexShrink:0}}>🔍</span>
-            <input type="text" value={search} onChange={e=>setSearch(e.target.value)}
-              placeholder="Buscar movimiento, comercio o categoría..."
-              style={{
-                flex:1, border:'none', outline:'none', fontSize:13.5,
-                color:'#1d1d1f', background:'transparent', fontFamily:'inherit',
-              }}
-            />
-          </div>
-          <button style={{
-            padding:'9px 16px', borderRadius:13,
-            background:'#fff', color:'#555',
-            border:'1px solid rgba(0,0,0,0.07)', cursor:'pointer',
-            fontSize:13.5, fontWeight:600, display:'flex', alignItems:'center', gap:6,
-            boxShadow:'0 1px 6px rgba(0,0,0,0.05)', position:'relative',
-          }}>
-            ⊟ Filtros
-            <span style={{
-              position:'absolute', top:8, right:9,
-              width:7, height:7, borderRadius:'50%', background:P,
-            }}/>
-          </button>
-        </div>
-
-        {/* Summary cards */}
-        <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, flexShrink:0}}>
-          {[
-            { label:'SALDO EN ARS',    value:'$1.914.210,53',  color:'#1d1d1f' },
-            { label:'EN USD',          value:'USD 26,29',       color:GREEN      },
-            { label:'TOTAL DEL PERÍODO',value:'$1.950.490,73', color:P          },
-          ].map((c,i)=>(
-            <div key={i} style={{
-              background:'#fff', borderRadius:13, padding:'13px 16px',
-              border:'1px solid rgba(0,0,0,0.06)',
-              boxShadow:'0 1px 6px rgba(0,0,0,0.05)',
-            }}>
-              <div style={{fontSize:9.5, fontWeight:700, color:'#bbb', letterSpacing:0.5, marginBottom:5}}>{c.label}</div>
-              <div style={{
-                fontSize:20, fontWeight:800, color:c.color,
-                letterSpacing:-0.4, fontVariantNumeric:'tabular-nums',
-              }}>{c.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Transaction list */}
-        <div style={{flex:1, overflowY:'auto', paddingRight:2, paddingBottom:8}}>
-          {GROUPS.map(g=><DayGroup key={g.date} group={g}/>)}
-          <div style={{display:'flex', justifyContent:'center', paddingTop:4}}>
-            <button style={{
-              fontSize:13, fontWeight:600, color:P,
-              background:'none', border:'none', cursor:'pointer',
-              display:'flex', alignItems:'center', gap:4,
-            }}>
-              Ver todos los movimientos del día ∨
-            </button>
-          </div>
-        </div>
-
       </div>
-
-      {/* Right insights panel */}
-      {panel && <InsightsPanel onHide={()=>setPanel(false)}/>}
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 </body>
 </html>
