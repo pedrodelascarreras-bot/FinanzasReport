@@ -1268,8 +1268,16 @@
 
 <!-- TRANSACTIONS -->
 <div id="page-transactions" class="page">
+  <div id="transactions-replica-shell" style="height:calc(100vh - 124px);min-height:720px;padding:0;margin:0;">
+    <iframe
+      id="transactions-replica-frame"
+      src="movimientos-react.html"
+      title="Movimientos"
+      style="width:100%;height:100%;border:none;border-radius:22px;background:transparent;display:block;"
+    ></iframe>
+  </div>
 
-  <div class="page-header fade-up">
+  <div class="page-header fade-up" style="display:none;">
     <div><div class="page-title" data-i18n="page_transactions">Movimientos</div><div class="page-subtitle" data-i18n="page_transactions_sub">Tu mesa operativa diaria para buscar, corregir, categorizar y cerrar movimientos sin fricción.</div></div>
     <div class="header-actions">
       <div class="search-wrap search-wrap-wide">
@@ -1283,8 +1291,8 @@
     </div>
   </div>
 
-  <div class="layout-edit-banner" id="banner-transactions"><strong>✦ Modo edición</strong> · Toggle · <button class="btn btn-ghost btn-sm" onclick="toggleEditMode('transactions')">Listo ✓</button></div>
-  <div class="layout-section" data-page="transactions" data-key="filters"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('transactions','filters',this)">● Filtros</button></div>
+  <div class="layout-edit-banner" id="banner-transactions" style="display:none;"><strong>✦ Modo edición</strong> · Toggle · <button class="btn btn-ghost btn-sm" onclick="toggleEditMode('transactions')">Listo ✓</button></div>
+  <div class="layout-section" data-page="transactions" data-key="filters" style="display:none;"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('transactions','filters',this)">● Filtros</button></div>
   <!-- Barra de filtros + resumen -->
   <div class="txn-filter-bar fade-up d1">
 
@@ -1357,14 +1365,14 @@
   </div><!-- /layout-section filters -->
 
   <!-- Pendientes banner -->
-  <div id="pendientes-banner" class="fade-up" style="margin-bottom:0;"></div>
+  <div id="pendientes-banner" class="fade-up" style="margin-bottom:0;display:none;"></div>
 
   <!-- Estado tabs -->
-  <div class="fade-up d1 section-gap-xs">
+  <div class="fade-up d1 section-gap-xs" style="display:none;">
     <div id="estado-filter-tabs" class="estado-filter-tabs"></div>
   </div>
 
-  <div class="layout-section" data-page="transactions" data-key="table"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('transactions','table',this)">● Tabla</button></div>
+  <div class="layout-section" data-page="transactions" data-key="table" style="display:none;"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('transactions','table',this)">● Tabla</button></div>
   <!-- Bulk selection bar -->
   <div class="txn-select-bar" id="txn-select-bar">
     <span class="sb-count" id="sb-count">0 seleccionados</span>
