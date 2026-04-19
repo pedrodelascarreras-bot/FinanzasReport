@@ -1956,13 +1956,18 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
   const _layoutState=typeof loadLayoutState==='function'?loadLayoutState():{};
   const _hiddenWidgets=_layoutState.dashboard?.widgetHidden||[];
   const thirdPartySummary=getThirdPartyDashboardSummary();
-  const shouldHideThirdPartyWidget=_hiddenWidgets.includes('history-kpis') || !thirdPartySummary.count;
-  /* show/hide the third-party card vs the fallback avg widget */
-  if(historyCard) historyCard.style.display=shouldHideThirdPartyWidget?'none':'';
-  if(avgWidget) avgWidget.style.display=shouldHideThirdPartyWidget?'':'none';
-  if(historyWrap){
-    historyWrap.hidden=false;
-    historyWrap.style.display='';
+  const manuallyHidden=_hiddenWidgets.includes('history-kpis');
+  const noTerceros=!thirdPartySummary.count;
+  const shouldHideThirdPartyWidget=manuallyHidden||noTerceros;
+  /* logic: no terceros → hide entire row (original behavior)
+            manually hidden + has terceros → show fallback avg widget
+            has terceros + not hidden → show terceros card */
+  if(noTerceros&&!manuallyHidden){
+    if(historyWrap){historyWrap.hidden=true;historyWrap.style.display='none';}
+  } else {
+    if(historyWrap){historyWrap.hidden=false;historyWrap.style.display='';}
+    if(historyCard) historyCard.style.display=manuallyHidden?'none':'';
+    if(avgWidget) avgWidget.style.display=manuallyHidden?'':'none';
   }
   if(tpPendingEl&&tpSubEl&&tpBadgeEl&&tpTotalEl&&tpCollectedEl&&tpOpenEl&&tpFootEl&&tpBarEl&&thirdPartySummary.count){
     historyWrap&&historyWrap.classList.remove('is-empty');
@@ -1996,8 +2001,8 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     if(tpFootEl)tpFootEl.textContent='Cuando marques uno, esta tarjeta se expande sola con el seguimiento completo.';
     if(tpBarEl)tpBarEl.style.width='0%';
   }
-  /* populate fallback avg widget */
-  if(shouldHideThirdPartyWidget && avgWidget){
+  /* populate fallback avg widget (only when manually hidden, not when no terceros) */
+  if(manuallyHidden && avgWidget){
     const fbDaily=document.getElementById('kpi-fallback-daily');
     const fbTotal=document.getElementById('kpi-fallback-total');
     const fbProj=document.getElementById('kpi-fallback-projected');

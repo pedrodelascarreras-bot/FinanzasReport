@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Movimientos — FinanzasApp</title>
+<script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body, #root { height: 100%; }
+  body {
+    font-family: -apple-system, "SF Pro Display", "SF Pro Text", BlinkMacSystemFont, "Helvetica Neue", sans-serif;
+    background: #ededf2;
+    color: #1d1d1f;
+    -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.12); border-radius: 4px; }
+  input, button { font-family: inherit; }
+  button { -webkit-appearance: none; appearance: none; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useRef, useEffect, useCallback } = React;
+
+/* ─── palette ─── */
+const P = '#6B4FE8';
+const P_LIGHT = 'rgba(107,79,232,0.09)';
+const P_BORDER = 'rgba(107,79,232,0.18)';
+const GREEN = '#1a8a38';
+const RED = '#FF3B30';
+
+/* ─── helpers ─── */
+const fmt = (n, dec=2) =>
+  '$' + Math.abs(n).toLocaleString('es-AR', { minimumFractionDigits: dec, maximumFractionDigits: dec });
+const fmtShort = n => '$' + Math.round(Math.abs(n)).toLocaleString('es-AR');
+
+/* ─── data ─── */
+const GROUPS = [
+  {
+    date: '2026-04-19', day: 'SÁBADO', label: '19 ABRIL',
+    vsAvg: +12,
+    txns: [
+      { id:1,  time:'00:46', name:'DLO',                        initials:'DLO', bg:'#1d1d1f', fg:'#fff',    cat:'Kiosco',         catC:'#9333ea', amt:-17775,    cur:'ARS', note:null },
+      { id:2,  time:'13:21', name:"McDonald's Acassuso",        initials:'M',   bg:'#FFC72C', fg:'#C8102E',  cat:'Restaurantes',   catC:'#f59e0b', amt:14.99,    cur:'USD', arsEq:14999, note:null },
+      { id:3,  time:'19:08', name:'PedidosYa – Shell San Isidro',initials:'P',  bg:'#FF3008', fg:'#fff',    cat:'Delivery',       catC:'#0ea5e9', amt:-13688,   cur:'ARS', note:'Cena con Juli' },
+    ]
+  },
+  {
+    date: '2026-04-18', day: 'VIERNES', label: '18 ABRIL',
+    vsAvg: -5,
+    txns: [
+      { id:4,  time:'19:43', name:"McDonald's Acassuso",        initials:'M',   bg:'#FFC72C', fg:'#C8102E',  cat:'Restaurantes',   catC:'#f59e0b', amt:-13688,   cur:'ARS', note:null },
+      { id:5,  time:'19:45', name:'PedidosYa – Shell San Isidro',initials:'P',  bg:'#FF3008', fg:'#fff',    cat:'Delivery',       catC:'#0ea5e9', amt:-13688,   cur:'ARS', note:null },
+      { id:6,  time:'14:32', name:'YPF ACA – Av. Libertador',   initials:'YPF', bg:'#00308F', fg:'#FFD100', cat:'Transporte',     catC:'#10b981', amt:9.85,     cur:'USD', arsEq:9850, note:'Carga de combustible' },
+      { id:7,  time:'11:18', name:'Café Martínez',               initials:'CM',  bg:'#2c1506', fg:'#d4a063', cat:'Cafeterías',     catC:'#8b5cf6', amt:-4250,    cur:'ARS', note:'Reunión de trabajo' },
+    ]
+  },
+  {
+    date: '2026-04-17', day: 'JUEVES', label: '17 ABRIL',
+    vsAvg: -18,
+    txns: [
+      { id:8,  time:'19:48', name:'Hiper Changomas',             initials:'HC',  bg:'#e8312a', fg:'#fff',    cat:'Supermercado',   catC:'#22c55e', amt:-14361.27,cur:'ARS', note:null },
+      { id:9,  time:'18:55', name:'Market Acassuso Av. Liber',   initials:'MA',  bg:'#1e40af', fg:'#fff',    cat:'Supermercado',   catC:'#22c55e', amt:-14261,   cur:'ARS', note:null },
+      { id:10, time:'12:11', name:'SBA* Netflix.com',            initials:'N',   bg:'#E50914', fg:'#fff',    cat:'Entretenimiento',catC:'#ec4899', amt:3.59,     cur:'USD', arsEq:3599, note:'Suscripción mensual' },
+      { id:11, time:'09:32', name:'Taxi Premun',                  initials:'TX',  bg:'#f59e0b', fg:'#1d1d1f',cat:'Transporte',     catC:'#10b981', amt:-3599,    cur:'ARS', note:null },
+      { id:12, time:'08:15', name:'Starbucks',                   initials:'SB',  bg:'#00704A', fg:'#fff',    cat:'Cafeterías',     catC:'#8b5cf6', amt:-2599,    cur:'ARS', note:null },
+    ]
+  },
+];
+
+const DONUT = [
+  { label:'Restaurantes', pct:28, amount:546250,  color:'#6B4FE8' },
+  { label:'Supermercado', pct:22, amount:429800,  color:'#10b981' },
+  { label:'Transporte',   pct:14, amount:273600,  color:'#0ea5e9' },
+  { label:'Delivery',     pct:12, amount:234900,  color:'#f59e0b' },
+  { label:'Otros',        pct:24, amount:465940,  color:'#e5e7eb' },
+];
+
+const SPARKLINE = [12400,15200,10800,18100,13600,16400,14361];
+
+/* ─── SVG donut ─── */
+function DonutChart({ data, size=128, sw=18 }) {
+  const r = (size - sw) / 2;
+  const C = 2 * Math.PI * r;
+  const cx = size/2, cy = size/2;
+  let off = 0;
+  const segs = data.map(d => { const s={...d,off}; off+=d.pct; return s; });
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{transform:'rotate(-90deg)'}}>
+      {segs.map((s,i) => {
+        const da = (s.pct/100)*C;
+        return (
+          <circle key={i} cx={cx} cy={cy} r={r} fill="none"
+            stroke={s.color} strokeWidth={sw}
+            strokeDasharray={`${da} ${C-da}`}
+            strokeDashoffset={-(s.off/100)*C}
+            strokeLinecap="butt" />
+        );
+      })}
+    </svg>
+  );
+}
+
+/* ─── Sparkline ─── */
+function Sparkline({ data, color='#6B4FE8', w=80, h=28 }) {
+  if (!data || data.length < 2) return null;
+  const mn = Math.min(...data), mx = Math.max(...data), rng = mx-mn||1;
+  const pts = data.map((v,i) => `${(i/(data.length-1))*w},${h-((v-mn)/rng)*(h-4)-2}`).join(' ');
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} style={{display:'block'}}>
+      <polyline points={pts} fill="none" stroke={color} strokeWidth={1.8}
+        strokeLinecap="round" strokeLinejoin="round"/>
+    </svg>
+  );
+}
+
+/* ─── Merchant avatar ─── */
+function Avatar({ initials, bg, fg, size=40 }) {
+  const fs = initials.length > 2 ? size*0.28 : initials.length===2 ? size*0.34 : size*0.42;
+  return (
+    <div style={{
+      width:size, height:size, borderRadius:'50%', background:bg, flexShrink:0,
+      display:'flex', alignItems:'center', justifyContent:'center',
+      boxShadow:'0 1px 6px rgba(0,0,0,0.12)',
+    }}>
+      <span style={{fontSize:fs, fontWeight:800, color:fg, letterSpacing:initials.length>2?-1:0}}>
+        {initials}
+      </span>
+    </div>
+  );
+}
+
+/* ─── Category chip ─── */
+function Chip({ label, color }) {
+  return (
+    <span style={{
+      display:'inline-flex', alignItems:'center',
+      padding:'2px 9px', borderRadius:20,
+      background:`${color}15`, color, border:`1px solid ${color}28`,
+      fontSize:11, fontWeight:600, lineHeight:1.5, whiteSpace:'nowrap',
+    }}>{label}</span>
+  );
+}
+
+/* ─── Three-dot menu ─── */
+const MENU_ACTIONS = [
+  { icon:'✏️', label:'Editar monto y fecha' },
+  { icon:'🏪', label:'Editar comercio' },
+  { icon:'🏷️', label:'Cambiar categoría' },
+  { icon:'📝', label:'Agregar nota' },
+  { icon:'🗑️', label:'Eliminar movimiento', danger:true },
+];
+
+function DropMenu({ onClose }) {
+  return (
+    <div style={{
+      position:'absolute', right:0, top:32, zIndex:200,
+      background:'#fff', borderRadius:16,
+      boxShadow:'0 12px 48px rgba(0,0,0,0.14), 0 2px 8px rgba(0,0,0,0.06)',
+      border:'1px solid rgba(0,0,0,0.07)',
+      overflow:'hidden', minWidth:210,
+    }} onClick={e=>e.stopPropagation()}>
+      {MENU_ACTIONS.map((a,i) => (
+        <button key={i} onClick={onClose} style={{
+          width:'100%', padding:'11px 16px', background:'none', border:'none',
+          cursor:'pointer', display:'flex', alignItems:'center', gap:10,
+          fontSize:13.5, fontWeight:500, color:a.danger?RED:'#1d1d1f',
+          textAlign:'left',
+          borderBottom: i<MENU_ACTIONS.length-1 ? '1px solid rgba(0,0,0,0.045)' : 'none',
+        }}
+        onMouseEnter={e=>e.currentTarget.style.background=a.danger?'#fff5f5':'#f5f5f7'}
+        onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+        >
+          <span style={{fontSize:15, lineHeight:1}}>{a.icon}</span>
+          {a.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Transaction row ─── */
+function TxnRow({ tx, isLast }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return ()=>document.removeEventListener('mousedown', h);
+  }, [open]);
+
+  const isUSD = tx.cur === 'USD';
+  const amtStr = isUSD
+    ? `USD ${Math.abs(tx.amt).toFixed(2).replace('.',',')}`
+    : fmt(tx.amt);
+
+  return (
+    <div style={{
+      display:'flex', alignItems:'center', gap:12,
+      padding:'11px 16px',
+      borderBottom: isLast ? 'none' : '1px solid rgba(0,0,0,0.042)',
+      transition:'background 0.1s',
+    }}
+    onMouseEnter={e=>e.currentTarget.style.background='#fafafa'}
+    onMouseLeave={e=>e.currentTarget.style.background='transparent'}
+    >
+      <Avatar initials={tx.initials} bg={tx.bg} fg={tx.fg} size={40} />
+
+      <div style={{flex:1, minWidth:0, display:'flex', flexDirection:'column', gap:3}}>
+        <div style={{display:'flex', alignItems:'center', gap:7}}>
+          <span style={{fontSize:12, color:'#bbb', fontVariantNumeric:'tabular-nums', flexShrink:0}}>{tx.time}</span>
+          <span style={{fontSize:14, fontWeight:600, color:'#1d1d1f', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap'}}>
+            {tx.name}
+          </span>
+        </div>
+        <div style={{display:'flex', alignItems:'center', gap:7, flexWrap:'wrap'}}>
+          <Chip label={tx.cat} color={tx.catC} />
+          {tx.note && (
+            <span style={{fontSize:11.5, color:'#aaa', display:'flex', alignItems:'center', gap:3}}>
+              <span style={{fontSize:10}}>↩</span>{tx.note}
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div style={{flexShrink:0, textAlign:'right', display:'flex', flexDirection:'column', alignItems:'flex-end', gap:2}}>
+        <span style={{
+          fontSize:14.5, fontWeight:700, fontVariantNumeric:'tabular-nums',
+          color: isUSD ? GREEN : '#1d1d1f',
+        }}>{amtStr}</span>
+        {isUSD && tx.arsEq && (
+          <span style={{fontSize:11, color:'#bbb', fontVariantNumeric:'tabular-nums'}}>
+            ({fmtShort(tx.arsEq)},00)
+          </span>
+        )}
+      </div>
+
+      <div ref={ref} style={{position:'relative', flexShrink:0}}>
+        <button onClick={e=>{e.stopPropagation();setOpen(!open);}} style={{
+          width:30, height:30, borderRadius:8, border:'none', cursor:'pointer',
+          background: open?P_LIGHT:'transparent',
+          color: open?P:'#ccc',
+          display:'flex', alignItems:'center', justifyContent:'center',
+          fontSize:18, lineHeight:1, transition:'all 0.12s',
+        }}
+        onMouseEnter={e=>{if(!open){e.currentTarget.style.background='#f0f0f5';e.currentTarget.style.color='#888';}}}
+        onMouseLeave={e=>{if(!open){e.currentTarget.style.background='transparent';e.currentTarget.style.color='#ccc';}}}
+        >⋮</button>
+        {open && <DropMenu onClose={()=>setOpen(false)}/>}
+      </div>
+    </div>
+  );
+}
+
+/* ─── Day group ─── */
+function DayGroup({ group }) {
+  const [expanded, setExpanded] = useState(true);
+  const above = group.vsAvg > 0;
+  const dayARS = group.txns.reduce((s,t)=>{
+    if(t.cur==='ARS') return s+Math.abs(t.amt);
+    if(t.arsEq) return s+t.arsEq;
+    return s;
+  },0);
+
+  return (
+    <div style={{marginBottom:14}}>
+      {/* Day header row */}
+      <div onClick={()=>setExpanded(!expanded)} style={{
+        display:'flex', alignItems:'center', gap:8,
+        padding:'6px 2px', cursor:'pointer', userSelect:'none',
+      }}>
+        <span style={{fontSize:12, fontWeight:700, color:'#1d1d1f', letterSpacing:0.2}}>
+          {group.day} {group.label}
+        </span>
+        <span style={{
+          fontSize:11, fontWeight:600, padding:'2px 9px', borderRadius:20,
+          background: above?'rgba(255,59,48,0.09)':'rgba(52,199,89,0.1)',
+          color: above?RED:GREEN,
+        }}>
+          {above?'+':''}{group.vsAvg}% vs. promedio
+        </span>
+        <div style={{flex:1}}/>
+        <span style={{fontSize:12, color:'#bbb', fontWeight:500}}>
+          {group.txns.length} movimiento{group.txns.length!==1?'s':''}
+        </span>
+        <span style={{
+          fontSize:12, color:'#ccc', display:'inline-block',
+          transition:'transform 0.2s', transform:expanded?'rotate(0deg)':'rotate(-90deg)',
+        }}>∨</span>
+      </div>
+
+      {expanded && (
+        <>
+          {/* Sub-header: daily total */}
+          <div style={{
+            display:'flex', alignItems:'center', justifyContent:'space-between',
+            padding:'7px 16px',
+            background:'linear-gradient(90deg, rgba(107,79,232,0.04) 0%, rgba(107,79,232,0) 100%)',
+            borderRadius:'12px 12px 0 0',
+            borderBottom:'1px solid rgba(0,0,0,0.04)',
+          }}>
+            <span style={{fontSize:12, color:'#888', display:'flex', alignItems:'center', gap:5}}>
+              <span style={{fontSize:13, color:P}}>↗</span>
+              Gasto del día: <strong style={{color:'#444', marginLeft:3}}>{fmtShort(dayARS)}</strong>
+            </span>
+            <span style={{fontSize:12, color:'#bbb'}}>
+              Promedio diario: <strong style={{color:'#888'}}>$14.361</strong>
+            </span>
+          </div>
+          {/* Transactions */}
+          <div style={{
+            background:'#fff', borderRadius:'0 0 14px 14px',
+            border:'1px solid rgba(0,0,0,0.06)', borderTop:'none',
+            overflow:'hidden',
+          }}>
+            {group.txns.map((tx,i) => (
+              <TxnRow key={tx.id} tx={tx} isLast={i===group.txns.length-1}/>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+/* ─── Right insights panel ─── */
+function InsightsPanel({ onHide }) {
+  return (
+    <div style={{
+      width:282, flexShrink:0,
+      display:'flex', flexDirection:'column', gap:11,
+      overflowY:'auto', paddingBottom:16,
+    }}>
+      {/* Toggle row */}
+      <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 2px'}}>
+        <span style={{fontSize:12, color:'#bbb', fontWeight:500}}>Mostrando insights</span>
+        <div onClick={onHide} style={{
+          width:44, height:26, borderRadius:14, background:P, cursor:'pointer',
+          position:'relative', boxShadow:`0 2px 8px ${P}55`,
+        }}>
+          <div style={{
+            position:'absolute', right:3, top:3, width:20, height:20,
+            borderRadius:'50%', background:'#fff',
+            boxShadow:'0 1px 4px rgba(0,0,0,0.18)',
+          }}/>
+        </div>
+      </div>
+
+      {/* Main insight card */}
+      <div style={{
+        borderRadius:18, padding:20,
+        background:'linear-gradient(145deg,#1a0e3d,#2e1a6e)',
+        color:'#fff', position:'relative', overflow:'hidden',
+      }}>
+        <div style={{position:'absolute', top:16, right:16, opacity:0.45}}>
+          <Sparkline data={[8,12,9,15,11,14,17]} color="#a78bfa" w={72} h={40}/>
+        </div>
+        <div style={{fontSize:10, fontWeight:700, letterSpacing:0.6, opacity:0.55, marginBottom:10}}>
+          ⚡ HOY · 19 ABRIL
+        </div>
+        <div style={{fontSize:15.5, fontWeight:700, lineHeight:1.38, marginBottom:8, maxWidth:160}}>
+          Vas un 12% por encima de tu promedio diario
+        </div>
+        <div style={{fontSize:12, opacity:0.7, marginBottom:14, lineHeight:1.55}}>
+          Llevás gastado <strong style={{color:'#fff'}}>$17.775</strong> de{' '}
+          <strong style={{color:'#fff'}}>$15.800</strong> presupuestado
+        </div>
+        <div style={{height:5, borderRadius:5, background:'rgba(255,255,255,0.15)', overflow:'visible', marginBottom:6}}>
+          <div style={{height:'100%', width:'112%', borderRadius:5, background:'linear-gradient(90deg,#ff8f70,#ff3b30)'}}/>
+        </div>
+        <div style={{display:'flex', justifyContent:'flex-end'}}>
+          <span style={{fontSize:10.5, opacity:0.5}}>$15.800</span>
+        </div>
+      </div>
+
+      {/* Stats row */}
+      <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:10}}>
+        <div style={{background:'#fff', borderRadius:14, padding:'14px 13px', border:'1px solid rgba(0,0,0,0.06)'}}>
+          <div style={{fontSize:10, color:'#bbb', fontWeight:600, letterSpacing:0.3, marginBottom:6, lineHeight:1.3}}>
+            Gasto promedio diario
+          </div>
+          <div style={{fontSize:19, fontWeight:800, color:'#1d1d1f', letterSpacing:-0.5, marginBottom:4}}>
+            $14.361
+          </div>
+          <div style={{fontSize:10.5, color:GREEN, fontWeight:600, marginBottom:8}}>↑ 8,5% vs. período anterior</div>
+          <Sparkline data={SPARKLINE} color={P} w={80} h={24}/>
+        </div>
+        <div style={{background:'#fff', borderRadius:14, padding:'14px 13px', border:'1px solid rgba(0,0,0,0.06)'}}>
+          <div style={{fontSize:10, color:'#bbb', fontWeight:600, letterSpacing:0.3, marginBottom:6, lineHeight:1.3}}>
+            Categoría dominante
+          </div>
+          <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:4}}>
+            <div style={{
+              width:30, height:30, borderRadius:9,
+              background:`${P}12`, display:'flex', alignItems:'center',
+              justifyContent:'center', fontSize:17, flexShrink:0,
+            }}>🍽️</div>
+            <div>
+              <div style={{fontSize:13, fontWeight:700, color:'#1d1d1f'}}>Restaurantes</div>
+              <div style={{fontSize:11, color:'#bbb'}}>28% del total</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Donut chart card */}
+      <div style={{background:'#fff', borderRadius:16, padding:'18px 16px', border:'1px solid rgba(0,0,0,0.06)'}}>
+        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14}}>
+          <span style={{fontSize:13, fontWeight:700, color:'#1d1d1f'}}>Categorías del período</span>
+          <button style={{fontSize:12, color:P, fontWeight:600, background:'none', border:'none', cursor:'pointer'}}>
+            Ver detalle
+          </button>
+        </div>
+        <div style={{display:'flex', justifyContent:'center', marginBottom:14}}>
+          <div style={{position:'relative', width:128, height:128}}>
+            <DonutChart data={DONUT} size={128} sw={18}/>
+            <div style={{
+              position:'absolute', inset:0, display:'flex',
+              alignItems:'center', justifyContent:'center',
+            }}>
+              <span style={{fontSize:12, fontWeight:800, color:'#1d1d1f', textAlign:'center'}}>$1.950.490</span>
+            </div>
+          </div>
+        </div>
+        {DONUT.map((d,i) => (
+          <div key={i} style={{
+            display:'flex', alignItems:'center', gap:8,
+            padding:'7px 0',
+            borderBottom: i<DONUT.length-1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
+          }}>
+            <div style={{width:8, height:8, borderRadius:'50%', background:d.color, flexShrink:0}}/>
+            <span style={{fontSize:12.5, color:'#444', flex:1, fontWeight:500}}>{d.label}</span>
+            <span style={{fontSize:12, color:'#bbb', width:28, textAlign:'right'}}>{d.pct}%</span>
+            <span style={{
+              fontSize:12.5, fontWeight:600, color:'#1d1d1f',
+              fontVariantNumeric:'tabular-nums', width:72, textAlign:'right',
+            }}>
+              ${d.amount.toLocaleString('es-AR')}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Category management */}
+      <div style={{
+        background:'#fff', borderRadius:14, padding:'14px 14px 14px 14px',
+        border:'1px solid rgba(0,0,0,0.06)',
+        display:'flex', alignItems:'center', gap:12,
+      }}>
+        <div style={{
+          width:36, height:36, borderRadius:10,
+          background:`${P}10`, display:'flex', alignItems:'center',
+          justifyContent:'center', fontSize:18, flexShrink:0,
+        }}>⊞</div>
+        <div>
+          <div style={{fontSize:13, fontWeight:600, color:'#1d1d1f', marginBottom:2}}>
+            Personalizá tus categorías
+          </div>
+          <div style={{fontSize:11.5, color:'#bbb'}}>Arrastrá para ordenar o crear nuevas</div>
+        </div>
+      </div>
+      <button style={{
+        width:'100%', padding:'11px', borderRadius:24,
+        background:`${P}0d`, color:P, border:`1px solid ${P}22`,
+        cursor:'pointer', fontSize:13.5, fontWeight:600,
+        transition:'background 0.12s',
+      }}
+      onMouseEnter={e=>e.currentTarget.style.background=`${P}18`}
+      onMouseLeave={e=>e.currentTarget.style.background=`${P}0d`}
+      >Gestionar categorías</button>
+    </div>
+  );
+}
+
+/* ─── Sidebar ─── */
+const NAV = [
+  { icon:'▦',  label:'Dashboard',    active:false },
+  { icon:'⇅',  label:'Movimientos',  active:true  },
+  { icon:'◎',  label:'Metas',        active:false },
+  { icon:'⊡',  label:'Compromisos',  active:false },
+  { icon:'⚙',  label:'Configuración',active:false },
+];
+
+function Sidebar() {
+  return (
+    <div style={{
+      width:70, flexShrink:0, display:'flex', flexDirection:'column',
+      alignItems:'center', gap:0,
+      background:'#fff', borderRadius:20, padding:'18px 0',
+      boxShadow:'0 2px 16px rgba(0,0,0,0.07)',
+      border:'1px solid rgba(0,0,0,0.055)',
+    }}>
+      {/* Brand */}
+      <div style={{
+        width:40, height:40, borderRadius:12, marginBottom:26,
+        background:`linear-gradient(135deg,${P},#9b7aff)`,
+        display:'flex', alignItems:'center', justifyContent:'center',
+        boxShadow:`0 4px 16px ${P}44`,
+      }}>
+        <span style={{color:'#fff', fontSize:20, fontWeight:900}}>$</span>
+      </div>
+
+      {/* Nav */}
+      <div style={{display:'flex', flexDirection:'column', gap:4, width:'100%', padding:'0 10px', flex:1}}>
+        {NAV.map((n,i) => (
+          <button key={i} title={n.label} style={{
+            width:'100%', height:44, borderRadius:12, border:'none', cursor:'pointer',
+            background: n.active ? P_LIGHT : 'none',
+            color: n.active ? P : '#ccc',
+            display:'flex', alignItems:'center', justifyContent:'center',
+            fontSize:20, transition:'all 0.12s',
+            outline: n.active ? `1px solid ${P_BORDER}` : 'none',
+          }}
+          onMouseEnter={e=>{if(!n.active){e.currentTarget.style.background='#f5f5f7';e.currentTarget.style.color='#888';}}}
+          onMouseLeave={e=>{if(!n.active){e.currentTarget.style.background='none';e.currentTarget.style.color='#ccc';}}}
+          >{n.icon}</button>
+        ))}
+      </div>
+
+      {/* Bottom user area */}
+      <div style={{display:'flex', flexDirection:'column', alignItems:'center', gap:10, paddingTop:16}}>
+        <div style={{
+          background:'linear-gradient(135deg,#f5c100,#e8890c)',
+          borderRadius:10, padding:'5px 7px', cursor:'pointer',
+          display:'flex', flexDirection:'column', alignItems:'center', gap:1,
+        }}>
+          <span style={{fontSize:15}}>👑</span>
+          <span style={{fontSize:8.5, fontWeight:700, color:'#7a4400', letterSpacing:0.3}}>Premium</span>
+        </div>
+        <div>
+          <div style={{
+            width:34, height:34, borderRadius:'50%', cursor:'pointer',
+            background:`linear-gradient(135deg,${P},#9b7aff)`,
+            display:'flex', alignItems:'center', justifyContent:'center',
+            boxShadow:`0 2px 8px ${P}44`,
+          }}>
+            <span style={{color:'#fff', fontSize:15, fontWeight:700}}>P</span>
+          </div>
+          <div style={{textAlign:'center', marginTop:4}}>
+            <div style={{fontSize:10.5, fontWeight:600, color:'#444'}}>Pedro</div>
+            <div style={{fontSize:9.5, color:'#bbb', cursor:'pointer'}}>Ver perfil</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Filter chips ─── */
+const FILTERS = [
+  { k:'todos',      label:'⊞ Todos'       },
+  { k:'ciclo-tc',   label:'Ciclo TC'      },
+  { k:'ciclo-act',  label:'Ciclo actual'  },
+  { k:'ars-usd',    label:'ARS + USD'     },
+  { k:'sin-cat',    label:'Sin categoría' },
+];
+
+/* ─── APP ─── */
+function App() {
+  const [filter, setFilter] = useState('todos');
+  const [panel, setPanel] = useState(true);
+  const [search, setSearch] = useState('');
+
+  return (
+    <div style={{
+      display:'flex', height:'100vh', overflow:'hidden',
+      background:'#ededf2', padding:12, gap:10,
+    }}>
+      <Sidebar/>
+
+      {/* Main content */}
+      <div style={{flex:1, display:'flex', flexDirection:'column', gap:10, minWidth:0, overflow:'hidden'}}>
+
+        {/* Top bar */}
+        <div style={{display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:12, flexShrink:0}}>
+          <div>
+            <div style={{display:'flex', alignItems:'center', gap:8, marginBottom:2}}>
+              {/* brand hint */}
+              <span style={{
+                width:10, height:10, borderRadius:'50%',
+                background:`linear-gradient(135deg,${P},#9b7aff)`,
+                display:'inline-block', flexShrink:0,
+              }}/>
+              <span style={{fontSize:11, fontWeight:700, color:'#bbb', letterSpacing:0.5}}>FINANZAS</span>
+            </div>
+            <h1 style={{fontSize:26, fontWeight:800, color:'#1d1d1f', letterSpacing:-0.5, lineHeight:1.1}}>
+              Movimientos
+            </h1>
+            <p style={{fontSize:13, color:'#bbb', marginTop:3, fontWeight:400}}>
+              Controlá tus gastos, entendé tus hábitos.
+            </p>
+          </div>
+
+          <div style={{display:'flex', alignItems:'center', gap:8, flexShrink:0, paddingTop:4}}>
+            {/* icon buttons */}
+            {['🔍','🔔'].map((ic,i) => (
+              <button key={i} style={{
+                width:34, height:34, borderRadius:'50%',
+                background:'#fff', border:'1px solid rgba(0,0,0,0.08)',
+                display:'flex', alignItems:'center', justifyContent:'center',
+                cursor:'pointer', fontSize:14,
+                boxShadow:'0 1px 6px rgba(0,0,0,0.06)',
+              }}>{ic}</button>
+            ))}
+            <div style={{
+              width:34, height:34, borderRadius:'50%',
+              background:`linear-gradient(135deg,${P},#9b7aff)`,
+              display:'flex', alignItems:'center', justifyContent:'center',
+              cursor:'pointer', boxShadow:`0 2px 10px ${P}44`,
+            }}>
+              <span style={{color:'#fff', fontSize:15, fontWeight:700}}>P</span>
+            </div>
+            <div style={{width:1, height:24, background:'rgba(0,0,0,0.1)', margin:'0 4px'}}/>
+            {/* action buttons */}
+            <button style={{
+              padding:'9px 18px', borderRadius:22,
+              background:`linear-gradient(135deg,${P},#8b6bff)`,
+              color:'#fff', border:'none', cursor:'pointer',
+              fontSize:13.5, fontWeight:600,
+              boxShadow:`0 4px 14px ${P}44`,
+              display:'flex', alignItems:'center', gap:5,
+              transition:'transform 0.1s, box-shadow 0.1s',
+            }}
+            onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-1px)';e.currentTarget.style.boxShadow=`0 6px 20px ${P}55`;}}
+            onMouseLeave={e=>{e.currentTarget.style.transform='';e.currentTarget.style.boxShadow=`0 4px 14px ${P}44`;}}
+            >
+              + Nuevo gasto
+            </button>
+            <button style={{
+              padding:'8px 12px', borderRadius:22,
+              background:'#fff', color:'#555',
+              border:'1px solid rgba(0,0,0,0.09)', cursor:'pointer',
+              fontSize:13, fontWeight:500, display:'flex', alignItems:'center', gap:5,
+              boxShadow:'0 1px 6px rgba(0,0,0,0.06)',
+            }}>
+              📅 19 mar – 23 abr ∨
+            </button>
+            <button onClick={()=>setPanel(!panel)} style={{
+              padding:'8px 12px', borderRadius:22,
+              background:'#fff', color:'#555',
+              border:'1px solid rgba(0,0,0,0.09)', cursor:'pointer',
+              fontSize:13, fontWeight:500, display:'flex', alignItems:'center', gap:5,
+              boxShadow:'0 1px 6px rgba(0,0,0,0.06)',
+            }}>
+              {panel ? '⊡ Ocultar panel' : '⊞ Mostrar panel'}
+            </button>
+          </div>
+        </div>
+
+        {/* Filter chips */}
+        <div style={{display:'flex', gap:6, flexShrink:0}}>
+          {FILTERS.map(f=>(
+            <button key={f.k} onClick={()=>setFilter(f.k)} style={{
+              padding:'7px 14px', borderRadius:22,
+              background: filter===f.k ? P : '#fff',
+              color: filter===f.k ? '#fff' : '#555',
+              border: filter===f.k ? `1.5px solid ${P}` : '1px solid rgba(0,0,0,0.09)',
+              cursor:'pointer', fontSize:13, fontWeight:600,
+              boxShadow: filter===f.k ? `0 2px 10px ${P}33` : '0 1px 4px rgba(0,0,0,0.05)',
+              transition:'all 0.15s',
+            }}>{f.label}</button>
+          ))}
+        </div>
+
+        {/* Search + Filtros */}
+        <div style={{display:'flex', gap:8, flexShrink:0}}>
+          <div style={{
+            flex:1, display:'flex', alignItems:'center', gap:9,
+            background:'#fff', borderRadius:13,
+            border:'1px solid rgba(0,0,0,0.07)', padding:'9px 14px',
+            boxShadow:'0 1px 6px rgba(0,0,0,0.05)',
+          }}>
+            <span style={{color:'#ccc', fontSize:15, flexShrink:0}}>🔍</span>
+            <input type="text" value={search} onChange={e=>setSearch(e.target.value)}
+              placeholder="Buscar movimiento, comercio o categoría..."
+              style={{
+                flex:1, border:'none', outline:'none', fontSize:13.5,
+                color:'#1d1d1f', background:'transparent', fontFamily:'inherit',
+              }}
+            />
+          </div>
+          <button style={{
+            padding:'9px 16px', borderRadius:13,
+            background:'#fff', color:'#555',
+            border:'1px solid rgba(0,0,0,0.07)', cursor:'pointer',
+            fontSize:13.5, fontWeight:600, display:'flex', alignItems:'center', gap:6,
+            boxShadow:'0 1px 6px rgba(0,0,0,0.05)', position:'relative',
+          }}>
+            ⊟ Filtros
+            <span style={{
+              position:'absolute', top:8, right:9,
+              width:7, height:7, borderRadius:'50%', background:P,
+            }}/>
+          </button>
+        </div>
+
+        {/* Summary cards */}
+        <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, flexShrink:0}}>
+          {[
+            { label:'SALDO EN ARS',    value:'$1.914.210,53',  color:'#1d1d1f' },
+            { label:'EN USD',          value:'USD 26,29',       color:GREEN      },
+            { label:'TOTAL DEL PERÍODO',value:'$1.950.490,73', color:P          },
+          ].map((c,i)=>(
+            <div key={i} style={{
+              background:'#fff', borderRadius:13, padding:'13px 16px',
+              border:'1px solid rgba(0,0,0,0.06)',
+              boxShadow:'0 1px 6px rgba(0,0,0,0.05)',
+            }}>
+              <div style={{fontSize:9.5, fontWeight:700, color:'#bbb', letterSpacing:0.5, marginBottom:5}}>{c.label}</div>
+              <div style={{
+                fontSize:20, fontWeight:800, color:c.color,
+                letterSpacing:-0.4, fontVariantNumeric:'tabular-nums',
+              }}>{c.value}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Transaction list */}
+        <div style={{flex:1, overflowY:'auto', paddingRight:2, paddingBottom:8}}>
+          {GROUPS.map(g=><DayGroup key={g.date} group={g}/>)}
+          <div style={{display:'flex', justifyContent:'center', paddingTop:4}}>
+            <button style={{
+              fontSize:13, fontWeight:600, color:P,
+              background:'none', border:'none', cursor:'pointer',
+              display:'flex', alignItems:'center', gap:4,
+            }}>
+              Ver todos los movimientos del día ∨
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      {/* Right insights panel */}
+      {panel && <InsightsPanel onHide={()=>setPanel(false)}/>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

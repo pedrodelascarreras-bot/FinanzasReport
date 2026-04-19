@@ -1862,7 +1862,7 @@ body.light-mode .dash-timeline-block {
 /* ════════════════════════════════════════════════
    DASHBOARD — Apple keynote hero numbers
 ════════════════════════════════════════════════ */
-.dash-row-hero { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 28px; align-items: stretch; }
+.dash-row-hero { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 28px; align-items: start; }
 .dash-row-hero.has-side-notifs { grid-template-columns: 250px minmax(0,1.08fr) minmax(320px,0.74fr); }
 .dash-row-charts { display: grid; grid-template-columns: 1.3fr 1fr; gap: 24px; }
 .dash-row-charts .chart-card {
@@ -2136,7 +2136,6 @@ body.light-mode .dash-timeline-block {
   grid-template-columns: minmax(240px, 0.88fr) minmax(0, 2.12fr);
   gap: 16px;
   margin-top: 4px;
-  flex: 1;
 }
 .dash-utility-card {
   appearance: none;
