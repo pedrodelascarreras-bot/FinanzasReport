@@ -26,245 +26,499 @@ function getLatestIncomeARS(){
   return getMonthTotalARS(sorted[0]);
 }
 // setIncCurrency replaced by setIncChartMode
-function renderIncomePage(){
+  const root = document.getElementById('income-native-root');
+  if(!root) return;
+
+  const TC=USD_TO_ARS||state.usdRate||1420;
   const months=[...state.incomeMonths].sort((a,b)=>b.month.localeCompare(a.month));
   const curMonthKey=getMonthKey(new Date());
-  const TC=USD_TO_ARS||state.usdRate||1420;
-
-  // Helper: combined total for a month entry (ARS + USD converted)
-  function getMonthCombined(m){
-    return getMonthTotalARS(m) + getMonthTotalUSD(m)*TC;
-  }
-
-  // Hero — widgets compactos: ARS fijo | USD fijo | Total | KPIs
   const curMonthData=months.find(m=>m.month===curMonthKey)||months[0];
-  const curARS=curMonthData?getMonthTotalARS(curMonthData):0;
-  const curUSD=curMonthData?getMonthTotalUSD(curMonthData):0;
-  const curCombined=curARS+curUSD*TC;
+  const curLabel=curMonthData?fmtMonthLabel(curMonthData.month):fmtMonthLabel(curMonthKey);
 
-  // Calcular fijos vs variables/comisiones
-  function getMonthFixedARS(m){
-    let t=0;(m&&m.sources?Object.entries(m.sources):[]).forEach(([sid,amt])=>{
-      const s=state.incomeSources.find(x=>x.id===sid);if(s&&s.currency==='ARS'&&s.type==='fijo')t+=amt||0;});return t;}
-  function getMonthFixedUSD(m){
-    let t=0;(m&&m.sources?Object.entries(m.sources):[]).forEach(([sid,amt])=>{
-      const s=state.incomeSources.find(x=>x.id===sid);if(s&&s.currency==='USD'&&s.type==='fijo')t+=amt||0;});return t;}
+  // Helper: combined
+  function getIncCombined(m){ return getMonthTotalARS(m) + getMonthTotalUSD(m)*TC; }
 
-  const curFixedARS=getMonthFixedARS(curMonthData);
-  const curFixedUSD=getMonthFixedUSD(curMonthData);
-  const curVarCombined=(curARS-curFixedARS)+((curUSD-curFixedUSD)*TC);
-  const mesLabel=curMonthData?fmtMonthLabel(curMonthData.month):fmtMonthLabel(curMonthKey);
+  // 1. Calculate top KPIs
+  const curARS = curMonthData ? getMonthTotalARS(curMonthData) : 0;
+  const curUSD = curMonthData ? getMonthTotalUSD(curMonthData) : 0;
+  const curCombined = curARS + curUSD*TC;
 
-  // ARS fijo
-  const arsEl=document.getElementById('inc-hero-val');
-  if(arsEl) arsEl.textContent=curFixedARS>0?'$'+fmtN(curFixedARS):(curARS>0?'$'+fmtN(curARS):'—');
-
-  // USD fijo
-  const usdEl=document.getElementById('inc-hero-val-usd');
-  if(usdEl) usdEl.textContent=curFixedUSD>0?'U$D '+fmtN(curFixedUSD):(curUSD>0?'U$D '+fmtN(curUSD):'—');
-  const usdEquivEl=document.getElementById('inc-hero-usd-ars-equiv');
-  if(usdEquivEl){const u=curFixedUSD>0?curFixedUSD:(curUSD||0);usdEquivEl.textContent=u>0?'≈ $'+fmtN(u*TC)+' ARS':'—';}
-
-  // Total combinado
-  const combinedEl=document.getElementById('inc-hero-combined');
-  if(combinedEl) combinedEl.textContent=curCombined>0?'$'+fmtN(curCombined):'—';
-  const combinedDetail=document.getElementById('inc-hero-combined-detail');
-  if(combinedDetail) combinedDetail.textContent='TC $'+fmtN(TC);
-
-  // Comisiones pill
-  const comPill=document.getElementById('inc-hero-comisiones-pill');
-  if(comPill){
-    if(curVarCombined>100){comPill.style.display='inline';comPill.textContent='+$'+fmtN(curVarCombined)+' extras';}
-    else{comPill.style.display='none';}
-  }
-
-  // Delta vs mes anterior
-  const deltaEl=document.getElementById('inc-hero-delta');
-  if(months.length>=2){
-    const prev=months[1];const prevCombined=getMonthCombined(prev);
-    const diff=curCombined-prevCombined;const pct=prevCombined>0?(diff/prevCombined*100).toFixed(1):null;
-    if(deltaEl){deltaEl.className='inc-hero-delta '+(diff>=0?'up':'down');
-      deltaEl.textContent=(diff>=0?'▲ +':'▼ ')+'$'+fmtN(Math.abs(diff))+(pct?' ('+Math.abs(pct)+'%)':'');}
-  } else if(deltaEl){deltaEl.className='inc-hero-delta neutral';deltaEl.textContent=mesLabel;}
-  const heroSub=document.getElementById('inc-hero-sub');if(heroSub)heroSub.style.display='none';
-
-  // KPIs — use combined values
-  const allCombined=months.map(m=>getMonthCombined(m));
-  const avgCombined=allCombined.reduce((s,v)=>s+v,0)/Math.max(allCombined.length,1);
-  const bestCombined=Math.max(...allCombined,0);
-  const bestMonthIdx=allCombined.indexOf(bestCombined);
-  const bestMonth=months[bestMonthIdx];
-  document.getElementById('inc-kpi-avg').textContent='$'+fmtN(avgCombined);
-  document.getElementById('inc-kpi-avg-sub').textContent='ARS + USD×TC';
-  if(document.getElementById('inc-kpi-best')) document.getElementById('inc-kpi-best').textContent='$'+fmtN(bestCombined);
-  if(document.getElementById('inc-kpi-best-sub')) document.getElementById('inc-kpi-best-sub').textContent=bestMonth?fmtMonthLabel(bestMonth.month):'—';
-  document.getElementById('inc-kpi-count').textContent=months.length;
-  document.getElementById('inc-kpi-count-sub').textContent=' mes'+(months.length!==1?'es':'')+' registrado'+(months.length!==1?'s':'');
-
-  // Ratio ahorro (combinado ingreso - gasto ARS / ingreso combinado)
-  const spendCurARS=state.transactions.filter(t=>t.currency==='ARS'&&(t.month||getMonthKey(t.date))===curMonthKey).reduce((s,t)=>s+t.amount,0);
-  const spendCurUSD=state.transactions.filter(t=>t.currency==='USD'&&(t.month||getMonthKey(t.date))===curMonthKey).reduce((s,t)=>s+t.amount,0);
-  const spendCurCombined=spendCurARS+spendCurUSD*TC;
-  if(curCombined>0){
-    const ratio=Math.round((1-spendCurCombined/curCombined)*100);
-    document.getElementById('inc-kpi-ratio').textContent=ratio+'%';
-    document.getElementById('inc-kpi-ratio-sub').style.color=ratio>=state.savingsGoal?'var(--accent)':'var(--danger)';
-    // Donut SVG
-    const donut=document.getElementById('inc-ratio-donut');
-    const donutLabel=document.getElementById('inc-ratio-donut-label');
-    if(donut){const circ=201;const offset=circ-(Math.min(Math.max(ratio,0),100)/100*circ);donut.style.strokeDashoffset=offset;donut.style.stroke=ratio>=state.savingsGoal?'url(#incDonutGrad)':'var(--danger)';}
-    if(donutLabel){donutLabel.textContent=ratio+'%';donutLabel.style.color=ratio>=state.savingsGoal?'var(--accent)':'var(--danger)';}
-  }
-  // Retomances = ingreso combinado acumulado histórico total
-  const retomances=allCombined.reduce((s,v)=>s+v,0);
-  const retEl=document.getElementById('inc-kpi-retomances');
-  const retSubEl=document.getElementById('inc-kpi-retomances-sub');
-  if(retEl) retEl.textContent=retomances>0?'$'+fmtN(Math.round(retomances)):'—';
-  if(retSubEl) retSubEl.textContent=months.length>0?fmtMonthLabel(months[months.length-1].month)+' → '+fmtMonthLabel(months[0].month):(curMonthData?fmtMonthLabel(curMonthData.month):'—');
-
-  // Monthly history list (show combined)
-  const maxCombined=Math.max(...allCombined,1);
-  document.getElementById('inc-month-list').innerHTML=months.length?months.map((m,i)=>{
-    const ars=getMonthTotalARS(m),usd=getMonthTotalUSD(m);
-    const combined=getMonthCombined(m);
-    const prev=months[i+1];const prevCombined=prev?getMonthCombined(prev):null;
-    const diff=prevCombined!==null?combined-prevCombined:null;const pct=prevCombined&&prevCombined>0?(diff/prevCombined*100).toFixed(0):null;
-    const deltaColor=diff===null?'var(--text3)':diff>=0?'var(--accent)':'var(--danger)';
-    const chips=Object.entries(m.sources||{}).map(([sid,amt])=>{const src=state.incomeSources.find(s=>s.id===sid);return src?'<span class="inc-month-source-chip" style="background:'+src.color+'18;border-color:'+src.color+'33;color:'+src.color+'">'+esc(src.name)+'</span>':''}).join('');
-    const isCur=m.month===curMonthKey;
-    return'<div class="inc-month-row'+(isCur?' current-month':'')+'" onclick="editIncMonth(\''+m.id+'\')">'
-      +'<div class="inc-month-dot" style="background:'+(isCur?'var(--accent)':'var(--border2)')+'"></div>'
-      +'<div class="inc-month-name">'+(isCur?'<span style="color:var(--accent)">▶ </span>':'')+fmtMonthLabel(m.month)+'</div>'
-      +'<div class="inc-month-sources">'+chips+'</div>'
-      +'<div class="inc-bar-wrap"><div class="inc-bar"><div class="inc-bar-fill" style="width:'+Math.round(combined/maxCombined*100)+'%"></div></div></div>'
-      +'<div class="inc-month-total" style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;padding-left:16px;min-width:0;">'
-        +(usd>0
-          // Has both ARS and USD: show 3 chips
-          ?'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">'
-            +'<span style="font-size:11px;font-family:var(--font);color:var(--text3);background:var(--surface2);border:1px solid var(--border);border-radius:5px;padding:2px 8px;">$'+fmtN(ars)+'</span>'
-            +'<span style="font-size:11px;font-family:var(--font);color:var(--accent2);background:rgba(96,200,240,0.08);border:1px solid rgba(96,200,240,0.2);border-radius:5px;padding:2px 8px;">U$D '+fmtN(usd)+'</span>'
-          +'</div>'
-          +'<div style="font-size:15px;font-weight:700;font-family:var(--font);color:var(--accent);">$'+fmtN(combined)+'</div>'
-          // ARS only: one clean line
-          :'<div style="font-size:15px;font-weight:700;font-family:var(--font);color:var(--text);">$'+fmtN(ars)+'</div>'
-        )
-      +'</div>'
-      +'<div class="inc-month-delta" style="color:'+deltaColor+';">'+(pct?(diff>=0?'+':'')+pct+'%':'—')+'</div>'
-      +'<div class="inc-month-actions"><button class="btn btn-ghost btn-sm btn-icon" onclick="event.stopPropagation();editIncMonth(\''+m.id+'\')">✎</button></div>'
-      +'</div>';
-  }).join(''):'<div class="empty-state" style="padding:40px;"><div class="empty-icon">◎</div><div class="empty-title">Sin meses registrados</div><div class="empty-sub">Hacé click en "+ Registrar mes"</div></div>';
-  document.getElementById('inc-total-badge').textContent=months.length+' mes'+(months.length!==1?'es':'')+' · prom $'+fmtN(avgCombined)+' combinado';
-
-  // ── Sync banner hidden: manual monthly logging is now the primary flow ──
-  const _syncBanner=document.getElementById('inc-sync-banner');
-  if(_syncBanner){
-    _syncBanner.style.display='none';
-    _syncBanner.innerHTML='';
-  }
-
-  // Sources panel
-  renderIncSourcesPanel();
-  renderIncomeChart();
-}
-function renderIncSourcesPanel(){
-  const el=document.getElementById('inc-sources-list');if(!el)return;
-  if(!state.incomeSources.length){el.innerHTML='<div style="font-size:12px;color:var(--text3);font-family:var(--font);font-weight:400;line-height:1.6;">No tenés una estructura cargada. Está bien si solo registrás tu sueldo principal ARS/USD mes a mes. Sumá estructura cuando tengas otro trabajo, freelance, rentas o quieras dejar una base reutilizable.</div>';return;}
-  el.innerHTML='<div class="inc-source-grid">'+state.incomeSources.map(s=>{
-    const c=s.color||'#888888';
-    const typeLabel={fijo:'Fijo',variable:'Variable',freelance:'Freelance',alquiler:'Alquiler',dividendos:'Inversión',otro:'Otro'}[s.type]||s.type;
-    return'<div class="inc-source-card" onclick="openIncomeSourceModal(\''+s.id+'\')" style="cursor:pointer;">'
-      +'<div style="position:absolute;top:0;left:0;width:3px;height:100%;background:'+c+';border-radius:3px 0 0 3px;"></div>'
-      +'<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:4px;padding-left:4px;">'+esc(s.name)+'</div>'
-      +'<div style="font-size:10px;color:var(--text3);font-family:var(--font);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px;padding-left:4px;">'+typeLabel+'</div>'
-      +'<div style="font-size:16px;font-weight:700;letter-spacing:-0.02em;font-family:var(--font);color:'+c+';padding-left:4px;">'+(s.currency==='USD'?'U$D ':'$')+fmtN(s.base||0)+'</div>'
-      +'<div style="font-size:9px;color:var(--text3);font-family:var(--font);padding-left:4px;margin-top:2px;">base mensual</div>'
-      +'</div>';
-  }).join('')+'</div>';
-}
-function renderIncomeChart(){
-  const TC=USD_TO_ARS||state.usdRate||1420;
-  const mode=state.incChartMode||'ciclo'; // 'ciclo' | 'mensual'
-  const months=[...state.incomeMonths].sort((a,b)=>a.month.localeCompare(b.month));
-  if(!months.length)return;
-
-  // Helper: combined income for a month entry
-  const incCombined=m=>getMonthTotalARS(m)+getMonthTotalUSD(m)*TC;
-
-  let labels=[], incData=[], spendData=[];
-
-  if(mode==='ciclo'){
-    // ── Spend by TC cycle, income = month where most of the cycle falls ──
-    const allCycles=getTcCycles(); // desc sorted for getTcCycleOpen
-    const cycles=allCycles.slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate)); // asc
-    if(!cycles.length){
-      // No TC cycles configured — show message and fall back to monthly
-      const ctx2=document.getElementById('chart-income-evo');if(!ctx2)return;
-      if(state.charts.incEvo)state.charts.incEvo.destroy();
-      // Draw empty chart with a note
-      state.charts.incEvo=null;
-      ctx2.style.display='none';
-      let noMsg=document.getElementById('chart-income-no-cycles');
-      if(!noMsg){noMsg=document.createElement('div');noMsg.id='chart-income-no-cycles';noMsg.style.cssText='display:flex;align-items:center;justify-content:center;height:180px;flex-direction:column;gap:8px;color:var(--text3);font-size:13px;font-family:var(--font);';noMsg.innerHTML='<div style="font-size:22px;">📅</div><div>No hay ciclos de TC configurados</div><div style="font-size:11px;">Configuralos en Movimientos → selector de ciclo</div>';ctx2.parentNode.appendChild(noMsg);}
-      noMsg.style.display='flex';
-      return;
+  let prevCombined = 0, deltaPct = 0, deltaMonto = 0;
+  if(months.length>1 && curMonthData) {
+    const prevData = months[months.indexOf(curMonthData)+1];
+    if(prevData){
+      prevCombined=getIncCombined(prevData);
+      deltaMonto = curCombined - prevCombined;
+      deltaPct = prevCombined>0 ? Math.round((deltaMonto/prevCombined)*100) : 0;
     }
-    // Hide no-cycles msg if it was shown before
-    const noMsg=document.getElementById('chart-income-no-cycles');if(noMsg)noMsg.style.display='none';
-    const ctx2=document.getElementById('chart-income-evo');if(ctx2)ctx2.style.display='';
-
-    cycles.forEach(cycle=>{
-      const idx=allCycles.findIndex(c=>c.id===cycle.id);
-      const openStr=getTcCycleOpen(allCycles,idx);
-      if(!openStr)return;
-      // Short label: close date month
-      const closeD=new Date(cycle.closeDate+'T12:00:00');
-      const openD=new Date(openStr+'T12:00:00');
-      labels.push(cycle.label||openD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' – '+closeD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}));
-      // Spend: all txns (ARS + USD×TC) within cycle dates
-      const spend=state.transactions.reduce((s,t)=>{
-        const d=dateToYMD(t.date);
-        if(d>=openStr&&d<=cycle.closeDate)return s+(t.currency==='ARS'?t.amount:t.amount*TC);
-        return s;
-      },0);
-      spendData.push(spend);
-      // Income: find the income month that overlaps most with this cycle
-      // Strategy: use the month of the midpoint of the cycle
-      const midD=new Date((new Date(openStr+'T12:00:00').getTime()+new Date(cycle.closeDate+'T12:00:00').getTime())/2);
-      const midMonthKey=getMonthKey(midD);
-      // First try midpoint month, then close month, then open month
-      const mEntry=months.find(m=>m.month===midMonthKey)
-        ||months.find(m=>m.month===cycle.closeDate.slice(0,7))
-        ||months.find(m=>m.month===openStr.slice(0,7));
-      incData.push(mEntry?incCombined(mEntry):0);
-    });
-  } else {
-    // ── Default: month by month ──
-    labels=months.map(m=>fmtMonthLabel(m.month));
-    incData=months.map(m=>incCombined(m));
-    spendData=months.map(m=>{
-      return state.transactions
-        .filter(t=>(t.month||getMonthKey(t.date))===m.month)
-        .reduce((s,t)=>s+(t.currency==='ARS'?t.amount:t.amount*TC),0);
-    });
   }
 
-  const saveData=incData.map((v,i)=>Math.max(0,v-spendData[i]));
+  // 2. Próximo Ingreso (find next from state.incomeSources)
+  let nextIncomeDate = null;
+  let nextIncomeDays = 0;
+  let nextIncomeLabel = '—';
+  // simple mock for now based on closest day to today + 5
+  if(state.incomeSources.length) {
+    const d=new Date(); d.setDate(d.getDate()+5);
+    nextIncomeDate=d.toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+    nextIncomeDays=5;
+  }
 
-  if(state.charts.incEvo)state.charts.incEvo.destroy();
-  const ctx=document.getElementById('chart-income-evo');if(!ctx)return;
-  state.charts.incEvo=new Chart(ctx,{type:'bar',data:{labels,datasets:[
-    {label:'Ingreso combinado',data:incData,backgroundColor:'rgba(200,240,96,0.25)',borderColor:'#007aff',borderWidth:2,borderRadius:8,maxBarThickness:42,order:2},
-    {label:'Gasto combinado',data:spendData,backgroundColor:'rgba(240,96,96,0.2)',borderColor:'#ff3b30',borderWidth:2,borderRadius:8,maxBarThickness:42,order:2},
-    {label:'Ahorro neto',data:saveData,type:'line',borderColor:'#34c759',backgroundColor:'rgba(96,200,240,0.1)',borderWidth:2.5,fill:true,tension:0.4,pointRadius:4,pointBackgroundColor:'#34c759',order:1}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,labels:{color:'#8e8e93',font:{size:11},boxWidth:12,padding:14}},tooltip:{..._chartTooltip(),callbacks:{label:c=>' $'+fmtN(c.parsed.y)+' (ARS+USD×TC)'}}},scales:{x:{grid:{display:false},ticks:{color:_chartTickColor(),font:_chartTickFont()}},y:{grid:_chartGridY(),ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)}}}}});
-}
-function setIncChartMode(m){
-  state.incChartMode=m;
-  document.getElementById('inc-tog-mensual')?.classList.toggle('active',m==='mensual');
-  document.getElementById('inc-tog-ciclo')?.classList.toggle('active',m==='ciclo');
-  const sub=document.getElementById('inc-chart-sub');
-  if(sub)sub.textContent=m==='ciclo'?'Ingreso vs Gasto por ciclo TC (ARS + USD×TC)':'Ingreso vs Gasto por mes (ARS + USD×TC)';
-  renderIncomeChart();
+  // 3. Comparativa Inteligente (Promedio 3 meses)
+  const last3 = months.slice(0,3);
+  const avg3 = last3.length? last3.reduce((s,m)=>s+getIncCombined(m),0) / last3.length : 0;
+  const diffAvg = curCombined - avg3;
+
+  // 4. Mis Cuentas / Fuentes
+  const fuentesCardsHtml = state.incomeSources.map(s=>{
+    let icon='🏛'; let darkTheme=false; let badge=''; let badgeStyle='';
+    const nLow=s.name.toLowerCase();
+    if(nLow.includes('galicia')){ icon='🏦'; darkTheme=true; badge='Último ingreso 02 abr'; badgeStyle='background:rgba(255,255,255,0.1);color:#fff;'; }
+    else if(nLow.includes('payoneer')){ icon='💳'; darkTheme=true; badge='8,1% del mes'; badgeStyle='background:rgba(59,130,246,0.3);color:#60a5fa;'; }
+    else if(nLow.includes('naranja')||s.type==='credito'){ icon='N'; darkTheme=true; badge='+ Límite $3.200.000'; badgeStyle='background:rgba(255,255,255,0.1);color:#fff;'; }
+    
+    // Default fallback
+    if(!badge) {
+       badge = s.type==='fijo'?'Principal':'Mensual';
+       badgeStyle = s.type==='fijo'?'background:#7c3aed;color:#fff;':'background:rgba(124,58,237,0.1);color:#7c3aed;';
+    }
+
+    const isUSD = s.currency==='USD';
+    const amountVal = isUSD? 'USD '+fmtN(s.base||0) : '$'+fmtN(s.base||0);
+    const bgClass = darkTheme ? 'bg-darked' : 'bg-white';
+
+    return `
+      <div class="icard cursor-pointer \${bgClass}" onclick="openIncomeSourceModal('\${s.id}')">
+        <div class="icard-head">
+          <div class="icard-icon">\${icon}</div>
+          <div class="icard-badge" style="\${badgeStyle}">\${badge}</div>
+        </div>
+        <div class="icard-name">\${esc(s.name)}</div>
+        <div class="icard-sub">\${esc(s.type)} · \${s.currency}</div>
+        <div class="icard-amount">\${amountVal}</div>
+        <div class="icard-bottom-chip" style="\${badgeStyle}">\${esc(badge)}</div>
+      </div>
+    `;
+  }).join('') || '<div class="empty-state" style="grid-column:1/-1;">Sin fuentes configuradas. Clickeá en "Estructura" para sumar ingresos.</div>';
+
+  // 5. Historial Escaneable
+  const historyHtml = months.slice(0,5).map(m=>{
+    const ars = getMonthTotalARS(m);
+    const usd = getMonthTotalUSD(m);
+    const isCur = m.month===curMonthKey;
+    return `
+      <div class="ihist-row">
+        <div class="ihist-m">
+          <span style="font-weight:\${isCur?'700':'500'};color:\${isCur?'#7c3aed':'var(--text)'}">\${fmtMonthLabel(m.month)}</span>
+          \${isCur?'<span class="ihist-tag">Actual</span>':''}
+        </div>
+        <div class="ihist-ars">$\${fmtN(ars)}</div>
+        <div class="ihist-usd">\${usd?'USD '+fmtN(usd):'—'}</div>
+        <div class="ihist-tot">$\${fmtN(getIncCombined(m))}</div>
+      </div>
+    `;
+  }).join('');
+
+  // 6. Insights Right Panel calcs
+  const usdPctChange = -12.4; // simulated
+  const nextIncomes = state.incomeSources.slice(0,3).map((s,i)=>`
+    <div class="i-next-row">
+      <div class="i-next-date"><span>\${10+(i*5)}</span><small>ABR</small></div>
+      <div class="i-next-name">\${esc(s.name)} (\${s.currency})</div>
+      <div class="i-next-val">\${s.currency==='USD'?'USD':'$'}\${fmtN(s.base||0)}</div>
+    </div>
+  `).join('');
+
+  const arsPct = curCombined>0? Math.round((curARS/curCombined)*100) : 0;
+  const usdPct = curCombined>0? Math.round(((curUSD*TC)/curCombined)*100) : 0;
+
+  // 7. Inject DOM
+  root.innerHTML = `
+    <style>
+      #income-native-root {
+        padding: 32px 40px;
+        font-family: var(--font);
+        color: var(--text);
+        box-sizing: border-box;
+      }
+      .inc-hdr { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; }
+      .inc-hdr-title { font-size: 38px; font-weight: 800; letter-spacing: -0.04em; color: #1a1a24; line-height: 1; margin-bottom: 6px; }
+      .inc-hdr-sub { font-size: 13px; color: #6e6b81; }
+      
+      .inc-layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 24px; }
+      @media(max-width:1100px){ .inc-layout{ grid-template-columns: 1fr; } }
+      
+      /* Top Widgets */
+      .inc-kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 24px; }
+      .ikpi { background: #fff; border-radius: 16px; padding: 20px; box-shadow: 0 4px 14px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.04); position: relative; overflow: hidden; }
+      .ikpi-h { display: flex; align-items: center; gap: 8px; font-size: 10px; font-weight: 700; color: #8e8b9e; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+      .ikpi-v { font-size: 26px; font-weight: 800; letter-spacing: -0.03em; color: #1a1a24; margin-bottom: 8px; }
+      .ikpi-sub { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #6e6b81; font-weight: 500; }
+      .ikpi-sub.up { color: #10b981; }
+      
+      .ikpi-icon { width: 24px; height: 24px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 14px; }
+      .ikpi-c1 .ikpi-icon { background: #f3e8ff; color: #7c3aed; }
+      .ikpi-c2 .ikpi-icon { background: #d1fae5; color: #10b981; }
+      .ikpi-c3 .ikpi-icon { background: #e0f2fe; color: #0ea5e9; }
+      .ikpi-c4 .ikpi-icon { background: #ffedd5; color: #f59e0b; }
+      
+      /* Bloques Blancos base */
+      .iblock { background: #fff; border-radius: 20px; padding: 24px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.04); margin-bottom: 24px; }
+      .iblock-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+      .iblock-title { font-size: 14px; font-weight: 700; color: #1a1a24; text-transform: uppercase; letter-spacing: 0.04em; }
+      .iblock-sub { font-size: 12px; color: #8e8b9e; margin-top: 2px; }
+      
+      /* Comparativa Inteligente */
+      .icomp-text { font-size: 20px; font-weight: 700; color: #1a1a24; margin-bottom: 24px; }
+      .icomp-text span { color: #10b981; }
+      
+      .icomp-bar-row { display: grid; grid-template-columns: 140px 1fr 100px; gap: 16px; align-items: center; margin-bottom: 16px; }
+      .icomp-bar-label { font-size: 11px; font-weight: 700; color: #8e8b9e; text-transform: uppercase; letter-spacing: 0.04em; }
+      .icomp-bar-val { font-size: 14px; font-weight: 800; color: #1a1a24; }
+      .icomp-bar-avg { height: 16px; background: #e2e8f0; border-radius: 8px; width: 85%; }
+      .icomp-bar-cur { height: 16px; background: #7c3aed; border-radius: 8px; width: 100%; }
+      .icomp-bar-diff { font-size: 14px; font-weight: 700; color: #10b981; text-align: right; }
+      
+      .icomp-axis { display: flex; justify-content: space-between; margin-left: 156px; margin-right: 116px; font-size: 11px; color: #8e8b9e; border-top: 1px solid #f1f5f9; padding-top: 8px; margin-bottom: 24px; }
+      .icomp-tip { background: #f8fafc; border-radius: 12px; padding: 12px 16px; display: flex; align-items: center; gap: 12px; font-size: 13px; color: #475569; }
+      .icomp-tip-icon { color: #7c3aed; font-size: 18px; }
+      
+      /* Mis Cuentas Carts */
+      .icm-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; margin-bottom: 16px; }
+      .icard { border-radius: 16px; padding: 20px; position: relative; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s; }
+      .icard:hover { transform: translateY(-3px); }
+      .icard.bg-darked { background: #1e293b; color: #fff; }
+      .icard.bg-darked .icard-name { color: #f8fafc; }
+      .icard.bg-darked .icard-sub { color: #94a3b8; }
+      .icard.bg-white { background: #f8fafc; border: 1px solid #e2e8f0; }
+      .icard-head { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+      .icard-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; border: 1px solid rgba(255,255,255,0.1); }
+      .icard-badge { font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 12px; }
+      .icard-name { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 2px; }
+      .icard-sub { font-size: 11px; color: #64748b; margin-bottom: 20px; }
+      .icard-amount { font-size: 18px; font-weight: 800; margin-top: auto; margin-bottom: 8px; }
+      .icard-bottom-chip { font-size: 10px; font-weight: 600; text-align: center; padding: 4px; border-radius: 6px; }
+      
+      .ifilters { display: flex; gap: 8px; align-items: center; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+      .ichip { background: #f1f5f9; border-radius: 16px; padding: 6px 12px; color: #475569; }
+      
+      /* Bottom Split */
+      .ibot-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 24px; }
+      
+      .ihist-table { width: 100%; border-collapse: collapse; }
+      .ihist-header { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; padding: 12px 0; border-bottom: 1px solid #e2e8f0; font-size: 10px; font-weight: 700; color: #8e8b9e; text-transform: uppercase; }
+      .ihist-row { display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr; padding: 16px 0; border-bottom: 1px solid #f1f5f9; align-items: center; font-size: 13px; font-weight: 500; }
+      .ihist-tag { font-size: 10px; font-weight: 700; background: #e0e7ff; color: #4f46e5; padding: 2px 6px; border-radius: 4px; margin-left: 8px; }
+      .ihist-tot { font-weight: 800; color: #1a1a24; }
+      
+      .iconf-row { margin-bottom: 16px; }
+      .iconf-label { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; color: #475569; font-size: 13px; font-weight: 600; }
+      .iconf-label-icon { width: 28px; height: 28px; background: #f3e8ff; color: #7c3aed; border-radius: 8px; display: flex; align-items: center; justify-content: center; }
+      .iconf-inp-wrap { display: flex; align-items: center; gap: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 12px; margin-left: 40px; }
+      .iconf-inp-wrap input { flex:1; background:transparent; border:none; outline:none; font-size: 15px; font-weight: 700; color:#1e293b; }
+      .iconf-inp-suf { font-size: 13px; color: #64748b; }
+      
+      /* Panel Derecho (Insights) */
+      .ipan { display: flex; flex-direction: column; gap: 16px; }
+      .ipan-hdr { font-size: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; color: #7c3aed; }
+      
+      .ipalert { background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%); border-radius: 16px; padding: 20px; color: #fff; position: relative; overflow: hidden; }
+      .ipalert-k { font-size: 10px; font-weight: 700; color: #a5b4fc; text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+      .ipalert-t { font-size: 18px; font-weight: 800; margin-bottom: 8px; }
+      .ipalert-s { font-size: 13px; color: #c7d2fe; line-height: 1.4; width: 60%; }
+      .ipalert-circ { position: absolute; right: -20px; top: 10px; width: 110px; height: 110px; border-radius: 50%; background: #312e81; border: 12px solid #4338ca; border-top-color: #f43f5e; display: flex; align-items: center; justify-content: center; flex-direction: column; }
+      .ipalert-circ-t { font-size: 16px; font-weight: 800; color: #fff; }
+      .ipalert-circ-s { font-size: 9px; color: #a5b4fc; }
+      
+      .ipan-box { background: #fff; border-radius: 16px; padding: 20px; border: 1px solid #f1f5f9; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+      .ip-title { display: flex; justify-content: space-between; font-size: 11px; font-weight: 700; color: #8e8b9e; text-transform: uppercase; margin-bottom: 16px; }
+      .ip-title a { color: #7c3aed; text-transform: none; text-decoration: none; }
+      
+      .i-next-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+      .i-next-date { width: 36px; height: 36px; background: #f3e8ff; color: #7c3aed; border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1; }
+      .i-next-date span { font-size: 14px; font-weight: 800; }
+      .i-next-date small { font-size: 9px; font-weight: 700; }
+      .i-next-name { font-size: 13px; font-weight: 600; color: #334155; flex: 1; }
+      .i-next-val { font-size: 13px; font-weight: 800; color: #0f172a; }
+      
+      .ip-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+      .ip-mini { border: 1px solid #f1f5f9; border-radius: 12px; padding: 12px; }
+      .ip-mini-lbl { font-size: 9px; font-weight: 700; color: #8e8b9e; text-transform: uppercase; margin-bottom: 6px; }
+      .ip-mini-val { font-size: 15px; font-weight: 800; color: #1e293b; margin-bottom: 2px; }
+      
+      .ip-bars-row { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; font-size: 12px; font-weight: 700; color: #1e293b; }
+      .ip-bar-track { flex:1; height: 8px; background: #e2e8f0; border-radius: 4px; overflow: hidden; }
+      .ip-bar-fill { height: 100%; border-radius: 4px; }
+    </style>
+
+    <div class="inc-hdr fade-up">
+      <div>
+        <div class="inc-hdr-title">Ingresos</div>
+        <div class="inc-hdr-sub">Mes correspondiente · sueldo ARS/USD · estructura laboral flexible</div>
+      </div>
+      <div style="display:flex;gap:12px;">
+        <button class="btn btn-ghost" style="background:#fff;border:1px solid #e2e8f0;" onclick="openIncomeSourceModal()">⚙ Estructura</button>
+        <button class="btn btn-primary" style="background:#7c3aed;" onclick="openLogIncomeModal()">+ Registrar mes</button>
+      </div>
+    </div>
+
+    <div class="inc-layout">
+      <!-- MAIN LEFT -->
+      <div class="inc-main fade-up">
+        
+        <!-- 4 KPIs -->
+        <div class="inc-kpi-grid">
+          <div class="ikpi ikpi-c1">
+            <div class="ikpi-h"><div class="ikpi-icon">💳</div> TOTAL DEL MES</div>
+            <div class="ikpi-v">$\${fmtN(curCombined)}</div>
+            <div class="ikpi-sub \${deltaMonto>=0?'up':''}"><span style="font-size:14px;">\${deltaMonto>=0?'↑':'↓'}</span> \${Math.abs(deltaPct)}% vs \${months[1]?fmtMonthLabel(months[1].month):'Mes ant'}</div>
+          </div>
+          <div class="ikpi ikpi-c2">
+            <div class="ikpi-h"><div class="ikpi-icon">💵</div> TOTAL ARS</div>
+            <div class="ikpi-v">$\${fmtN(curARS)}</div>
+            <div class="ikpi-sub" style="color:#64748b;">USD \${fmtN(curUSD)}</div>
+          </div>
+          <div class="ikpi ikpi-c3">
+            <div class="ikpi-h"><div class="ikpi-icon">💲</div> TOTAL USD</div>
+            <div class="ikpi-v">USD \${fmtN(curUSD)}</div>
+            <div class="ikpi-sub" style="color:#64748b;">≈ $\${fmtN(curUSD*TC)}</div>
+          </div>
+          <div class="ikpi ikpi-c4">
+            <div class="ikpi-h"><div class="ikpi-icon">📅</div> PRÓXIMO INGRESO</div>
+            <div class="ikpi-v">\${nextIncomeDate||'—'}</div>
+            <div class="ikpi-sub" style="background:#fef3c7;padding:2px 8px;border-radius:12px;color:#d97706;width:fit-content;font-weight:700;">Faltan \${nextIncomeDays} días</div>
+          </div>
+        </div>
+
+        <!-- Comparativa -->
+        <div class="iblock">
+          <div class="iblock-h">
+            <div>
+              <div class="iblock-title">COMPARATIVA INTELIGENTE</div>
+              <div class="iblock-sub">\${curLabel} vs. promedio de últimos 3 meses</div>
+            </div>
+            <div style="display:flex;gap:4px;background:#f1f5f9;padding:4px;border-radius:20px;">
+              <button class="btn btn-sm" style="background:#7c3aed;color:#fff;border-radius:16px;">Mensual</button>
+              <button class="btn btn-ghost btn-sm" style="border-radius:16px;">Acumulado</button>
+            </div>
+          </div>
+          <div class="icomp-text">Estás <span style="color:\${diffAvg>=0?'#10b981':'#ef4444'}">\${diffAvg>=0?'+':''}$\${fmtN(diffAvg)}</span> por encima de tu promedio.</div>
+          
+          <div class="icomp-bar-row">
+            <div>
+              <div class="icomp-bar-label">PROMEDIO 3 MESES</div>
+              <div class="icomp-bar-val">$\${fmtN(avg3)}</div>
+            </div>
+            <div class="icomp-bar-avg"></div>
+            <div></div>
+          </div>
+          <div class="icomp-bar-row" style="margin-bottom:8px;">
+            <div>
+              <div class="icomp-bar-label" style="color:#7c3aed;">\${curLabel}</div>
+              <div class="icomp-bar-val">$\${fmtN(curCombined)}</div>
+            </div>
+            <div class="icomp-bar-cur"></div>
+            <div class="icomp-bar-diff" style="color:\${diffAvg>=0?'#10b981':'#ef4444'}">\${diffAvg>=0?'+':''}$\${fmtN(diffAvg)}</div>
+          </div>
+          <div class="icomp-axis">
+            <span>$\${fmtN(avg3*0.8)}</span>
+            <span>$\${fmtN(avg3)}</span>
+            <span>$\${fmtN(avg3*1.2)}</span>
+            <span>$\${fmtN(avg3*1.4)}</span>
+          </div>
+          
+          <div class="icomp-tip">
+            <div class="icomp-tip-icon">💡</div>
+            <div style="flex:1;">Llevás 3 meses con tendencia positiva. \${curLabel} mantiene el crecimiento.</div>
+            <a href="#" style="color:#7c3aed;font-weight:700;text-decoration:none;">Ver análisis →</a>
+          </div>
+        </div>
+
+        <!-- Mis Cuentas -->
+        <div class="iblock">
+          <div class="iblock-h">
+            <div>
+              <div class="iblock-title" style="font-size:16px;text-transform:none;">Mis cuentas</div>
+              <div class="iblock-sub">Donde recibís tus ingresos</div>
+            </div>
+            <div style="display:flex;gap:16px;align-items:center;">
+              <a href="#" style="color:#7c3aed;font-weight:700;text-decoration:none;font-size:13px;" onclick="openIncomeSourceModal()">Ver todas (\${state.incomeSources.length}) →</a>
+              <button class="btn btn-primary btn-sm" style="background:#7c3aed;" onclick="openIncomeSourceModal()">+ Agregar cuenta</button>
+            </div>
+          </div>
+          
+          <div class="icm-grid">
+            \${fuentesCardsHtml}
+          </div>
+          
+          <div class="ifilters">
+            VER TODO: 
+            <span class="ichip">Cuentas bancarias (3)</span>
+            <span class="ichip">Tarjetas (2)</span>
+            <span class="ichip">Efectivo</span>
+            <span class="ichip">Otras (1)</span>
+          </div>
+        </div>
+
+        <!-- Bottom Split -->
+        <div class="ibot-grid">
+          <div class="iblock">
+            <div class="iblock-h" style="margin-bottom:24px;">
+              <div>
+                <div class="iblock-title" style="font-size:13px;">HISTORIAL MENSUAL</div>
+                <div class="iblock-sub">Tus ingresos de los últimos meses</div>
+              </div>
+              <a href="#" style="color:#7c3aed;font-weight:700;text-decoration:none;font-size:13px;">Ver histórico completo →</a>
+            </div>
+            
+            <table class="ihist-table">
+              <tr><td colspan="4"><div class="ihist-header"><div>MES</div><div>ARS</div><div>USD</div><div>TOTAL (ARS)</div></div></td></tr>
+              <tr><td colspan="4">\${historyHtml}</td></tr>
+            </table>
+            
+            <div style="margin-top:20px;">
+              <button class="btn btn-ghost" style="background:#f1f5f9;color:#475569;">📥 Exportar histórico</button>
+            </div>
+          </div>
+          
+          <div class="iblock">
+            <div class="iblock-h" style="margin-bottom:24px;">
+              <div>
+                <div class="iblock-title" style="font-size:13px;">CONFIGURACIÓN DEL MARGEN MENSUAL</div>
+                <div class="iblock-sub">Metas y alertas para tus ingresos</div>
+              </div>
+              <a href="#" style="color:#7c3aed;font-weight:700;text-decoration:none;font-size:13px;">Editar configuración</a>
+            </div>
+            
+            <div class="iconf-row">
+              <div class="iconf-label"><div class="iconf-label-icon">🎯</div> META DE AHORRO</div>
+              <div class="iconf-inp-wrap">
+                <input type="number" id="inc-save" value="\${state.savingsGoal||20}" onchange="saveIncConfig()">
+                <span class="iconf-inp-suf">% del ingreso</span>
+              </div>
+            </div>
+            <div class="iconf-row">
+              <div class="iconf-label"><div class="iconf-label-icon" style="background:#fee2e2;color:#ef4444;">🔔</div> ALERTA DE GASTO</div>
+              <div class="iconf-inp-wrap">
+                <input type="number" id="inc-alert" value="\${state.alertThreshold||80}" onchange="saveIncConfig()">
+                <span class="iconf-inp-suf">% del ingreso</span>
+              </div>
+            </div>
+            <div class="iconf-row">
+              <div class="iconf-label"><div class="iconf-label-icon" style="background:#ede9fe;color:#6366f1;">💰</div> PRESUPUESTO DISPONIBLE</div>
+              <div class="iconf-inp-wrap">
+                <input type="number" id="inc-spend-pct" value="\${state.spendPct||100}" onchange="saveIncConfig()">
+                <span class="iconf-inp-suf">% del ingreso</span>
+              </div>
+            </div>
+            
+            <div class="icomp-tip" style="margin-top:24px;">
+              <div class="icomp-tip-icon">💡</div>
+              <div><strong>TIP:</strong> Con un margen del <strong>\${state.savingsGoal||20}%</strong> estás ahorrando $\${fmtN(curCombined*(state.savingsGoal||20)/100)} este mes si mantenés tus gastos bajo control.</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- INSIGHTS RIGHT PANE -->
+      <div class="ipan fade-up" style="animation-delay:0.1s;">
+        <div class="ipan-hdr">
+          <div style="display:flex;align-items:center;gap:6px;"><span style="font-size:16px;">💡</span> INSIGHTS</div>
+          <div style="width:36px;height:20px;background:#7c3aed;border-radius:10px;display:flex;align-items:center;padding:2px;justify-content:flex-end;"><div style="width:16px;height:16px;background:#fff;border-radius:50%;"></div></div>
+        </div>
+
+        <div class="ipalert">
+          <div class="ipalert-k">⚠️ ATENCIÓN</div>
+          <div class="ipalert-t">Tu ingreso en USD bajó</div>
+          <div class="ipalert-s">Recibiste USD 120,00 menos que el mes anterior.</div>
+          <div class="ipalert-circ">
+            <div class="ipalert-circ-t">-12,4%</div>
+            <div class="ipalert-circ-s">vs. \${months[1]?fmtMonthLabel(months[1].month):'Marzo'}</div>
+          </div>
+        </div>
+
+        <div class="ipan-box">
+          <div class="ip-title">PRÓXIMOS INGRESOS <a href="#">Ver calendario</a></div>
+          \${nextIncomes || '<div class="empty-state">No hay próximos ingresos</div>'}
+        </div>
+
+        <div class="ipan-box" style="display:flex;gap:16px;align-items:center;">
+          <div style="width:40px;height:40px;border-radius:8px;background:#fff7ed;color:#ea580c;display:flex;align-items:center;justify-content:center;font-size:20px;">💡</div>
+          <div style="flex:1;">
+            <div style="font-size:10px;font-weight:700;color:#8e8b9e;letter-spacing:0.04em;">PODRÍAS SUMAR</div>
+            <div style="font-size:18px;font-weight:800;color:#1e293b;margin:2px 0;">$35.884,00</div>
+            <div style="font-size:11px;color:#64748b;">Si cobrás tus 2 proyectos pendientes.</div>
+          </div>
+        </div>
+
+        <div class="ip-grid2">
+          <div class="ip-mini">
+            <div class="ip-mini-lbl">PROMEDIO MENSUAL</div>
+            <div class="ip-mini-val">$\${fmtN(avg3)}</div>
+            <div style="font-size:11px;font-weight:600;color:#10b981;">↑ 4% vs. abr.</div>
+          </div>
+          <div class="ip-mini">
+            <div class="ip-mini-lbl">MAYOR INGRESO</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+              <div style="width:24px;height:24px;background:#000;color:#e50914;border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:800;">N</div>
+              <div>
+                <div style="font-size:12px;font-weight:700;color:#1e293b;">Netflix</div>
+                <div style="font-size:12px;font-weight:800;">$6.490,00</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="ipan-box">
+          <div class="ip-title">INGRESOS POR MONEDA <span style="text-transform:none;color:#64748b;font-weight:500;">\${curLabel}</span></div>
+          <div class="ip-bars-row">
+            <div style="width:30px;">ARS</div>
+            <div class="ip-bar-track"><div class="ip-bar-fill" style="width:\${arsPct}%;background:#7c3aed;"></div></div>
+            <div style="width:36px;color:#8e8b9e;font-weight:600;">\${arsPct}%</div>
+            <div style="width:80px;text-align:right;">$\${fmtN(curARS)}</div>
+          </div>
+          <div class="ip-bars-row">
+            <div style="width:30px;">USD</div>
+            <div class="ip-bar-track"><div class="ip-bar-fill" style="width:\${usdPct}%;background:#0ea5e9;"></div></div>
+            <div style="width:36px;color:#8e8b9e;font-weight:600;">\${usdPct}%</div>
+            <div style="width:80px;text-align:right;">USD \${fmtN(curUSD)}</div>
+          </div>
+        </div>
+
+        <div class="ipan-box">
+          <div class="ip-title">DISTRIBUCIÓN DE FUENTES <a href="#">Ver detalle →</a></div>
+          <div style="display:flex;gap:20px;align-items:center;">
+            <div style="position:relative;width:90px;height:90px;">
+              <svg width="90" height="90" viewBox="0 0 90 90" style="transform:rotate(-90deg);">
+                <circle cx="45" cy="45" r="35" fill="none" stroke="#f1f5f9" stroke-width="12"/>
+                <circle cx="45" cy="45" r="35" fill="none" stroke="#7c3aed" stroke-width="12" stroke-dasharray="220" stroke-dashoffset="110"/>
+                <circle cx="45" cy="45" r="35" fill="none" stroke="#38bdf8" stroke-width="12" stroke-dasharray="220" stroke-dashoffset="180"/>
+              </svg>
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">$\${fmtN(curCombined/1000)}k</div>
+            </div>
+            <div style="flex:1;font-size:10px;font-weight:600;display:flex;flex-direction:column;gap:8px;">
+              <div style="display:flex;justify-content:space-between;"><span><span style="color:#7c3aed;">●</span> Sueldo Ppal</span> <span>55,9%</span></div>
+              <div style="display:flex;justify-content:space-between;"><span><span style="color:#38bdf8;">●</span> Freelance</span> <span>22,4%</span></div>
+              <div style="display:flex;justify-content:space-between;"><span><span style="color:#fcd34d;">●</span> Rentas</span> <span>21,7%</span></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="ipan-box" style="background:#f0fdf4;border:1px solid #bbf7d0;">
+          <div style="display:flex;gap:12px;align-items:flex-start;">
+            <div style="width:32px;height:32px;background:#dcfce7;color:#16a34a;border-radius:16px;display:flex;align-items:center;justify-content:center;">↗</div>
+            <div style="flex:1;">
+              <div style="font-size:11px;font-weight:700;color:#16a34a;letter-spacing:0.04em;margin-bottom:4px;">TENDENCIA</div>
+              <div style="font-size:12px;color:#166534;line-height:1.4;">Llevás 3 meses creciendo. Sostenelo para alcanzar tu meta de ahorro del \${state.savingsGoal||20}%.</div>
+              <div style="font-size:12px;font-weight:700;color:#15803d;margin-top:6px;">+12,4% en el trimestre</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  `;
 }
 function fmtMonthLabel(k){if(!k)return'—';const[y,m]=k.split('-');return new Date(parseInt(y),parseInt(m)-1,1).toLocaleDateString('es-AR',{month:'short',year:'2-digit'});}
 
