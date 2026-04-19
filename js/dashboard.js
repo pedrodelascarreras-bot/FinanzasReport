@@ -715,37 +715,7 @@ function renderDashboard(){
   };
   // ── Cabecera de ciclo de tarjeta (apertura / cierre / vencimiento) ──
   const _tcHeader=document.getElementById('dash-tc-cycle-header');
-  if(_tcHeader){
-    if(isTcView){
-      const _cycListHdr=getTcCycles();
-      const _hdrCycle=_resolveDashboardTcCycle(_cycListHdr);
-      if(_hdrCycle){
-        const _hdrIdx=_cycListHdr.findIndex(c=>c.id===_hdrCycle.id);
-        const _openYmd=getTcCycleOpen(_cycListHdr,_hdrIdx);
-        const _card=(state.ccCards||[]).find(c=>c.id===_hdrCycle.cardId);
-        const _ccState=(state.ccCycles||[]).find(c=>c.tcCycleId===_hdrCycle.id && (!_hdrCycle.cardId || c.cardId===_hdrCycle.cardId));
-        const _dueYmd=_ccState?.dueDate||_hdrCycle.dueDate||null;
-        const _fmt=ymd=>{
-          if(!ymd) return '—';
-          try{ return new Date(ymd+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'2-digit'}); }
-          catch(e){ return ymd; }
-        };
-        const _nameEl=document.getElementById('dash-tc-cycle-name');
-        const _openEl=document.getElementById('dash-tc-cycle-open');
-        const _closeEl=document.getElementById('dash-tc-cycle-close');
-        const _dueEl=document.getElementById('dash-tc-cycle-due');
-        if(_nameEl) _nameEl.textContent=(_card?.name||'Tarjeta')+' · '+expandPeriodYearLabel(_hdrCycle.label||'Ciclo');
-        if(_openEl) _openEl.textContent=_fmt(_openYmd);
-        if(_closeEl) _closeEl.textContent=_fmt(_hdrCycle.closeDate);
-        if(_dueEl) _dueEl.textContent=_fmt(_dueYmd);
-        _tcHeader.style.display='block';
-      } else {
-        _tcHeader.style.display='none';
-      }
-    } else {
-      _tcHeader.style.display='none';
-    }
-  }
+  if(_tcHeader) _tcHeader.style.display='none';
   let monthTxns, tcPeriodLabel='', activeTcCycle=null;
   if(isTcView){
     const cycles=getTcCycles(); // sorted desc by closeDate
@@ -1219,19 +1189,11 @@ function renderDashboard(){
   updateMonthPicker();
   const MNAMES=[t('month_1'),t('month_2'),t('month_3'),t('month_4'),t('month_5'),t('month_6'),t('month_7'),t('month_8'),t('month_9'),t('month_10'),t('month_11'),t('month_12')];
   const _spendLabel = totalGastoARS>0 ? ' · $'+fmtN(totalGastoARS)+' gastados' : '';
-  document.getElementById('dash-date').textContent=isTcView
-    ?tcPeriodLabel
-    :(isCurrentMonth
-      ?today.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})+_spendLabel
-      :MNAMES[pM-1]+' '+pY+' · mes cerrado'+_spendLabel);
+  document.getElementById('dash-date').textContent='Tené el control total de tus finanzas en un vistazo.';
 
   // ── Título dinámico del dashboard ──
   const _titleEl=document.getElementById('dash-page-title');
-  if(_titleEl){
-    const _h=today.getHours();
-    const _greeting=_h<12?t('splash_good_morning'):_h<20?t('splash_good_afternoon'):t('splash_good_evening');
-    _titleEl.textContent=_greeting+', '+(state.userName||'Pedro');
-  }
+  if(_titleEl) _titleEl.textContent='Dashboard';
   const timelineData=getDashboardTimelineData(today);
   const backupHealth=getBackupHealth(today);
   const slotEls=[1,2,3].map(i=>({
@@ -2478,7 +2440,7 @@ function renderDb2CcCycles(){
       const cycleTxns = typeof getTcCycleTxns === 'function' ? getTcCycleTxns(activeCycle, allCycles) : [];
       const arsTotal = cycleTxns.filter(t => t.currency === 'ARS' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
       const usdTotal = cycleTxns.filter(t => t.currency === 'USD' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
-      animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 0, duration: 760});
+      animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
       if(amtUsdEl){
         if(usdTotal > 0){
           animateNumberText(amtUsdEl, usdTotal, {prefix: 'U$D ', decimals: 2, duration: 760});
@@ -2533,7 +2495,14 @@ function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, daysLeft, da
 
   if(r1El && projected > 0) r1El.textContent = '$' + fmtN(Math.round(projected));
   if(r2El){
-    if(incTotalARS > 0){
+    if(totalGastoARS > 0){
+      if(l2El){
+        l2El.textContent = dailyRate > 0
+          ? `Si gastás $${fmtN(Math.round(dailyRate))}/día`
+          : 'Ritmo diario actual';
+      }
+      r2El.textContent = '$' + fmtN(Math.round(totalGastoARS));
+    } else if(incTotalARS > 0){
       if(l2El) l2El.textContent = 'Presupuesto disponible';
       r2El.textContent = '$' + fmtN(Math.round(incTotalARS));
     } else {
