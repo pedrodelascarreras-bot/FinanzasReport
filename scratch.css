@@ -1,0 +1,70 @@
+/* Responsive Screen Fit Logic */
+@media (min-width: 1024px) {
+  #splash:has(.sp-private-shell) {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  #splash:has(.sp-private-shell) .sp-inner {
+    height: 100%;
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    padding: 2.5vh 0;
+  }
+  .sp-private-shell {
+    flex: 1;
+    min-height: 0;
+    gap: 1vh;
+  }
+  .spw-hero {
+    flex: 1;
+    min-height: 0;
+    gap: 10px;
+  }
+  .spw-title {
+    font-size: clamp(34px, 5vh, 56px);
+  }
+  .spw-subtitle {
+    font-size: clamp(14px, 2vh, 18px);
+    margin-top: 1vh;
+  }
+  .spw-feature-row { margin-top: 1.5vh; gap: 10px; }
+  .spw-hero-visual { transform: scale(0.85); transform-origin: center right; }
+  .spw-login-card { padding: 2.5vh 34px; gap: 20px; }
+  .spw-login-copy h2 { font-size: clamp(26px, 4vh, 37px); margin-top: 1vh; }
+  .spw-login-copy p { font-size: clamp(13px, 1.8vh, 15px); }
+  .spw-benefits { gap: 1vh; }
+  .spw-benefit-card { padding: 1.5vh 22px; min-height: 0; }
+  .spw-benefit-icon { width: 38px; height: 38px; margin-bottom: 1vh; }
+  .spw-benefit-card h3 { font-size: clamp(20px, 3vh, 29px); margin-top: 1vh; }
+  .spw-benefit-card p { font-size: 13px; margin-top: 0.5vh; }
+  .spw-trust-bar { padding: 1.5vh 28px; }
+}
+@media (max-width: 1023px) {
+  #splash:has(.sp-private-shell) {
+    height: 100vh;
+    height: 100dvh;
+    overflow: hidden;
+  }
+  #splash:has(.sp-private-shell) .sp-inner {
+    height: 100%;
+    padding: 16px 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .sp-private-shell {
+    flex: 1;
+    min-height: 0;
+    gap: 16px;
+    justify-content: center;
+  }
+  .spw-benefits, .spw-trust-bar, .spw-hero-visual, .spw-login-side {
+    display: none !important;
+  }
+  .spw-hero { gap: 0; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .spw-title { font-size: clamp(28px, 8vw, 42px); }
+  .spw-feature-row { display: flex; flex-direction: column; width: 100%; gap: 12px; margin-top: 24px; }
+  .spw-login-card { display: flex; flex-direction: column; padding: 24px; text-align: center; align-items: center; }
+  .spw-login-copy { align-items: center; }
+}

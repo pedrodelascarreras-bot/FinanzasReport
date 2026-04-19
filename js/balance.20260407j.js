@@ -834,7 +834,7 @@
     }
   }
 
-  window.setBalanceView=function setBalanceView(view, options={}){
+  window.setBalanceView = function setBalanceView(view, options={}){
     const nextView = view === 'compare' ? 'compare' : 'summary';
     state.balanceView = nextView;
     saveState();

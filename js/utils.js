@@ -112,10 +112,23 @@ function closeMobMore(){
   const m=document.getElementById('mob-more-menu');
   if(m)m.style.display='none';
 }
+function syncSidebarControls(){
+  const app=document.querySelector('.app');
+  const collapsed=!!app?.classList.contains('sidebar-collapsed');
+  const btn=document.querySelector('.sidebar-toggle');
+  if(btn){
+    btn.textContent=collapsed?'›':'‹';
+    btn.title=collapsed?'Expandir menú':'Ocultar menú';
+    btn.setAttribute('aria-label',collapsed?'Expandir menú':'Ocultar menú');
+  }
+  const openBtn=document.getElementById('sidebar-open-btn');
+  if(openBtn)openBtn.style.display='none';
+}
 function toggleSidebar(){
   const app=document.querySelector('.app');
   const collapsed=app.classList.toggle('sidebar-collapsed');
   localStorage.setItem('fin_sidebar',collapsed?'collapsed':'open');
+  syncSidebarControls();
 }
 window.addEventListener('load',()=>{
   const active=document.querySelector('.page.active');
@@ -125,9 +138,8 @@ function loadSidebar(){
   const saved=localStorage.getItem('fin_sidebar');
   if(saved==='collapsed'){
     document.querySelector('.app').classList.add('sidebar-collapsed');
-    const btn=document.getElementById('sidebar-open-btn');
-    if(btn)btn.style.display='flex';
   }
+  syncSidebarControls();
 }
 
 // ══ COLOR THEMES ══
