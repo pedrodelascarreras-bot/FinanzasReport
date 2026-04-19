@@ -2419,6 +2419,36 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-edit-merchant">
+  <div class="modal" style="max-width:420px;">
+    <div class="modal-title">Editar comercio</div>
+    <div class="modal-sub" id="modal-edit-merchant-desc" style="margin-bottom:4px;">—</div>
+    <div class="input-group">
+      <label class="input-label">Nombre del comercio</label>
+      <input type="text" class="input-field" id="modal-edit-merchant-name" placeholder="Ej: McDonald's Acassuso">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-merchant')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmEditMerchant()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-edit-note">
+  <div class="modal" style="max-width:460px;">
+    <div class="modal-title">Editar nota</div>
+    <div class="modal-sub" id="modal-edit-note-desc" style="margin-bottom:4px;">—</div>
+    <div class="input-group">
+      <label class="input-label">Nota del movimiento</label>
+      <textarea class="textarea-premium" id="modal-edit-note-text" placeholder="Agregá contexto para este gasto..."></textarea>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-edit-note')">Cancelar</button>
+      <button class="btn btn-primary" onclick="confirmEditNote()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Gasto Fijo -->
 <div class="modal-overlay" id="modal-fixed">
   <div class="modal" style="max-width:400px;">

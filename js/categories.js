@@ -54,49 +54,49 @@ function renderRulesPanel(){
     <div class="rp-header">
       <div>
         <div class="rp-title">⚡ Reglas de categorización</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:3px;">${rules.length} reglas activas${uncategorized>0?' · <span style="color:var(--danger);">'+uncategorized+' sin categoría</span>':''}</div>
+        <div style="font-size:12px;color:var(--text3);margin-top:4px;font-family:var(--font);">${rules.length} reglas activas${uncategorized>0?' · <span style="color:var(--danger);font-weight:700;">'+uncategorized+' sin categoría</span>':''}</div>
       </div>
       <button class="tdp-close" onclick="closeRulesPanel()">✕</button>
     </div>
     <div class="rp-body">
       <!-- TABS -->
-      <div style="display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:8px;">
-        <button onclick="state._rulesTab='rules';renderRulesPanel();" style="padding:6px 14px;border-radius:6px 6px 0 0;border:none;cursor:pointer;font-size:11px;font-weight:700;font-family:var(--font);transition:all .12s;${tab==='rules'?'background:var(--accent);color:#fff;':'background:transparent;color:var(--text3);'}">📋 Mis reglas (${rules.length})</button>
-        <button onclick="state._rulesTab='suggest';renderRulesPanel();" style="padding:6px 14px;border-radius:6px 6px 0 0;border:none;cursor:pointer;font-size:11px;font-weight:700;font-family:var(--font);transition:all .12s;${tab==='suggest'?'background:var(--accent);color:#fff;':'background:transparent;color:var(--text3);'}">💡 Sugeridas (${suggestions.length})</button>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
+        <button onclick="state._rulesTab='rules';renderRulesPanel();" style="padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:11.4px;font-weight:700;font-family:var(--font);transition:all .12s;${tab==='rules'?'background:var(--accent);color:#fff;box-shadow:0 8px 16px rgba(87,50,243,.18);':'background:#f5f5fb;color:var(--text3);'}">📋 Mis reglas (${rules.length})</button>
+        <button onclick="state._rulesTab='suggest';renderRulesPanel();" style="padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:11.4px;font-weight:700;font-family:var(--font);transition:all .12s;${tab==='suggest'?'background:var(--accent);color:#fff;box-shadow:0 8px 16px rgba(87,50,243,.18);':'background:#f5f5fb;color:var(--text3);'}">💡 Sugeridas (${suggestions.length})</button>
       </div>
 
       ${tab==='rules'?`
       <!-- ═══ TAB: MIS REGLAS ═══ -->
-      ${rules.length===0?'<div style="color:var(--text3);font-size:12px;padding:20px 0;text-align:center;background:var(--surface2);border-radius:8px;">Sin reglas. Creá la primera abajo o aceptá una sugerencia.</div>':''}
+      ${rules.length===0?'<div style="color:var(--text3);font-size:12.4px;padding:22px 16px;text-align:center;background:#f8f8fc;border-radius:16px;border:1px solid var(--border);font-family:var(--font);">Sin reglas. Creá la primera abajo o aceptá una sugerencia.</div>':''}
       ${rules.map((r,i)=>{
         const cc=catColor(r.category);
         const matchCount=state.transactions.filter(t=>(t.description||'').toLowerCase().includes(r.keyword.toLowerCase())).length;
-        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:8px;margin-bottom:4px;border:1px solid var(--border);'+(r.active===false?'opacity:.45;':'')+'">'
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:16px;margin-bottom:6px;border:1px solid var(--border);'+(r.active===false?'opacity:.45;':'')+'">'
           +'<div style="flex:1;min-width:0;">'
             +'<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">'
-              +'<span style="font-size:12px;font-weight:700;color:var(--text);background:var(--bg);padding:1px 6px;border-radius:4px;border:1px solid var(--border);">'+esc(r.keyword)+'</span>'
-              +'<span style="font-size:10px;color:var(--text3);">→</span>'
-              +'<span style="font-size:11px;font-weight:600;color:'+cc+';background:'+cc+'12;padding:1px 6px;border-radius:4px;">'+esc(r.category)+'</span>'
+              +'<span style="font-size:12.4px;font-weight:700;color:var(--text);background:#fff;padding:3px 8px;border-radius:999px;border:1px solid var(--border);font-family:var(--font);">'+esc(r.keyword)+'</span>'
+              +'<span style="font-size:10.5px;color:var(--text3);font-family:var(--font);">→</span>'
+              +'<span style="font-size:11.2px;font-weight:700;color:'+cc+';background:'+cc+'12;padding:3px 8px;border-radius:999px;font-family:var(--font);">'+esc(r.category)+'</span>'
             +'</div>'
-            +'<div style="font-size:10px;color:var(--text3);margin-top:2px;">'+matchCount+' coincidencia'+(matchCount!==1?'s':'')+'</div>'
+            +'<div style="font-size:10.8px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+matchCount+' coincidencia'+(matchCount!==1?'s':'')+'</div>'
           +'</div>'
           +'<button style="background:none;border:none;cursor:pointer;font-size:14px;color:'+(r.active!==false?'var(--accent)':'var(--text3)')+';padding:2px 4px;" onclick="toggleRule('+i+')" title="'+(r.active!==false?'Desactivar':'Activar')+'">'+(r.active!==false?'●':'○')+'</button>'
           +'<button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.5;" onclick="deleteRule('+i+')" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'">✕</button>'
         +'</div>';
       }).join('')}
       <!-- Add new rule form -->
-      <div style="margin-top:12px;padding:14px;background:var(--surface2);border-radius:10px;border:1px solid var(--border);">
-        <div style="font-size:11px;font-weight:700;color:var(--text);margin-bottom:10px;">+ Nueva regla</div>
+      <div style="margin-top:12px;padding:16px;background:#f8f8fc;border-radius:18px;border:1px solid var(--border);">
+        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:12px;font-family:var(--font);">+ Nueva regla</div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
           <div style="flex:1;min-width:120px;">
-            <div style="font-size:9px;color:var(--text3);margin-bottom:3px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;">Keyword</div>
-            <input id="rule-new-keyword" type="text" placeholder="ej: PEDIDOSYA" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px;font-family:var(--font);">
+            <div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-family:var(--font);">Keyword</div>
+            <input id="rule-new-keyword" type="text" placeholder="ej: PEDIDOSYA" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:14px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);">
           </div>
           <div style="flex:1;min-width:120px;">
-            <div style="font-size:9px;color:var(--text3);margin-bottom:3px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;">Categoría</div>
-            <select id="rule-new-cat" style="width:100%;padding:7px 10px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);font-size:12px;font-family:var(--font);">${catOptsHtml}</select>
+            <div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-family:var(--font);">Categoría</div>
+            <select id="rule-new-cat" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:14px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);">${catOptsHtml}</select>
           </div>
-          <button style="padding:8px 16px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="addUserRule()">Agregar</button>
+          <button style="padding:10px 16px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:12.4px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="addUserRule()">Agregar</button>
         </div>
       </div>
       <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px;" onclick="reApplySuggestionsAll()">↺ Re-aplicar reglas a movimientos sin categoría</button>
@@ -104,20 +104,20 @@ function renderRulesPanel(){
 
       ${tab==='suggest'?`
       <!-- ═══ TAB: SUGERIDAS ═══ -->
-      <div style="font-size:11px;color:var(--text3);margin-bottom:10px;">Reglas sugeridas basadas en patrones detectados en tus movimientos.</div>
-      ${suggestions.length===0?'<div style="font-size:12px;color:var(--text3);text-align:center;padding:20px;background:var(--surface2);border-radius:8px;">No hay sugerencias nuevas. Importá más movimientos o asigná categorías para generar patrones.</div>':''}
+      <div style="font-size:11.4px;color:var(--text3);margin-bottom:10px;font-family:var(--font);">Reglas sugeridas basadas en patrones detectados en tus movimientos.</div>
+      ${suggestions.length===0?'<div style="font-size:12.4px;color:var(--text3);text-align:center;padding:22px 16px;background:#f8f8fc;border-radius:16px;border:1px solid var(--border);font-family:var(--font);">No hay sugerencias nuevas. Importá más movimientos o asigná categorías para generar patrones.</div>':''}
       ${suggestions.slice(0,15).map(s=>{
         const cc=catColor(s.category);
-        return '<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border-radius:8px;margin-bottom:4px;border:1px solid var(--border);">'
+        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:16px;margin-bottom:6px;border:1px solid var(--border);">'
           +'<div style="flex:1;min-width:0;">'
             +'<div style="display:flex;align-items:center;gap:6px;">'
-              +'<span style="font-size:12px;font-weight:700;color:var(--text);">'+esc(s.displayName)+'</span>'
-              +'<span style="font-size:10px;color:var(--text3);">→</span>'
-              +'<span style="font-size:11px;font-weight:600;color:'+cc+';">'+esc(s.category)+'</span>'
+              +'<span style="font-size:12.4px;font-weight:700;color:var(--text);font-family:var(--font);">'+esc(s.displayName)+'</span>'
+              +'<span style="font-size:10px;color:var(--text3);font-family:var(--font);">→</span>'
+              +'<span style="font-size:11.2px;font-weight:700;color:'+cc+';font-family:var(--font);">'+esc(s.category)+'</span>'
             +'</div>'
-            +'<div style="font-size:10px;color:var(--text3);margin-top:2px;">'+s.count+' movimientos · '+s.confidence+'% confianza</div>'
+            +'<div style="font-size:10.8px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+s.count+' movimientos · '+s.confidence+'% confianza</div>'
           +'</div>'
-          +'<button style="padding:5px 10px;border-radius:6px;border:none;background:var(--accent);color:#fff;font-size:10px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;" data-kw="'+esc(s.keyword)+'" data-cat="'+esc(s.category)+'" onclick="acceptRuleSuggestion(this.dataset.kw,this.dataset.cat)">+ Crear</button>'
+          +'<button style="padding:7px 12px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:10.8px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;" data-kw="'+esc(s.keyword)+'" data-cat="'+esc(s.category)+'" onclick="acceptRuleSuggestion(this.dataset.kw,this.dataset.cat)">+ Crear</button>'
         +'</div>';
       }).join('')}
       `:''}
