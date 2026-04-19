@@ -455,6 +455,12 @@ function commitmentsSetFilter(filter){
 function commitmentsSetSearch(value){
   state.commitmentsSearch=value||'';
   renderCommitmentsPage();
+  const inp=document.querySelector('.cp-search input');
+  if(inp){
+    inp.focus();
+    const len=inp.value.length;
+    inp.setSelectionRange(len,len);
+  }
 }
 function commitmentsToggleInsights(){
   state.commitmentsInsightsCollapsed=!state.commitmentsInsightsCollapsed;
@@ -496,9 +502,9 @@ function renderCommitmentsPage(){
   const cuotasTotalArs=cuotaItems.reduce((sum,item)=>sum+item.amountArs,0);
   const liberableArs=subsTotalArs;
   const distribution=[
-    {label:'Cuotas',value:cuotasTotalArs,color:'#8c5cff'},
-    {label:'Suscripciones',value:subsTotalArs,color:'#6a4cff'},
-    {label:'Gastos fijos',value:fixedTotalArs,color:'#ffb347'}
+    {label:'Cuotas',value:cuotasTotalArs,color:'#7c3aed'},
+    {label:'Suscripciones',value:subsTotalArs,color:'#06b6d4'},
+    {label:'Gastos fijos',value:fixedTotalArs,color:'#f59e0b'}
   ].filter(item=>item.value>0);
   const monthlyAverageArs=totalCommittedArs;
   let donutCursor=0;

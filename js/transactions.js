@@ -101,6 +101,12 @@ function txnSetSearch(val){
   const inp=document.getElementById('f-search');
   if(inp) inp.value=val||'';
   renderTransactions();
+  const nativeInp=document.querySelector('.mv-search input');
+  if(nativeInp){
+    nativeInp.focus();
+    const len=nativeInp.value.length;
+    nativeInp.setSelectionRange(len,len);
+  }
 }
 function txnSetCategoryFilter(val){
   const el=document.getElementById('f-cat');
