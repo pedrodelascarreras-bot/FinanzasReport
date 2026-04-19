@@ -235,7 +235,7 @@ function commitmentsToArs(amount,currency){
 }
 function commitmentsMonthlyAmount(item){
   if(!item) return 0;
-  if(item.type==='subscription'){
+  if(item.type==='subscription' || item.freq || item.price!==undefined){
     if(item.freq==='annual') return Number(item.price||0)/12;
     if(item.freq==='weekly') return Number(item.price||0)*4.3;
     return Number(item.price||0);
@@ -500,7 +500,7 @@ function renderCommitmentsPage(){
     {label:'Suscripciones',value:subsTotalArs,color:'#6a4cff'},
     {label:'Gastos fijos',value:fixedTotalArs,color:'#ffb347'}
   ].filter(item=>item.value>0);
-  const monthlyAverageArs=(distribution.length?totalCommittedArs/Math.max(distribution.length,1):0);
+  const monthlyAverageArs=totalCommittedArs;
   let donutCursor=0;
   const donutGradient=(distribution.length?distribution.map(item=>{
     const start=donutCursor;
@@ -573,7 +573,7 @@ function renderCommitmentsPage(){
           +'<div class="cp-row-date">'+dueBadge({due:{status:'soon',label:commitmentsFmtMonthDay(item.due?.nextDate)}})+'</div>'
           +'<div class="cp-menu-wrap"><button class="cp-menu-btn" onclick="commitmentsToggleMenu(\''+menuKey+'\');event.stopPropagation();">⋯</button>'+menuHtml(item,menuKey)+'</div>'
         +'</article>';
-      }).join('')+'</div>':'<div class="cp-empty-inline">No hay suscripciones para este filtro.</div>')
+      }).join('')+'</div><div class="cp-section-footer"><span class="cp-section-footer-label">Total suscripciones</span><span class="cp-section-footer-value">$'+fmtN(Math.round(totalSub))+'<span style="font:600 12px var(--font);color:#8b86a1;margin-left:5px;">/ mes</span></span></div>':'<div class="cp-empty-inline">No hay suscripciones para este filtro.</div>')
     +'</section>';
   };
   const renderCuotasBlock=()=>{
@@ -589,7 +589,7 @@ function renderCommitmentsPage(){
           +'<div class="cp-quota-end"><span class="cp-metric-label">Termina</span><strong>'+(item.endDate?commitmentsFmtMonthDay(item.endDate):'—')+'</strong>'+dueBadge(item)+'</div>'
           +'<div class="cp-menu-wrap"><button class="cp-menu-btn" onclick="commitmentsToggleMenu(\''+menuKey+'\');event.stopPropagation();">⋯</button>'+menuHtml(item,menuKey)+'</div>'
         +'</article>';
-      }).join('')+'</div>':'<div class="cp-empty-inline">No hay cuotas activas para este filtro.</div>')
+      }).join('')+'</div><div class="cp-section-footer"><span class="cp-section-footer-label">Total cuotas</span><span class="cp-section-footer-value">$'+fmtN(Math.round(totalCuotas))+'<span style="font:600 12px var(--font);color:#8b86a1;margin-left:5px;">/ mes</span></span></div>':'<div class="cp-empty-inline">No hay cuotas activas para este filtro.</div>')
     +'</section>';
   };
   root.innerHTML=
@@ -601,7 +601,7 @@ function renderCommitmentsPage(){
       +'.cp-card{background:#fff;border:1px solid rgba(96,89,138,.1);border-radius:20px;box-shadow:0 4px 14px rgba(43,37,68,.04);}'
       +'.cp-main{min-width:0;}'
       +'.cp-header{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:16px;}'
-      +'.cp-title h1{font:800 31px/1.02 var(--font);letter-spacing:-.04em;color:#1f1a33;margin:0 0 7px;}'
+      +'.cp-title h1{font:800 38px/1.02 var(--font);letter-spacing:-.04em;color:#1f1a33;margin:0 0 7px;}'
       +'.cp-title p{margin:0;font:600 13.5px/1.45 var(--font);color:#7c7791;}'
       +'.cp-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:flex-end;max-width:620px;}'
       +'.cp-btn,.cp-btn-primary,.cp-status-pill{height:42px;border-radius:999px;border:1px solid rgba(95,88,126,.12);background:#fff;padding:0 16px;font:700 12.8px var(--font);color:#403a5b;display:inline-flex;align-items:center;gap:8px;box-shadow:0 1px 0 rgba(255,255,255,.8) inset;cursor:pointer;}'
@@ -613,18 +613,21 @@ function renderCommitmentsPage(){
       +'.cp-chips{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;}'
       +'.cp-chip{height:32px;border-radius:999px;border:1px solid rgba(113,106,144,.11);background:#fff;padding:0 14px;font:700 11.8px var(--font);color:#5c5675;display:inline-flex;align-items:center;cursor:pointer;}'
       +'.cp-chip.active{background:#5732f3;color:#fff;border-color:transparent;box-shadow:0 8px 16px rgba(87,50,243,.18);}'
-      +'.cp-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px;}'
-      +'.cp-summary-card{padding:16px 18px 17px;min-height:118px;position:relative;overflow:hidden;}'
-      +'.cp-summary-card .k{font-size:9.7px;font-weight:800;letter-spacing:.055em;color:#7d7894;margin-bottom:10px;font-family:var(--font);}'
-      +'.cp-summary-card .v{font-size:19px;font-weight:800;letter-spacing:-.025em;color:#1f1a33;font-family:var(--font);}'
-      +'.cp-summary-card .s{margin-top:8px;font:600 12px/1.4 var(--font);color:#7a7590;}'
-      +'.cp-summary-card .bar{margin-top:10px;height:7px;border-radius:999px;background:#ece8fa;overflow:hidden;}'
+      +'.cp-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:16px;margin-bottom:24px;}'
+      +'.cp-summary-card{padding:22px 24px 22px;min-height:138px;position:relative;overflow:hidden;}'
+      +'.cp-summary-card .k{font-size:10.5px;font-weight:800;letter-spacing:.06em;color:#7d7894;margin-bottom:13px;font-family:var(--font);}'
+      +'.cp-summary-card .v{font-size:26px;font-weight:800;letter-spacing:-.03em;color:#1f1a33;font-family:var(--font);}'
+      +'.cp-summary-card .s{margin-top:10px;font:600 12.5px/1.4 var(--font);color:#7a7590;}'
+      +'.cp-summary-card .bar{margin-top:13px;height:8px;border-radius:999px;background:#ece8fa;overflow:hidden;}'
       +'.cp-summary-card .bar span{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#5d35f3,#8c5cff);}'
       +'.cp-layout{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;}'
       +'.cp-section{padding:16px 16px 14px;}'
       +'.cp-section-head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:14px;}'
       +'.cp-section-title{display:flex;align-items:center;gap:8px;font:700 15px var(--font);color:#221c37;}'
-      +'.cp-section-sub{margin-top:4px;font:600 11.6px var(--font);color:#8b86a1;}'
+      +'.cp-section-sub{margin-top:4px;font:600 12.5px var(--font);color:#8b86a1;}'
+      +'.cp-section-footer{display:flex;justify-content:flex-end;align-items:center;gap:10px;padding:18px 14px 6px;margin-top:14px;border-top:1px solid rgba(98,91,140,.08);}'
+      +'.cp-section-footer-label{font:700 13px var(--font);color:#8b86a1;}'
+      +'.cp-section-footer-value{font:800 19px var(--font);letter-spacing:-.02em;color:#1f1a33;}'
       +'.cp-dot{width:9px;height:9px;border-radius:50%;display:inline-block;}'
       +'.cp-dot.fixed{background:#ffb347;}.cp-dot.subs{background:#6a4cff;}.cp-dot.cuotas{background:#8c5cff;}'
       +'.cp-head-actions{display:flex;align-items:center;gap:10px;}'
@@ -708,7 +711,7 @@ function renderCommitmentsPage(){
       +'<div class="cp-main">'
         +'<div class="cp-header">'
           +'<div class="cp-title"><h1>Compromisos</h1><p>Tus gastos fijos, cuotas y suscripciones en un solo lugar.</p></div>'
-          +'<div class="cp-actions"><button class="cp-btn" onclick="openNewFixedModal()">＋ Gasto fijo</button><button class="cp-btn" onclick="openNewSubModal()">＋ Suscripción</button><button class="cp-btn-primary" onclick="openNewCuotaModal()">＋ Nueva cuota</button><div class="cp-status-pill"><span style="font-size:13px;">◫</span>'+esc(syncLabel)+'</div><button class="cp-btn" onclick="commitmentsToggleInsights()">'+(state.commitmentsInsightsCollapsed?'Mostrar panel':'Ocultar panel')+'</button></div>'
+          +'<div class="cp-actions"><button class="cp-btn" onclick="openNewFixedModal()">＋ Gasto fijo</button><button class="cp-btn" onclick="openNewSubModal()">＋ Suscripción</button><button class="cp-btn-primary" onclick="openNewCuotaModal()">＋ Nueva cuota</button><button class="cp-btn" onclick="commitmentsToggleInsights()">'+(state.commitmentsInsightsCollapsed?'Mostrar panel':'Ocultar panel')+'</button></div>'
         +'</div>'
         +'<div class="cp-search"><span style="font-size:14px;">⌕</span><input placeholder="Buscar compromiso, servicio o proveedor..." value="'+esc(state.commitmentsSearch||'')+'" oninput="commitmentsSetSearch(this.value)"></div>'
         +'<div class="cp-chips">'
@@ -739,7 +742,7 @@ function renderCommitmentsPage(){
         +'<section class="cp-card cp-insight-hero"><div class="cp-hero-top"><div><div class="cp-hero-kicker">Atención</div><div class="cp-hero-title">'+summaryTitle+'</div><div class="cp-hero-copy">'+summaryBody+'</div></div><div style="position:relative;display:flex;align-items:center;justify-content:center;"><div class="cp-ring"></div><div class="cp-ring-label">'+pctIncome+'%</div></div></div><div class="cp-hero-bar"><span></span></div><div class="cp-hero-meta"><span>Comprometido $'+fmtN(Math.round(totalCommittedArs))+'</span><span>Libre $'+fmtN(Math.round(freeArs))+'</span></div></section>'
         +'<section class="cp-card cp-mini-card"><div class="cp-breakdown-head"><div class="t">Próximos 7 días</div><button class="cp-link-btn">Ver calendario</button></div>'+(upcomingWeek.length?'<div class="cp-upcoming-list">'+upcomingWeek.map(item=>'<div class="cp-upcoming-row"><span class="cp-upcoming-date">'+commitmentsFmtMonthDay(item.due.nextDate)+'</span><span class="cp-upcoming-name">'+esc(item.name)+'</span><span>'+(item.currency==='USD'?'USD ':'$')+fmtN(item.amount)+'</span></div>').join('')+'</div>':'<div class="cp-empty-inline">No hay vencimientos cercanos.</div>')+'</section>'
         +'<section class="cp-card cp-mini-card" style="background:linear-gradient(180deg,#f9f6ff 0%,#f4efff 100%);"><div class="t">Podrías liberar</div><div class="v">$'+fmtN(Math.round(liberableArs))+'</div><div class="s">Si cancelás todas tus suscripciones</div><div style="margin-top:10px;"><button class="cp-link-btn">Ver detalle</button></div></section>'
-        +'<div class="cp-mini-grid"><section class="cp-card cp-mini-card"><div class="t">Promedio mensual</div><div class="v">$'+fmtN(Math.round(monthlyAverageArs))+'</div><div class="s">'+(pctIncome>=1?('↓ '+Math.max(1,Math.round(Math.abs(35-pctIncome)))+'% vs. abr.'):'Sin referencia')+'</div></section><section class="cp-card cp-mini-card"><div class="t">Mayor compromiso</div><div class="v">'+(biggest?esc(biggest.name):'—')+'</div><div class="s">'+(biggest?((biggest.currency==='USD'?'USD ':'$')+fmtN(biggest.amount)):'Sin datos')+'</div></section></div>'
+        +'<div class="cp-mini-grid"><section class="cp-card cp-mini-card"><div class="t">Promedio mensual</div><div class="v">$'+fmtN(Math.round(monthlyAverageArs))+'</div><div class="s">'+(pctIncome>=1?(pctIncome+'% del ingreso'):'Sin referencia')+'</div></section><section class="cp-card cp-mini-card"><div class="t">Mayor compromiso</div><div class="v">'+(biggest?esc(biggest.name):'—')+'</div><div class="s">'+(biggest?((biggest.currency==='USD'?'USD ':'$')+fmtN(biggest.amount)+(income.total>0?' · '+Math.round((biggest.amountArs/income.total)*100)+'% del ingreso':'')):'Sin datos')+'</div></section></div>'
         +'<section class="cp-card cp-mini-card"><div class="cp-breakdown-head"><div class="t">Distribución de compromisos</div></div><div style="display:flex;justify-content:center;align-items:center;height:146px;position:relative;"><div style="width:138px;height:138px;border-radius:50%;background:conic-gradient('+donutGradient+');mask:radial-gradient(circle at center, transparent 42px, #000 43px);-webkit-mask:radial-gradient(circle at center, transparent 42px, #000 43px);"></div><div style="position:absolute;font:800 12px var(--font);color:#1f1a33;">$'+fmtN(Math.round(totalCommittedArs))+'</div></div><div class="cp-breakdown-list">'+distribution.map(item=>'<div class="cp-breakdown-row"><span style="width:8px;height:8px;border-radius:50%;background:'+item.color+';"></span><span>'+item.label+'</span><span>'+Math.round((item.value/Math.max(totalCommittedArs,1))*100)+'%</span><span>$'+fmtN(Math.round(item.value))+'</span></div>').join('')+'</div></section>'
         +'<section class="cp-card cp-tip"><strong>Tip</strong><p>'+tipText+'</p></section>'
       +'</aside>')
