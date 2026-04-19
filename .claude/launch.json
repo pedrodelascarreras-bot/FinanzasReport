@@ -4,7 +4,7 @@
     {
       "name": "FinanzasApp",
       "runtimeExecutable": "python3",
-      "runtimeArgs": ["/tmp/finanzas_serve.py"],
+      "runtimeArgs": ["/tmp/finanzas_serve2.py"],
       "port": 3000,
       "autoPort": true
     }

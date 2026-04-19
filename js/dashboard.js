@@ -1596,6 +1596,11 @@ function renderDashboard(){
   renderCatBars(monthTxns);
   renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLeft, compromisoTotal, projected);
   renderTop5();
+  renderDb2Dashboard({
+    arsMonth, usdMonth, margen, pct, incTotalARS, spendBudget,
+    projected, totalGastoARS, daysLeft, dailyRate, projPeriodClose,
+    timelineData, monthTxns
+  });
 }
 
 function getWeeklyData(txns){
@@ -2388,4 +2393,611 @@ function getDashMonthIncome() {
     return total;
   }
   return state.income.ars || 0;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DB2 DASHBOARD — new widget renderers
+═══════════════════════════════════════════════════════════ */
+
+// ── Evolution chart state ──
+let db2EvoMode = 'daily'; // 'daily' | 'accum'
+function setDb2EvoMode(mode){
+  db2EvoMode = mode;
+  const d = document.getElementById('db2-evo-daily-btn');
+  const a = document.getElementById('db2-evo-accum-btn');
+  if(d) d.classList.toggle('active', mode==='daily');
+  if(a) a.classList.toggle('active', mode==='accum');
+  renderDb2EvolutionChart();
+}
+
+// ── CC Cycle widget ──
+function renderDb2CcCycles(){
+  const today = new Date();
+  const todayYmd = dateToYMD(today);
+  const cards = state.ccCards || [];
+  const allCycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
+
+  const fmt = ymd => {
+    if(!ymd) return '—';
+    try {
+      const d = new Date(ymd + 'T12:00:00');
+      return d.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}).replace('.','').toUpperCase();
+    } catch(e){ return ymd; }
+  };
+
+  // Determine which cards to show (visa + amex by payMethodKey)
+  const cardKeys = ['visa','amex'];
+  cardKeys.forEach(key => {
+    const card = cards.find(c => (c.payMethodKey||'').toLowerCase() === key) || cards.find(c => (c.name||'').toLowerCase().includes(key));
+    const prefix = key; // visa / amex
+
+    const openEl   = document.getElementById(`db2-${prefix}-open`);
+    const closeEl  = document.getElementById(`db2-${prefix}-close`);
+    const dueEl    = document.getElementById(`db2-${prefix}-due`);
+    const barEl    = document.getElementById(`db2-${prefix}-bar`);
+    const daysEl   = document.getElementById(`db2-${prefix}-days`);
+    const itemEl   = document.getElementById(`db2-cc-${prefix}-item`);
+
+    if(!card){ if(itemEl) itemEl.style.opacity='0.4'; return; }
+    if(itemEl) itemEl.style.opacity='1';
+
+    // Find most recent/active cycle for this card
+    const cardCycles = allCycles.filter(c => c.cardId === card.id);
+    let activeCycle = cardCycles.find(c => {
+      const idx = allCycles.findIndex(x => x.id === c.id);
+      const open = getTcCycleOpen(allCycles, idx);
+      return open && todayYmd >= open && todayYmd <= c.closeDate;
+    }) || cardCycles[0];
+
+    if(!activeCycle && allCycles.length){
+      // fallback: try any cycle matching close day
+      activeCycle = allCycles[0];
+    }
+
+    if(!activeCycle){
+      if(openEl) openEl.textContent = '—';
+      if(closeEl) closeEl.textContent = '—';
+      if(dueEl)   dueEl.textContent = '—';
+      if(daysEl)  daysEl.textContent = 'Sin ciclo activo';
+      return;
+    }
+
+    const cycleIdx = allCycles.findIndex(c => c.id === activeCycle.id);
+    const openYmd = typeof getTcCycleOpen === 'function' ? getTcCycleOpen(allCycles, cycleIdx) : null;
+    const closeYmd = activeCycle.closeDate;
+    const dueYmd = activeCycle.dueDate || null;
+
+    if(openEl) openEl.textContent = fmt(openYmd);
+    if(closeEl) closeEl.textContent = fmt(closeYmd);
+    if(dueEl) dueEl.textContent = fmt(dueYmd);
+
+    // Cycle spending amounts
+    const amtArsEl = document.getElementById(`kpi-${prefix}-ars`);
+    const amtUsdEl = document.getElementById(`kpi-${prefix}-usd`);
+    if(amtArsEl){
+      const cycleTxns = typeof getTcCycleTxns === 'function' ? getTcCycleTxns(activeCycle, allCycles) : [];
+      const arsTotal = cycleTxns.filter(t => t.currency === 'ARS' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
+      const usdTotal = cycleTxns.filter(t => t.currency === 'USD' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
+      animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 0, duration: 760});
+      if(amtUsdEl){
+        if(usdTotal > 0){
+          animateNumberText(amtUsdEl, usdTotal, {prefix: 'U$D ', decimals: 2, duration: 760});
+          amtUsdEl.style.display = '';
+        } else {
+          amtUsdEl.textContent = '';
+        }
+      }
+    }
+
+    // Days until close
+    if(barEl && daysEl && closeYmd && openYmd){
+      const closeD = new Date(closeYmd + 'T12:00:00');
+      const openD  = new Date(openYmd  + 'T12:00:00');
+      const totalDays = Math.max(1, Math.round((closeD - openD) / 86400000));
+      const elapsed   = Math.max(0, Math.round((today - openD) / 86400000));
+      const daysLeft  = Math.max(0, Math.round((closeD - today) / 86400000));
+      const pct = Math.min(100, Math.round(elapsed / totalDays * 100));
+      animateProgressBar(barEl, pct);
+      daysEl.textContent = daysLeft === 0 ? 'Cierra hoy' : `Cierran en ${daysLeft} día${daysLeft!==1?'s':''}`;
+    }
+  });
+}
+
+// ── Projection widget extras ──
+function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, daysLeft, dailyRate, projPeriodClose){
+  const remainingEl = document.getElementById('db2-proj-remaining');
+  const closeDateEl = document.getElementById('db2-proj-closedate');
+  const r1El = document.getElementById('db2-proj-r1');
+  const r2El = document.getElementById('db2-proj-r2');
+  const l2El = document.getElementById('db2-proj-l2');
+  const r3El = document.getElementById('db2-proj-r3');
+  const barEl = document.getElementById('db2-proj-bar');
+
+  if(remainingEl){
+    if(incTotalARS > 0 && projected > 0){
+      const rem = incTotalARS - totalGastoARS;
+      remainingEl.textContent = (rem >= 0 ? '$' : '-$') + fmtN(Math.abs(Math.round(rem)));
+    } else remainingEl.textContent = '—';
+  }
+
+  if(closeDateEl){
+    if(projPeriodClose instanceof Date){
+      closeDateEl.textContent = projPeriodClose.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+    } else if(!projPeriodClose){
+      const today = new Date();
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth()+1, 0).getDate();
+      const closeDate = new Date(today.getFullYear(), today.getMonth(), daysInMonth);
+      closeDateEl.textContent = closeDate.toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
+    } else closeDateEl.textContent = '—';
+  }
+
+  if(r1El && projected > 0) r1El.textContent = '$' + fmtN(Math.round(projected));
+  if(r2El){
+    if(incTotalARS > 0){
+      if(l2El) l2El.textContent = 'Presupuesto disponible';
+      r2El.textContent = '$' + fmtN(Math.round(incTotalARS));
+    } else {
+      r2El.textContent = '—';
+    }
+  }
+  if(r3El){
+    const limit = (state.tcConfig||{}).limit || 0;
+    r3El.textContent = limit > 0 ? '$' + fmtN(Math.round(limit)) : '—';
+  }
+
+  // progress bar: what % of income/limit has been spent
+  if(barEl && incTotalARS > 0 && projected > 0){
+    const pct = Math.min(100, Math.round(projected / incTotalARS * 100));
+    animateProgressBar(barEl, pct);
+    if(pct >= 100) barEl.classList.add('over');
+    else barEl.classList.remove('over');
+  }
+}
+
+// ── Hero sub-cards ──
+function renderDb2HeroExtras(arsMonth, usdMonth, margen, pct, incTotalARS, spendBudget){
+  // ARS card
+  const arsEl = document.getElementById('db2-ars-val');
+  if(arsEl) animateNumberText(arsEl, arsMonth, {prefix:'$', decimals:2, duration:760});
+
+  // USD card
+  const usdEl = document.getElementById('db2-usd-val');
+  if(usdEl){
+    if(usdMonth > 0) animateNumberText(usdEl, usdMonth, {prefix:'U$D ', decimals:2, duration:760});
+    else usdEl.textContent = '—';
+  }
+
+  // USD sub-line below main amount
+  const usdLine = document.getElementById('dhc-usd-line');
+  if(usdLine){
+    if(usdMonth > 0) animateNumberText(usdLine, usdMonth, {prefix:'USD ', decimals:2, duration:760});
+    else usdLine.textContent = '';
+  }
+
+  // Margen card
+  const margenEl  = document.getElementById('db2-margen-val');
+  const margenPct = document.getElementById('db2-margen-pct');
+  if(margenEl){
+    if(margen !== null && incTotalARS > 0){
+      const isOver = margen < 0;
+      animateNumberText(margenEl, Math.abs(Math.round(margen)), {
+        formatter: n => (isOver ? '-$' : '$') + fmtN(n)
+      });
+      margenEl.style.color = isOver ? 'rgba(255,59,48,0.9)' : 'rgba(52,199,89,0.95)';
+      if(margenPct){
+        const remPct = spendBudget > 0 ? Math.max(0, Math.round(margen / spendBudget * 100)) : 0;
+        margenPct.textContent = remPct + '% del sueldo';
+        margenPct.style.display = '';
+      }
+    } else {
+      margenEl.textContent = incTotalARS > 0 ? '—' : 'Sin ingreso';
+      margenEl.style.color = 'rgba(255,255,255,0.6)';
+      if(margenPct) margenPct.style.display = 'none';
+    }
+  }
+
+  // % badge
+  const pctBadge = document.getElementById('dhc-pct-inline');
+  if(pctBadge){
+    if(pct !== null){
+      pctBadge.textContent = pct + '% del ingreso';
+      pctBadge.style.display = '';
+    } else {
+      pctBadge.style.display = 'none';
+    }
+  }
+}
+
+// ── Evolution line chart ──
+function renderDb2EvolutionChart(){
+  const ctx = document.getElementById('chart-evolution');
+  if(!ctx) return;
+
+  if(state.charts && state.charts.evolution){ state.charts.evolution.destroy(); state.charts.evolution = null; }
+
+  const isLight = _isL();
+  const mk = getActiveDashMonth();
+  const [y, m] = mk.split('-').map(Number);
+  const daysInMonth = new Date(y, m, 0).getDate();
+  const isCurrentMonth = mk === getMonthKey(new Date());
+
+  // Build daily income and expense arrays
+  const monthTxns = getCurrentMonthTxns().filter(t => !t.isPendingCuota && !t.isPendingSubscription);
+  const byDay = {};
+  for(let d = 1; d <= daysInMonth; d++) byDay[d] = {gastos: 0};
+  monthTxns.forEach(t => {
+    const dt = new Date(String(t.date).includes('T') ? t.date : t.date + 'T12:00:00');
+    if(dt.getMonth()+1 !== m || dt.getFullYear() !== y) return;
+    const day = dt.getDate();
+    const amt = t.currency === 'USD' ? t.amount * (USD_TO_ARS||1420) : t.amount;
+    byDay[day].gastos += amt;
+  });
+
+  // Daily income (spread evenly or from income sources)
+  const incSnap = getIncomeSnapshot(mk);
+  const dailyIncome = incSnap.total > 0 ? incSnap.total / daysInMonth : 0;
+
+  // Build label list (only days up to today if current month)
+  const today = new Date();
+  const maxDay = isCurrentMonth ? Math.min(today.getDate(), daysInMonth) : daysInMonth;
+  const labels = [];
+  const gastosDailyData = [];
+  const ingresosDailyData = [];
+  const saldoDailyData = [];
+  const gastosAccumData = [];
+  const ingresosAccumData = [];
+  const saldoAccumData = [];
+  let accumGastos = 0, accumIngresos = 0;
+
+  for(let d = 1; d <= maxDay; d++){
+    const dayLabel = d + ' ' + ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][m-1];
+    if(d === 1 || d % 3 === 0 || d === maxDay) labels.push(dayLabel);
+    else labels.push('');
+
+    const g = byDay[d]?.gastos || 0;
+    const inc = dailyIncome;
+    accumGastos += g;
+    accumIngresos += inc;
+    const saldoDay = inc - g;
+    const saldoAccum = accumIngresos - accumGastos;
+
+    gastosDailyData.push(g);
+    ingresosDailyData.push(inc);
+    saldoDailyData.push(saldoDay);
+    gastosAccumData.push(accumGastos);
+    ingresosAccumData.push(accumIngresos);
+    saldoAccumData.push(saldoAccum);
+  }
+
+  // Update legend totals
+  const evoIng = document.getElementById('db2-evo-ingresos');
+  const evoGas = document.getElementById('db2-evo-gastos');
+  const evoSal = document.getElementById('db2-evo-saldo');
+  const totalGastos = gastosAccumData[gastosAccumData.length-1] || 0;
+  const totalIngresos = ingresosAccumData[ingresosAccumData.length-1] || 0;
+  const totalSaldo = saldoAccumData[saldoAccumData.length-1] || 0;
+  if(evoIng) evoIng.textContent = '$' + fmtN(Math.round(totalIngresos));
+  if(evoGas) evoGas.textContent = '$' + fmtN(Math.round(totalGastos));
+  if(evoSal) evoSal.textContent = '$' + fmtN(Math.round(totalSaldo));
+
+  const useAccum = db2EvoMode === 'accum';
+  const gasData   = useAccum ? gastosAccumData   : gastosDailyData;
+  const incData   = useAccum ? ingresosAccumData  : ingresosDailyData;
+  const saldoData = useAccum ? saldoAccumData     : saldoDailyData;
+
+  const gridColor = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)';
+  const tickColor = isLight ? '#748096' : '#566172';
+  const tickFont  = {size:10, weight:'500', family:'-apple-system,SF Pro Display,sans-serif'};
+
+  const chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Ingresos',
+          data: incData,
+          borderColor: '#30d158',
+          backgroundColor: 'rgba(48,209,88,0.08)',
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: '#30d158',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 1.5,
+          tension: 0.38,
+          fill: false
+        },
+        {
+          label: 'Gastos',
+          data: gasData,
+          borderColor: '#ff9f0a',
+          backgroundColor: 'rgba(255,159,10,0.07)',
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: '#ff9f0a',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 1.5,
+          tension: 0.38,
+          fill: false
+        },
+        {
+          label: 'Saldo',
+          data: saldoData,
+          borderColor: '#0071e3',
+          backgroundColor: 'rgba(0,113,227,0.07)',
+          borderWidth: 2,
+          pointRadius: 4,
+          pointBackgroundColor: '#0071e3',
+          pointBorderColor: '#fff',
+          pointBorderWidth: 1.5,
+          tension: 0.38,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: { ..._chartTooltip(), callbacks: { label: c => ' ' + c.dataset.label + ': $' + fmtN(Math.round(c.parsed.y)) } }
+      },
+      scales: {
+        x: {
+          ticks: { color: tickColor, font: tickFont, maxRotation: 0, minRotation: 0 },
+          grid: { display: false }
+        },
+        y: {
+          ticks: { color: tickColor, font: tickFont, callback: v => '$' + fmtN(v) },
+          grid: { color: gridColor, drawBorder: false }
+        }
+      }
+    }
+  });
+
+  if(state.charts) state.charts.evolution = chart;
+
+  // Insight line
+  const insightEl = document.getElementById('db2-evo-insight');
+  if(insightEl){
+    if(totalGastos > 0 && totalIngresos > 0){
+      const pct = Math.round(totalGastos / totalIngresos * 100);
+      const diff = Math.abs(pct - 100);
+      if(pct > 100){
+        insightEl.textContent = `⚠️ Vas ${diff}% por encima del mismo período del mes pasado.`;
+      } else {
+        insightEl.textContent = `💡 Vas ${diff}% por debajo del ingreso estimado del período.`;
+      }
+      insightEl.style.display = 'flex';
+    } else {
+      insightEl.style.display = 'none';
+    }
+  }
+}
+
+// ── Categories donut ──
+function renderDb2CatDonut(monthTxns){
+  const ctx = document.getElementById('chart-cat-donut');
+  if(!ctx) return;
+  if(state.charts && state.charts.catDonut){ state.charts.catDonut.destroy(); state.charts.catDonut = null; }
+
+  const txns = monthTxns || getCurrentMonthTxns();
+  const grouped = {};
+  txns.filter(t => t.category && t.category !== 'Procesando...' && t.category !== 'Uncategorized').forEach(t => {
+    const amt = t.currency === 'USD' ? t.amount * (USD_TO_ARS||1420) : t.amount;
+    const parent = typeof catGroup === 'function' ? catGroup(t.category) : t.category;
+    if(!grouped[parent]) grouped[parent] = {total: 0, color: typeof catColor === 'function' ? catColor(t.category) : '#666', emoji: ''};
+    grouped[parent].total += amt;
+  });
+
+  const sorted = Object.entries(grouped).filter(([,d]) => d.total > 0).sort((a,b) => b[1].total - a[1].total).slice(0,8);
+  const total = sorted.reduce((s,[,d]) => s + d.total, 0);
+
+  // Update donut total label
+  const totalEl = document.getElementById('db2-cat-total');
+  if(totalEl) totalEl.textContent = total > 0 ? '$' + fmtN(Math.round(total)) : '—';
+
+  if(!sorted.length){
+    const listEl = document.getElementById('db2-cat-list');
+    if(listEl) listEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">Sin gastos categorizados</div>';
+    return;
+  }
+
+  const DONUT_COLORS = ['#4361ee','#f77f00','#2ec4b6','#e63946','#7b2d8b','#06a77d','#0096c7','#ff6b6b'];
+  const colors = sorted.map(([,d],i) => d.color || DONUT_COLORS[i % DONUT_COLORS.length]);
+
+  const chart = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: sorted.map(([name]) => name),
+      datasets: [{
+        data: sorted.map(([,d]) => d.total),
+        backgroundColor: colors.map(c => c + 'cc'),
+        borderColor: colors,
+        borderWidth: 2,
+        hoverOffset: 4
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      cutout: '68%',
+      plugins: {
+        legend: { display: false },
+        tooltip: { ..._chartTooltip(), callbacks: {
+          label: c => ' $' + fmtN(Math.round(c.parsed)) + ' (' + Math.round(c.parsed/total*100) + '%)'
+        }}
+      }
+    }
+  });
+  if(state.charts) state.charts.catDonut = chart;
+
+  // Category list
+  const listEl = document.getElementById('db2-cat-list');
+  if(listEl){
+    listEl.innerHTML = sorted.slice(0,5).map(([name,d],i) => {
+      const pct = total > 0 ? Math.round(d.total/total*100) : 0;
+      const color = colors[i];
+      return `<div class="db2-cat-item">
+        <div class="db2-cat-swatch" style="background:${color}"></div>
+        <span class="db2-cat-name">${esc(name)}</span>
+        <span class="db2-cat-pct">${pct}%</span>
+        <span class="db2-cat-amt">$${fmtN(Math.round(d.total))}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Bottom note
+  const noteEl = document.getElementById('db2-cat-note');
+  if(noteEl && sorted[0]){
+    const top = sorted[0];
+    const topPct = total > 0 ? Math.round(top[1].total/total*100) : 0;
+    noteEl.textContent = `🏆 La categoría ${top[0]} representa el ${topPct}% del total gastado.`;
+    noteEl.style.display = 'flex';
+  }
+}
+
+// ── Agenda Viva widget ──
+function renderDb2Agenda(timelineData){
+  const listEl = document.getElementById('db2-agenda-list');
+  const pillEl = document.getElementById('timeline-card-pill');
+  if(!listEl) return;
+
+  const events = (timelineData.events || []).filter(e => e && e.days >= 0).slice(0, 3);
+
+  // Update pill count
+  if(pillEl) pillEl.textContent = events.length + ' evento' + (events.length!==1?'s':'') + ' →';
+
+  if(!events.length){
+    listEl.innerHTML = '<div style="padding:12px 0;font-size:12px;color:var(--text3)">Sin eventos próximos</div>';
+    return;
+  }
+
+  const dotColors = {
+    subscription: '#ff3b30',
+    close:        '#ff9f0a',
+    due:          '#ff3b30',
+    commitment:   '#0071e3',
+    fixed:        '#7d3aec'
+  };
+
+  const getMerchantIcon = name => {
+    const n = (name||'').toLowerCase();
+    if(n.includes('netflix')) return '🔴';
+    if(n.includes('spotify')) return '🟢';
+    if(n.includes('sueldo')||n.includes('ingreso')||n.includes('cobro')) return '💰';
+    if(n.includes('alquiler')) return '🏠';
+    if(n.includes('gym')||n.includes('gimnasio')) return '💪';
+    return '📅';
+  };
+
+  listEl.innerHTML = events.map(e => {
+    const when = e.days === 0 ? 'Hoy' : e.days === 1 ? 'Mañana' : `En ${e.days} días`;
+    const chipCls = e.days === 0 ? 'today' : e.days <= 3 ? 'soon' : '';
+    const dot = dotColors[e.type] || '#0071e3';
+    const icon = getMerchantIcon(e.title || e.shortLabel || '');
+    const name = e.shortLabel || e.title || 'Evento';
+    const amtStr = e.amount ? ' · -$' + fmtN(Math.round(e.amount)) : '';
+    const typeLabel = e.type === 'subscription' ? 'Suscripción' :
+                      e.type === 'close'        ? 'Cierre TC'   :
+                      e.type === 'due'          ? 'Vencimiento' :
+                      e.type === 'fixed'        ? 'Gasto fijo'  : 'Cuota';
+    const timeStr = e.date instanceof Date ? e.date.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) : '';
+    return `<div class="db2-agenda-item">
+      <div class="db2-agenda-time">${timeStr || '—'}</div>
+      <div class="db2-agenda-dot" style="background:${dot}"></div>
+      <div class="db2-agenda-body">
+        <div class="db2-agenda-name">${icon} ${esc(name)}</div>
+        <div class="db2-agenda-desc">${typeLabel}${amtStr}</div>
+      </div>
+      <div class="db2-agenda-chip ${chipCls}">${when}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Próximos Vencimientos strip ──
+function renderDb2DueStrip(timelineData){
+  const grid = document.getElementById('db2-due-grid');
+  if(!grid) return;
+
+  const events = (timelineData.events || [])
+    .filter(e => e && e.days >= 0 && e.amount > 0)
+    .slice(0, 3);
+
+  if(!events.length){
+    grid.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--text3);padding:8px 0">Sin vencimientos próximos</div>';
+    return;
+  }
+
+  const MONTHS_ES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+  const accentColors = ['#4361ee','#e63946','#2ec4b6'];
+
+  grid.innerHTML = events.map((e, i) => {
+    const d = e.date instanceof Date ? e.date : new Date();
+    const day = d.getDate();
+    const mo = MONTHS_ES[d.getMonth()] || '—';
+    const name = e.shortLabel || e.title || 'Evento';
+    const amt = '$' + fmtN(Math.round(e.amount));
+    const when = e.days === 0 ? 'Hoy' : e.days === 1 ? 'Mañana' : `En ${e.days} días`;
+    const chipCls = e.days === 0 ? 'today' : e.days <= 3 ? 'soon' : '';
+    const color = accentColors[i % accentColors.length];
+    const icon = e.type === 'subscription' ? '📺' : e.type === 'close' ? '💳' : e.type === 'due' ? '⚠️' : '📌';
+    return `<div class="db2-due-item">
+      <div class="db2-due-date-box" style="background:${color}">
+        <div class="db2-due-date-day">${day}</div>
+        <div class="db2-due-date-mo">${mo}</div>
+      </div>
+      <div class="db2-due-body">
+        <div class="db2-due-name">${icon} ${esc(name)}</div>
+        <div class="db2-due-amt">${amt}</div>
+      </div>
+      <div class="db2-due-chip ${chipCls}">${when}</div>
+    </div>`;
+  }).join('');
+}
+
+// ── Dollar sparkline ──
+function renderDb2DollarSparkline(){
+  const ctx = document.getElementById('db2-dollar-spark');
+  if(!ctx) return;
+  if(state.charts && state.charts.dollarSpark){ state.charts.dollarSpark.destroy(); state.charts.dollarSpark = null; }
+  // Draw a simple flat sparkline with slight variation using stored rate
+  const rate = USD_TO_ARS || 1420;
+  const points = [rate*0.98, rate*0.985, rate*0.99, rate*0.992, rate*0.995, rate*0.998, rate*0.999, rate];
+  const c = new Chart(ctx, {
+    type:'line',
+    data:{
+      labels: points.map((_,i)=>i),
+      datasets:[{
+        data: points,
+        borderColor: '#30d158',
+        borderWidth: 2,
+        pointRadius: 0,
+        fill: {target:'origin', above:'rgba(52,199,89,0.06)'},
+        tension: 0.4
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}, tooltip:{enabled:false}},
+      scales:{ x:{display:false}, y:{display:false} }
+    }
+  });
+  if(state.charts) state.charts.dollarSpark = c;
+}
+
+// ── Main caller — appended at end of renderDashboard ──
+function renderDb2Dashboard(data){
+  // data: { arsMonth, usdMonth, margen, pct, incTotalARS, spendBudget,
+  //         projected, totalGastoARS, daysLeft, dailyRate, projPeriodClose,
+  //         timelineData, monthTxns }
+  renderDb2HeroExtras(data.arsMonth, data.usdMonth, data.margen, data.pct, data.incTotalARS, data.spendBudget);
+  renderDb2CcCycles();
+  renderDb2ProjExtras(data.projected, data.totalGastoARS, data.incTotalARS, data.daysLeft, data.dailyRate, data.projPeriodClose);
+  renderDb2Agenda(data.timelineData);
+  renderDb2EvolutionChart();
+  renderDb2CatDonut(data.monthTxns);
+  renderDb2DueStrip(data.timelineData);
+  renderDb2DollarSparkline();
 }

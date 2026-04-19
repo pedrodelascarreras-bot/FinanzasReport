@@ -269,358 +269,367 @@
   </div>
   <div id="dash-content" class="content-stack">
     <div id="dash-decision-center" class="dash-decision-shell fade-up" style="display:none;"></div>
-    <div class="layout-section" data-page="dashboard" data-key="hero"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('dashboard','hero',this)">● Hero del mes</button></div>
-    <!-- FILA 1: Hero del mes + 3 stats secundarios -->
-    <div class="dash-row-hero fade-up d1">
-      <div id="dash-notifications" class="dash-notif-container dash-side-rail" style="display:none;"></div>
 
-      <div class="dash-hero-main-col">
-        <!-- Card principal: gasto del mes -->
-        <div class="dash-hero-card dash-hero-clickable" onclick="nav('transactions')" title="Ver detalle de gastos">
-          <div class="dhc-eyebrow"><span data-i18n="global_total_spent">GASTO TOTAL</span> · <span id="dhc-month-label">—</span></div>
-          <div class="dhc-main">
-            <div class="dhc-amount" id="kpi-ars">—</div>
-            <span id="dhc-pct-inline" class="metric-inline"></span>
+    <!-- ═══ DB2 DASHBOARD GRID ═══ -->
+    <div class="db2-grid fade-up">
+
+      <!-- ROW 1: Hero + Ciclo de Tarjetas -->
+      <div class="db2-row-1">
+
+        <!-- HERO WIDGET -->
+        <div class="db2-w db2-hero-card" onclick="nav('transactions')" style="cursor:pointer" title="Ver detalle de gastos">
+          <div class="db2-hero-eyebrow">
+            <div class="db2-hero-eyebrow-l">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>
+              <span>GASTO TOTAL</span> · <span id="dhc-month-label">—</span>
+            </div>
+            <button class="db2-hero-eye" onclick="event.stopPropagation()" title="Ver/ocultar">
+              <div class="db2-hero-eye-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+            </button>
           </div>
-          <div id="dhc-inner-grid" class="hero-inner-grid">
-            <div class="hero-mini-card">
-              <div class="hero-mini-card-title" data-i18n="global_ars_spent">GASTO ARS</div>
-              <div class="hero-mini-card-value" id="dhc-ars-line">—</div>
-            </div>
-            <div class="hero-mini-card">
-              <div class="hero-mini-card-title" data-i18n="global_usd_spent">GASTO USD</div>
-              <div class="hero-mini-card-value accent" id="dhc-usd-line">—</div>
-            </div>
-            <div id="dhc-margin-section" class="hero-wide-card clickable" style="display:none;" onclick="nav('income')" title="Ver ingresos y configuración">
-              <div class="hero-wide-card-header">
-                <span class="hero-wide-card-title" data-i18n="global_available_margin">MARGEN DISPONIBLE</span>
-                <span id="dhc-margin-val" class="hero-wide-card-value"></span>
+          <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;">
+            <div class="db2-hero-main-amt" id="kpi-ars">—</div>
+            <div class="db2-hero-usd-sub" id="dhc-usd-line">—</div>
+          </div>
+          <div id="dhc-pct-inline" class="db2-hero-pct"></div>
+          <div class="db2-hero-inner">
+            <!-- Total ARS -->
+            <div class="db2-hero-sub db2-hero-sub-ars">
+              <div class="db2-hero-sub-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>
               </div>
-              <div class="hero-progress">
-                <div id="dhc-margin-fill" class="hero-progress-fill"></div>
-              </div>
-              <div class="hero-wide-card-footer table-subtle">
-                <span id="dhc-margin-sub"></span>
-                <span id="dhc-margin-ingreso"></span>
-              </div>
+              <div class="db2-hero-sub-title">Total en ARS</div>
+              <div class="db2-hero-sub-val" id="db2-ars-val">—</div>
             </div>
-            <div id="dash-tp-indicator" style="display:none;"></div>
-            <div id="dhc-pay-method-section" class="hero-wide-card" style="display:none;">
-              <div class="hero-wide-card-title" data-i18n="global_payment_methods">MEDIOS DE PAGO</div>
-              <div class="hero-pay-bar" id="dhc-pay-bar"></div>
-              <div id="dhc-pay-labels" class="hero-pay-labels"></div>
+            <!-- Total USD -->
+            <div class="db2-hero-sub db2-hero-sub-usd">
+              <div class="db2-hero-sub-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M9 9h4.5a2.5 2.5 0 0 1 0 5H9m0 0h5.5a2.5 2.5 0 0 1 0 5H9"/></svg>
+              </div>
+              <div class="db2-hero-sub-title">Total en USD</div>
+              <div class="db2-hero-sub-val" id="db2-usd-val">—</div>
+            </div>
+            <!-- Margen disponible -->
+            <div class="db2-hero-sub db2-hero-sub-margen" onclick="event.stopPropagation();nav('income')" style="cursor:pointer" title="Ver ingresos">
+              <div class="db2-hero-sub-icon">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              </div>
+              <div class="db2-hero-sub-title">Margen disponible</div>
+              <div class="db2-hero-sub-val" id="db2-margen-val">—</div>
+              <div class="db2-hero-sub-pct" id="db2-margen-pct" style="display:none"></div>
             </div>
           </div>
         </div>
-        <div class="fade-up d2 dash-utility-grid" id="dash-utility-grid" data-layout-group="dashboard-utility">
-          <div class="dash-utility-card dash-utility-card-dollar layout-widget" data-widget-key="usd-card" id="usd-rate-card" onclick="openUsdRateModal()" title="Editar tipo de cambio">
-            <div class="dash-utility-topline">
-              <div class="dash-dollar-heading">
-                <span class="dash-dollar-flag">🇺🇸</span>
-                <span class="dash-dollar-title" data-i18n="global_official_dollar">DÓLAR OFICIAL</span>
-              </div>
-              <span id="usd-rate-source-badge" class="dash-utility-pill">manual</span>
-            </div>
-            <div class="dash-utility-value-shell">
-              <div class="dash-utility-value dash-utility-value-dual">
-                <span id="usd-rate-buy-display">$1.410</span>
-                <span id="usd-rate-sell-display">$1.420</span>
-              </div>
-            </div>
-            <div class="dash-utility-subline">
-              <span id="usd-rate-status" class="usd-rate-meta"></span>
-              <span id="usd-rate-updated" class="usd-rate-meta usd-rate-updated"></span>
-            </div>
-            <div class="dash-utility-actions">
-              <button class="btn btn-ghost btn-sm btn-xs" onclick="event.stopPropagation();fetchUsdRate(true)" id="btn-refresh-usd">↻ Actualizar</button>
-              <button class="btn btn-ghost btn-sm btn-xs" onclick="event.stopPropagation();openUsdRateModal()">✎ Editar</button>
-            </div>
-          </div>
-          <button class="dash-utility-card dash-utility-card-timeline layout-widget" data-widget-key="timeline-card" id="timeline-card" onclick="nav('cuotas')">
-            <div class="dash-utility-topline dash-utility-topline-compact">
-              <span class="dash-utility-title-main" data-i18n="global_live_agenda">Agenda viva</span>
-              <span id="timeline-card-pill" class="dash-utility-pill">3 eventos</span>
-            </div>
-            <div class="dash-timeline-shell">
-              <div class="dash-timeline-block">
-                <div class="dash-timeline-step">
-                  <span class="dash-timeline-step-dot"></span>
-                  <span class="dash-timeline-step-line"></span>
-                </div>
-                <div class="dash-timeline-copy">
-                  <div class="dash-timeline-block-top">
-                    <span id="timeline-slot-1-label" class="dash-timeline-label">Evento 1</span>
-                    <span id="timeline-slot-1-chip" class="dash-utility-pill">sin eventos</span>
-                  </div>
-                  <div id="timeline-slot-1-value" class="dash-timeline-title">Sin novedades</div>
-                  <div id="timeline-slot-1-meta" class="dash-timeline-meta">La agenda financiera se actualiza sola.</div>
-                </div>
-              </div>
-              <div class="dash-timeline-block">
-                <div class="dash-timeline-step">
-                  <span class="dash-timeline-step-dot"></span>
-                  <span class="dash-timeline-step-line"></span>
-                </div>
-                <div class="dash-timeline-copy">
-                  <div class="dash-timeline-block-top">
-                    <span id="timeline-slot-2-label" class="dash-timeline-label">Evento 2</span>
-                    <span id="timeline-slot-2-chip" class="dash-utility-pill">sin eventos</span>
-                  </div>
-                  <div id="timeline-slot-2-value" class="dash-timeline-title">Sin vencimientos cercanos</div>
-                  <div id="timeline-slot-2-meta" class="dash-timeline-meta">Tus próximos pagos aparecerán acá.</div>
-                </div>
-              </div>
-              <div class="dash-timeline-block">
-                <div class="dash-timeline-step">
-                  <span class="dash-timeline-step-dot"></span>
-                </div>
-                <div class="dash-timeline-copy">
-                  <div class="dash-timeline-block-top">
-                    <span id="timeline-slot-3-label" class="dash-timeline-label">Evento 3</span>
-                    <span id="timeline-slot-3-chip" class="dash-utility-pill">sin eventos</span>
-                  </div>
-                  <div id="timeline-slot-3-value" class="dash-timeline-title">Semana despejada</div>
-                  <div id="timeline-slot-3-meta" class="dash-timeline-meta">Sin presión inmediata en la agenda financiera.</div>
-                </div>
-              </div>
-            </div>
-          </button>
-        </div>
-      </div>
 
-      <!-- Hidden elements for JS compatibility -->
-      <div style="display:none;">
-        <div id="dhc-pct-badge"></div>
-        <div id="kpi-ars-d"></div>
-        <span id="kpi-total-ars"></span>
-        <span id="kpi-total-usd"></span>
-        <span id="dhc-bal-income"></span>
-        <span id="dhc-bal-gasto"></span>
-        <span id="dhc-margen"></span>
-        <span id="dhc-margen-pct-label"></span>
-        <span id="kpi-inc-total"></span>
-        <span id="kpi-usd"></span>
-        <div id="dhc-balance-row"></div>
-        <div id="dhc-bal-result"></div>
-        <div id="dhc-progress-fill"></div>
-        <div id="dhc-progress-label"></div>
-      </div>
-
-      <!-- 3 KPI cards secundarias -->
-      <div class="dash-kpis-col" id="dash-kpis-col" data-layout-group="dashboard-kpis">
-        <div class="dkpi kpi-card-compact kpi-card-clickable kpi-card-credit layout-widget" data-widget-key="credit-kpi" onclick="nav('credit-cards')" title="Ver detalle de tarjetas">
-          <div class="kpi-card-header-grid">
-            <div class="dkpi-label">CICLO TARJETAS</div>
+        <!-- CICLO DE TARJETAS -->
+        <div class="db2-w db2-cc-card">
+          <div class="db2-hd">
+            <div class="db2-hd-left">
+              <div class="db2-hd-icon" style="background:rgba(56,189,248,0.12);color:#0ea5e9;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>
+              </div>
+              <span class="db2-title">Ciclo de Tarjetas</span>
+            </div>
+            <button class="db2-link" onclick="nav('credit-cards')">Ver detalle de tarjetas →</button>
           </div>
-          <div class="kpi-grid-mini kpi-credit-grid">
+          <div class="db2-cc-grid">
             <!-- VISA -->
-            <div class="kpi-mini-card">
-              <div class="kpi-mini-card-title brand-visa">VISA</div>
-              <div id="kpi-visa-ars" class="kpi-mini-card-value">—</div>
-              <div id="kpi-visa-usd" class="kpi-mini-card-sub"></div>
+            <div class="db2-cc-item" id="db2-cc-visa-item">
+              <div class="db2-cc-name db2-cc-name-visa">
+                VISA <span class="db2-cc-dots">····</span>
+              </div>
+              <div class="db2-cc-dates-row">
+                <div class="db2-cc-date-cell"><span class="db2-cc-date-label">Abre</span><span class="db2-cc-date-val" id="db2-visa-open">—</span></div>
+                <div class="db2-cc-date-cell"><span class="db2-cc-date-label">Cierra</span><span class="db2-cc-date-val" id="db2-visa-close">—</span></div>
+                <div class="db2-cc-date-cell"><span class="db2-cc-date-label">Vence</span><span class="db2-cc-date-val" id="db2-visa-due">—</span></div>
+              </div>
+              <div class="db2-cc-amt" id="kpi-visa-ars">—</div>
+              <div class="db2-cc-amt-usd" id="kpi-visa-usd"></div>
+              <div class="db2-cc-bar-track"><div class="db2-cc-bar-fill" id="db2-visa-bar" style="width:0%"></div></div>
+              <div class="db2-cc-days" id="db2-visa-days">—</div>
             </div>
             <!-- AMEX -->
-            <div class="kpi-mini-card">
-              <div class="kpi-mini-card-title brand-amex">AMEX</div>
-              <div id="kpi-amex-ars" class="kpi-mini-card-value">—</div>
-              <div id="kpi-amex-usd" class="kpi-mini-card-sub"></div>
+            <div class="db2-cc-item db2-cc-item-amex" id="db2-cc-amex-item">
+              <div class="db2-cc-name db2-cc-name-amex">
+                AMEX <span class="db2-cc-dots">····</span>
+              </div>
+              <div class="db2-cc-dates-row">
+                <div class="db2-cc-date-cell"><span class="db2-cc-date-label">Abre</span><span class="db2-cc-date-val" id="db2-amex-open">—</span></div>
+                <div class="db2-cc-date-cell"><span class="db2-cc-date-label">Cierra</span><span class="db2-cc-date-val" id="db2-amex-close">—</span></div>
+                <div class="db2-cc-date-cell"><span class="db2-cc-date-label">Vence</span><span class="db2-cc-date-val" id="db2-amex-due">—</span></div>
+              </div>
+              <div class="db2-cc-amt" id="kpi-amex-ars">—</div>
+              <div class="db2-cc-amt-usd" id="kpi-amex-usd"></div>
+              <div class="db2-cc-bar-track"><div class="db2-cc-bar-fill" id="db2-amex-bar" style="width:0%;background:#0066b2"></div></div>
+              <div class="db2-cc-days" id="db2-amex-days">—</div>
             </div>
           </div>
-          <div id="kpi-cycle-caption" class="kpi-card-footer-note">Ciclo vigente</div>
-          <!-- hidden compat -->
-          <div id="kpi-tc" style="display:none;">—</div>
+          <div id="kpi-cycle-caption" style="display:none"></div>
         </div>
-        <div class="dkpi kpi-card-projection layout-widget" data-widget-key="projection-kpi">
-          <div class="kpi-card-header-grid">
-            <div class="dkpi-label" id="kpi-proj-title">Proyección al cierre</div>
-          </div>
-          <div class="kpi-proj-main">
-            <div class="dkpi-value" id="kpi-proj">—</div>
-            <div class="dkpi-sub kpi-proj-status" id="kpi-proj-d"></div>
-          </div>
-          <!-- Two inner cards: projected + daily -->
-          <div id="kpi-proj-inner-cards" class="kpi-grid-mini kpi-grid-proj">
-            <div class="kpi-mini-card">
-              <div class="kpi-mini-card-title">PROMEDIO / DÍA</div>
-              <div id="kpi-proj-daily" class="kpi-mini-card-value">—</div>
+
+      </div><!-- /row-1 -->
+
+      <!-- ROW 2: Proyección + Dólar + Agenda -->
+      <div class="db2-row-2">
+
+        <!-- PROYECCIÓN AL CIERRE -->
+        <div class="db2-w db2-proj-card">
+          <div class="db2-hd" style="margin-bottom:12px">
+            <div class="db2-hd-left">
+              <div class="db2-hd-icon" style="background:rgba(255,107,0,0.1);color:var(--orange);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16 10 10l4 4 6-8"/><path d="M20 6v4h-4"/></svg>
+              </div>
+              <span class="db2-title">Proyección al Cierre</span>
             </div>
-            <div class="kpi-mini-card">
-              <div id="kpi-proj-days-label" class="kpi-mini-card-title">DÍAS AL CIERRE</div>
-              <div id="kpi-proj-days" class="kpi-mini-card-value">—</div>
-            </div>
+            <span class="db2-proj-badge">Según tu ritmo actual</span>
           </div>
-        </div>
-        <div class="dkpi dkpi-commitments layout-widget" data-widget-key="commitments-kpi" style="cursor:pointer;" onclick="nav('cuotas')" title="Ver compromisos">
-          <div class="dkpi-commitments-shell">
-            <div class="dkpi-left dkpi-left-commitments">
-              <div class="dkpi-label">Compromisos próx. mes</div>
-              <div class="dkpi-value" id="kpi-compromisos">—</div>
-              <div class="dkpi-sub" id="kpi-compromisos-d"></div>
-              <div class="comp-donut-meta">Carga sobre ingreso estimado</div>
+          <div class="db2-proj-body">
+            <div class="db2-proj-left">
+              <div class="db2-proj-amt" id="kpi-proj">—</div>
+              <div class="db2-proj-explain" id="kpi-proj-d">—</div>
+              <div class="db2-proj-bar-track" style="margin-top:10px">
+                <div class="db2-proj-bar-fill" id="db2-proj-bar" style="width:0%"></div>
+              </div>
             </div>
-            <div class="comp-donut-wrap" id="comp-donut-wrap">
-              <svg viewBox="0 0 100 100" class="comp-donut-svg" aria-hidden="true">
-                <circle cx="50" cy="50" r="38" class="comp-donut-track"></circle>
-                <circle id="comp-donut-fill" cx="50" cy="50" r="38" class="comp-donut-ring"></circle>
-              </svg>
-              <div class="comp-donut-center">
-                <span id="comp-donut-label" class="comp-donut-value">—</span>
-                <span class="comp-donut-caption">ocupado</span>
+            <div class="db2-proj-right">
+              <div class="db2-proj-legend-item">
+                <div class="db2-proj-legend-dot" style="background:var(--orange)"></div>
+                <div>
+                  <div class="db2-proj-legend-lbl">Con tu ritmo actual</div>
+                  <div class="db2-proj-legend-val" id="db2-proj-r1">—</div>
+                </div>
+              </div>
+              <div class="db2-proj-legend-item">
+                <div class="db2-proj-legend-dot" style="background:var(--accent)"></div>
+                <div>
+                  <div class="db2-proj-legend-lbl" id="db2-proj-l2">Presupuesto disponible</div>
+                  <div class="db2-proj-legend-val" id="db2-proj-r2">—</div>
+                </div>
+              </div>
+              <div class="db2-proj-legend-item">
+                <div class="db2-proj-legend-dot" style="background:var(--purple)"></div>
+                <div>
+                  <div class="db2-proj-legend-lbl">Límite de la tarjeta</div>
+                  <div class="db2-proj-legend-val" id="db2-proj-r3">—</div>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div class="dash-history-row layout-widget" data-widget-key="history-kpis">
-          <div class="dkpi dash-history-card dash-third-party-card dash-history-card-clickable" onclick="openThirdPartyTransactions()" title="Ver seguimiento de gastos de terceros">
-            <div class="dash-third-party-head">
-              <div class="dash-history-label">GASTOS DE TERCEROS</div>
-              <span class="dash-third-party-badge" id="kpi-third-party-badge">sin casos</span>
+          <div class="db2-proj-metrics">
+            <div class="db2-proj-metric">
+              <div class="db2-proj-metric-lbl">Gasto Prom. Diario</div>
+              <div class="db2-proj-metric-val" id="kpi-proj-daily">—</div>
             </div>
+            <div class="db2-proj-metric">
+              <div class="db2-proj-metric-lbl" id="kpi-proj-days-label">Días Restantes</div>
+              <div class="db2-proj-metric-val" id="kpi-proj-days">—</div>
+            </div>
+            <div class="db2-proj-metric">
+              <div class="db2-proj-metric-lbl">Gasto Restante</div>
+              <div class="db2-proj-metric-val" id="db2-proj-remaining">—</div>
+            </div>
+            <div class="db2-proj-metric">
+              <div class="db2-proj-metric-lbl">Fecha de Cierre</div>
+              <div class="db2-proj-metric-val" id="db2-proj-closedate">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- DÓLAR OFICIAL -->
+        <div class="db2-w db2-dollar-card" onclick="openUsdRateModal()" title="Editar tipo de cambio">
+          <div class="db2-dollar-top">
+            <span class="db2-dollar-flag">🇺🇸</span>
+            <span class="db2-title">Dólar Oficial</span>
+          </div>
+          <div class="db2-dollar-badge" id="usd-rate-source-badge">OFICIAL BNA</div>
+          <div class="db2-dollar-buy" id="usd-rate-buy-display">—</div>
+          <div class="db2-dollar-lbl">Compra</div>
+          <div class="db2-dollar-sell" id="usd-rate-sell-display">—</div>
+          <div class="db2-dollar-lbl">Venta</div>
+          <div class="db2-dollar-chart-wrap">
+            <canvas id="db2-dollar-spark" height="36" style="width:100%;height:36px;"></canvas>
+          </div>
+          <div class="db2-dollar-updated" id="usd-rate-updated">—</div>
+          <button class="db2-dollar-refresh" id="btn-refresh-usd" onclick="event.stopPropagation();fetchUsdRate(true)">↻ Actualizar</button>
+          <div id="usd-rate-status" style="display:none"></div>
+        </div>
+
+        <!-- AGENDA VIVA -->
+        <div class="db2-w db2-agenda-card">
+          <div class="db2-hd">
+            <div class="db2-hd-left">
+              <div class="db2-hd-icon" style="background:var(--blue-light);color:var(--accent);">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
+              </div>
+              <span class="db2-title">Agenda Viva</span>
+            </div>
+            <button class="db2-link" id="timeline-card-pill" onclick="nav('cuotas')">3 eventos →</button>
+          </div>
+          <div class="db2-agenda-list" id="db2-agenda-list">
+            <!-- populated by JS -->
+          </div>
+          <button class="db2-link" style="font-size:11.5px;padding-top:2px" onclick="nav('cuotas')">Ver calendario completo →</button>
+        </div>
+
+      </div><!-- /row-2 -->
+
+      <!-- ROW 3: Evolución del Mes + Categorías -->
+      <div class="db2-row-3">
+
+        <!-- EVOLUCIÓN DEL MES -->
+        <div class="db2-w db2-evo-card">
+          <div class="db2-hd" style="margin-bottom:8px">
             <div>
-              <div class="dash-history-value" id="kpi-third-party-pending">—</div>
-              <div class="dash-history-sub" id="kpi-third-party-sub">Lo que todavía te falta cobrar</div>
+              <div class="db2-title">Evolución del Mes</div>
+              <div class="db2-evo-sub">Ingresos, gastos y saldo acumulado</div>
             </div>
-            <div class="dw-bar-track"><div class="dw-bar-fill" id="kpi-third-party-bar" style="width:0%;background:#a882ff;"></div></div>
-            <div class="dash-third-party-stats">
-              <div class="dash-third-party-stat">
-                <span class="dash-third-party-stat-label">Total</span>
-                <strong id="kpi-third-party-total">—</strong>
+            <div class="db2-evo-controls">
+              <div class="db2-evo-toggle">
+                <button class="db2-evo-btn active" id="db2-evo-daily-btn" onclick="setDb2EvoMode('daily')">Por día</button>
+                <button class="db2-evo-btn" id="db2-evo-accum-btn" onclick="setDb2EvoMode('accum')">Acumulado</button>
               </div>
-              <div class="dash-third-party-stat">
-                <span class="dash-third-party-stat-label">Cobrado</span>
-                <strong id="kpi-third-party-collected">—</strong>
+              <button class="db2-evo-more">···</button>
+            </div>
+          </div>
+          <div class="db2-evo-legend">
+            <span class="db2-evo-legend-item">
+              <span class="db2-evo-legend-dot" style="background:#30d158"></span>
+              Ingresos <strong id="db2-evo-ingresos">—</strong>
+            </span>
+            <span class="db2-evo-legend-item">
+              <span class="db2-evo-legend-dot" style="background:#ff9f0a"></span>
+              Gastos <strong id="db2-evo-gastos">—</strong>
+            </span>
+            <span class="db2-evo-legend-item">
+              <span class="db2-evo-legend-dot" style="background:#0071e3"></span>
+              Saldo <strong id="db2-evo-saldo">—</strong>
+            </span>
+          </div>
+          <div class="db2-evo-chart-wrap">
+            <canvas id="chart-evolution"></canvas>
+          </div>
+          <div class="db2-evo-insight" id="db2-evo-insight" style="display:none">💡 …</div>
+        </div>
+
+        <!-- CATEGORÍAS DEL MES -->
+        <div class="db2-w db2-cat-card">
+          <div class="db2-hd">
+            <span class="db2-title">Categorías del Mes</span>
+            <button class="db2-link" onclick="nav('tendencia')">Ver detalle →</button>
+          </div>
+          <div class="db2-cat-body">
+            <div class="db2-cat-donut-wrap">
+              <canvas id="chart-cat-donut"></canvas>
+              <div class="db2-cat-donut-center">
+                <div class="db2-cat-donut-lbl">TOTAL</div>
+                <div class="db2-cat-donut-val" id="db2-cat-total">—</div>
               </div>
-              <div class="dash-third-party-stat">
-                <span class="dash-third-party-stat-label">Por cobrar</span>
-                <strong id="kpi-third-party-open">—</strong>
-              </div>
             </div>
-            <div class="dash-history-sub" id="kpi-third-party-foot">Seguimiento consolidado de todos tus gastos de terceros.</div>
+            <div class="db2-cat-list" id="db2-cat-list"><!-- populated by JS --></div>
           </div>
-          <div class="dkpi dash-avg-fallback-card" id="dash-avg-widget" style="display:none;">
-            <div class="dash-history-label">GASTO PROMEDIO DIARIO</div>
-            <div class="dash-history-value" id="kpi-fallback-daily">—</div>
-            <div class="dash-history-sub">Promedio del mes en curso</div>
-            <div style="margin-top:18px;">
-              <div class="dash-history-label" style="margin-bottom:6px;">GASTO MENSUAL ACUMULADO</div>
-              <div class="dash-history-value" id="kpi-fallback-total" style="font-size:clamp(18px,2.8vw,26px);">—</div>
-              <div class="dash-history-sub" id="kpi-fallback-projected">Proyección: —</div>
-            </div>
-          </div>
+          <div class="db2-cat-note" id="db2-cat-note" style="display:none">🏆 —</div>
         </div>
-      </div>
-    </div>
-    </div><!-- /layout-section -->
 
-    <div class="layout-section" data-page="dashboard" data-key="charts"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('dashboard','charts',this)">● Gráfico + Categorías</button></div>
-    <!-- FILA 2: Gráfico semanal + top categorías -->
-    <div class="dash-row-charts fade-up d2" id="dash-row-charts" data-layout-group="dashboard-charts">
-      <div class="chart-card layout-widget" data-widget-key="main-chart">
-        <div class="chart-card-header">
-          <div>
-            <div class="chart-card-title" id="dash-chart-title" data-i18n="global_spending_evolution">Evolución del gasto</div>
-            <div class="chart-card-sub" id="weekly-chart-sub">ARS acumulado</div>
-          </div>
-          <div class="chart-toolbar">
-            <div id="weekly-chart-legend"></div>
-            <div class="chart-mini-toggle">
-              <button class="cmt-btn active" id="cmt-bars" onclick="setChartMode('bars')">▊ Barras</button>
-              <button class="cmt-btn" id="cmt-week" onclick="setChartMode('week')">▤ Semanal</button>
-              <button class="cmt-btn" id="cmt-daily" onclick="setChartMode('daily')">⋯ Diario</button>
-            </div>
-          </div>
+      </div><!-- /row-3 -->
+
+      <!-- ROW 4: Próximos Vencimientos -->
+      <div class="db2-w db2-due-card">
+        <div class="db2-hd">
+          <span class="db2-title">Próximos Vencimientos</span>
+          <button class="db2-link" onclick="nav('cuotas')">Ver calendario completo →</button>
         </div>
-        <div class="chart-wrap chart-wrap-sm"><canvas id="chart-weekly"></canvas></div>
-      </div>
-      <div class="chart-card chart-card-clickable layout-widget" data-widget-key="categories-chart" onclick="nav('tendencia')" title="Ver tendencias por categoría">
-        <div class="chart-card-title chart-card-title-spaced" data-i18n="global_month_categories">Categorías del mes</div>
-        <div id="cat-bars" class="cat-list"></div>
-      </div>
-    </div>
-    </div><!-- /layout-section -->
-
-    <div class="layout-section" data-page="dashboard" data-key="widgets"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('dashboard','widgets',this)">● Widgets</button></div>
-    <!-- FILA 3: 3 Widgets — Margen · Categoría en alza · Meta más cercana -->
-    <div class="dash-widgets-row fade-up d3" id="dash-widgets-row" data-layout-group="dashboard-widgets">
-
-      <!-- Widget 1: Margen disponible -->
-      <div class="dw-card dw-margin dw-card-clickable layout-widget" data-widget-key="margin-widget" onclick="nav('income')" title="Ver ingresos y configuración">
-        <div class="dw-label" data-i18n="global_available_margin">MARGEN DISPONIBLE</div>
-        <div class="dw-value" id="dw-margen-val">—</div>
-        <div class="dw-sub" id="dw-margen-sub">hasta fin de mes</div>
-        <div class="dw-bar-track"><div class="dw-bar-fill" id="dw-margen-bar" style="background:var(--accent);width:0%;"></div></div>
-        <div class="dw-footer" id="dw-margen-footer">Configurá tu ingreso para ver este dato</div>
+        <div class="db2-due-grid" id="db2-due-grid"><!-- populated by JS --></div>
       </div>
 
-      <!-- Widget 2: Categoría que más creció vs mes anterior -->
-      <div class="dw-card dw-trend dw-card-clickable layout-widget" data-widget-key="trend-widget" onclick="openTrendDetail()" title="Ver comparación">
-        <div class="dw-label" data-i18n="global_rising_category">CATEGORÍA EN ALZA</div>
-        <div class="dw-value widget-value-tight" id="dw-trend-val">—</div>
-        <div class="dw-sub" id="dw-trend-sub">vs mes anterior</div>
-        <div class="widget-inline-row">
-          <span class="dw-badge" id="dw-trend-badge"></span>
-          <span class="widget-microcopy" id="dw-trend-amounts"></span>
-        </div>
-        <div class="dw-footer widget-footer-tight" id="dw-trend-footer">Ver comparación →</div>
-      </div>
+    </div><!-- /db2-grid -->
 
-      <!-- Widget 3: Meta de ahorro más cercana -->
-      <div class="dw-card dw-goal dw-card-clickable layout-widget" data-widget-key="goal-widget" onclick="nav('savings')" title="Ver ahorros">
-        <div class="dw-label" data-i18n="global_closest_goal">META MÁS CERCANA</div>
-        <div class="dw-value widget-value-tight" id="dw-goal-val">—</div>
-        <div class="dw-sub" id="dw-goal-sub">Sin metas configuradas</div>
-        <div class="dw-bar-track"><div class="dw-bar-fill" id="dw-goal-bar" style="background:var(--accent3);width:0%;"></div></div>
-        <div class="dw-footer widget-footer-tight" id="dw-goal-footer">Ver ahorros →</div>
+    <!-- ═══ COMPAT LAYER (legacy IDs for existing JS, invisible) ═══ -->
+    <div style="display:none" aria-hidden="true">
+      <!-- Old hero compat -->
+      <span id="dhc-ars-line"></span>
+      <div id="dhc-pct-badge"></div>
+      <div id="kpi-ars-d"></div>
+      <span id="kpi-total-ars"></span>
+      <span id="kpi-total-usd"></span>
+      <span id="dhc-bal-income"></span>
+      <span id="dhc-bal-gasto"></span>
+      <span id="dhc-margen"></span>
+      <span id="dhc-margen-pct-label"></span>
+      <span id="kpi-inc-total"></span>
+      <span id="kpi-usd"></span>
+      <div id="dhc-balance-row"></div>
+      <div id="dhc-bal-result"></div>
+      <div id="dhc-progress-fill"></div>
+      <div id="dhc-progress-label"></div>
+      <div id="dhc-margin-section" style="display:none">
+        <span id="dhc-margin-val"></span>
+        <div id="dhc-margin-fill"></div>
+        <span id="dhc-margin-sub"></span>
+        <span id="dhc-margin-ingreso"></span>
       </div>
-
-      <div class="dw-card dw-income layout-widget" data-widget-key="income-widget" hidden>
-        <div class="dw-label" data-i18n="global_period_income">INGRESO DEL PERÍODO</div>
-        <div class="dw-value widget-value-tight" id="dw-income-val">—</div>
-        <div class="dw-sub" id="dw-income-sub">ARS + USD convertidos</div>
-        <div class="widget-inline-row">
-          <span class="dw-badge neutral" id="dw-income-badge">base</span>
-          <span class="widget-microcopy" id="dw-income-meta"></span>
-        </div>
-        <div class="dw-footer widget-footer-tight" id="dw-income-footer">Lectura real del período activo</div>
+      <div id="dhc-pay-method-section">
+        <div id="dhc-pay-bar"></div>
+        <div id="dhc-pay-labels"></div>
       </div>
-
-      <div class="dw-card dw-usd layout-widget" data-widget-key="usd-exposure-widget" hidden>
-        <div class="dw-label" data-i18n="global_usd_exposure">EXPOSICIÓN USD</div>
-        <div class="dw-value widget-value-tight" id="dw-usd-val">—</div>
-        <div class="dw-sub" id="dw-usd-sub">del gasto del período</div>
-        <div class="dw-bar-track"><div class="dw-bar-fill" id="dw-usd-bar" style="background:var(--accent2);width:0%;"></div></div>
-        <div class="dw-footer widget-footer-tight" id="dw-usd-footer">Qué parte del mes depende del dólar</div>
+      <div id="dash-tp-indicator"></div>
+      <!-- Old chart elements (renderWeeklyChart still runs here for compat) -->
+      <canvas id="chart-weekly"></canvas>
+      <div id="weekly-chart-sub"></div>
+      <div id="dash-chart-title"></div>
+      <div id="weekly-chart-legend"></div>
+      <div id="cat-bars" class="cat-list"></div>
+      <button id="cmt-bars"></button><button id="cmt-week"></button><button id="cmt-daily"></button>
+      <!-- Old cycle caption -->
+      <div id="kpi-tc">—</div>
+      <!-- Old timeline IDs (still populated, used for fallback) -->
+      <span id="timeline-slot-1-label"></span><span id="timeline-slot-1-chip"></span>
+      <div id="timeline-slot-1-value"></div><div id="timeline-slot-1-meta"></div>
+      <span id="timeline-slot-2-label"></span><span id="timeline-slot-2-chip"></span>
+      <div id="timeline-slot-2-value"></div><div id="timeline-slot-2-meta"></div>
+      <span id="timeline-slot-3-label"></span><span id="timeline-slot-3-chip"></span>
+      <div id="timeline-slot-3-value"></div><div id="timeline-slot-3-meta"></div>
+      <!-- Old projection title/label -->
+      <div id="kpi-proj-title"></div>
+      <!-- Old widgets (still computed by renderDashWidgets) -->
+      <div id="dw-margen-val"></div><div id="dw-margen-sub"></div>
+      <div id="dw-margen-bar"></div><div id="dw-margen-footer"></div>
+      <div id="dw-trend-val"></div><div id="dw-trend-sub"></div>
+      <div id="dw-trend-badge"></div><div id="dw-trend-amounts"></div><div id="dw-trend-footer"></div>
+      <div id="dw-goal-val"></div><div id="dw-goal-sub"></div>
+      <div id="dw-goal-bar"></div><div id="dw-goal-footer"></div>
+      <!-- Compromisos donut (still rendered, hidden) -->
+      <div id="kpi-compromisos"></div><div id="kpi-compromisos-d"></div>
+      <div id="comp-donut-wrap">
+        <svg viewBox="0 0 100 100">
+          <circle cx="50" cy="50" r="38" class="comp-donut-track"></circle>
+          <circle id="comp-donut-fill" cx="50" cy="50" r="38" class="comp-donut-ring"></circle>
+        </svg>
+        <div class="comp-donut-center"><span id="comp-donut-label">—</span></div>
       </div>
-
-      <div class="dw-card dw-ticket layout-widget" data-widget-key="largest-widget" hidden>
-        <div class="dw-label" data-i18n="global_highest_expense">GASTO MÁS ALTO</div>
-        <div class="dw-value widget-value-tight" id="dw-largest-val">—</div>
-        <div class="dw-sub" id="dw-largest-sub">mayor ticket registrado</div>
-        <div class="widget-inline-row">
-          <span class="dw-badge neutral" id="dw-largest-badge">sin datos</span>
-          <span class="widget-microcopy" id="dw-largest-meta"></span>
-        </div>
-        <div class="dw-footer widget-footer-tight" id="dw-largest-footer">Ideal para detectar compras que te mueven el período</div>
+      <!-- Third party widget -->
+      <div class="dash-history-row">
+        <div id="kpi-third-party-pending">—</div>
+        <div id="kpi-third-party-sub"></div>
+        <div id="kpi-third-party-badge"></div>
+        <div id="kpi-third-party-total">—</div>
+        <div id="kpi-third-party-collected">—</div>
+        <div id="kpi-third-party-open">—</div>
+        <div id="kpi-third-party-bar"></div>
+        <div id="kpi-third-party-foot"></div>
       </div>
-
-    </div>
-    </div><!-- /layout-section -->
-
-    <div class="layout-section" data-page="dashboard" data-key="top5"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('dashboard','top5',this)">● Top gastos</button></div>
-    <!-- FILA 4: Top 5 gastos del mes -->
-    <div class="chart-card fade-up d3">
-      <div class="chart-card-header chart-card-title-spaced">
-        <div>
-          <div class="chart-card-title">Top gastos del mes</div>
-          <div class="chart-card-sub" id="top5-sub">Movimientos ARS más altos</div>
-        </div>
-        <a class="link-inline-action" onclick="nav('transactions')">Ver todos →</a>
+      <div id="dash-avg-widget" style="display:none">
+        <div id="kpi-fallback-daily">—</div>
+        <div id="kpi-fallback-total">—</div>
+        <div id="kpi-fallback-projected">—</div>
       </div>
+      <!-- Top 5 -->
       <div id="top5-list" class="top5-inline-grid"></div>
-    </div>
-    </div><!-- /layout-section -->
+      <div id="top5-sub"></div>
+      <!-- dash-notifications (used by renderDashNotifications) -->
+      <div id="dash-notifications" style="display:none"></div>
+    </div><!-- /compat layer -->
 
-  </div>
+  </div><!-- /dash-content -->
 
   <!-- Panel Insights inline (oculto por defecto) -->
   <div id="dash-insights-panel" class="fade-up hidden-stack">
