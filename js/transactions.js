@@ -160,10 +160,13 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
         ? '<div class="txn-cycle-list">'+visible.map(item=>{
             const amount=(item.currency==='USD'?'U$D ':'$')+fmtN(item.amount);
             const settled=item.isSettled===true || item.includeInTotal===true;
+            const GROUP_META={cuotas:{label:'Cuota',bg:'#7c3aed18',color:'#7c3aed'},suscripciones:{label:'Suscripción',bg:'#0ea5e918',color:'#0ea5e9'},terceros:{label:'Tercero',bg:'#d9770618',color:'#d97706'},fijos:{label:'Fijo',bg:'#10b98118',color:'#10b981'}};
+            const gm=effectiveTab==='all'?GROUP_META[item.group]:null;
+            const badge=gm?`<span style="font-size:9px;font-weight:700;letter-spacing:.04em;padding:1px 6px;border-radius:4px;background:${gm.bg};color:${gm.color};text-transform:uppercase;flex-shrink:0;">${gm.label}</span>`:'';
             return '<div class="txn-cycle-entry">'
               +`<div class="txn-cycle-dot" style="--entry-tone:${item.tone};"></div>`
               +'<div class="txn-cycle-copy">'
-                +`<div class="txn-cycle-title">${esc(item.title)}</div>`
+                +`<div class="txn-cycle-title" style="display:flex;align-items:center;gap:6px;">${esc(item.title)}${badge}</div>`
                 +`<div class="txn-cycle-meta">${esc(item.kind)} · ${esc(item.meta)} · ${fmtDate(item.date)}${settled?' · Cobrado':' · Pendiente'}</div>`
               +'</div>'
               +`<div class="txn-cycle-amount" style="color:${item.tone};">${amount}</div>`
@@ -774,7 +777,7 @@ function renderTransactions(){
         includeInTotal:false,
         isSettled:isSettled,
         synthetic:false,
-        tone:isSettled?'#34c759':'#ffcc00'
+        tone:isSettled?'#34c759':'#ff9500'
       });
     });
 

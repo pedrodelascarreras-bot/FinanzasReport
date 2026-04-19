@@ -105,10 +105,6 @@
       <span class="theme-toggle-icon" id="theme-icon">☀️</span>
       <span id="theme-label" data-i18n="theme_label">Tema</span>
     </button>
-    <button class="theme-toggle" id="lang-toggle-sidebar-btn" onclick="toggleLanguage()" title="Cambiar idioma / Switch language">
-      <span class="theme-toggle-icon">🌐</span>
-      <span data-i18n="lang_toggle_btn">Switch to English</span>
-    </button>
     <div class="ai-badge-wrap" style="margin-top: 12px; display: flex; justify-content: center; opacity: 0.7; transition: opacity 0.2s ease;">
       <div class="ai-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; background: var(--surface2); border: 1px solid var(--border); font-size: 11px; color: var(--text2); font-weight: 500; cursor: default;" onmouseover="this.parentElement.style.opacity='1'" onmouseout="this.parentElement.style.opacity='0.7'">
         <span style="font-size: 12px;">✨</span> Built with Claude AI
@@ -855,13 +851,6 @@
               <option value="USD">USD — Dólar</option>
             </select>
           </div>
-          <div class="profile-field">
-            <label class="profile-field-label" data-i18n="language_label">Idioma</label>
-            <select class="profile-field-input" id="pf-lang" onchange="applyLanguageFromPref(this.value)">
-              <option value="es" selected>Español</option>
-              <option value="en">English</option>
-            </select>
-          </div>
           <div class="profile-field profile-field-row">
             <label class="profile-field-label" data-i18n="visual_theme">Tema visual</label>
             <select class="profile-field-input profile-field-input-inline" id="pf-theme">
@@ -872,9 +861,6 @@
         </div>
         <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
           <button class="btn btn-ghost btn-sm" onclick="saveProfilePreferences()" data-i18n="save_preferences">Guardar preferencias</button>
-          <button class="btn btn-primary btn-sm" onclick="toggleLanguage()" id="lang-quick-toggle" style="display:flex;align-items:center;gap:6px;">
-            <span>🌐</span><span data-i18n="lang_toggle_btn">Switch to English</span>
-          </button>
         </div>
       </div>
 

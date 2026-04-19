@@ -292,11 +292,11 @@ function saveInlineCat(){
   const groupId=document.getElementById('cat-inline-group')?.value||'';
   let result=null;
   if(editing){
-    result=typeof updateCategory==='function' ? updateCategory(categoryId||editing,{name,groupId,color:hexColor}) : null;
+    result=typeof updateCategory==='function' ? updateCategory(categoryId||editing,{name,groupId,group:groupId,color:hexColor}) : null;
     if(!result?.ok){showToast(result?.error||'No se pudo guardar','error');return;}
     showToast('✓ Categoría actualizada','success');
   } else {
-    result=typeof createCategory==='function' ? createCategory({name,groupId,color:hexColor}) : null;
+    result=typeof createCategory==='function' ? createCategory({name,groupId,group:groupId,color:hexColor}) : null;
     if(!result?.ok){showToast(result?.error||'No se pudo guardar','error');return;}
     showToast('✓ Subcategoría creada','success');
   }
