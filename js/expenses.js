@@ -495,12 +495,12 @@ function renderCommitmentsPage(){
   const fixedTotalArs=fixedItems.reduce((sum,item)=>sum+item.amountArs,0);
   const cuotasTotalArs=cuotaItems.reduce((sum,item)=>sum+item.amountArs,0);
   const liberableArs=subsTotalArs;
-  const monthlyAverageArs=(distribution.length?totalCommittedArs/Math.max(distribution.length,1):0);
   const distribution=[
     {label:'Cuotas',value:cuotasTotalArs,color:'#8c5cff'},
     {label:'Suscripciones',value:subsTotalArs,color:'#6a4cff'},
     {label:'Gastos fijos',value:fixedTotalArs,color:'#ffb347'}
   ].filter(item=>item.value>0);
+  const monthlyAverageArs=(distribution.length?totalCommittedArs/Math.max(distribution.length,1):0);
   let donutCursor=0;
   const donutGradient=(distribution.length?distribution.map(item=>{
     const start=donutCursor;
