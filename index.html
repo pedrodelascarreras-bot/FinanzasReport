@@ -140,6 +140,7 @@
         </div>
       </div>
       <div id="notif-list" class="notif-list shell-popover-list"></div>
+      <div id="notif-tasks-section"></div>
     </div>
     <button class="app-hdr-btn" id="app-btn-add" onclick="toggleCreateMenu()" title="Crear">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -1267,10 +1268,6 @@
         <button class="search-clear" id="search-clear-btn" onclick="clearSearch()">✕</button>
       </div>
       <button class="btn btn-ghost" onclick="openRulesPanel()" data-i18n="create_rule">Crear regla</button>
-      <button class="btn btn-ghost" onclick="exportTransactionsCSV()" title="Export CSV" style="display:flex;align-items:center;gap:4px;">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        CSV
-      </button>
       <button class="btn btn-ghost" onclick="openNewExpenseModal()" data-i18n="new_expense">Nuevo gasto</button>
       <button class="btn btn-primary quick-review-btn" id="btn-quick-cat" onclick="openCatReview()">Revisar categorías <span id="qr-badge" class="quick-review-badge">0</span></button>
     </div>

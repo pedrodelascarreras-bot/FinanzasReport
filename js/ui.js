@@ -719,11 +719,64 @@ function renderNotifications() {
     });
   }
 
+  // 5. Backup health
+  if(typeof getBackupHealth === 'function') {
+    const bh = getBackupHealth();
+    if(bh.level !== 'info') {
+      notifs.push({
+        id: `backup-${bh.state}`,
+        type: bh.level,
+        title: bh.label,
+        desc: bh.desc + ' Tener una copia reciente te protege antes de grandes cambios.',
+        icon: '🛡️',
+        color: bh.level === 'alert' ? 'var(--danger)' : 'var(--warning, #f59e0b)',
+        time: bh.days != null ? `Hace ${bh.days} días` : 'Pendiente'
+      });
+    }
+  }
+
+  // 6. Uncategorized transactions (5+)
+  const _monthKey = today.toISOString().slice(0,7);
+  const _monthTxns = (state.transactions||[]).filter(t => {
+    const m = t.month || (t.date ? String(t.date).slice(0,7) : '');
+    return m === _monthKey && !t.isPendingCuota;
+  });
+  const _uncatCount = _monthTxns.filter(t => !t.category || t.category === 'Uncategorized' || t.category === 'Procesando...').length;
+  if(_uncatCount >= 5) {
+    notifs.push({
+      id: `uncat-${_monthKey}`,
+      type: 'info',
+      title: 'Movimientos sin categoría',
+      desc: `Tenés ${_uncatCount} movimientos sin clasificar este mes. Categorizarlos mejora tus reportes.`,
+      icon: '🏷️',
+      color: 'var(--accent)',
+      time: 'Pendiente de revisión'
+    });
+  }
+
+  // 7. Upcoming cuotas (within 3 days)
+  (state.transactions||[]).filter(t => t.isPendingCuota && t.currency === 'ARS').forEach(c => {
+    const cDate = new Date(String(c.date).includes('T') ? c.date : c.date + 'T12:00:00');
+    const diff = Math.round((cDate - today) / 86400000);
+    if(diff >= 0 && diff <= 3) {
+      notifs.push({
+        id: `cuota-notif-${c.id}`,
+        type: 'info',
+        title: 'Próxima cuota',
+        desc: `En ${diff === 0 ? 'hoy' : diff + ' día' + (diff !== 1 ? 's' : '')} vence: ${esc(c._baseDesc || c.description || '')}.`,
+        icon: '💳',
+        color: 'var(--accent)',
+        time: diff === 0 ? 'Hoy' : `En ${diff} día${diff !== 1 ? 's' : ''}`
+      });
+    }
+  });
+
   // Filter out dismissed
   const activeNotifs = notifs.filter(n => !(state.dismissedNotifs || []).includes(n.id || n.title));
 
-  // Badge handling
-  if(badge) badge.style.display = activeNotifs.length > 0 ? 'block' : 'none';
+  // Badge: show if there are active notifs OR pending tasks
+  const _pendingTaskCount = (state.tasks||[]).filter(t => !t.done).length;
+  if(badge) badge.style.display = (activeNotifs.length > 0 || _pendingTaskCount > 0) ? 'block' : 'none';
 
   if(activeNotifs.length === 0) {
     list.innerHTML = `
@@ -733,24 +786,55 @@ function renderNotifications() {
         <div style="font-size:11px;color:var(--text3);margin-top:4px;">No tenés avisos o alertas pendientes por ahora.</div>
       </div>
     `;
-    return;
+  } else {
+    list.innerHTML = activeNotifs.map(n => {
+      const key = n.id || n.title;
+      return `
+      <div class="notif-item"${n.id ? ` id="notif-${n.id}"` : ''}>
+        <div class="notif-icon-box" style="background:${n.color}22;color:${n.color};">
+          ${n.icon}
+        </div>
+        <div class="notif-content">
+          <div class="notif-title">${n.title}</div>
+          <div class="notif-desc">${n.desc}</div>
+          <div class="notif-time">${n.time}</div>
+        </div>
+        <button class="notif-item-close" onclick="event.stopPropagation();dismissNotif('${key.replace(/'/g,"\\'")}')" title="Quitar">✕</button>
+      </div>
+    `}).join('');
   }
 
-  list.innerHTML = activeNotifs.map(n => {
-    const key = n.id || n.title;
-    return `
-    <div class="notif-item"${n.id ? ` id="notif-${n.id}"` : ''}>
-      <div class="notif-icon-box" style="background:${n.color}22;color:${n.color};">
-        ${n.icon}
+  renderNotifTasks();
+}
+
+function renderNotifTasks() {
+  const el = document.getElementById('notif-tasks-section');
+  if(!el) return;
+  const now = Date.now();
+  state.tasks = (state.tasks||[]).filter(t => !t.done || !t.doneAt || (now - t.doneAt) < 86400000);
+  const pending = (state.tasks||[]).filter(t => !t.done);
+  const done = (state.tasks||[]).filter(t => t.done);
+  const all = [...pending, ...done];
+  el.innerHTML = `
+    <div style="border-top:1px solid var(--border);padding:14px 16px 12px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+        <span style="font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:var(--text3);">Pendientes${pending.length ? ' (' + pending.length + ')' : ''}</span>
+        ${done.length ? `<button style="font-size:10px;color:var(--text3);background:none;border:none;cursor:pointer;padding:2px 4px;font-family:var(--font);" onclick="event.stopPropagation();clearDoneTasks()">Limpiar</button>` : ''}
       </div>
-      <div class="notif-content">
-        <div class="notif-title">${n.title}</div>
-        <div class="notif-desc">${n.desc}</div>
-        <div class="notif-time">${n.time}</div>
+      ${all.length ? `<div style="display:flex;flex-direction:column;gap:2px;margin-bottom:10px;">
+        ${all.map(t => `
+          <div style="display:flex;align-items:center;gap:8px;padding:5px 2px;opacity:${t.done ? '0.4' : '1'};">
+            <button style="width:16px;height:16px;border-radius:4px;border:1.5px solid ${t.done ? '#34c759' : 'var(--border)'};background:${t.done ? '#34c759' : 'transparent'};color:#fff;font-size:9px;cursor:pointer;flex-shrink:0;display:flex;align-items:center;justify-content:center;transition:all .12s;" onclick="event.stopPropagation();toggleTask('${t.id}')">${t.done ? '✓' : ''}</button>
+            <span style="flex:1;font-size:12px;color:var(--text);text-decoration:${t.done ? 'line-through' : 'none'};">${esc(t.text)}</span>
+            <button style="background:none;border:none;cursor:pointer;font-size:11px;color:var(--text3);opacity:.4;padding:2px;line-height:1;" onclick="event.stopPropagation();deleteTask('${t.id}')" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=.4">✕</button>
+          </div>`).join('')}
+      </div>` : ''}
+      <div style="display:flex;gap:8px;">
+        <input type="text" id="notif-task-input" placeholder="Anotar tarea…" style="flex:1;padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--bg);color:var(--text);font-size:12px;font-family:var(--font);outline:none;" onkeydown="if(event.key==='Enter'){event.stopPropagation();addTask();}" onclick="event.stopPropagation()">
+        <button style="padding:7px 13px;border-radius:8px;background:var(--accent);color:#fff;border:none;cursor:pointer;font-size:14px;font-weight:700;line-height:1;" onclick="event.stopPropagation();addTask()">+</button>
       </div>
-      <button class="notif-item-close" onclick="event.stopPropagation();dismissNotif('${key.replace(/'/g,"\\'")}')" title="Quitar">✕</button>
     </div>
-  `}).join('');
+  `;
 }
 
 function dismissNotif(id) {

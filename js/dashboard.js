@@ -445,103 +445,32 @@ function fallbackInsights(summary){
 }
 function renderDecisionCenter(model){
   const el=document.getElementById('dash-decision-center');
-  if(!el)return;
-  // Auto-clean tasks completed >24h ago
-  const now=Date.now();
-  state.tasks=(state.tasks||[]).filter(t=>!t.done||!t.doneAt||(now-t.doneAt)<86400000);
-  const hasCards=model&&model.cards?.length;
-  const hasTasks=(state.tasks||[]).length>0;
-  if(!hasCards&&!hasTasks){
-    el.style.display='none';
-    return;
-  }
-  const collapsed=!!state.decisionCenterCollapsed;
-  el.style.display='block';
-  const pendingTasks=(state.tasks||[]).filter(t=>!t.done);
-  const doneTasks=(state.tasks||[]).filter(t=>t.done);
-  const tasksHtml=`
-    <div class="dash-tasks" style="display:${collapsed?'none':'block'};">
-      <div class="dash-tasks-head">
-        <span class="dash-tasks-title">Pendientes${pendingTasks.length?' ('+pendingTasks.length+')':''}</span>
-        ${doneTasks.length?'<button class="dash-tasks-clear" onclick="event.stopPropagation();clearDoneTasks()">Limpiar</button>':''}
-      </div>
-      <div class="dash-tasks-list">
-        ${pendingTasks.map(t=>`
-          <div class="dash-task-item">
-            <button class="dash-task-check" onclick="event.stopPropagation();toggleTask('${t.id}')"></button>
-            <span class="dash-task-text">${esc(t.text)}</span>
-            <button class="dash-task-del" onclick="event.stopPropagation();deleteTask('${t.id}')">✕</button>
-          </div>`).join('')}
-        ${doneTasks.map(t=>`
-          <div class="dash-task-item done">
-            <button class="dash-task-check checked" onclick="event.stopPropagation();toggleTask('${t.id}')">✓</button>
-            <span class="dash-task-text">${esc(t.text)}</span>
-            <button class="dash-task-del" onclick="event.stopPropagation();deleteTask('${t.id}')">✕</button>
-          </div>`).join('')}
-      </div>
-      <div class="dash-tasks-add">
-        <input type="text" id="dash-task-input" class="dash-task-input" placeholder="Anotar tarea…" onkeydown="if(event.key==='Enter')addTask()">
-        <button class="dash-task-add-btn" onclick="addTask()">+</button>
-      </div>
-    </div>`;
-  el.innerHTML=`
-    <div class="decision-center ${collapsed?'is-collapsed':''}">
-      <div class="decision-center-head">
-        <div>
-          <div class="section-kicker">${esc(model?.kicker||'CENTRO DE ALERTAS Y DECISIONES')}</div>
-          <div class="decision-center-title">${esc(model?.title||('Prioridades claras para '+(model?.periodLabel||'')))}</div>
-          <div class="decision-center-sub">${model?.summary||''}</div>
-        </div>
-        <div class="decision-center-actions">
-          ${model?.alertCount?`<div class="decision-center-badge alerts">${renderUiGlyph('alert')} ${model.alertCount} alerta${model.alertCount!==1?'s':''}</div>`:''}
-          ${pendingTasks.length?`<div class="decision-center-badge">${pendingTasks.length} tarea${pendingTasks.length!==1?'s':''}</div>`:''}
-          <div class="decision-center-badge">${renderUiGlyph('ai')} Lectura asistida</div>
-          <button class="decision-center-toggle" type="button" onclick="event.stopPropagation();toggleDecisionCenter()">${collapsed?'Mostrar':'Minimizar'}</button>
-        </div>
-      </div>
-      ${hasCards?`<div class="decision-card-grid" style="display:${collapsed?'none':'grid'};">
-        ${model.cards.map(card=>`
-          <button class="decision-card ${card.tone||'neutral'}" onclick="nav('${card.link||'dashboard'}')">
-            <div class="decision-card-top">
-              <div class="decision-card-icon">${renderUiGlyph(card.icon||'spark')}</div>
-              <div class="decision-card-chip">${esc(card.kicker||'Acción')}</div>
-            </div>
-            <div class="decision-card-title">${esc(card.title||'Siguiente paso')}</div>
-            <div class="decision-card-body">${card.body||''}</div>
-            <div class="decision-card-footer">
-              <span>${esc(card.cta||'Abrir')}</span>
-              <span class="decision-card-arrow">›</span>
-            </div>
-          </button>
-        `).join('')}
-      </div>`:''}
-      ${tasksHtml}
-    </div>`;
+  if(el) el.style.display='none';
 }
 function addTask(){
-  const input=document.getElementById('dash-task-input');
+  const input=document.getElementById('notif-task-input');
   if(!input)return;
   const text=input.value.trim();
   if(!text)return;
   if(!state.tasks)state.tasks=[];
   state.tasks.push({id:Math.random().toString(36).substr(2,9),text,done:false,createdAt:Date.now(),doneAt:null});
   input.value='';
-  saveState();renderDashboard();
+  saveState();if(typeof renderNotifications==='function')renderNotifications();
 }
 function toggleTask(id){
   const t=(state.tasks||[]).find(x=>x.id===id);
   if(!t)return;
   t.done=!t.done;
   t.doneAt=t.done?Date.now():null;
-  saveState();renderDashboard();
+  saveState();if(typeof renderNotifications==='function')renderNotifications();
 }
 function deleteTask(id){
   state.tasks=(state.tasks||[]).filter(x=>x.id!==id);
-  saveState();renderDashboard();
+  saveState();if(typeof renderNotifications==='function')renderNotifications();
 }
 function clearDoneTasks(){
   state.tasks=(state.tasks||[]).filter(t=>!t.done);
-  saveState();renderDashboard();
+  saveState();if(typeof renderNotifications==='function')renderNotifications();
 }
 function toggleDecisionCenter(){
   state.decisionCenterCollapsed=!state.decisionCenterCollapsed;
