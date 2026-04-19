@@ -2874,42 +2874,48 @@ function renderDb2Agenda(timelineData){
     return;
   }
 
-  const dotColors = {
-    subscription: '#ff3b30',
-    close:        '#ff9f0a',
-    due:          '#ff3b30',
-    commitment:   '#0071e3',
-    fixed:        '#7d3aec'
-  };
-
-  const getMerchantIcon = name => {
+  const getLogoProps = (name, type) => {
     const n = (name||'').toLowerCase();
-    if(n.includes('netflix')) return '🔴';
-    if(n.includes('spotify')) return '🟢';
-    if(n.includes('sueldo')||n.includes('ingreso')||n.includes('cobro')) return '💰';
-    if(n.includes('alquiler')) return '🏠';
-    if(n.includes('gym')||n.includes('gimnasio')) return '💪';
-    return '📅';
+    if(n.includes('netflix'))   return {bg:'#e50914', letter:'N'};
+    if(n.includes('spotify'))   return {bg:'#1DB954', letter:'S'};
+    if(n.includes('amazon'))    return {bg:'#ff9900', letter:'A'};
+    if(n.includes('apple'))     return {bg:'#1c1c1e', letter:'🍎'};
+    if(n.includes('google'))    return {bg:'#4285f4', letter:'G'};
+    if(n.includes('disney'))    return {bg:'#113CCF', letter:'D'};
+    if(n.includes('youtube'))   return {bg:'#ff0000', letter:'▶'};
+    if(n.includes('sueldo')||n.includes('ingreso')||n.includes('cobro')) return {bg:'#30d158', letter:'$'};
+    if(n.includes('alquiler'))  return {bg:'#ff9f0a', letter:'🏠'};
+    if(n.includes('gym')||n.includes('gimnasio')||n.includes('megatlon')) return {bg:'#e63946', letter:'M'};
+    if(n.includes('uca')||n.includes('ingles')) return {bg:'#003087', letter:'U'};
+    if(n.includes('soporte')||n.includes('pc')||n.includes('tech')) return {bg:'#6366f1', letter:'💻'};
+    if(type === 'close') return {bg:'#ff9f0a', letter:'💳'};
+    if(type === 'due')   return {bg:'#ff3b30', letter:'!'};
+    if(type === 'fixed') return {bg:'#7d3aec', letter:'📌'};
+    const palette = ['#4361ee','#e63946','#2ec4b6','#7b2d8b','#0096c7','#ff6b6b'];
+    const bg = palette[(name||'?').charCodeAt(0) % palette.length];
+    return {bg, letter: (name||'?')[0].toUpperCase()};
   };
 
   listEl.innerHTML = events.map(e => {
     const when = e.days === 0 ? 'Hoy' : e.days === 1 ? 'Mañana' : `En ${e.days} días`;
     const chipCls = e.days === 0 ? 'today' : e.days <= 3 ? 'soon' : '';
-    const dot = dotColors[e.type] || '#0071e3';
-    const icon = getMerchantIcon(e.title || e.shortLabel || '');
     const name = e.shortLabel || e.title || 'Evento';
-    const amtStr = e.amount ? ' · -$' + fmtN(Math.round(e.amount)) : '';
+    const logo = getLogoProps(name, e.type);
+    const amtStr = e.amount ? '-$' + fmtN(Math.round(e.amount)) : '';
     const typeLabel = e.type === 'subscription' ? 'Suscripción' :
                       e.type === 'close'        ? 'Cierre TC'   :
                       e.type === 'due'          ? 'Vencimiento' :
                       e.type === 'fixed'        ? 'Gasto fijo'  : 'Cuota';
-    const timeStr = e.date instanceof Date ? e.date.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}) : '';
+    const descLine = [typeLabel, amtStr].filter(Boolean).join(' · ');
+    const timeStr = e.date instanceof Date
+      ? e.date.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}).replace('.','') + '<br>' + e.date.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})
+      : '—';
     return `<div class="db2-agenda-item">
-      <div class="db2-agenda-time">${timeStr || '—'}</div>
-      <div class="db2-agenda-dot" style="background:${dot}"></div>
+      <div class="db2-agenda-time">${timeStr}</div>
+      <div class="db2-agenda-logo" style="background:${logo.bg}">${logo.letter}</div>
       <div class="db2-agenda-body">
-        <div class="db2-agenda-name">${icon} ${esc(name)}</div>
-        <div class="db2-agenda-desc">${typeLabel}${amtStr}</div>
+        <div class="db2-agenda-name">${esc(name)}</div>
+        <div class="db2-agenda-desc">${descLine}</div>
       </div>
       <div class="db2-agenda-chip ${chipCls}">${when}</div>
     </div>`;

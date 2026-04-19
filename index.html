@@ -223,10 +223,10 @@
     </div>
     
     <div class="header-actions">
-      <!-- Mes / TC toggle -->
-      <div class="surface-toggle">
+      <!-- Mes toggle -->
+      <div class="surface-toggle" style="display:none">
         <button id="dash-toggle-mes" class="surface-toggle-btn active" onclick="setDashView('mes')">Mes</button>
-        <button id="dash-toggle-tc" class="surface-toggle-btn" onclick="setDashView('tc')">Ciclo TC</button>
+        <button id="dash-toggle-tc" class="surface-toggle-btn" onclick="setDashView('tc')" style="display:none">Ciclo TC</button>
       </div>
       <!-- Period selector (changes based on toggle) -->
       <select id="dash-month-select" class="txn-select" onchange="setDashMonthFromSelect(this.value)">

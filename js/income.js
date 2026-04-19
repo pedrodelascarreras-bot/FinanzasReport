@@ -26,6 +26,7 @@ function getLatestIncomeARS(){
   return getMonthTotalARS(sorted[0]);
 }
 // setIncCurrency replaced by setIncChartMode
+function renderIncomePage() {
   const root = document.getElementById('income-native-root');
   if(!root) return;
 
