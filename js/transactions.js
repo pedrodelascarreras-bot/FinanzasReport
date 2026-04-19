@@ -587,6 +587,57 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
   return entries;
 }
 
+function getTxnDisplaySummaryTotals(opts){
+  const mode=opts?.mode||'mes';
+  const activeCycleMeta=opts?.activeCycleMeta||null;
+  const searchVal=opts?.searchVal||'';
+  const txns=Array.isArray(opts?.txns)?opts.txns:[];
+  const summaryTxns=Array.isArray(opts?.summaryTxns)?opts.summaryTxns:[];
+  const todayRef=opts?.todayRef instanceof Date?opts.todayRef:new Date();
+  const hasCategoryFilter=!!opts?.hasCategoryFilter;
+  const hasCurrencyFilter=!!opts?.hasCurrencyFilter;
+  const hasCardFilter=!!opts?.hasCardFilter;
+  const estadoFilter=opts?.estadoFilter||'all';
+
+  let arsTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='ARS').reduce((s,t)=>s+(Number(t.amount)||0),0);
+  let usdTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
+
+  const canUseDashboardAlignedTcTotals=
+    mode==='tc' &&
+    activeCycleMeta &&
+    !searchVal &&
+    !hasCategoryFilter &&
+    !hasCurrencyFilter &&
+    !hasCardFilter &&
+    estadoFilter==='all';
+
+  if(canUseDashboardAlignedTcTotals){
+    const isNonCC=t=>t.payMethod==='deb'||t.payMethod==='ef';
+    const billableActualTxns=txns.filter(t=>
+      !t.isThirdParty &&
+      !t.isPendingCuota &&
+      !t.isPendingSubscription &&
+      !isNonCC(t)
+    );
+    arsTotal=billableActualTxns.filter(t=>(t.currency||'ARS')!=='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
+    usdTotal=billableActualTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
+
+    const commitmentEntries=getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef);
+    commitmentEntries
+      .filter(entry=>entry.synthetic && entry.includeInTotal)
+      .forEach(entry=>{
+        if((entry.currency||'ARS')==='USD') usdTotal+=Number(entry.amount)||0;
+        else arsTotal+=Number(entry.amount)||0;
+      });
+  }
+
+  return {
+    ars:arsTotal,
+    usd:usdTotal,
+    grand:arsTotal+(usdTotal*(window.USD_TO_ARS||USD_TO_ARS||1))
+  };
+}
+
 // ── Duplicate filter in transactions list ──
 state._dupFilterOn = state._dupFilterOn || false;
 // toggleDupFilter removed — legacy, f-dup-toggle element no longer exists
@@ -823,9 +874,21 @@ function renderTransactions(){
   // ── Resumen ──
   const summaryTxns=estadoF==='terceros'?txns:txns.filter(t=>!t.isThirdParty);
   const excludedThirdPartyCount=estadoF==='terceros'?0:txns.filter(t=>!!t.isThirdParty).length;
-  const arsTotal=summaryTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const usdTotal=summaryTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-  const grandTotal=arsTotal+(usdTotal*USD_TO_ARS);
+  const displayTotals=getTxnDisplaySummaryTotals({
+    mode,
+    activeCycleMeta,
+    searchVal,
+    txns,
+    summaryTxns,
+    todayRef,
+    hasCategoryFilter:!!cfv,
+    hasCurrencyFilter:!!cufv,
+    hasCardFilter:!!cardFv,
+    estadoFilter:estadoF
+  });
+  const arsTotal=displayTotals.ars;
+  const usdTotal=displayTotals.usd;
+  const grandTotal=displayTotals.grand;
   const mainEl=document.getElementById('txns-main');const detailEl=document.getElementById('txns-detail');
   const arsEl=document.getElementById('txns-total-ars');const usdEl=document.getElementById('txns-total-usd');
   if(searchVal){const sArs=summaryTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);const sUsd=summaryTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);if(mainEl)mainEl.textContent=txns.length+' resultado'+(txns.length!==1?'s':'');if(arsEl)arsEl.textContent=sArs>0?'$'+fmtN(sArs):'—';if(usdEl)usdEl.textContent=sUsd>0?'U$D '+fmtN(sUsd):'—';}
@@ -960,7 +1023,7 @@ function renderTransactions(){
         +'.mv-search-row{display:block;margin-bottom:12px;}'
         +'.mv-search{height:44px;border-radius:20px;background:#f4f4fa;border:1px solid rgba(113,106,144,.09);display:flex;align-items:center;gap:11px;padding:0 16px;color:#7a7590;}'
         +'.mv-search input{flex:1;border:none;outline:none;background:transparent;font:600 13.2px var(--font);color:#231d39;}'
-        +'.mv-chip-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;}'
+        +'.mv-chip-row{display:none;}'
         +'.mv-chip{height:31px;border-radius:999px;border:1px solid rgba(113,106,144,.11);background:#fff;padding:0 13px;font-size:11.6px;font-weight:700;color:#5c5675;display:inline-flex;align-items:center;gap:6px;cursor:pointer;font-family:var(--font);}'
         +'.mv-chip.active{background:#5732f3;color:#fff;border-color:transparent;box-shadow:0 8px 16px rgba(87,50,243,.18);}'
         +'.mv-filter-surface{padding:13px 14px;margin-bottom:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;}'
@@ -1106,9 +1169,6 @@ function renderTransactions(){
           +'</div>'
           +'<div class="mv-search-row">'
             +'<label class="mv-search"><span>🔍</span><input value="'+esc(activeSearch)+'" placeholder="Buscar descripción, monto o categoría..." oninput="txnSetSearch(this.value)"></label>'
-          +'</div>'
-          +'<div class="mv-chip-row">'
-            +chips.map(ch=>'<button class="mv-chip'+(ch.active?' active':'')+'" onclick="'+(ch.key==='ciclo-tc'?'txnSetMode(\'tc\')':ch.key==='ciclo-act'?'txnSetMode(\'mes\')':ch.key==='sin-cat'?'txnSetEstadoChip(\'sin_categoria\')':'txnQuickFilter(\''+ch.key+'\')')+'">'+esc(ch.label)+'</button>').join('')
           +'</div>'
           +('<div class="mv-card mv-filter-surface">'
               +'<select class="txn-select" onchange="txnSetCurrencyFilter(this.value)"><option value="" '+(!activeCur?'selected':'')+'>ARS + USD</option><option value="ARS" '+(activeCur==='ARS'?'selected':'')+'>Solo ARS</option><option value="USD" '+(activeCur==='USD'?'selected':'')+'>Solo USD</option></select>'
@@ -1322,17 +1382,9 @@ function renderTransactions(){
     renderTxnCycleCommitmentsPanel(wrap, entries);
 
     if(mainEl && !searchVal){
-      const actualVisibleTxns=txns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
-      let totalARS=actualVisibleTxns.filter(t=>t.currency!=='USD').reduce((s,t)=>s+t.amount,0);
-      let totalUSD=actualVisibleTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-      entries.filter(e=>e.synthetic&&e.includeInTotal).forEach(e=>{
-        if((e.currency||'ARS')==='USD') totalUSD+=Number(e.amount)||0;
-        else totalARS+=Number(e.amount)||0;
-      });
-      const grandTotal=totalARS+(totalUSD*USD_TO_ARS);
       mainEl.textContent='$'+fmtN(grandTotal);
-      if(arsEl) arsEl.textContent=totalARS>0?'$'+fmtN(totalARS):'—';
-      if(usdEl) usdEl.textContent=totalUSD>0?'U$D '+fmtN(totalUSD):'—';
+      if(arsEl) arsEl.textContent=arsTotal>0?'$'+fmtN(arsTotal):'—';
+      if(usdEl) usdEl.textContent=usdTotal>0?'U$D '+fmtN(usdTotal):'—';
       if(detailEl){
         const baseParts=[periodoLabel||'Ciclo actual',`Mostrando ${txns.length} de ${state.transactions.length} movimientos`];
         if(cfv) baseParts.push(cfv);
@@ -1671,9 +1723,11 @@ function _closePanelsOnOutside(e){
   // Use coordinates to check if click was within panel bounds
   const detailPanel = document.getElementById('txn-detail-panel');
   const rulesPanel  = document.getElementById('rules-panel');
+  const catPicker = document.getElementById('cat-inline-picker');
 
   let clickedInsideDetail = detailPanel && detailPanel.contains(e.target);
   let clickedInsideRules  = rulesPanel  && rulesPanel.contains(e.target);
+  let clickedInsidePicker = catPicker && catPicker.contains(e.target);
 
   // Fallback: check by bounding rect (handles re-rendered DOM)
   if(!clickedInsideRules && rulesPanel && rulesPanel.classList.contains('open')){
@@ -1689,7 +1743,7 @@ function _closePanelsOnOutside(e){
     }
   }
 
-  if(!clickedInsideDetail && !clickedInsideRules){
+  if(!clickedInsideDetail && !clickedInsideRules && !clickedInsidePicker){
     if(detailPanel && detailPanel.classList.contains('open')) closeTxnDetail();
     if(rulesPanel  && rulesPanel.classList.contains('open'))  closeRulesPanel();
   }
@@ -1811,6 +1865,9 @@ function openAssignModal(txnId, anchorEl){
   state._assigningTxnId=txnId;
   const picker=document.getElementById('cat-inline-picker');
   if(!picker)return;
+  picker.style.transform='none';
+  picker.style.position='fixed';
+  picker.style.zIndex='420';
 
   // Build: search + grouped list
   let html='<input class="cip-search" id="cip-search-input" placeholder="Buscar categoría..." oninput="filterCipList(this.value)" autocomplete="off">';
@@ -1840,8 +1897,12 @@ function openAssignModal(txnId, anchorEl){
     let left=r.left+window.scrollX;
     if(left+320>window.innerWidth-12) left=window.innerWidth-332;
     if(top+420>window.scrollY+window.innerHeight-12) top=r.top+window.scrollY-420-6;
-    picker.style.top=top+'px';
-    picker.style.left=left+'px';
+    picker.style.top=Math.max(12, top-window.scrollY)+'px';
+    picker.style.left=Math.max(12, left)+'px';
+  } else {
+    picker.style.top='96px';
+    picker.style.left='50%';
+    picker.style.transform='translateX(-50%)';
   }
   // Focus search
   setTimeout(()=>{const si=document.getElementById('cip-search-input');if(si)si.focus();},50);
@@ -1866,7 +1927,10 @@ function filterCipList(val){
 }
 function _closeCipOnOutside(e){
   const p=document.getElementById('cat-inline-picker');
-  if(p&&!p.contains(e.target)){p.style.display='none';}
+  if(p&&!p.contains(e.target)){
+    p.style.display='none';
+    p.style.transform='none';
+  }
 }
 // confirmAssign removed — legacy, modal-assign-cat element no longer exists
 function confirmAssignInline(txnId, catName){
@@ -1878,7 +1942,11 @@ function confirmAssignInline(txnId, catName){
     saveState();refreshAll();
     updateQrBadge();
     const picker=document.getElementById('cat-inline-picker');
-    if(picker)picker.style.display='none';
+    if(picker){
+      picker.style.display='none';
+      picker.style.transform='none';
+    }
+    if(state._detailTxnId===txnId) openTxnDetail(txnId);
     showToast('✓ '+catName,'success');
   }
 }

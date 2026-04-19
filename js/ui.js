@@ -221,7 +221,7 @@ function refreshAll(){
   if(document.getElementById('page-compare').classList.contains('active')){renderCompareSelectors();renderCompare();}
   if(document.getElementById('page-balance')?.classList.contains('active') && typeof renderBalancePage==='function') renderBalancePage();
   if(document.getElementById('page-reportes').classList.contains('active')) renderReportesPage();
-  if(document.getElementById('page-cuotas').classList.contains('active')) {renderCuotas();renderSubs();renderFixed();renderCompromisosSummary();}
+  if(document.getElementById('page-cuotas').classList.contains('active')) { if(typeof renderCommitmentsPage==='function') renderCommitmentsPage(); else {renderCuotas();renderSubs();renderFixed();renderCompromisosSummary();} }
   if(document.getElementById('page-income').classList.contains('active')) renderIncomePage();
   if(document.getElementById('page-savings').classList.contains('active')) renderSavingsPage();
   if(document.getElementById('page-credit-cards')&&document.getElementById('page-credit-cards').classList.contains('active')) renderCreditCards();
@@ -267,7 +267,7 @@ function nav(page){
   if(page==='import'){renderImportHistory();updateLastBackupLabel();if(typeof renderImportConfigPanel==='function')renderImportConfigPanel();}
   if(page==='import-history'){renderImportHistory();}
   if(page==='tendencia')renderTendencia();
-  if(page==='cuotas'){renderCuotas();renderSubs();renderFixed();renderCompromisosSummary();}
+  if(page==='cuotas'){ if(typeof renderCommitmentsPage==='function') renderCommitmentsPage(); else {renderCuotas();renderSubs();renderFixed();renderCompromisosSummary();} }
   if(page==='suscripciones'){nav('cuotas');return;}
   if(page==='income')renderIncomePage();
   if(page==='savings')renderSavingsPage();
