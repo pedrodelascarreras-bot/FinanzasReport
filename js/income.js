@@ -89,15 +89,15 @@ function renderIncomePage() {
     const bgClass = darkTheme ? 'bg-darked' : 'bg-white';
 
     return `
-      <div class="icard cursor-pointer \${bgClass}" onclick="openIncomeSourceModal('\${s.id}')">
+      <div class="icard cursor-pointer ${bgClass}" onclick="openIncomeSourceModal('${s.id}')">
         <div class="icard-head">
-          <div class="icard-icon">\${icon}</div>
-          <div class="icard-badge" style="\${badgeStyle}">\${badge}</div>
+          <div class="icard-icon">${icon}</div>
+          <div class="icard-badge" style="${badgeStyle}">${badge}</div>
         </div>
-        <div class="icard-name">\${esc(s.name)}</div>
-        <div class="icard-sub">\${esc(s.type)} · \${s.currency}</div>
-        <div class="icard-amount">\${amountVal}</div>
-        <div class="icard-bottom-chip" style="\${badgeStyle}">\${esc(badge)}</div>
+        <div class="icard-name">${esc(s.name)}</div>
+        <div class="icard-sub">${esc(s.type)} · ${s.currency}</div>
+        <div class="icard-amount">${amountVal}</div>
+        <div class="icard-bottom-chip" style="${badgeStyle}">${esc(badge)}</div>
       </div>
     `;
   }).join('') || '<div class="empty-state" style="grid-column:1/-1;">Sin fuentes configuradas. Clickeá en "Estructura" para sumar ingresos.</div>';
@@ -110,12 +110,12 @@ function renderIncomePage() {
     return `
       <div class="ihist-row">
         <div class="ihist-m">
-          <span style="font-weight:\${isCur?'700':'500'};color:\${isCur?'#7c3aed':'var(--text)'}">\${fmtMonthLabel(m.month)}</span>
-          \${isCur?'<span class="ihist-tag">Actual</span>':''}
+          <span style="font-weight:${isCur?'700':'500'};color:${isCur?'#7c3aed':'var(--text)'}">${fmtMonthLabel(m.month)}</span>
+          ${isCur?'<span class="ihist-tag">Actual</span>':''}
         </div>
-        <div class="ihist-ars">$\${fmtN(ars)}</div>
-        <div class="ihist-usd">\${usd?'USD '+fmtN(usd):'—'}</div>
-        <div class="ihist-tot">$\${fmtN(getIncCombined(m))}</div>
+        <div class="ihist-ars">$${fmtN(ars)}</div>
+        <div class="ihist-usd">${usd?'USD '+fmtN(usd):'—'}</div>
+        <div class="ihist-tot">$${fmtN(getIncCombined(m))}</div>
       </div>
     `;
   }).join('');
@@ -124,9 +124,9 @@ function renderIncomePage() {
   const usdPctChange = -12.4; // simulated
   const nextIncomes = state.incomeSources.slice(0,3).map((s,i)=>`
     <div class="i-next-row">
-      <div class="i-next-date"><span>\${10+(i*5)}</span><small>ABR</small></div>
-      <div class="i-next-name">\${esc(s.name)} (\${s.currency})</div>
-      <div class="i-next-val">\${s.currency==='USD'?'USD':'$'}\${fmtN(s.base||0)}</div>
+      <div class="i-next-date"><span>${10+(i*5)}</span><small>ABR</small></div>
+      <div class="i-next-name">${esc(s.name)} (${s.currency})</div>
+      <div class="i-next-val">${s.currency==='USD'?'USD':'$'}${fmtN(s.base||0)}</div>
     </div>
   `).join('');
 
@@ -271,23 +271,23 @@ function renderIncomePage() {
         <div class="inc-kpi-grid">
           <div class="ikpi ikpi-c1">
             <div class="ikpi-h"><div class="ikpi-icon">💳</div> TOTAL DEL MES</div>
-            <div class="ikpi-v">$\${fmtN(curCombined)}</div>
-            <div class="ikpi-sub \${deltaMonto>=0?'up':''}"><span style="font-size:14px;">\${deltaMonto>=0?'↑':'↓'}</span> \${Math.abs(deltaPct)}% vs \${months[1]?fmtMonthLabel(months[1].month):'Mes ant'}</div>
+            <div class="ikpi-v">$${fmtN(curCombined)}</div>
+            <div class="ikpi-sub ${deltaMonto>=0?'up':''}"><span style="font-size:14px;">${deltaMonto>=0?'↑':'↓'}</span> ${Math.abs(deltaPct)}% vs ${months[1]?fmtMonthLabel(months[1].month):'Mes ant'}</div>
           </div>
           <div class="ikpi ikpi-c2">
             <div class="ikpi-h"><div class="ikpi-icon">💵</div> TOTAL ARS</div>
-            <div class="ikpi-v">$\${fmtN(curARS)}</div>
-            <div class="ikpi-sub" style="color:#64748b;">USD \${fmtN(curUSD)}</div>
+            <div class="ikpi-v">$${fmtN(curARS)}</div>
+            <div class="ikpi-sub" style="color:#64748b;">USD ${fmtN(curUSD)}</div>
           </div>
           <div class="ikpi ikpi-c3">
             <div class="ikpi-h"><div class="ikpi-icon">💲</div> TOTAL USD</div>
-            <div class="ikpi-v">USD \${fmtN(curUSD)}</div>
-            <div class="ikpi-sub" style="color:#64748b;">≈ $\${fmtN(curUSD*TC)}</div>
+            <div class="ikpi-v">USD ${fmtN(curUSD)}</div>
+            <div class="ikpi-sub" style="color:#64748b;">≈ $${fmtN(curUSD*TC)}</div>
           </div>
           <div class="ikpi ikpi-c4">
             <div class="ikpi-h"><div class="ikpi-icon">📅</div> PRÓXIMO INGRESO</div>
-            <div class="ikpi-v">\${nextIncomeDate||'—'}</div>
-            <div class="ikpi-sub" style="background:#fef3c7;padding:2px 8px;border-radius:12px;color:#d97706;width:fit-content;font-weight:700;">Faltan \${nextIncomeDays} días</div>
+            <div class="ikpi-v">${nextIncomeDate||'—'}</div>
+            <div class="ikpi-sub" style="background:#fef3c7;padding:2px 8px;border-radius:12px;color:#d97706;width:fit-content;font-weight:700;">Faltan ${nextIncomeDays} días</div>
           </div>
         </div>
 
@@ -296,41 +296,41 @@ function renderIncomePage() {
           <div class="iblock-h">
             <div>
               <div class="iblock-title">COMPARATIVA INTELIGENTE</div>
-              <div class="iblock-sub">\${curLabel} vs. promedio de últimos 3 meses</div>
+              <div class="iblock-sub">${curLabel} vs. promedio de últimos 3 meses</div>
             </div>
             <div style="display:flex;gap:4px;background:#f1f5f9;padding:4px;border-radius:20px;">
               <button class="btn btn-sm" style="background:#7c3aed;color:#fff;border-radius:16px;">Mensual</button>
               <button class="btn btn-ghost btn-sm" style="border-radius:16px;">Acumulado</button>
             </div>
           </div>
-          <div class="icomp-text">Estás <span style="color:\${diffAvg>=0?'#10b981':'#ef4444'}">\${diffAvg>=0?'+':''}$\${fmtN(diffAvg)}</span> por encima de tu promedio.</div>
+          <div class="icomp-text">Estás <span style="color:${diffAvg>=0?'#10b981':'#ef4444'}">${diffAvg>=0?'+':''}$${fmtN(diffAvg)}</span> por encima de tu promedio.</div>
           
           <div class="icomp-bar-row">
             <div>
               <div class="icomp-bar-label">PROMEDIO 3 MESES</div>
-              <div class="icomp-bar-val">$\${fmtN(avg3)}</div>
+              <div class="icomp-bar-val">$${fmtN(avg3)}</div>
             </div>
             <div class="icomp-bar-avg"></div>
             <div></div>
           </div>
           <div class="icomp-bar-row" style="margin-bottom:8px;">
             <div>
-              <div class="icomp-bar-label" style="color:#7c3aed;">\${curLabel}</div>
-              <div class="icomp-bar-val">$\${fmtN(curCombined)}</div>
+              <div class="icomp-bar-label" style="color:#7c3aed;">${curLabel}</div>
+              <div class="icomp-bar-val">$${fmtN(curCombined)}</div>
             </div>
             <div class="icomp-bar-cur"></div>
-            <div class="icomp-bar-diff" style="color:\${diffAvg>=0?'#10b981':'#ef4444'}">\${diffAvg>=0?'+':''}$\${fmtN(diffAvg)}</div>
+            <div class="icomp-bar-diff" style="color:${diffAvg>=0?'#10b981':'#ef4444'}">${diffAvg>=0?'+':''}$${fmtN(diffAvg)}</div>
           </div>
           <div class="icomp-axis">
-            <span>$\${fmtN(avg3*0.8)}</span>
-            <span>$\${fmtN(avg3)}</span>
-            <span>$\${fmtN(avg3*1.2)}</span>
-            <span>$\${fmtN(avg3*1.4)}</span>
+            <span>$${fmtN(avg3*0.8)}</span>
+            <span>$${fmtN(avg3)}</span>
+            <span>$${fmtN(avg3*1.2)}</span>
+            <span>$${fmtN(avg3*1.4)}</span>
           </div>
           
           <div class="icomp-tip">
             <div class="icomp-tip-icon">💡</div>
-            <div style="flex:1;">Llevás 3 meses con tendencia positiva. \${curLabel} mantiene el crecimiento.</div>
+            <div style="flex:1;">Llevás 3 meses con tendencia positiva. ${curLabel} mantiene el crecimiento.</div>
             <a href="#" style="color:#7c3aed;font-weight:700;text-decoration:none;">Ver análisis →</a>
           </div>
         </div>
@@ -343,13 +343,13 @@ function renderIncomePage() {
               <div class="iblock-sub">Donde recibís tus ingresos</div>
             </div>
             <div style="display:flex;gap:16px;align-items:center;">
-              <a href="#" style="color:#7c3aed;font-weight:700;text-decoration:none;font-size:13px;" onclick="openIncomeSourceModal()">Ver todas (\${state.incomeSources.length}) →</a>
+              <a href="#" style="color:#7c3aed;font-weight:700;text-decoration:none;font-size:13px;" onclick="openIncomeSourceModal()">Ver todas (${state.incomeSources.length}) →</a>
               <button class="btn btn-primary btn-sm" style="background:#7c3aed;" onclick="openIncomeSourceModal()">+ Agregar cuenta</button>
             </div>
           </div>
           
           <div class="icm-grid">
-            \${fuentesCardsHtml}
+            ${fuentesCardsHtml}
           </div>
           
           <div class="ifilters">
@@ -374,7 +374,7 @@ function renderIncomePage() {
             
             <table class="ihist-table">
               <tr><td colspan="4"><div class="ihist-header"><div>MES</div><div>ARS</div><div>USD</div><div>TOTAL (ARS)</div></div></td></tr>
-              <tr><td colspan="4">\${historyHtml}</td></tr>
+              <tr><td colspan="4">${historyHtml}</td></tr>
             </table>
             
             <div style="margin-top:20px;">
@@ -394,28 +394,28 @@ function renderIncomePage() {
             <div class="iconf-row">
               <div class="iconf-label"><div class="iconf-label-icon">🎯</div> META DE AHORRO</div>
               <div class="iconf-inp-wrap">
-                <input type="number" id="inc-save" value="\${state.savingsGoal||20}" onchange="saveIncConfig()">
+                <input type="number" id="inc-save" value="${state.savingsGoal||20}" onchange="saveIncConfig()">
                 <span class="iconf-inp-suf">% del ingreso</span>
               </div>
             </div>
             <div class="iconf-row">
               <div class="iconf-label"><div class="iconf-label-icon" style="background:#fee2e2;color:#ef4444;">🔔</div> ALERTA DE GASTO</div>
               <div class="iconf-inp-wrap">
-                <input type="number" id="inc-alert" value="\${state.alertThreshold||80}" onchange="saveIncConfig()">
+                <input type="number" id="inc-alert" value="${state.alertThreshold||80}" onchange="saveIncConfig()">
                 <span class="iconf-inp-suf">% del ingreso</span>
               </div>
             </div>
             <div class="iconf-row">
               <div class="iconf-label"><div class="iconf-label-icon" style="background:#ede9fe;color:#6366f1;">💰</div> PRESUPUESTO DISPONIBLE</div>
               <div class="iconf-inp-wrap">
-                <input type="number" id="inc-spend-pct" value="\${state.spendPct||100}" onchange="saveIncConfig()">
+                <input type="number" id="inc-spend-pct" value="${state.spendPct||100}" onchange="saveIncConfig()">
                 <span class="iconf-inp-suf">% del ingreso</span>
               </div>
             </div>
             
             <div class="icomp-tip" style="margin-top:24px;">
               <div class="icomp-tip-icon">💡</div>
-              <div><strong>TIP:</strong> Con un margen del <strong>\${state.savingsGoal||20}%</strong> estás ahorrando $\${fmtN(curCombined*(state.savingsGoal||20)/100)} este mes si mantenés tus gastos bajo control.</div>
+              <div><strong>TIP:</strong> Con un margen del <strong>${state.savingsGoal||20}%</strong> estás ahorrando $${fmtN(curCombined*(state.savingsGoal||20)/100)} este mes si mantenés tus gastos bajo control.</div>
             </div>
           </div>
         </div>
@@ -435,13 +435,13 @@ function renderIncomePage() {
           <div class="ipalert-s">Recibiste USD 120,00 menos que el mes anterior.</div>
           <div class="ipalert-circ">
             <div class="ipalert-circ-t">-12,4%</div>
-            <div class="ipalert-circ-s">vs. \${months[1]?fmtMonthLabel(months[1].month):'Marzo'}</div>
+            <div class="ipalert-circ-s">vs. ${months[1]?fmtMonthLabel(months[1].month):'Marzo'}</div>
           </div>
         </div>
 
         <div class="ipan-box">
           <div class="ip-title">PRÓXIMOS INGRESOS <a href="#">Ver calendario</a></div>
-          \${nextIncomes || '<div class="empty-state">No hay próximos ingresos</div>'}
+          ${nextIncomes || '<div class="empty-state">No hay próximos ingresos</div>'}
         </div>
 
         <div class="ipan-box" style="display:flex;gap:16px;align-items:center;">
@@ -456,7 +456,7 @@ function renderIncomePage() {
         <div class="ip-grid2">
           <div class="ip-mini">
             <div class="ip-mini-lbl">PROMEDIO MENSUAL</div>
-            <div class="ip-mini-val">$\${fmtN(avg3)}</div>
+            <div class="ip-mini-val">$${fmtN(avg3)}</div>
             <div style="font-size:11px;font-weight:600;color:#10b981;">↑ 4% vs. abr.</div>
           </div>
           <div class="ip-mini">
@@ -472,18 +472,18 @@ function renderIncomePage() {
         </div>
 
         <div class="ipan-box">
-          <div class="ip-title">INGRESOS POR MONEDA <span style="text-transform:none;color:#64748b;font-weight:500;">\${curLabel}</span></div>
+          <div class="ip-title">INGRESOS POR MONEDA <span style="text-transform:none;color:#64748b;font-weight:500;">${curLabel}</span></div>
           <div class="ip-bars-row">
             <div style="width:30px;">ARS</div>
-            <div class="ip-bar-track"><div class="ip-bar-fill" style="width:\${arsPct}%;background:#7c3aed;"></div></div>
-            <div style="width:36px;color:#8e8b9e;font-weight:600;">\${arsPct}%</div>
-            <div style="width:80px;text-align:right;">$\${fmtN(curARS)}</div>
+            <div class="ip-bar-track"><div class="ip-bar-fill" style="width:${arsPct}%;background:#7c3aed;"></div></div>
+            <div style="width:36px;color:#8e8b9e;font-weight:600;">${arsPct}%</div>
+            <div style="width:80px;text-align:right;">$${fmtN(curARS)}</div>
           </div>
           <div class="ip-bars-row">
             <div style="width:30px;">USD</div>
-            <div class="ip-bar-track"><div class="ip-bar-fill" style="width:\${usdPct}%;background:#0ea5e9;"></div></div>
-            <div style="width:36px;color:#8e8b9e;font-weight:600;">\${usdPct}%</div>
-            <div style="width:80px;text-align:right;">USD \${fmtN(curUSD)}</div>
+            <div class="ip-bar-track"><div class="ip-bar-fill" style="width:${usdPct}%;background:#0ea5e9;"></div></div>
+            <div style="width:36px;color:#8e8b9e;font-weight:600;">${usdPct}%</div>
+            <div style="width:80px;text-align:right;">USD ${fmtN(curUSD)}</div>
           </div>
         </div>
 
@@ -496,7 +496,7 @@ function renderIncomePage() {
                 <circle cx="45" cy="45" r="35" fill="none" stroke="#7c3aed" stroke-width="12" stroke-dasharray="220" stroke-dashoffset="110"/>
                 <circle cx="45" cy="45" r="35" fill="none" stroke="#38bdf8" stroke-width="12" stroke-dasharray="220" stroke-dashoffset="180"/>
               </svg>
-              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">$\${fmtN(curCombined/1000)}k</div>
+              <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;">$${fmtN(curCombined/1000)}k</div>
             </div>
             <div style="flex:1;font-size:10px;font-weight:600;display:flex;flex-direction:column;gap:8px;">
               <div style="display:flex;justify-content:space-between;"><span><span style="color:#7c3aed;">●</span> Sueldo Ppal</span> <span>55,9%</span></div>
@@ -511,7 +511,7 @@ function renderIncomePage() {
             <div style="width:32px;height:32px;background:#dcfce7;color:#16a34a;border-radius:16px;display:flex;align-items:center;justify-content:center;">↗</div>
             <div style="flex:1;">
               <div style="font-size:11px;font-weight:700;color:#16a34a;letter-spacing:0.04em;margin-bottom:4px;">TENDENCIA</div>
-              <div style="font-size:12px;color:#166534;line-height:1.4;">Llevás 3 meses creciendo. Sostenelo para alcanzar tu meta de ahorro del \${state.savingsGoal||20}%.</div>
+              <div style="font-size:12px;color:#166534;line-height:1.4;">Llevás 3 meses creciendo. Sostenelo para alcanzar tu meta de ahorro del ${state.savingsGoal||20}%.</div>
               <div style="font-size:12px;font-weight:700;color:#15803d;margin-top:6px;">+12,4% en el trimestre</div>
             </div>
           </div>
