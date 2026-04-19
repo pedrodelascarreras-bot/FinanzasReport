@@ -1503,6 +1503,8 @@ function getCurrentProfileSnapshot(){
     txnFilterMode: state.txnFilterMode || 'tc',
     txnCardFilter: state.txnCardFilter || '',
     lastGmailSync: state.lastGmailSync || null,
+    lastTransactionsExport: state.lastTransactionsExport || null,
+    lastTransactionsRefresh: state.lastTransactionsRefresh || null,
     dismissedNotifs: cloneDeepProfileValue(state.dismissedNotifs || []),
     decisionCenterCollapsed: !!state.decisionCenterCollapsed,
     dismissedAutoCuotas: cloneDeepProfileValue(state.dismissedAutoCuotas || []),
@@ -1643,6 +1645,8 @@ function applyUserProfile(profileId){
   state.txnFilterMode = profile.txnFilterMode || state.txnFilterMode || 'tc';
   state.txnCardFilter = profile.txnCardFilter || '';
   state.lastGmailSync = profile.lastGmailSync || null;
+  state.lastTransactionsExport = profile.lastTransactionsExport || null;
+  state.lastTransactionsRefresh = profile.lastTransactionsRefresh || null;
   state.dismissedNotifs = cloneDeepProfileValue(profile.dismissedNotifs || []);
   state.decisionCenterCollapsed = !!profile.decisionCenterCollapsed;
   state.dismissedAutoCuotas = cloneDeepProfileValue(profile.dismissedAutoCuotas || []);

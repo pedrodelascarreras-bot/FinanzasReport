@@ -1346,5 +1346,7 @@ function exportarCSV() {
   const dateStr = new Date().toLocaleDateString('es-AR').replace(/\//g,'-');
   a.href = url; a.download = 'finanzas-movimientos-' + dateStr + '.csv';
   a.click(); URL.revokeObjectURL(url);
+  state.lastTransactionsExport = new Date().toISOString();
   showToast('✓ CSV exportado (' + txns.length + ' movimientos)', 'success');
+  saveState();
 }

@@ -27,6 +27,8 @@ let state={
   txnEstadoFilter:'all', // 'all'|'pendiente_de_revision'|'duplicado_sospechoso'|'confirmado_por_usuario'|'detectado_automaticamente'
   txnCardFilter:'',      // ''|'visa'|'amex' — card filter in transactions view
   lastGmailSync: null,
+  lastTransactionsExport: null,
+  lastTransactionsRefresh: null,
   userName: 'Pedro',
   lastVisit: null,
   dismissedNotifs: [],   // IDs of notifications the user dismissed
@@ -79,6 +81,8 @@ function getStateSnapshot(){
     profileTemplate:state.profileTemplate||'personal',
     onboardingState:state.onboardingState||{},
     lastGmailSync:state.lastGmailSync||null,
+    lastTransactionsExport:state.lastTransactionsExport||null,
+    lastTransactionsRefresh:state.lastTransactionsRefresh||null,
     gmailClientId:state.gmailClientId||localStorage.getItem('fin_gmail_client_id')||'',
     userName:state.userName||'Pedro',
     userEmail:state.userEmail||'',
@@ -327,6 +331,8 @@ async function loadFromDrive(){
     state.profileTemplate=s.profileTemplate||'personal';
     state.onboardingState=s.onboardingState||{};
     state.lastGmailSync=s.lastGmailSync||null;
+    state.lastTransactionsExport=s.lastTransactionsExport||null;
+    state.lastTransactionsRefresh=s.lastTransactionsRefresh||null;
     state.balanceView=s.balanceView||state.balanceView||'summary';
     state.gmailClientId=s.gmailClientId||'';
     state.userEmail=s.userEmail||'';
@@ -397,6 +403,8 @@ function loadState(){
     state.profileTemplate=s.profileTemplate||'personal';
     state.onboardingState=s.onboardingState||{};
     state.lastGmailSync=s.lastGmailSync||null;
+    state.lastTransactionsExport=s.lastTransactionsExport||null;
+    state.lastTransactionsRefresh=s.lastTransactionsRefresh||null;
     state.balanceView=s.balanceView||state.balanceView||'summary';
     state.gmailClientId=s.gmailClientId||localStorage.getItem('fin_gmail_client_id')||'';
     state.userEmail=s.userEmail||'';
