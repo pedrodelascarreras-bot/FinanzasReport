@@ -139,7 +139,7 @@ function renderIncomePage() {
   let biggestSourceColor = "#7c3aed";
   let activeSrcs = [];
   state.incomeSources.forEach(s => {
-    let amt = curItem.sources?.[s.id] || 0;
+    let amt = curMonthData?.sources?.[s.id] || 0;
     if (s.currency === 'USD') amt *= TC;
     if (amt > 0) activeSrcs.push({ name: s.name, color: s.color||'#7c3aed', amt });
     if (amt > biggestSourceAmt) {
