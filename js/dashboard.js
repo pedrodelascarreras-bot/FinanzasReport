@@ -1952,13 +1952,17 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
   const tpBarEl=document.getElementById('kpi-third-party-bar');
   const historyWrap=document.querySelector('.dash-history-row[data-widget-key="history-kpis"]');
   const historyCard=historyWrap?historyWrap.querySelector('.dash-third-party-card'):null;
+  const avgWidget=document.getElementById('dash-avg-widget');
   const _layoutState=typeof loadLayoutState==='function'?loadLayoutState():{};
   const _hiddenWidgets=_layoutState.dashboard?.widgetHidden||[];
   const thirdPartySummary=getThirdPartyDashboardSummary();
   const shouldHideThirdPartyWidget=_hiddenWidgets.includes('history-kpis') || !thirdPartySummary.count;
+  /* show/hide the third-party card vs the fallback avg widget */
+  if(historyCard) historyCard.style.display=shouldHideThirdPartyWidget?'none':'';
+  if(avgWidget) avgWidget.style.display=shouldHideThirdPartyWidget?'':'none';
   if(historyWrap){
-    historyWrap.hidden=shouldHideThirdPartyWidget;
-    historyWrap.style.display=shouldHideThirdPartyWidget?'none':'';
+    historyWrap.hidden=false;
+    historyWrap.style.display='';
   }
   if(tpPendingEl&&tpSubEl&&tpBadgeEl&&tpTotalEl&&tpCollectedEl&&tpOpenEl&&tpFootEl&&tpBarEl&&thirdPartySummary.count){
     historyWrap&&historyWrap.classList.remove('is-empty');
@@ -1992,9 +1996,19 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     if(tpFootEl)tpFootEl.textContent='Cuando marques uno, esta tarjeta se expande sola con el seguimiento completo.';
     if(tpBarEl)tpBarEl.style.width='0%';
   }
-  if(historyWrap){
-    historyWrap.hidden=shouldHideThirdPartyWidget;
-    historyWrap.style.display=shouldHideThirdPartyWidget?'none':'';
+  /* populate fallback avg widget */
+  if(shouldHideThirdPartyWidget && avgWidget){
+    const fbDaily=document.getElementById('kpi-fallback-daily');
+    const fbTotal=document.getElementById('kpi-fallback-total');
+    const fbProj=document.getElementById('kpi-fallback-projected');
+    if(fbDaily) animateNumberText(fbDaily,dailyRate,{prefix:'$',decimals:0,duration:600});
+    if(fbTotal) animateNumberText(fbTotal,totalGastoARS,{prefix:'$',decimals:0,duration:760});
+    if(fbProj && projected){
+      const projColor=typeof getProjectionColor==='function'?getProjectionColor(projected,incTotalARS):'var(--text3)';
+      fbProj.innerHTML=`Proyección: <span style="color:${projColor};font-weight:600;">$${fmtN(Math.round(projected))}</span>`;
+    } else if(fbProj){
+      fbProj.textContent='';
+    }
   }
 
   /* ── Widget extra: ingreso del período ── */
