@@ -14474,10 +14474,10 @@ body.light-mode .tdp-tp-input {
 ═══════════════════════════════════════════════════════════ */
 
 /* ── Grid skeleton ── */
-.db2-grid { display: flex; flex-direction: column; gap: 18px; }
-.db2-row-1 { display: grid; grid-template-columns: 1.16fr 0.84fr; gap: 18px; align-items: stretch; }
-.db2-row-2 { display: grid; grid-template-columns: 1.18fr 0.50fr 0.82fr; gap: 18px; align-items: stretch; }
-.db2-row-3 { display: grid; grid-template-columns: 1.36fr 0.84fr; gap: 18px; align-items: stretch; }
+.db2-grid { display: flex; flex-direction: column; gap: 12px; }
+.db2-row-1 { display: grid; grid-template-columns: 1.16fr 0.84fr; gap: 12px; align-items: stretch; flex: 1; min-height: 0; }
+.db2-row-2 { display: grid; grid-template-columns: 1.18fr 0.50fr 0.82fr; gap: 12px; align-items: stretch; flex: 1; min-height: 0; }
+.db2-row-3 { display: grid; grid-template-columns: 1.36fr 0.84fr; gap: 12px; align-items: stretch; flex: 1; min-height: 0; }
 
 /* ── Base card ── */
 .db2-w {
@@ -14537,7 +14537,8 @@ body.light-mode .db2-w:hover {
   border: 1px solid rgba(255,255,255,0.16);
   box-shadow: 0 28px 70px rgba(55,48,163,0.40), 0 6px 20px rgba(0,0,0,0.22), inset 0 1px 0 rgba(255,255,255,0.12);
   color: #fff;
-  min-height: 312px;
+  min-height: 0;
+  flex: 1;
   padding: 24px 26px 24px;
   border-radius: 28px;
 }
@@ -14651,7 +14652,8 @@ body.light-mode .db2-w:hover {
     radial-gradient(ellipse 50% 40% at 95% 95%, rgba(14,165,233,0.07) 0%, transparent 55%),
     var(--surface-solid);
   border-color: rgba(56,189,248,0.22);
-  min-height: 312px;
+  min-height: 0;
+  flex: 1;
 }
 body.light-mode .db2-cc-card {
   background:
@@ -14743,7 +14745,8 @@ body.light-mode .db2-cc-item {
     radial-gradient(ellipse 80% 60% at 0% 0%, rgba(255,107,0,0.06) 0%, transparent 55%),
     var(--surface-solid);
   border-color: rgba(255,107,0,0.14);
-  min-height: 188px;
+  min-height: 0;
+  flex: 1;
 }
 body.light-mode .db2-proj-card {
   background:
@@ -14841,7 +14844,8 @@ body.light-mode .db2-proj-card {
   border-color: rgba(52,199,89,0.24);
   cursor: pointer;
   display: flex; flex-direction: column; gap: 0;
-  min-height: 188px;
+  min-height: 0;
+  flex: 1;
 }
 body.light-mode .db2-dollar-card {
   background:
@@ -14904,7 +14908,10 @@ body.light-mode .db2-dollar-card {
 .db2-agenda-card {
   background: var(--surface-solid);
   border-color: var(--border);
-  min-height: 188px;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 body:not(.light-mode) .db2-agenda-card {
   background: rgba(255,255,255,0.03);
@@ -14920,7 +14927,8 @@ body.light-mode .db2-agenda-card {
 }
 .db2-agenda-list {
   display: flex; flex-direction: column; gap: 0;
-  flex: 1; margin-bottom: 4px;
+  flex: 1; margin-bottom: 4px; border-bottom: 1px solid var(--border);
+  overflow-y: auto; overflow-x: hidden;
 }
 .db2-agenda-item {
   display: grid;
@@ -14973,7 +14981,8 @@ body.light-mode .db2-agenda-card {
     radial-gradient(ellipse 40% 30% at 95% 95%, rgba(139,92,246,0.06) 0%, transparent 55%),
     var(--surface-solid);
   border-color: rgba(125,58,236,0.18);
-  min-height: 222px;
+  min-height: 0;
+  flex: 1;
 }
 body.light-mode .db2-evo-card {
   background:
@@ -15045,7 +15054,10 @@ body.light-mode .db2-evo-card {
     radial-gradient(ellipse 40% 35% at 0% 100%, rgba(255,159,10,0.06) 0%, transparent 50%),
     var(--surface-solid);
   border-color: rgba(255,107,0,0.18);
-  min-height: 222px;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 body.light-mode .db2-cat-card {
   background:
@@ -15083,7 +15095,7 @@ body.light-mode .db2-cat-card {
   color: var(--text); letter-spacing: -0.03em;
   line-height: 1.1;
 }
-.db2-cat-list { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; justify-content: center; }
+.db2-cat-list { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; justify-content: flex-start; overflow-y: auto; }
 .db2-cat-item {
   display: flex; align-items: center; gap: 10px;
   min-height: 18px;
@@ -16029,102 +16041,7 @@ body:has(#page-dashboard.active) {
   overflow: hidden;
 }
 
-.app:has(#page-dashboard.active) {
-  height: 100dvh;
-  overflow: hidden;
-}
-
-.main:has(#page-dashboard.active) {
-  height: 100dvh;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-}
-
-#page-dashboard {
-  height: 100%;
-  display: flex !important;
-  flex-direction: column;
-  overflow: hidden;
-  gap: 16px;
-}
-
-#page-dashboard .content-stack {
-  display: flex !important;
-  flex: 1;
-  flex-direction: column;
-  min-height: 0;
-  gap: 12px;
-}
-
-.db2-grid {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow: hidden;
-}
-
-.db2-row-1, .db2-row-2, .db2-row-3 {
-  flex: 1;
-  min-height: 0;
-  height: 100%;
-  gap: 12px;
-}
-
-/* Ensure inner cards stretch naturally but can scroll their own content if squashed too far */
-.db2-w {
-  height: 100%;
-  overflow-y: auto;
-  min-height: 0;
-}
-
-/* Ajustes especiales para que en dispositivos pequeños "entre" sin romperse */
-@media(max-width: 1100px) {
-  .db2-row-1 { grid-template-columns: 1fr 1fr; } /* no colapsar a 1 en ipad para ahorrar altura */
-  .db2-row-3 { grid-template-columns: 1fr 1fr; }
-}
-
-@media(max-width: 768px) {
-  .main:has(#page-dashboard.active) {
-    padding: 16px 16px max(16px, env(safe-area-inset-bottom)) 16px;
-  }
-  
-  #page-dashboard { gap: 12px; }
-  
-  #page-dashboard .page-title {
-    font-size: 26px !important;
-  }
-  #page-dashboard .dashboard-header {
-    margin-bottom: 0px;
-  }
-  #page-dashboard .header-actions {
-    margin-bottom: 0px;
-  }
-  
-  /* En lugar de apilar uno abajo del otro y matar la altura, usamos grid-template-rows 
-     o permitimos overflow-y en el container principal del grid SOLO en móvil si es físicamente imposible.
-     Pero el usuario pidio: EXACTAMENTE del tamaño de la ventana.
-     Entonces, si tenemos 3 rows = 3 filas flex=1.
-     Si row-2 tiene 3 items y todos colapsan a 1 columna (1fr), se hace enorme verticalmente. 
-     Vamos a intentar que en Mobile, row-2 sea un grid de 2x2. */
-  .db2-row-1 { grid-template-columns: 1fr; }
-  .db2-row-2 { 
-    grid-template-columns: 1fr 1fr !important;
-    grid-template-rows: 1fr 1fr; 
-  }
-  .db2-row-2 .db2-agenda-card { grid-column: span 2; }
-  .db2-row-3 { grid-template-columns: 1fr 1fr !important; }
-  
-  .db2-hero-inner { gap: 8px; }
-  .db2-hero-main-amt { font-size: 28px !important; }
-  .db2-w { padding: 12px; border-radius: 16px; }
-  
-  /* Compact widgets internally on extreme squash */
-  .db2-cc-grid { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; margin: 0 -12px; padding: 0 12px; gap: 8px; }
-  .db2-cc-item { flex: 0 0 85%; scroll-snap-align: center; }
-}
+/* Old fullscreen dashboard experiment removed because it caused row overlap. */
 
 /* ════════════════════════════════════════════════
    SIDEBAR FULL-ONLY (hide when rail collapsed)
