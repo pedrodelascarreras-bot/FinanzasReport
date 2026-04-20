@@ -15331,11 +15331,11 @@ body.light-mode .db2-due-item {
   transform: none;
 }
 #splash:has(.sp-private-shell) .sp-inner {
-  width: min(1180px, calc(100vw - 48px));
+  width: min(1180px, calc(100vw - 80px));
   max-width: 1180px;
   height: 100dvh;
   max-height: 100dvh;
-  padding: 18px 0;
+  padding: 28px 8px;
   transform: none;
   perspective: none;
 }
@@ -15347,13 +15347,13 @@ body.light-mode .db2-due-item {
   position: relative;
   width: 100%;
   height: 100%;
-  max-height: calc(100dvh - 36px);
+  max-height: calc(100dvh - 56px);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 20px;
   color: #f6f7fb;
   overflow: hidden;
-  padding: 0;
+  padding: 4px 28px;
 }
 .sp-private-shell::before,
 .sp-private-shell::after {
@@ -15465,9 +15465,9 @@ body.light-mode .db2-due-item {
 .spw-hero {
   display: grid;
   grid-template-columns: minmax(0, 1.04fr) minmax(360px, 430px);
-  gap: 34px;
+  gap: 48px;
   align-items: center;
-  padding-top: 6px;
+  padding: 18px 4px 6px;
   flex: 0 0 auto;
 }
 .spw-kicker {
@@ -16039,8 +16039,9 @@ body.light-mode .db2-due-item {
     display: flex;
     flex-direction: column;
     justify-content: center;
-    padding: 16px 0 !important;
+    padding: 28px 8px !important;
   }
+  .sp-private-shell { padding: 4px 28px !important; }
   .sp-private-shell {
     justify-content: center;
   }
@@ -16055,17 +16056,17 @@ body.light-mode .db2-due-item {
   #splash:has(.sp-private-shell) .sp-inner {
     height: auto;
     max-height: none;
-    padding: 18px 0 22px !important;
+    padding: 24px 6px 28px !important;
     display: flex;
     align-items: stretch;
     justify-content: flex-start;
-    width: min(100vw - 18px, 720px) !important;
+    width: min(100vw - 32px, 720px) !important;
   }
   .sp-private-shell {
     height: auto;
     justify-content: flex-start;
-    gap: 18px !important;
-    padding: 12px 0 !important;
+    gap: 20px !important;
+    padding: 8px 20px !important;
     width: 100%;
     overflow: visible;
   }
@@ -16105,3 +16106,61 @@ body.light-mode .db2-due-item {
   .spw-login-copy { align-items: center !important; }
   .spw-login-copy p { margin-top: 12px !important; font-size: 14px !important; }
 }
+
+/* ═══ DRIPFLOW BRAND ═══ */
+.df-logo{display:inline-flex;align-items:center;gap:10px;line-height:1;user-select:none;}
+.df-logo-mark{
+  position:relative;
+  width:28px;height:28px;border-radius:8px;
+  background:linear-gradient(135deg,#2563EB 0%,#7C3AED 100%);
+  display:inline-flex;align-items:center;justify-content:center;
+  color:#fff;font-weight:800;font-size:16px;letter-spacing:-0.5px;
+  font-family:'Plus Jakarta Sans','Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  box-shadow:0 2px 8px rgba(37,99,235,.35),inset 0 1px 0 rgba(255,255,255,.3);
+  flex-shrink:0;
+}
+.df-logo-mark::before{
+  content:"";position:absolute;top:3px;left:3px;width:8px;height:8px;border-radius:50%;
+  background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.85),rgba(255,255,255,0) 70%);
+  pointer-events:none;
+}
+.df-logo-mark::after{content:"D";position:relative;z-index:1;}
+.df-logo-mark>span{display:none;}
+
+.df-wordmark{
+  font-family:'Plus Jakarta Sans','Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  font-weight:800;font-size:15px;letter-spacing:0.5px;
+  display:inline-flex;align-items:baseline;line-height:1;
+}
+.df-drip{color:var(--text);}
+.df-flow{
+  background:linear-gradient(90deg,#2563EB 0%,#3B82F6 50%,#7C3AED 100%);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+}
+body:not(.dark-mode) .df-drip{color:#0B0F1A;}
+.dark-mode .df-drip{color:#FFFFFF;}
+
+.df-wordmark-lg{font-size:20px;letter-spacing:0.6px;}
+.df-logo-mark-lg{width:34px;height:34px;border-radius:10px;font-size:19px;}
+.df-logo-mark-lg::before{width:10px;height:10px;top:4px;left:4px;}
+
+.df-tagline{
+  font-family:'Plus Jakarta Sans','Inter',sans-serif;
+  font-size:9px;font-weight:700;letter-spacing:2px;text-transform:uppercase;
+  color:var(--text3);margin-top:3px;display:block;
+}
+
+/* Hide legacy brand dots where DRIPFLOW mark replaces them */
+.df-logo .sp-logo-dot,
+.df-logo .logo-dot,
+.df-logo .app-header-dot,
+.df-logo .spw-brand-dot{display:none;}
+
+/* DRIPFLOW inside splash (always dark bg) */
+.sp-private-shell .df-drip,
+#splash .df-drip{color:#FFFFFF !important;}
+.sp-private-shell .df-logo-mark,
+#splash .df-logo-mark{box-shadow:0 2px 10px rgba(124,58,237,.45),inset 0 1px 0 rgba(255,255,255,.35);}
+.spw-brand.df-logo{gap:11px;}
+.spw-brand .df-wordmark{font-size:13px;letter-spacing:1.5px;}

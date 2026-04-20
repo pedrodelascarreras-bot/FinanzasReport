@@ -1193,7 +1193,7 @@ function renderDashboard(){
 
   // ── Título dinámico del dashboard ──
   const _titleEl=document.getElementById('dash-page-title');
-  if(_titleEl) _titleEl.textContent='Dashboard';
+  if(_titleEl){_titleEl.classList.add('df-wordmark','df-wordmark-lg');_titleEl.innerHTML='<span class="df-drip">DRIP</span><span class="df-flow">FLOW</span>';}
   const timelineData=getDashboardTimelineData(today);
   const backupHealth=getBackupHealth(today);
   const slotEls=[1,2,3].map(i=>({
