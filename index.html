@@ -19,7 +19,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260419l">
+<link rel="stylesheet" href="css/styles.css?v=20260420a">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -57,6 +57,12 @@
       <span class="sidebar-brand-name">Wallet</span>
     </div>
     <button class="sidebar-toggle" onclick="toggleSidebar()" title="Ocultar menú">‹</button>
+  </div>
+
+  <div class="sidebar-rail-top" aria-hidden="true">
+    <button class="rail-gmail-btn" id="rail-gmail-btn" onclick="gmailSync()" title="Estado de Gmail">
+      <span class="rail-gmail-letter">G</span>
+    </button>
   </div>
 
   <nav class="nav-group">
@@ -111,6 +117,15 @@
         <span>Modo oscuro</span>
       </button>
     </div>
+  </div>
+
+  <div class="sidebar-rail-bottom" aria-hidden="true">
+    <button class="rail-theme-btn" id="rail-theme-light" onclick="setThemeMode('light')" title="Modo claro">
+      <span>☀️</span>
+    </button>
+    <button class="rail-theme-btn" id="rail-theme-dark" onclick="setThemeMode('dark')" title="Modo oscuro">
+      <span>🌙</span>
+    </button>
   </div>
 
 </aside>
@@ -3251,7 +3266,7 @@
 <script src="js/config.js"></script>
 <script src="js/state.js"></script>
 <script src="js/i18n.js"></script>
-<script src="js/utils.js?v=20260419d"></script>
+<script src="js/utils.js?v=20260420a"></script>
 <script src="js/import.js"></script>
 <script src="js/dashboard.js?v=20260419l"></script>
 <script src="js/transactions.js"></script>
@@ -3265,7 +3280,7 @@
 <script src="js/ui.20260407j.js"></script>
 <script src="js/splash.js?v=20260419g"></script>
 <script src="js/shell.js?v=1.1"></script>
-<script src="js/init.js?v=20260419d"></script>
+<script src="js/init.js?v=20260420a"></script>
 <script src="js/credit-cards.20260407j.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>

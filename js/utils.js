@@ -232,8 +232,26 @@ function syncThemeModeButtons(){
   const isLight=document.body.classList.contains('light-mode');
   const lightBtn=document.getElementById('theme-mode-light');
   const darkBtn=document.getElementById('theme-mode-dark');
+  const railLightBtn=document.getElementById('rail-theme-light');
+  const railDarkBtn=document.getElementById('rail-theme-dark');
   if(lightBtn) lightBtn.classList.toggle('active', isLight);
   if(darkBtn) darkBtn.classList.toggle('active', !isLight);
+  if(railLightBtn) railLightBtn.classList.toggle('active', isLight);
+  if(railDarkBtn) railDarkBtn.classList.toggle('active', !isLight);
+}
+function syncRailSidebarState(opts={}){
+  const gmailBtn=document.getElementById('rail-gmail-btn');
+  if(gmailBtn){
+    const status=opts.gmailStatus || 'idle';
+    gmailBtn.classList.toggle('connected', status==='connected' || status==='done');
+    gmailBtn.classList.toggle('syncing', status==='syncing');
+    gmailBtn.title=status==='connected' || status==='done'
+      ? 'Gmail conectado'
+      : status==='syncing'
+        ? 'Gmail sincronizando'
+        : 'Conectar o sincronizar Gmail';
+  }
+  syncThemeModeButtons();
 }
 function setThemeMode(mode){
   const wantLight=mode==='light';
@@ -251,5 +269,5 @@ function loadTheme(){
     if(themeLabel) themeLabel.textContent='Modo oscuro';
     if(typeof Chart!=='undefined')Chart.defaults.plugins.tooltip.backgroundColor='rgba(255,255,255,0.95)';
   }
-  syncThemeModeButtons();
+  syncRailSidebarState();
 }

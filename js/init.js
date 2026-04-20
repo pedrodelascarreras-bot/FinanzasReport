@@ -812,6 +812,7 @@ function updateGmailBtn(status) {
     if (dot) dot.style.background = 'var(--text3)';
     if (mobBtn) mobBtn.innerHTML = '<span class="mn-icon">☁</span>Conectar';
   }
+  if (typeof syncRailSidebarState === 'function') syncRailSidebarState({ gmailStatus: status });
 }
 
 function _getLastSyncTag() {
