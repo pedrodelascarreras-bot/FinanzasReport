@@ -1247,7 +1247,7 @@ function renderDashboard(){
       }
     });
   }
-  if(dashboardCycleForCards&&dashboardCards.length&&typeof ccGetCycleExpenses==='function'&&typeof ccGetTotals==='function'){
+  if(isTcView&&dashboardCycleForCards&&dashboardCards.length&&typeof ccGetCycleExpenses==='function'&&typeof ccGetTotals==='function'){
     dashboardCards.forEach(card=>{
       const scopedCycle=dashboardCardCycleByCardId[card.id]||dashboardCycleForCards;
       if(!scopedCycle){
@@ -1262,6 +1262,20 @@ function renderDashboard(){
       dashboardCardsArs+=totals.ars||0;
       dashboardCardsUsd+=totals.usd||0;
       dashboardCardsCount+=totals.count||0;
+    });
+  } else if(!isTcView&&dashboardCards.length){
+    // Vista Mes: monthly totals per card from monthTxns
+    dashboardCards.forEach(card=>{
+      const key=(card.payMethodKey||card.id||'').toLowerCase();
+      const cardTxns=monthTxns.filter(t=>(t.payMethod||'').toLowerCase()===key&&!t.isPendingCuota&&!t.isPendingSubscription);
+      const ars=cardTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+      const usd=cardTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+      const count=cardTxns.length;
+      dashboardCardTotals[key]={ars,usd,count};
+      dashboardCardDisplayTotals[key]={ars,usd,count};
+      dashboardCardsArs+=ars;
+      dashboardCardsUsd+=usd;
+      dashboardCardsCount+=count;
     });
   }
   const widgetSyntheticTotals=(dashboardCycleForCards&&dashboardCards.length)
@@ -1889,7 +1903,9 @@ function renderDashboard(){
     timelineData, monthTxns,
     ccWidgetData:{
       cycleByKey:dashboardCardCycleByKey,
-      totalsByKey:dashboardCardDisplayTotals
+      totalsByKey:dashboardCardDisplayTotals,
+      isMesMode:!isTcView,
+      mesMonthKey:activeMk
     }
   });
 }
@@ -2711,6 +2727,8 @@ function renderDb2CcCycles(data){
   const allCycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
   const cycleByKey = data?.cycleByKey || {};
   const totalsByKey = data?.totalsByKey || {};
+  const isMesMode = !!data?.isMesMode;
+  const mesMonthKey = data?.mesMonthKey || getMonthKey(today);
 
   const fmt = ymd => {
     if(!ymd) return '—';
@@ -2748,6 +2766,48 @@ function renderDb2CcCycles(data){
     if(!activeCycle && allCycles.length){
       // fallback: try any cycle matching close day
       activeCycle = allCycles[0];
+    }
+
+    if(isMesMode){
+      // Vista Mes: show calendar month period
+      const [mY, mM] = mesMonthKey.split('-').map(Number);
+      const monthFirstYmd = `${mesMonthKey}-01`;
+      const monthLastD = new Date(mY, mM, 0);
+      const monthLastYmd = dateToYMD(monthLastD);
+
+      if(openEl) openEl.textContent = fmt(monthFirstYmd);
+      if(closeEl) closeEl.textContent = fmt(monthLastYmd);
+      if(dueEl) dueEl.textContent = '—';
+
+      const scopedTotals = totalsByKey[prefix] || totalsByKey[card.payMethodKey||card.id] || null;
+      const amtArsEl = document.getElementById(`kpi-${prefix}-ars`);
+      const amtUsdEl = document.getElementById(`kpi-${prefix}-usd`);
+      if(amtArsEl){
+        const arsTotal = scopedTotals ? (scopedTotals.ars||0) : 0;
+        const usdTotal = scopedTotals ? (scopedTotals.usd||0) : 0;
+        animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
+        if(amtUsdEl){
+          if(usdTotal > 0){
+            animateNumberText(amtUsdEl, usdTotal, {prefix: 'U$D ', decimals: 2, duration: 760});
+            amtUsdEl.style.display = '';
+          } else {
+            amtUsdEl.textContent = '';
+          }
+        }
+      }
+
+      // Month progress bar
+      if(barEl && daysEl){
+        const openD  = new Date(monthFirstYmd + 'T12:00:00');
+        const closeD = new Date(monthLastYmd  + 'T12:00:00');
+        const totalDays = Math.max(1, Math.round((closeD - openD) / 86400000));
+        const elapsed   = Math.max(0, Math.round((today - openD) / 86400000));
+        const daysLeft  = Math.max(0, Math.round((closeD - today) / 86400000));
+        const pct = Math.min(100, Math.round(elapsed / totalDays * 100));
+        animateProgressBar(barEl, pct);
+        daysEl.textContent = daysLeft === 0 ? 'Fin de mes' : `${daysLeft} día${daysLeft!==1?'s':''}`;
+      }
+      return;
     }
 
     if(!activeCycle){

@@ -17,10 +17,13 @@ function openTcConfigModal(){ openTcConfig(); }
 // state.tcCycles = [{id, label, cardId, openDate, closeDate, dueDate}] sorted desc by closeDate
 
 function normalizeViewMode(mode){
-  if(mode==='mes') return 'mes';
-  if(mode==='visa'||mode==='tc') return 'visa';
-  if(mode==='amex') return 'visa';
+  if(mode==='mes'||mode==='visa'||mode==='amex') return mode;
+  if(mode==='tc') return 'visa';
   return 'mes';
+}
+function resolveUiViewMode(mode){
+  const v=normalizeViewMode(mode);
+  return v==='amex'?'visa':v;
 }
 
 function getViewWindowMonthsBack(){
@@ -390,10 +393,10 @@ function setPayMethod(method){
 window.addEventListener('DOMContentLoaded',()=>{
   loadState();
   ensureViewCycleConfig();
-  state.dashView=normalizeViewMode(state.dashView||'visa');
-  state.txnFilterMode=normalizeViewMode(state.txnFilterMode||'visa');
-  state.tendMode=normalizeViewMode(state.tendMode||'visa');
-  state.repMode=normalizeViewMode(state.repMode||'visa');
+  state.dashView=resolveUiViewMode(state.dashView||'visa');
+  state.txnFilterMode=resolveUiViewMode(state.txnFilterMode||'visa');
+  state.tendMode=resolveUiViewMode(state.tendMode||'visa');
+  state.repMode=resolveUiViewMode(state.repMode||'visa');
   ensureActiveUserProfileBootstrap();
   ensureGmailImportRules();
   state.gmailClientId = getGmailClientId();
@@ -1695,15 +1698,15 @@ function getCurrentProfileSnapshot(){
     alertThreshold: state.alertThreshold || 80,
     spendPct: state.spendPct || 100,
     insightsBufferMonths: state.insightsBufferMonths || 3,
-    dashView: normalizeViewMode(state.dashView || 'visa'),
+    dashView: resolveUiViewMode(state.dashView || 'visa'),
     dashMonth: state.dashMonth || null,
     dashTcCycle: state.dashTcCycle || null,
     chartMode: state.chartMode || 'bars',
-    tendMode: normalizeViewMode(state.tendMode || 'visa'),
+    tendMode: resolveUiViewMode(state.tendMode || 'visa'),
     activeTendCats: cloneDeepProfileValue(state.activeTendCats || null),
     compareMode: state.compareMode || 'month',
     repDesign: state.repDesign || 'executive',
-    txnFilterMode: normalizeViewMode(state.txnFilterMode || 'visa'),
+    txnFilterMode: resolveUiViewMode(state.txnFilterMode || 'visa'),
     txnCardFilter: state.txnCardFilter || '',
     lastGmailSync: state.lastGmailSync || null,
     lastTransactionsExport: state.lastTransactionsExport || null,
@@ -1843,15 +1846,15 @@ function applyUserProfile(profileId){
   state.alertThreshold = profile.alertThreshold || state.alertThreshold || 80;
   state.spendPct = profile.spendPct || state.spendPct || 100;
   state.insightsBufferMonths = profile.insightsBufferMonths || state.insightsBufferMonths || 3;
-  state.dashView = normalizeViewMode(profile.dashView || state.dashView || 'visa');
+  state.dashView = resolveUiViewMode(profile.dashView || state.dashView || 'visa');
   state.dashMonth = profile.dashMonth || null;
   state.dashTcCycle = profile.dashTcCycle || null;
   state.chartMode = profile.chartMode || state.chartMode || 'bars';
-  state.tendMode = normalizeViewMode(profile.tendMode || state.tendMode || 'visa');
+  state.tendMode = resolveUiViewMode(profile.tendMode || state.tendMode || 'visa');
   state.activeTendCats = cloneDeepProfileValue(profile.activeTendCats || null);
   state.compareMode = profile.compareMode || state.compareMode || 'month';
   state.repDesign = profile.repDesign || state.repDesign || 'executive';
-  state.txnFilterMode = normalizeViewMode(profile.txnFilterMode || state.txnFilterMode || 'visa');
+  state.txnFilterMode = resolveUiViewMode(profile.txnFilterMode || state.txnFilterMode || 'visa');
   state.txnCardFilter = profile.txnCardFilter || '';
   state.lastGmailSync = profile.lastGmailSync || null;
   state.lastTransactionsExport = profile.lastTransactionsExport || null;
