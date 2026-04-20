@@ -86,7 +86,7 @@
         <div class="spw-topbar">
           <div class="spw-brand df-logo">
             <span class="df-logo-mark"></span>
-            <span class="df-wordmark spw-brand-name">FINANZAS</span>
+            <span class="df-wordmark spw-brand-name"><span class="df-drip">DRIP</span><span class="df-flow">FLOW</span></span>
           </div>
           <div class="spw-top-actions">
             <button class="spw-icon-btn" type="button" title="Buscar" onclick="handleSplashTopAction('search', event)">${iconSVG('search')}</button>
