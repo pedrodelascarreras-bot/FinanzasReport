@@ -134,24 +134,28 @@ async function loadAllRates(){
   }catch(e2){if(blueEl)blueEl.textContent='Sin conexión';if(oficialRangeEl)oficialRangeEl.textContent='Sin conexión';}
 }
 function getActiveDashMonth(){
-  const currentMk=getMonthKey(new Date());
-  // Clamp: never devolver un mes futuro al actual
-  if(state.dashMonth && state.dashMonth>currentMk){
+  const range=typeof getViewWindowRange==='function'
+    ? getViewWindowRange()
+    : {currentMonthKey:getMonthKey(new Date()), startMonthKey:getMonthKey(new Date(new Date().getFullYear(),new Date().getMonth()-6,1))};
+  // Clamp: never devolver meses fuera de la ventana habilitada
+  if(state.dashMonth && (state.dashMonth>range.currentMonthKey || state.dashMonth<range.startMonthKey)){
     state.dashMonth=null;
   }
   if(state.dashMonth) return state.dashMonth;
-  return currentMk;
+  return range.currentMonthKey;
 }
 function getCurrentMonthTxns(){
   const mk=getActiveDashMonth();
   return state.transactions.filter(t=>t.month===mk||getMonthKey(t.date)===mk);
 }
 function getAvailableMonths(){
-  const currentMk=getMonthKey(new Date());
+  const range=typeof getViewWindowRange==='function'
+    ? getViewWindowRange()
+    : {currentMonthKey:getMonthKey(new Date()), startMonthKey:getMonthKey(new Date(new Date().getFullYear(),new Date().getMonth()-6,1))};
   const set=new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)));
-  // Asegurar que el mes actual siempre esté disponible y no devolver meses futuros
-  set.add(currentMk);
-  return [...set].filter(m=>m<=currentMk).sort();
+  // Asegurar que el mes actual siempre esté disponible y no devolver meses fuera de ventana
+  set.add(range.currentMonthKey);
+  return [...set].filter(m=>m<=range.currentMonthKey&&m>=range.startMonthKey).sort();
 }
 function renderUiGlyph(name){
   const icons={
@@ -740,11 +744,14 @@ function setDashMonthFromSelect(val){
   if(state.dashView!=='mes'){
     state.dashTcCycle=val||null;
   } else {
-    const currentMk=getMonthKey(new Date());
+    const range=typeof getViewWindowRange==='function'
+      ? getViewWindowRange()
+      : {currentMonthKey:getMonthKey(new Date()), startMonthKey:getMonthKey(new Date(new Date().getFullYear(),new Date().getMonth()-6,1))};
+    const currentMk=range.currentMonthKey;
     // Bloqueo defensivo: no aceptar meses futuros
-    if(val && val>currentMk){
+    if(val && (val>currentMk || val<range.startMonthKey)){
       val='';
-      if(typeof showToast==='function') showToast('No podés navegar a meses futuros','warn');
+      if(typeof showToast==='function') showToast('Solo podés ver hasta 6 meses atrás y nunca meses futuros','warn');
     }
     state.dashMonth=val||null;
   }
@@ -928,11 +935,14 @@ function renderDashboard(){
       _dashSel.innerHTML='<option value="">'+esc(_title+' actual')+'</option>'+_cycles.map(c=>'<option value="'+c.id+'" '+(c.id===_selId?'selected':'')+'>'+esc(expandPeriodYearLabel(c.label||''))+'</option>').join('');
     } else {
       // Mes mode: show calendar months (sin meses futuros)
-      const _curMk=getMonthKey(new Date());
+      const _range=typeof getViewWindowRange==='function'
+        ? getViewWindowRange()
+        : {currentMonthKey:getMonthKey(new Date()), startMonthKey:getMonthKey(new Date(new Date().getFullYear(),new Date().getMonth()-6,1))};
+      const _curMk=_range.currentMonthKey;
       if(!_dashSel.querySelector('option[value="'+activeMk+'"]')){
         const _set=new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)));
         _set.add(_curMk);
-        const months=[..._set].filter(m=>m<=_curMk).sort().reverse();
+        const months=[..._set].filter(m=>m<=_curMk&&m>=_range.startMonthKey).sort().reverse();
         const _MN=['Enero','Feb','Marzo','Abril','Mayo','Junio','Julio','Agosto','Sep','Oct','Nov','Dic'];
         _dashSel.innerHTML='<option value="">Mes actual</option>'+months.map(m=>{const[y,mo]=m.split('-');return'<option value="'+m+'" '+(m===activeMk?'selected':'')+'>'+_MN[+mo-1]+' '+y+'</option>';}).join('');
       } else {
@@ -956,12 +966,13 @@ function renderDashboard(){
       return open&&todayStr>=open&&todayStr<=c.closeDate;
     });
     if(current) return current;
-    const pending=list.find(c=>{
-      const ownerCardId=c.cardId||state.ccActiveCard||null;
-      const status=(state.ccCycles||[]).find(x=>x.tcCycleId===c.id&&(!ownerCardId||x.cardId===ownerCardId));
-      return !status||status.status!=='paid';
+    const latestPast=list.find(c=>{
+      const idx=list.findIndex(x=>x.id===c.id);
+      const open=getTcCycleOpen(list,idx);
+      return open&&open<=todayStr;
     });
-    return pending||list[0];
+    if(latestPast) return latestPast;
+    return list[list.length-1]||list[0];
   };
   // ── Cabecera de ciclo de tarjeta (apertura / cierre / vencimiento) ──
   const _tcHeader=document.getElementById('dash-tc-cycle-header');

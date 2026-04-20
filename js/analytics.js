@@ -34,7 +34,12 @@ function getTendPeriodKeys(){
     const cycles=getTcCycles(mode).slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
     return cycles.map(c=>c.id);
   }
-  return[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))].sort();
+  const range=typeof getViewWindowRange==='function'
+    ? getViewWindowRange()
+    : {currentMonthKey:getMonthKey(new Date()), startMonthKey:getMonthKey(new Date(new Date().getFullYear(),new Date().getMonth()-6,1))};
+  return[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))]
+    .filter(m=>m>=range.startMonthKey&&m<=range.currentMonthKey)
+    .sort();
 }
 function getTendPeriodLabel(k){
   const mode=normalizeViewMode(state.tendMode||'visa');
@@ -478,11 +483,13 @@ function setCompareMode(m){
   renderCompareSelectors();renderCompare();
 }
 function getCompareMonthTxns(){
-  const currentMonthKey=getMonthKey(new Date());
+  const range=typeof getViewWindowRange==='function'
+    ? getViewWindowRange()
+    : {currentMonthKey:getMonthKey(new Date()), startMonthKey:getMonthKey(new Date(new Date().getFullYear(),new Date().getMonth()-6,1))};
   return (state.transactions||[]).filter(t=>{
     if(t.isPendingCuota || t.isPendingSubscription) return false;
     const monthKey=t.month||getMonthKey(t.date);
-    return monthKey && monthKey<=currentMonthKey;
+    return monthKey && monthKey<=range.currentMonthKey && monthKey>=range.startMonthKey;
   });
 }
 function getPeriodKeys(){

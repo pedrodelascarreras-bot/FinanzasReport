@@ -209,7 +209,13 @@ function setRepMode(mode){
     sel.disabled=true;
   } else if(state.repMode==='mes'){
     sel.disabled=false;
-    const months=[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))].sort().reverse();
+    const range=typeof getViewWindowRange==='function'
+      ? getViewWindowRange()
+      : {currentMonthKey:getMonthKey(new Date()), startMonthKey:getMonthKey(new Date(new Date().getFullYear(),new Date().getMonth()-6,1))};
+    const months=[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))]
+      .filter(m=>m>=range.startMonthKey&&m<=range.currentMonthKey)
+      .sort()
+      .reverse();
     sel.innerHTML=months.map(m=>{const[y,mo]=m.split('-');return'<option value="'+m+'">'+MNAMES_R[+mo-1]+' '+y+'</option>';}).join('');
   } else if(state.repMode==='visa' || state.repMode==='amex'){
     sel.disabled=false;
@@ -252,8 +258,14 @@ function toggleReportSectionGroup(group, checked){
 function getRepTxns(){
   const mode=normalizeRepMode(state.repMode||'visa');
   const sel=document.getElementById('rep-period-select')?.value||'';
+  const range=typeof getViewWindowRange==='function'
+    ? getViewWindowRange()
+    : {todayYmd:dateToYMD(new Date()), currentMonthKey:getMonthKey(new Date()), startMonthKey:getMonthKey(new Date(new Date().getFullYear(),new Date().getMonth()-6,1))};
   if(mode==='todo'||sel==='all')return state.transactions;
-  if(mode==='mes')return state.transactions.filter(t=>(t.month||getMonthKey(t.date))===sel);
+  if(mode==='mes'){
+    if(sel<range.startMonthKey||sel>range.currentMonthKey) return [];
+    return state.transactions.filter(t=>(t.month||getMonthKey(t.date))===sel);
+  }
   if(mode==='visa' || mode==='amex'){
     const cycleId=sel.replace('cycle:','');
     const cycles=getTcCycles(mode);
@@ -261,9 +273,12 @@ function getRepTxns(){
     return cycle?getTcCycleTxns(cycle,cycles):[];
   }
   if(mode==='rango'){
-    const from=document.getElementById('rep-range-from')?.value||'';
-    const to=document.getElementById('rep-range-to')?.value||'';
+    let from=document.getElementById('rep-range-from')?.value||'';
+    let to=document.getElementById('rep-range-to')?.value||'';
     if(!from||!to)return[];
+    if(from<range.startMonthKey+'-01') from=range.startMonthKey+'-01';
+    if(to>range.todayYmd) to=range.todayYmd;
+    if(from>to) return [];
     return state.transactions.filter(t=>{const d=dateToYMD(t.date);return d>=from&&d<=to;});
   }
   return state.transactions;

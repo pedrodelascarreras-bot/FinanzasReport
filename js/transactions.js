@@ -691,17 +691,24 @@ function renderTransactions(){
   const todayRef=new Date();
   todayRef.setHours(23,59,59,999);
   // ── Poblar selects ──
-  const months=[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))].sort().reverse();
+  const range=typeof getViewWindowRange==='function'
+    ? getViewWindowRange()
+    : {currentMonthKey:getMonthKey(new Date()), startMonthKey:getMonthKey(new Date(new Date().getFullYear(),new Date().getMonth()-6,1))};
+  const months=[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))]
+    .filter(m=>m>=range.startMonthKey&&m<=range.currentMonthKey)
+    .sort()
+    .reverse();
   const MNAMES=[t('month_1'),t('month_2'),t('month_3'),t('month_4'),t('month_5'),t('month_6'),t('month_7'),t('month_8'),t('month_9'),t('month_10'),t('month_11'),t('month_12')];
   const mf=document.getElementById('f-month');
   const activeMesKey = getActiveDashMonth();
   if(mf){
-    const mv=mf.value||activeMesKey;
+    const rawMv=mf.value||activeMesKey;
+    const mv=(rawMv>=range.startMonthKey&&rawMv<=range.currentMonthKey)?rawMv:range.currentMonthKey;
     mf.innerHTML='<option value="">'+t('global_all_months')+'</option>'+months.map(m=>{
       const[y,mo]=m.split('-');
       return'<option value="'+m+'" '+(m===mv?'selected':'')+'>'+MNAMES[+mo-1]+' '+y+'</option>';
     }).join('');
-    if(!mf.value) mf.value=activeMesKey;
+    if(!mf.value || mf.value<range.startMonthKey || mf.value>range.currentMonthKey) mf.value=mv;
   }
   const tcf=document.getElementById('f-tc-cycle');const tcv=tcf?.value||'';
   if(tcf){
@@ -750,7 +757,8 @@ function renderTransactions(){
   } else if(state._dupFilterOn){
     periodoLabel='Todos (duplicados)';
   } else if(mode==='mes'){
-    const mfv=mf?.value||activeMesKey;
+    const mfvRaw=mf?.value||activeMesKey;
+    const mfv=(mfvRaw>=range.startMonthKey&&mfvRaw<=range.currentMonthKey)?mfvRaw:range.currentMonthKey;
     if(mfv){
       txns=txns.filter(t=>(t.month||getMonthKey(t.date))===mfv);
       const[y,mo]=mfv.split('-');periodoLabel=MNAMES[+mo-1]+' '+y;
@@ -761,7 +769,9 @@ function renderTransactions(){
     let activeCycle=selCycleId?allCycles.find(c=>c.id===selCycleId):null;
     if(!activeCycle&&allCycles.length){
       const todayStr=dateToYMD(new Date());
-      activeCycle=allCycles.find(c=>{const i2=allCycles.findIndex(x=>x.id===c.id);const op=getTcCycleOpen(allCycles,i2);return todayStr>=op&&todayStr<=c.closeDate;})||allCycles[0];
+      const currentCycle=allCycles.find(c=>{const i2=allCycles.findIndex(x=>x.id===c.id);const op=getTcCycleOpen(allCycles,i2);return op&&todayStr>=op&&todayStr<=c.closeDate;})||null;
+      const latestPast=allCycles.find(c=>{const i2=allCycles.findIndex(x=>x.id===c.id);const op=getTcCycleOpen(allCycles,i2);return op&&op<=todayStr;})||null;
+      activeCycle=currentCycle||latestPast||allCycles[allCycles.length-1]||allCycles[0];
     }
     if(activeCycle){
       const i2=allCycles.findIndex(c=>c.id===activeCycle.id);
@@ -828,7 +838,8 @@ function renderTransactions(){
     let base=[...state.transactions];
     if(!state._dupFilterOn){
       if(mode==='mes'){
-        const mfv=mf?.value||activeMesKey;
+        const mfvRaw=mf?.value||activeMesKey;
+        const mfv=(mfvRaw>=range.startMonthKey&&mfvRaw<=range.currentMonthKey)?mfvRaw:range.currentMonthKey;
         if(mfv)base=base.filter(t=>(t.month||getMonthKey(t.date))===mfv);
       } else if(mode!=='mes'){
         // Aplicar el mismo filtro de ciclo para que los badges sean del período actual
@@ -837,7 +848,9 @@ function renderTransactions(){
         let _actCyc=_selId?_allCyc.find(c=>c.id===_selId):null;
         if(!_actCyc&&_allCyc.length){
           const _todayS=dateToYMD(new Date());
-          _actCyc=_allCyc.find(c=>{const _i=_allCyc.findIndex(x=>x.id===c.id);const _op=getTcCycleOpen(_allCyc,_i);return _todayS>=_op&&_todayS<=c.closeDate;})||_allCyc[0];
+          const _current=_allCyc.find(c=>{const _i=_allCyc.findIndex(x=>x.id===c.id);const _op=getTcCycleOpen(_allCyc,_i);return _op&&_todayS>=_op&&_todayS<=c.closeDate;})||null;
+          const _latestPast=_allCyc.find(c=>{const _i=_allCyc.findIndex(x=>x.id===c.id);const _op=getTcCycleOpen(_allCyc,_i);return _op&&_op<=_todayS;})||null;
+          _actCyc=_current||_latestPast||_allCyc[_allCyc.length-1]||_allCyc[0];
         }
         if(_actCyc){
           const _i2=_allCyc.findIndex(c=>c.id===_actCyc.id);

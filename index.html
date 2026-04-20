@@ -244,7 +244,7 @@
           <span class="dash-smart-icon">＋</span>
           <span>Nuevo gasto</span>
         </button>
-        <button class="dash-smart-btn" onclick="openDashboardMonthPicker()" title="Abrir selector de mes para navegar el calendario financiero">
+        <button class="dash-smart-btn" onclick="nav('calendar')" title="Ir al calendario completo (igual que Agenda Viva)">
           <span class="dash-smart-icon">📅</span>
           <span>Calendario</span>
         </button>
@@ -264,9 +264,13 @@
           <span class="dash-smart-icon">🕘</span>
           <span>Historial</span>
         </button>
-        <button class="dash-smart-btn" onclick="nav('income')" title="Actualizar o revisar tus ingresos">
-          <span class="dash-smart-icon">💸</span>
-          <span>Ingresos</span>
+        <button class="dash-smart-btn" onclick="exportBackupJSON();registrarBackupEnHistorial('manual')" title="Exportar backup completo en JSON">
+          <span class="dash-smart-icon">🗂️</span>
+          <span>Back Up JSON</span>
+        </button>
+        <button class="dash-smart-btn" onclick="fetchUsdRate(true)" title="Actualizar cotización del dólar oficial y blue">
+          <span class="dash-smart-icon">💵</span>
+          <span>Actualizar dólar</span>
         </button>
       </div>
     </div>

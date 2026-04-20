@@ -22,6 +22,28 @@ function normalizeViewMode(mode){
   return 'mes';
 }
 
+function getViewWindowMonthsBack(){
+  return 6;
+}
+
+function getViewWindowRange(){
+  const today=new Date();
+  const currentMonthStart=new Date(today.getFullYear(), today.getMonth(), 1);
+  const startMonthStart=new Date(today.getFullYear(), today.getMonth()-getViewWindowMonthsBack(), 1);
+  return {
+    todayYmd:dateToYMD(today),
+    currentMonthKey:getMonthKey(today),
+    startMonthKey:getMonthKey(startMonthStart),
+    startYmd:dateToYMD(startMonthStart)
+  };
+}
+
+function isMonthKeyInViewWindow(monthKey){
+  if(!monthKey) return false;
+  const range=getViewWindowRange();
+  return monthKey>=range.startMonthKey && monthKey<=range.currentMonthKey;
+}
+
 function getViewModeLabel(mode){
   const key=normalizeViewMode(mode);
   if(key==='visa') return 'Vista VISA';
@@ -123,9 +145,17 @@ function _buildGeneratedCyclesForMode(mode, monthsBack=18, monthsAhead=2){
 
 function getTcCycles(mode){
   const normalizedMode=mode?normalizeViewMode(mode):null;
-  const legacy=(state.tcCycles||[]).map(c=>({...c,viewMode:c.viewMode?normalizeViewMode(c.viewMode):(c.payMethodKey?normalizeViewMode(c.payMethodKey):'tc'),source:c.source||'manual'}));
-  const autoVisa=_buildGeneratedCyclesForMode('visa');
-  const autoAmex=_buildGeneratedCyclesForMode('amex');
+  const legacy=(state.tcCycles||[]).map(c=>{
+    const explicitPayMethod=(c.payMethodKey||'').toLowerCase();
+    const inferredMode = c.viewMode
+      ? normalizeViewMode(c.viewMode)
+      : (explicitPayMethod==='visa'||explicitPayMethod==='amex'
+          ? normalizeViewMode(explicitPayMethod)
+          : 'mes');
+    return {...c,viewMode:inferredMode,source:c.source||'manual'};
+  });
+  const autoVisa=_buildGeneratedCyclesForMode('visa', 18, 0);
+  const autoAmex=_buildGeneratedCyclesForMode('amex', 18, 0);
   const mergedMap=new Map();
   [...legacy,...autoVisa,...autoAmex].forEach(c=>{
     const key=(c.id||'')+'::'+(c.cardId||'')+'::'+(c.closeDate||'');
@@ -138,9 +168,12 @@ function getTcCycles(mode){
       const vm=normalizeViewMode(c.viewMode||'mes');
       const card=_resolveCardForMode(normalizedMode);
       const cardMatches=card?.id ? (c.cardId===card.id) : false;
-      return pm===normalizedMode || vm===normalizedMode || cardMatches;
+      const explicitCycle=(pm===normalizedMode) || cardMatches || (vm===normalizedMode && (c.cardId||pm));
+      return explicitCycle;
     });
   }
+  const range=getViewWindowRange();
+  rows=rows.filter(c=>(c.closeDate||'')>=range.startYmd && (c.closeDate||'')<=range.todayYmd);
   return rows.slice().sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
 }
 

@@ -202,7 +202,7 @@ function renderCcActiveCycle(){
   try{
     const cardId=state.ccActiveCard||state.ccCards[0]?.id;
     const card=state.ccCards.find(c=>c.id===cardId);
-    const tcCycles=getTcCycles(); 
+    const tcCycles=getTcCycles(card?.payMethodKey||null); 
 
     if(!tcCycles.length){
       emptyEl.style.display='block';activeEl.style.display='none';
@@ -211,17 +211,24 @@ function renderCcActiveCycle(){
     }
     emptyEl.style.display='none';activeEl.style.display='block';
 
-    // Ciclo visible: el que seleccionó el usuario, o el más reciente PENDIENTE
+    // Ciclo visible: el que seleccionó el usuario, o el ciclo actual/ultimo pasado
     const viewingId=window._ccViewCycle[cardId];
     let activeTcCycle=null;
     if (viewingId) {
       activeTcCycle = tcCycles.find(c=>c.id===viewingId) || tcCycles[0];
     } else {
-      // Buscar el más reciente no pagado
-      activeTcCycle = tcCycles.find(c=>{
-        const s = state.ccCycles.find(x => x.cardId === cardId && x.tcCycleId === c.id);
-        return !s || s.status !== 'paid';
-      }) || tcCycles[0];
+      const todayStr=dateToYMD(new Date());
+      const currentCycle=tcCycles.find(c=>{
+        const i=tcCycles.findIndex(x=>x.id===c.id);
+        const open=getTcCycleOpen(tcCycles,i);
+        return open&&todayStr>=open&&todayStr<=c.closeDate;
+      })||null;
+      const latestPast=tcCycles.find(c=>{
+        const i=tcCycles.findIndex(x=>x.id===c.id);
+        const open=getTcCycleOpen(tcCycles,i);
+        return open&&open<=todayStr;
+      })||null;
+      activeTcCycle=currentCycle||latestPast||tcCycles[tcCycles.length-1]||tcCycles[0];
     }
     const activeCycleIdx=tcCycles.findIndex(c=>c.id===activeTcCycle.id);
     const openDate=getTcCycleOpen(tcCycles, activeCycleIdx) || activeTcCycle.closeDate;
@@ -586,7 +593,11 @@ function ccSaveViewCycleConfig(){
 function renderCcConfigPanel(){
   const el=document.getElementById('cc-config-panel-body');if(!el)return;
   if(typeof ensureViewCycleConfig==='function') ensureViewCycleConfig();
-  const cycles=getTcCycles();
+  const allCycles=getTcCycles();
+  const range=typeof getViewWindowRange==='function'
+    ? getViewWindowRange()
+    : {startYmd:dateToYMD(new Date(new Date().getFullYear(),new Date().getMonth()-6,1)), todayYmd:dateToYMD(new Date())};
+  const cycles=allCycles.filter(c=>c.closeDate>=range.startYmd&&c.closeDate<=range.todayYmd);
   const cards=state.ccCards||[];
   const cycleCfg=state.viewCycleConfig||{};
   const visaCfg=cycleCfg.visa||{openDay:26,closeDay:25,dueDay:10};
@@ -629,7 +640,9 @@ function renderCcConfigPanel(){
             ${tot.usd>0?`<div style="font-size:11px;color:var(--accent2);font-family:var(--font);">U$D ${fmtN(tot.usd)}</div>`:''}
             ${!tot.ars&&!tot.usd?'<div style="font-size:11px;color:var(--text3);">sin gastos</div>':''}
           </div>
-          <button onclick="deleteTcCycle('${c.id}')" title="Eliminar ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:4px 6px;border-radius:6px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color='var(--danger)'" onmouseout="this.style.opacity=.5;this.style.color='var(--text3)'">🗑</button>
+          ${c.source==='manual'
+            ? `<button onclick="deleteTcCycle('${c.id}')" title="Eliminar ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:4px 6px;border-radius:6px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color='var(--danger)'" onmouseout="this.style.opacity=.5;this.style.color='var(--text3)'">🗑</button>`
+            : '<span style="width:26px;display:inline-block;"></span>'}
         </div>`;
       }).join('')
     : '<div style="text-align:center;padding:28px 20px;color:var(--text3);font-size:13px;">Sin ciclos registrados.<br><span style="font-size:11px;">Agregá el primero con el formulario de arriba.</span></div>';
@@ -706,7 +719,10 @@ function renderCcConfigPanel(){
 // ── Render TC Config section inline dentro de la página de Tarjeta de Crédito ──
 function renderCcTcConfig(){
   const el=document.getElementById('cc-tc-config-list');if(!el)return;
-  const cycles=getTcCycles();
+  const range=typeof getViewWindowRange==='function'
+    ? getViewWindowRange()
+    : {startYmd:dateToYMD(new Date(new Date().getFullYear(),new Date().getMonth()-6,1)), todayYmd:dateToYMD(new Date())};
+  const cycles=getTcCycles().filter(c=>c.closeDate>=range.startYmd&&c.closeDate<=range.todayYmd);
   const cards=state.ccCards||[];
   const cardNameById=id=>cards.find(card=>card.id===id)?.name||'Tarjeta';
   if(!cycles.length){
