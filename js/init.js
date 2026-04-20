@@ -780,30 +780,34 @@ function updateGmailBtn(status) {
   const label = document.getElementById('gmail-sync-label');
   const dot = document.getElementById('gmail-sync-dot');
   const mobBtn = document.getElementById('mn-google-sync');
+  const setSidebarLabel = (title, meta='') => {
+    if(!label) return;
+    label.innerHTML = `<span class="gmail-sync-title">${title}</span>${meta?`<span class="gmail-sync-meta">${meta}</span>`:''}`;
+  };
   if (btn) btn.className = 'gmail-sync-btn';
   if (status === 'syncing') {
     if (btn) btn.classList.add('syncing');
-    if (label) label.innerHTML = '<span class="spinning">↻</span> Sincronizando…';
+    setSidebarLabel('<span class="spinning">↻</span> Gmail · Sincronizando', 'Buscando movimientos nuevos');
     if (dot) dot.style.background = 'var(--accent3)';
     if (mobBtn) mobBtn.innerHTML = '<span class="mn-icon">↻</span>Google';
   } else if (status === 'connected') {
     if (btn) btn.classList.add('connected');
     const lastSyncTag = _getLastSyncTag();
-    if (label) label.innerHTML = 'Gmail · Conectado' + (lastSyncTag ? ' · ' + lastSyncTag : '');
+    setSidebarLabel('Gmail · Conectado', lastSyncTag || 'Google listo para sincronizar');
     if (dot) dot.style.background = 'var(--accent2)';
     if (mobBtn) mobBtn.innerHTML = '<span class="mn-icon">☁</span>Google ✓';
   } else if (status === 'done') {
     if (btn) btn.classList.add('connected');
     const lastSyncTag = _getLastSyncTag();
-    if (label) label.innerHTML = 'Gmail · Sincronizado ✓' + (lastSyncTag ? ' · ' + lastSyncTag : '');
+    setSidebarLabel('Gmail · Conectado', lastSyncTag || 'Sincronización completada');
     if (dot) dot.style.background = 'var(--accent)';
     if (mobBtn) mobBtn.innerHTML = '<span class="mn-icon">☁</span>Google ✓';
   } else {
     const lastSyncTag = _getLastSyncTag();
     if (lastSyncTag) {
-      if (label) label.innerHTML = `Gmail · ${lastSyncTag}`;
+      setSidebarLabel('Gmail · Conectado', lastSyncTag);
     } else {
-      if (label) label.textContent = 'Gmail · Sincronizar';
+      setSidebarLabel('Gmail · Sincronizar', 'Conectá Google para importar');
     }
     if (dot) dot.style.background = 'var(--text3)';
     if (mobBtn) mobBtn.innerHTML = '<span class="mn-icon">☁</span>Conectar';
@@ -817,7 +821,7 @@ function _getLastSyncTag() {
   const time = d.toLocaleTimeString('es-AR', {hour:'2-digit', minute:'2-digit'});
   const isToday = d.toDateString() === today.toDateString();
   const date = isToday ? 'Hoy' : d.toLocaleDateString('es-AR', {day:'2-digit', month:'2-digit'});
-  return `<span style="font-size:11px;opacity:0.9;font-weight:600;display:block;margin-top:2px;color:var(--text3);">Sincronizado: ${date} ${time}</span>`;
+  return `Sincronizado: ${date} ${time}`;
 }
 
 async function fetchSantanderEmails(dateFrom, dateTo) {

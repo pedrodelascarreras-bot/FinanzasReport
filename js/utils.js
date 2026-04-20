@@ -211,8 +211,11 @@ function toggleTheme(){
   const isLight=document.body.classList.toggle('light-mode');
   state.theme=isLight?'light':'dark';
   localStorage.setItem('fin_theme',state.theme);
-  document.getElementById('theme-icon').textContent=isLight?'🌙':'☀️';
-  document.getElementById('theme-label').textContent=isLight?'Modo oscuro':'Modo claro';
+  const themeIcon=document.getElementById('theme-icon');
+  const themeLabel=document.getElementById('theme-label');
+  if(themeIcon) themeIcon.textContent=isLight?'🌙':'☀️';
+  if(themeLabel) themeLabel.textContent=isLight?'Modo oscuro':'Modo claro';
+  syncThemeModeButtons();
   // Rebuild charts with new colors
   if(state.transactions.length){
     Chart.defaults.plugins.tooltip.backgroundColor = isLight ? 'rgba(255,255,255,0.95)' : 'rgba(44,44,46,0.95)';
@@ -225,7 +228,28 @@ function toggleTheme(){
     if(document.getElementById('page-savings').classList.contains('active'))renderSavingsPage();
   }
 }
+function syncThemeModeButtons(){
+  const isLight=document.body.classList.contains('light-mode');
+  const lightBtn=document.getElementById('theme-mode-light');
+  const darkBtn=document.getElementById('theme-mode-dark');
+  if(lightBtn) lightBtn.classList.toggle('active', isLight);
+  if(darkBtn) darkBtn.classList.toggle('active', !isLight);
+}
+function setThemeMode(mode){
+  const wantLight=mode==='light';
+  const isLight=document.body.classList.contains('light-mode');
+  if(wantLight!==isLight) toggleTheme();
+  else syncThemeModeButtons();
+}
 function loadTheme(){
   const saved=localStorage.getItem('fin_theme')||'dark';
-  if(saved==='light'){document.body.classList.add('light-mode');document.getElementById('theme-icon').textContent='🌙';document.getElementById('theme-label').textContent='Modo oscuro';if(typeof Chart!=='undefined')Chart.defaults.plugins.tooltip.backgroundColor='rgba(255,255,255,0.95)';}
+  if(saved==='light'){
+    document.body.classList.add('light-mode');
+    const themeIcon=document.getElementById('theme-icon');
+    const themeLabel=document.getElementById('theme-label');
+    if(themeIcon) themeIcon.textContent='🌙';
+    if(themeLabel) themeLabel.textContent='Modo oscuro';
+    if(typeof Chart!=='undefined')Chart.defaults.plugins.tooltip.backgroundColor='rgba(255,255,255,0.95)';
+  }
+  syncThemeModeButtons();
 }

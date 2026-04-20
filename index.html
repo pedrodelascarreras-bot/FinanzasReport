@@ -51,7 +51,11 @@
 <div class="app">
 
 <aside class="sidebar">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;" class="sidebar-logo-row">
+  <div class="sidebar-logo-row">
+    <div class="sidebar-brand">
+      <span class="df-logo-mark sidebar-brand-mark"></span>
+      <span class="sidebar-brand-name">Wallet</span>
+    </div>
     <button class="sidebar-toggle" onclick="toggleSidebar()" title="Ocultar menú">‹</button>
   </div>
 
@@ -93,24 +97,22 @@
   </nav>
 
   <div class="sidebar-bottom-tools">
-    <!-- Gmail Sync Button -->
     <button class="gmail-sync-btn" id="gmail-sync-btn" onclick="gmailSync()" title="Sincronizar con Gmail">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style="flex-shrink:0"><path d="M24 5.457v13.909c0 .904-.732 1.636-1.636 1.636h-3.819V11.73L12 16.64l-6.545-4.91v9.273H1.636A1.636 1.636 0 0 1 0 19.366V5.457c0-2.023 2.309-3.178 3.927-1.964L5.455 4.64 12 9.548l6.545-4.91 1.528-1.145C21.69 2.28 24 3.434 24 5.457z" fill="currentColor"/></svg>
-      <span id="gmail-sync-label" data-i18n="gmail_sync">Gmail · Sincronizar</span>
+      <span class="gmail-sync-glyph">M</span>
+      <span class="gmail-sync-copy">
+        <span id="gmail-sync-label" data-i18n="gmail_sync">Gmail · Sincronizar</span>
+      </span>
       <span id="gmail-sync-dot" style="width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;"></span>
     </button>
-    <button class="color-theme-btn" id="color-theme-btn" onclick="toggleColorThemePanel()">
-      <span class="color-theme-dot" id="color-theme-dot"></span>
-      <span id="color-theme-label" data-i18n="color_app">Color de la app</span>
-    </button>
-    <button class="theme-toggle" id="theme-toggle-btn" onclick="toggleTheme()">
-      <span class="theme-toggle-icon" id="theme-icon">☀️</span>
-      <span id="theme-label" data-i18n="theme_label">Tema</span>
-    </button>
-    <div class="ai-badge-wrap" style="margin-top: 12px; display: flex; justify-content: center; opacity: 0.7; transition: opacity 0.2s ease;">
-      <div class="ai-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 20px; background: var(--surface2); border: 1px solid var(--border); font-size: 11px; color: var(--text2); font-weight: 500; cursor: default;" onmouseover="this.parentElement.style.opacity='1'" onmouseout="this.parentElement.style.opacity='0.7'">
-        <span style="font-size: 12px;">✨</span> Built with Claude AI
-      </div>
+    <div class="sidebar-theme-switch" role="group" aria-label="Tema visual">
+      <button class="theme-mode-btn" id="theme-mode-light" onclick="setThemeMode('light')">
+        <span class="theme-mode-icon">☀️</span>
+        <span>Modo claro</span>
+      </button>
+      <button class="theme-mode-btn" id="theme-mode-dark" onclick="setThemeMode('dark')">
+        <span class="theme-mode-icon">🌙</span>
+        <span>Modo oscuro</span>
+      </button>
     </div>
   </div>
 
