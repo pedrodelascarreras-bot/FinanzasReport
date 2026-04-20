@@ -552,9 +552,26 @@ function clearDoneTasks(){
   if(document.getElementById('page-calendar')?.classList.contains('active')) renderCalendarPage();
   if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
 }
+function getCalendarMinMonth(){
+  const today=normalizeAgendaDate(new Date())||new Date();
+  return new Date(today.getFullYear(), today.getMonth()-5, 1, 12, 0, 0, 0);
+}
+function clampCalendarMonth(date){
+  const min=getCalendarMinMonth();
+  return date < min ? new Date(min.getFullYear(), min.getMonth(), 1, 12, 0, 0, 0) : date;
+}
+function getCalendarItemToneClass(item){
+  if(!item) return 'neutral';
+  if(item.type==='task') return 'task';
+  if(item.type==='due') return 'due';
+  if(item.type==='close') return 'close';
+  if(item.type==='subscription') return 'subscription';
+  if(item.type==='fixed') return 'fixed';
+  return 'cuota';
+}
 function setCalendarMonthOffset(offset){
   const base=normalizeAgendaDate(state.calendarMonth||new Date())||new Date();
-  const next=new Date(base.getFullYear(),base.getMonth()+offset,1,12,0,0,0);
+  const next=clampCalendarMonth(new Date(base.getFullYear(),base.getMonth()+offset,1,12,0,0,0));
   state.calendarMonth=dateToInputValue(next);
   const selected=normalizeAgendaDate(state.calendarSelectedDate);
   if(!selected || selected.getMonth()!==next.getMonth() || selected.getFullYear()!==next.getFullYear()){
@@ -575,7 +592,7 @@ function selectCalendarDate(dateValue){
 function renderCalendarPage(){
   const page=document.getElementById('page-calendar');
   if(!page) return;
-  const baseMonth=normalizeAgendaDate(state.calendarMonth||new Date())||normalizeAgendaDate(new Date());
+  const baseMonth=clampCalendarMonth(normalizeAgendaDate(state.calendarMonth||new Date())||normalizeAgendaDate(new Date()));
   const monthStart=new Date(baseMonth.getFullYear(),baseMonth.getMonth(),1,12,0,0,0);
   const monthEnd=new Date(baseMonth.getFullYear(),baseMonth.getMonth()+1,0,12,0,0,0);
   const monthLabel=document.getElementById('calendar-month-label');
@@ -585,9 +602,16 @@ function renderCalendarPage(){
   const dayListEl=document.getElementById('calendar-day-list');
   const upcomingEl=document.getElementById('calendar-upcoming-list');
   const taskDateEl=document.getElementById('calendar-task-date');
+  const prevBtn=document.getElementById('calendar-prev-btn');
+  const nextBtn=document.getElementById('calendar-next-btn');
   if(!gridEl||!selectedLabelEl||!selectedSubEl||!dayListEl||!upcomingEl) return;
 
   state.calendarMonth=dateToInputValue(monthStart);
+  if(prevBtn){
+    const minMonth=getCalendarMinMonth();
+    prevBtn.disabled=monthStart.getFullYear()===minMonth.getFullYear() && monthStart.getMonth()===minMonth.getMonth();
+  }
+  if(nextBtn) nextBtn.disabled=false;
   if(monthLabel){
     monthLabel.textContent=monthStart.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
   }
@@ -627,8 +651,10 @@ function renderCalendarPage(){
     const isToday=key===dateToInputValue(new Date());
     const isSelected=key===state.calendarSelectedDate;
     const itemCount=items.length;
-    const toneClass=items.some(item=>item.type==='task')?'has-task':items.some(item=>item.type==='due')?'has-due':items.length?'has-event':'';
-    const preview=items.slice(0,2).map(item=>`<span class="calendar-chip ${item.type==='task'?'task':''}">${esc((item.shortLabel||item.title||'').slice(0,18))}</span>`).join('');
+    const priorities=['due','close','subscription','fixed','task'];
+    const primaryType=priorities.find(type=>items.some(item=>item.type===type)) || (items[0]?.type || '');
+    const toneClass=items.length?`has-${getCalendarItemToneClass({type:primaryType})}`:'';
+    const preview=items.slice(0,2).map(item=>`<span class="calendar-chip ${getCalendarItemToneClass(item)}">${esc((item.shortLabel||item.title||'').slice(0,18))}</span>`).join('');
     return `<button class="calendar-cell ${isToday?'is-today':''} ${isSelected?'is-selected':''} ${toneClass}" onclick="selectCalendarDate('${key}')">
       <span class="calendar-cell-day">${cell.getDate()}</span>
       ${itemCount?`<span class="calendar-cell-count">${itemCount}</span>`:''}
@@ -662,7 +688,7 @@ function renderCalendarPage(){
           <button class="calendar-item-delete" onclick="event.stopPropagation();deleteTask('${item.taskId}')">✕</button>
         </div>`
       : `<button class="calendar-item-link" onclick="event.stopPropagation();nav('${item.page||'cuotas'}')">Abrir</button>`;
-    return `<div class="calendar-item-card ${item.type==='task'?'task':''}">
+    return `<div class="calendar-item-card ${getCalendarItemToneClass(item)}">
       <div class="calendar-item-main">
         <div class="calendar-item-title">${esc(item.shortLabel||item.title||'Item')}</div>
         <div class="calendar-item-meta">${meta}</div>
@@ -675,7 +701,7 @@ function renderCalendarPage(){
   upcomingEl.innerHTML=upcoming.length ? upcoming.map(item=>{
     const dt=normalizeAgendaDate(item.date);
     const when=item.days===0?'Hoy':item.days===1?'Mañana':`En ${item.days} días`;
-    return `<div class="calendar-upcoming-item ${item.type==='task'?'task':''}">
+    return `<div class="calendar-upcoming-item ${getCalendarItemToneClass(item)}">
       <div class="calendar-upcoming-date">${dt?dt.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}).replace('.',''):'—'}</div>
       <div class="calendar-upcoming-copy">
         <div class="calendar-upcoming-title">${esc(item.shortLabel||item.title||'Item')}</div>
@@ -2836,10 +2862,8 @@ function renderDb2EvolutionChart(){
   const labels = [];
   const gastosDailyData = [];
   const ingresosDailyData = [];
-  const saldoDailyData = [];
   const gastosAccumData = [];
   const ingresosAccumData = [];
-  const saldoAccumData = [];
   let accumGastos = 0, accumIngresos = 0;
 
   for(let d = 1; d <= maxDay; d++){
@@ -2851,36 +2875,29 @@ function renderDb2EvolutionChart(){
     const inc = dailyIncome;
     accumGastos += g;
     accumIngresos += inc;
-    const saldoDay = inc - g;
-    const saldoAccum = accumIngresos - accumGastos;
-
     gastosDailyData.push(g);
     ingresosDailyData.push(inc);
-    saldoDailyData.push(saldoDay);
     gastosAccumData.push(accumGastos);
     ingresosAccumData.push(accumIngresos);
-    saldoAccumData.push(saldoAccum);
   }
 
   // Update legend totals
   const evoIng = document.getElementById('db2-evo-ingresos');
   const evoGas = document.getElementById('db2-evo-gastos');
-  const evoSal = document.getElementById('db2-evo-saldo');
   const totalGastos = gastosAccumData[gastosAccumData.length-1] || 0;
   const totalIngresos = ingresosAccumData[ingresosAccumData.length-1] || 0;
-  const totalSaldo = saldoAccumData[saldoAccumData.length-1] || 0;
   if(evoIng) evoIng.textContent = '$' + fmtN(Math.round(totalIngresos));
   if(evoGas) evoGas.textContent = '$' + fmtN(Math.round(totalGastos));
-  if(evoSal) evoSal.textContent = '$' + fmtN(Math.round(totalSaldo));
 
   const useAccum = db2EvoMode === 'accum';
   const gasData   = useAccum ? gastosAccumData   : gastosDailyData;
   const incData   = useAccum ? ingresosAccumData  : ingresosDailyData;
-  const saldoData = useAccum ? saldoAccumData     : saldoDailyData;
 
-  const gridColor = isLight ? 'rgba(0,0,0,0.04)' : 'rgba(255,255,255,0.04)';
-  const tickColor = isLight ? '#748096' : '#566172';
-  const tickFont  = {size:10, weight:'500', family:'-apple-system,SF Pro Display,sans-serif'};
+  const maxValue = Math.max(...incData, ...gasData, 0);
+  const yMax = Math.max(200000, Math.ceil(maxValue / 50000) * 50000);
+  const gridColor = 'rgba(197, 206, 231, 0.7)';
+  const tickColor = '#77819d';
+  const tickFont  = {size:12, weight:'600', family:'-apple-system,SF Pro Display,sans-serif'};
 
   const chart = new Chart(ctx, {
     type: 'line',
@@ -2890,41 +2907,30 @@ function renderDb2EvolutionChart(){
         {
           label: 'Ingresos',
           data: incData,
-          borderColor: '#30d158',
-          backgroundColor: 'rgba(48,209,88,0.08)',
-          borderWidth: 2,
-          pointRadius: 4,
-          pointBackgroundColor: '#30d158',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 1.5,
-          tension: 0.38,
-          fill: false
+          borderColor: '#56c683',
+          backgroundColor: 'rgba(86,198,131,0.16)',
+          borderWidth: 4,
+          pointRadius: 7,
+          pointHoverRadius: 7,
+          pointBackgroundColor: '#ffffff',
+          pointBorderColor: '#56c683',
+          pointBorderWidth: 4,
+          tension: 0.42,
+          fill: true
         },
         {
           label: 'Gastos',
           data: gasData,
-          borderColor: '#ff9f0a',
-          backgroundColor: 'rgba(255,159,10,0.07)',
-          borderWidth: 2,
-          pointRadius: 4,
-          pointBackgroundColor: '#ff9f0a',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 1.5,
-          tension: 0.38,
-          fill: false
-        },
-        {
-          label: 'Saldo',
-          data: saldoData,
-          borderColor: '#0071e3',
-          backgroundColor: 'rgba(0,113,227,0.07)',
-          borderWidth: 2,
-          pointRadius: 4,
-          pointBackgroundColor: '#0071e3',
-          pointBorderColor: '#fff',
-          pointBorderWidth: 1.5,
-          tension: 0.38,
-          fill: false
+          borderColor: '#f36a2b',
+          backgroundColor: 'rgba(243,106,43,0.16)',
+          borderWidth: 4,
+          pointRadius: 7,
+          pointHoverRadius: 7,
+          pointBackgroundColor: '#ffffff',
+          pointBorderColor: '#f36a2b',
+          pointBorderWidth: 4,
+          tension: 0.42,
+          fill: true
         }
       ]
     },
@@ -2934,16 +2940,38 @@ function renderDb2EvolutionChart(){
       interaction: { mode: 'index', intersect: false },
       plugins: {
         legend: { display: false },
-        tooltip: { ..._chartTooltip(), callbacks: { label: c => ' ' + c.dataset.label + ': $' + fmtN(Math.round(c.parsed.y)) } }
+        tooltip: {
+          ..._chartTooltip(),
+          backgroundColor: '#1b2345',
+          titleColor: '#fff',
+          bodyColor: '#fff',
+          padding: 12,
+          displayColors: true,
+          callbacks: { label: c => ' ' + c.dataset.label + ': $' + fmtN(Math.round(c.parsed.y)) }
+        }
       },
       scales: {
         x: {
-          ticks: { color: tickColor, font: tickFont, maxRotation: 0, minRotation: 0 },
-          grid: { display: false }
+          ticks: { color: tickColor, font: tickFont, maxRotation: 0, minRotation: 0, padding: 16 },
+          grid: { display: false, drawBorder: false },
+          border: { display: false }
         },
         y: {
-          ticks: { color: tickColor, font: tickFont, callback: v => '$' + fmtN(v) },
-          grid: { color: gridColor, drawBorder: false }
+          min: 0,
+          max: yMax,
+          ticks: {
+            color: tickColor,
+            font: tickFont,
+            stepSize: 50000,
+            padding: 16,
+            callback: v => v === 0 ? '$0' : '$' + fmtN(v)
+          },
+          grid: {
+            color: gridColor,
+            drawBorder: false,
+            borderDash: [4,6]
+          },
+          border: { display: false }
         }
       }
     }
@@ -2957,11 +2985,10 @@ function renderDb2EvolutionChart(){
     if(totalGastos > 0 && totalIngresos > 0){
       const pct = Math.round(totalGastos / totalIngresos * 100);
       const diff = Math.abs(pct - 100);
-      if(pct > 100){
-        insightEl.textContent = `⚠️ Vas ${diff}% por encima del mismo período del mes pasado.`;
-      } else {
-        insightEl.textContent = `💡 Vas ${diff}% por debajo del ingreso estimado del período.`;
-      }
+      const copy = pct > 100
+        ? `Vas <b>${diff}%</b> por encima del ingreso estimado del período.`
+        : `Vas <b>${diff}%</b> por debajo del ingreso estimado del período.`;
+      insightEl.innerHTML = `<span class="db2-evo-insight-icon"><svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.44 1 1.08 1 1.8V17h6v-.5c0-.72.4-1.36 1-1.8A7 7 0 0 0 12 2Z"/></svg></span><span>${copy}</span>`;
       insightEl.style.display = 'flex';
     } else {
       insightEl.style.display = 'none';

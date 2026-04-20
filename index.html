@@ -504,31 +504,47 @@
 
         <!-- EVOLUCIÓN DEL MES -->
         <div class="db2-w db2-evo-card">
-          <div class="db2-hd" style="margin-bottom:8px">
-            <div>
+          <div class="db2-hd db2-evo-head">
+            <div class="db2-evo-heading">
               <div class="db2-title">Evolución del Mes</div>
-              <div class="db2-evo-sub">Ingresos, gastos y saldo acumulado</div>
+              <div class="db2-evo-sub">Ingresos y gastos acumulados</div>
             </div>
             <div class="db2-evo-controls">
               <div class="db2-evo-toggle">
                 <button class="db2-evo-btn active" id="db2-evo-daily-btn" onclick="setDb2EvoMode('daily')">Por día</button>
                 <button class="db2-evo-btn" id="db2-evo-accum-btn" onclick="setDb2EvoMode('accum')">Acumulado</button>
               </div>
-              <button class="db2-evo-more">···</button>
+              <button class="db2-evo-more">...</button>
+            </div>
+          </div>
+          <div class="db2-evo-metrics">
+            <div class="db2-evo-metric db2-evo-metric-income">
+              <div class="db2-evo-metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M5 15l4-4 3 3 6-6"/><path d="M14 8h4v4"/></svg>
+              </div>
+              <div class="db2-evo-metric-copy">
+                <div class="db2-evo-metric-label">Ingresos</div>
+                <div class="db2-evo-metric-value" id="db2-evo-ingresos">—</div>
+              </div>
+            </div>
+            <div class="db2-evo-metric db2-evo-metric-expense">
+              <div class="db2-evo-metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="m6 13 6 6 6-6"/></svg>
+              </div>
+              <div class="db2-evo-metric-copy">
+                <div class="db2-evo-metric-label">Gastos</div>
+                <div class="db2-evo-metric-value" id="db2-evo-gastos">—</div>
+              </div>
             </div>
           </div>
           <div class="db2-evo-legend">
             <span class="db2-evo-legend-item">
               <span class="db2-evo-legend-dot" style="background:#30d158"></span>
-              Ingresos <strong id="db2-evo-ingresos">—</strong>
+              Ingresos
             </span>
             <span class="db2-evo-legend-item">
               <span class="db2-evo-legend-dot" style="background:#ff9f0a"></span>
-              Gastos <strong id="db2-evo-gastos">—</strong>
-            </span>
-            <span class="db2-evo-legend-item">
-              <span class="db2-evo-legend-dot" style="background:#0071e3"></span>
-              Saldo <strong id="db2-evo-saldo">—</strong>
+              Gastos
             </span>
           </div>
           <div class="db2-evo-chart-wrap">
@@ -716,9 +732,9 @@
           <div class="calendar-toolbar-title" id="calendar-month-label">—</div>
         </div>
         <div class="calendar-toolbar-actions">
-          <button class="calendar-nav-btn" onclick="setCalendarMonthOffset(-1)" title="Mes anterior">‹</button>
+          <button id="calendar-prev-btn" class="calendar-nav-btn" onclick="setCalendarMonthOffset(-1)" title="Mes anterior">‹</button>
           <button class="calendar-nav-btn" onclick="jumpCalendarToToday()">Hoy</button>
-          <button class="calendar-nav-btn" onclick="setCalendarMonthOffset(1)" title="Mes siguiente">›</button>
+          <button id="calendar-next-btn" class="calendar-nav-btn" onclick="setCalendarMonthOffset(1)" title="Mes siguiente">›</button>
         </div>
       </div>
 
