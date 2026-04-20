@@ -440,112 +440,22 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
 
 function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef){
   if(!(mode!=='mes' && activeCycleMeta && !searchVal)) return [];
-  const todayYmd=dateToYMD(todayRef);
-  const getCommitmentTone=settled=>settled ? '#34c759' : '#ff9500';
-  const hasReachedChargeDate=value=>{
-    const ymd=dateToYMD(value);
-    return !!ymd && ymd<=todayYmd;
-  };
-  const getRecurringDatesInRange=(day,start,end)=>{
-    if(!day||!start||!end) return [];
-    const dates=[];
-    const cursor=new Date(start.getFullYear(), start.getMonth(), 1);
-    const limit=new Date(end.getFullYear(), end.getMonth(), 1);
-    while(cursor<=limit){
-      const maxDay=new Date(cursor.getFullYear(), cursor.getMonth()+1, 0).getDate();
-      const date=new Date(cursor.getFullYear(), cursor.getMonth(), Math.min(day, maxDay));
-      if(date>=start&&date<=end) dates.push(date);
-      cursor.setMonth(cursor.getMonth()+1);
-    }
-    return dates;
-  };
-  const openDate=new Date(activeCycleMeta.openStr+'T00:00:00');
-  const closeDate=new Date(activeCycleMeta.closeStr+'T23:59:59');
-  const inCycle=d=>{
-    const dt=d instanceof Date?new Date(d):new Date(String(d).includes('T')?d:(String(d)+'T12:00:00'));
-    return dt>=openDate&&dt<=closeDate;
-  };
-  const entries=[];
-  const entryKeys=new Set();
-  const pushEntry=(key,obj)=>{
-    if(!key||entryKeys.has(key)) return;
-    entryKeys.add(key);
-    entries.push(obj);
-  };
-
-  (state.transactions||[]).filter(t=>(t.isPendingCuota||t.isPendingSubscription)&&inCycle(t.date)).forEach(t=>{
-    if(t.isPendingSubscription && t.sourceSubscriptionId){
-      const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
-      const monthKey=getMonthKey(t.date);
-      if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
-    }
-    const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
-    pushEntry(key,{
-      date:t.date,
-      title:t._baseDesc||t.description,
-      amount:t.amount,
-      currency:t.currency,
-      payMethod:t.payMethod,
-      group:t.isPendingCuota?'cuotas':'suscripciones',
-      kind:t.isPendingCuota?'Cuota proyectada':'Suscripción proyectada',
-      meta:t.isPendingCuota?`Cuota ${t.cuotaNum}/${t.cuotaTotal}`:'Próximo cobro',
-      includeInTotal:hasReachedChargeDate(t.date),
-      synthetic:false,
-      tone:getCommitmentTone(hasReachedChargeDate(t.date))
-    });
-  });
-
-  if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
-    detectAutoCuotas().forEach(g=>{
-      const snap=getAutoCuotaSnapshot(g, new Date(Math.min(todayRef.getTime(), closeDate.getTime())));
-      if(!snap || snap.rem<=0) return;
-      const dueDay=snap.cfg?.day||snap.scheduleDay||null;
-      if(!dueDay) return;
-      const cycleDates=getRecurringDatesInRange(dueDay, openDate, closeDate);
-      cycleDates.forEach(dueDate=>{
-        const matured=hasReachedChargeDate(dueDate);
-        const cuotaIndex=Math.min(snap.total, Math.max(1, matured ? snap.paid : snap.paid+1));
-        const key=`auto-${g.key}-${dateToYMD(dueDate)}`;
-        pushEntry(key,{
-          date:dueDate,
-          title:g.displayName||g.name,
-          amount:snap.amountPerCuota,
-          currency:g.currency||'ARS',
-          group:'cuotas',
-          kind:'Cuota del ciclo',
-          meta:`Cuota ${cuotaIndex}/${snap.total}`,
-          includeInTotal:matured,
-          synthetic:true,
-          tone:getCommitmentTone(matured)
-        });
-      });
-    });
-  }
-
-  (state.cuotas||[]).forEach(c=>{
-    if(c.paid>=c.total || !c.day || typeof getNextCuotaDate!=='function') return;
-    getRecurringDatesInRange(c.day, openDate, closeDate).forEach(dueDate=>{
-      const matured=hasReachedChargeDate(dueDate);
-      const cuotaIndex=Math.min(c.total, Math.max(1, matured ? c.paid : c.paid+1));
-      pushEntry(`manual-${c.id}-${dateToYMD(dueDate)}`,{
-        date:dueDate,
-        title:c.name,
-        amount:c.amount,
-        currency:'ARS',
-        group:'cuotas',
-        kind:'Cuota manual',
-        meta:`Cuota ${cuotaIndex}/${c.total}`,
-        includeInTotal:matured,
-        synthetic:true,
-        tone:getCommitmentTone(matured)
-      });
-    });
-  });
+  const entries=getProjectedCommitmentEntriesForRange({
+    startStr:activeCycleMeta.openStr,
+    endStr:activeCycleMeta.closeStr,
+    todayRef,
+    txns:state.transactions||[]
+  }).map(entry=>({...entry,_key:entry._key||`${entry.kind}-${entry.group}-${dateToYMD(entry.date)}-${entry.title}`}));
+  const seenKeys=new Set(entries.map(entry=>entry._key));
 
   txns.filter(t=>!t.isPendingSubscription).forEach(t=>{
     const sub=(state.subscriptions||[]).find(s=>typeof txnMatchesSubscription==='function' && txnMatchesSubscription(t,s));
     if(!sub) return;
-    pushEntry(`sub-real-${t.id}`,{
+    const key=`sub-real-${t.id}`;
+    if(seenKeys.has(key)) return;
+    seenKeys.add(key);
+    entries.push({
+      _key:key,
       date:t.date,
       title:sub.name||t.subscriptionName||t._baseDesc||t.description,
       amount:t.amount,
@@ -560,45 +470,6 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
     });
   });
 
-  if(typeof getNextCuotaDate==='function'){
-    (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
-      getRecurringDatesInRange(s.day, openDate, closeDate).forEach(dueDate=>{
-        const monthKey=getMonthKey(dueDate);
-        if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
-        const matured=hasReachedChargeDate(dueDate);
-        pushEntry(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,{
-          date:dueDate,
-          title:s.name,
-          amount:s.price,
-          currency:s.currency||'ARS',
-          group:'suscripciones',
-          kind:'Suscripción',
-          meta:`Cobro mensual · día ${s.day}`,
-          includeInTotal:matured,
-          synthetic:true,
-          tone:getCommitmentTone(matured)
-        });
-      });
-    });
-    (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
-      getRecurringDatesInRange(f.day, openDate, closeDate).forEach(dueDate=>{
-        const matured=hasReachedChargeDate(dueDate);
-        pushEntry(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,{
-          date:dueDate,
-          title:f.name,
-          amount:f.amount,
-          currency:f.currency||'ARS',
-          group:'fijos',
-          kind:'Gasto fijo',
-          meta:`Débito mensual · día ${f.day}`,
-          tone:'#34c759',
-          includeInTotal:matured,
-          synthetic:true
-        });
-      });
-    });
-  }
-
   txns.filter(t=>t.isThirdParty).forEach(t=>{
     const status=t.thirdPartyStatus||'pending';
     const recoverBase=Number(t.thirdPartyAmount)||Number(t.amount)||0;
@@ -609,7 +480,11 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
     let meta='Pendiente de cobro';
     if(isSettled) meta='Cobrado';
     else if(isPartial) meta=`Cobro parcial · faltan ${(t.currency||'ARS')==='USD'?'U$D ':'$'}${fmtN(pendingBase)}`;
-    pushEntry(`third-party-${t.id}`,{
+    const key=`third-party-${t.id}`;
+    if(seenKeys.has(key)) return;
+    seenKeys.add(key);
+    entries.push({
+      _key:key,
       date:t.date,
       title:t.thirdPartyNote||t._baseDesc||t.description,
       amount:recoverBase,
@@ -643,15 +518,13 @@ function getTxnDisplaySummaryTotals(opts){
   let arsTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='ARS').reduce((s,t)=>s+(Number(t.amount)||0),0);
   let usdTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
 
-  const canUseDashboardAlignedTcTotals=
-    mode!=='mes' &&
-    activeCycleMeta &&
+  const canUseProjectedTotals=
     !searchVal &&
     !hasCategoryFilter &&
     !hasCurrencyFilter &&
     estadoFilter==='all';
 
-  if(canUseDashboardAlignedTcTotals){
+  if(canUseProjectedTotals && mode!=='mes' && activeCycleMeta){
     const isNonCC=t=>t.payMethod==='deb'||t.payMethod==='ef';
     const billableActualTxns=txns.filter(t=>
       !t.isPendingCuota &&
@@ -660,25 +533,40 @@ function getTxnDisplaySummaryTotals(opts){
     );
     arsTotal=billableActualTxns.filter(t=>(t.currency||'ARS')!=='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
     usdTotal=billableActualTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
+  }
 
-    const commitmentEntries=getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef);
-    commitmentEntries
-      .filter(entry=>{
-        if (!entry.includeInTotal) return false;
-        if (!(entry.synthetic || entry.kind === 'Cuota proyectada' || entry.kind === 'Suscripción proyectada')) return false;
-        if (hasCardFilter && entry.payMethod && entry.payMethod !== state.txnCardFilter) return false;
-        if (hasCardFilter && !entry.payMethod && entry.synthetic) {
-          const defaultOwner = (state.ccActiveCard || (state.ccCards||[]).find(c=>c.payMethodKey==='visa')?.id) 
-            ? ((state.ccCards||[]).find(c=>c.id===(state.ccActiveCard || (state.ccCards||[]).find(c=>c.payMethodKey==='visa')?.id))?.payMethodKey || 'visa') 
-            : 'visa';
-          if (state.txnCardFilter !== defaultOwner) return false;
+  if(canUseProjectedTotals){
+    let range=null;
+    if(mode!=='mes' && activeCycleMeta){
+      range={startStr:activeCycleMeta.openStr,endStr:activeCycleMeta.closeStr};
+    } else if(mode==='mes' && opts?.monthKey){
+      const [year,month]=String(opts.monthKey).split('-').map(Number);
+      const lastDay=new Date(year,month,0).getDate();
+      range={
+        startStr:`${year}-${String(month).padStart(2,'0')}-01`,
+        endStr:`${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`
+      };
+    }
+    if(range){
+      const projectedEntries=getProjectedCommitmentEntriesForRange({
+        ...range,
+        todayRef,
+        txns:state.transactions||[]
+      }).filter(entry=>{
+        if(!(entry.synthetic || entry.kind==='Cuota proyectada' || entry.kind==='Suscripción proyectada')) return false;
+        if(!entry.includeInTotal) return false;
+        if(hasCardFilter && entry.payMethod && entry.payMethod!==state.txnCardFilter) return false;
+        if(hasCardFilter && !entry.payMethod && entry.synthetic){
+          const ownerId=state.ccActiveCard||(state.ccCards||[]).find(c=>c.payMethodKey==='visa')?.id||(state.ccCards||[])[0]?.id||null;
+          const ownerKey=(state.ccCards||[]).find(c=>c.id===ownerId)?.payMethodKey||'visa';
+          if(state.txnCardFilter!==ownerKey) return false;
         }
         return true;
-      })
-      .forEach(entry=>{
-        if((entry.currency||'ARS')==='USD') usdTotal+=Number(entry.amount)||0;
-        else arsTotal+=Number(entry.amount)||0;
       });
+      const projectedTotals=sumProjectedCommitmentTotals(projectedEntries);
+      arsTotal+=projectedTotals.ars;
+      usdTotal+=projectedTotals.usd;
+    }
   }
 
   return {
@@ -938,7 +826,7 @@ function renderTransactions(){
 
   // ── Resumen ──
   const summaryTxns=txns;
-  const excludedThirdPartyCount=estadoF==='terceros'?0:txns.filter(t=>!!t.isThirdParty).length;
+  const thirdPartyCount=estadoF==='terceros'?0:txns.filter(t=>!!t.isThirdParty).length;
   const displayTotals=getTxnDisplaySummaryTotals({
     mode,
     activeCycleMeta,
@@ -946,6 +834,7 @@ function renderTransactions(){
     txns,
     summaryTxns,
     todayRef,
+    monthKey:mode==='mes'?(mf?.value||activeMesKey):'',
     hasCategoryFilter:!!cfv,
     hasCurrencyFilter:!!cufv,
     hasCardFilter:!!cardFv,
@@ -958,7 +847,7 @@ function renderTransactions(){
   const arsEl=document.getElementById('txns-total-ars');const usdEl=document.getElementById('txns-total-usd');
   if(searchVal){const sArs=summaryTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);const sUsd=summaryTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);if(mainEl)mainEl.textContent=txns.length+' resultado'+(txns.length!==1?'s':'');if(arsEl)arsEl.textContent=sArs>0?'$'+fmtN(sArs):'—';if(usdEl)usdEl.textContent=sUsd>0?'U$D '+fmtN(sUsd):'—';}
   else{if(mainEl)mainEl.textContent='$'+fmtN(grandTotal);if(arsEl)arsEl.textContent='$'+fmtN(arsTotal);if(usdEl)usdEl.textContent=usdTotal>0?'U$D '+fmtN(usdTotal):'—';}
-  if(detailEl){const parts=[];if(searchVal)parts.push('"'+searchVal+'"');else parts.push(periodoLabel||'Todos');parts.push('Mostrando '+txns.length+' de '+state.transactions.length+' movimientos');if(cfv)parts.push(cfv);if(excludedThirdPartyCount>0)parts.push(excludedThirdPartyCount+' de terceros fuera del total');detailEl.textContent=parts.join(' · ');}
+  if(detailEl){const parts=[];if(searchVal)parts.push('"'+searchVal+'"');else parts.push(periodoLabel||'Todos');parts.push('Mostrando '+txns.length+' de '+state.transactions.length+' movimientos');if(cfv)parts.push(cfv);if(thirdPartyCount>0)parts.push(thirdPartyCount+' marcados como terceros');detailEl.textContent=parts.join(' · ');}
 
   // ── Helpers visuales ──
   const highlight=(text,q)=>{if(!q)return esc(text);const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');return esc(text).replace(re,'<mark style="background:rgba(200,240,96,0.2);color:var(--accent);border-radius:2px;padding:0 1px;">$1</mark>');};

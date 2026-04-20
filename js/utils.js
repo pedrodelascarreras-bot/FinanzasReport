@@ -16,6 +16,172 @@ function getMonthKey(d){
 }
 function parseDate(raw){if(!raw)return null;const m=String(raw).match(/(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);if(m){const y=m[3].length===2?2000+parseInt(m[3]):parseInt(m[3]);return new Date(y,parseInt(m[2])-1,parseInt(m[1]));}const d=new Date(raw);return isNaN(d)?null:d;}
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function hasReachedEffectiveChargeDate(value,todayRef=new Date()){
+  const ymd=dateToYMD(value);
+  const todayYmd=dateToYMD(todayRef);
+  return !!ymd && !!todayYmd && ymd<=todayYmd;
+}
+function getRecurringDatesInRange(day,start,end){
+  if(!day||!start||!end) return [];
+  const dates=[];
+  const cursor=new Date(start.getFullYear(), start.getMonth(), 1);
+  const limit=new Date(end.getFullYear(), end.getMonth(), 1);
+  while(cursor<=limit){
+    const maxDay=new Date(cursor.getFullYear(), cursor.getMonth()+1, 0).getDate();
+    const date=new Date(cursor.getFullYear(), cursor.getMonth(), Math.min(day, maxDay));
+    if(date>=start&&date<=end) dates.push(date);
+    cursor.setMonth(cursor.getMonth()+1);
+  }
+  return dates;
+}
+function getProjectedCommitmentEntriesForRange(opts={}){
+  const startStr=opts.startStr||'';
+  const endStr=opts.endStr||'';
+  if(!startStr||!endStr) return [];
+  const todayRef=opts.todayRef instanceof Date?opts.todayRef:new Date();
+  const sourceTxns=Array.isArray(opts.txns)?opts.txns:(state.transactions||[]);
+  const start=new Date(startStr+'T00:00:00');
+  const end=new Date(endStr+'T23:59:59');
+  if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime())||start>end) return [];
+  const entries=[];
+  const entryKeys=new Set();
+  const addEntry=(key,obj)=>{
+    if(!key||entryKeys.has(key)) return;
+    entryKeys.add(key);
+    entries.push({_key:key,...obj});
+  };
+  const addAmountTone=settled=>settled ? '#34c759' : '#ff9500';
+  const inRange=d=>{
+    const dt=d instanceof Date?new Date(d):new Date(String(d).includes('T')?d:(String(d)+'T12:00:00'));
+    return !Number.isNaN(dt.getTime())&&dt>=start&&dt<=end;
+  };
+
+  sourceTxns.filter(t=>(t.isPendingCuota||t.isPendingSubscription)&&inRange(t.date)).forEach(t=>{
+    if(t.isPendingSubscription && t.sourceSubscriptionId){
+      const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
+      const monthKey=getMonthKey(t.date);
+      if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
+    }
+    const matured=hasReachedEffectiveChargeDate(t.date,todayRef);
+    const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
+    addEntry(key,{
+      date:t.date,
+      title:t._baseDesc||t.description,
+      amount:Number(t.amount)||0,
+      currency:t.currency||'ARS',
+      payMethod:t.payMethod||'',
+      group:t.isPendingCuota?'cuotas':'suscripciones',
+      kind:t.isPendingCuota?'Cuota proyectada':'Suscripción proyectada',
+      meta:t.isPendingCuota?`Cuota ${t.cuotaNum}/${t.cuotaTotal}`:'Próximo cobro',
+      includeInTotal:matured,
+      synthetic:false,
+      isSettled:matured,
+      tone:addAmountTone(matured)
+    });
+  });
+
+  if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
+    detectAutoCuotas().forEach(group=>{
+      const snap=getAutoCuotaSnapshot(group, new Date(Math.min(todayRef.getTime(), end.getTime())));
+      if(!snap || snap.rem<=0) return;
+      const dueDay=snap.cfg?.day||snap.scheduleDay||null;
+      if(!dueDay) return;
+      getRecurringDatesInRange(dueDay,start,end).forEach(dueDate=>{
+        const matured=hasReachedEffectiveChargeDate(dueDate,todayRef);
+        const cuotaIndex=Math.min(snap.total, Math.max(1, matured ? snap.paid : snap.paid+1));
+        addEntry(`auto-${group.key}-${dateToYMD(dueDate)}`,{
+          date:dueDate,
+          title:group.displayName||group.name,
+          amount:Number(snap.amountPerCuota)||0,
+          currency:group.currency||'ARS',
+          payMethod:group.payMethod||'',
+          group:'cuotas',
+          kind:'Cuota del ciclo',
+          meta:`Cuota ${cuotaIndex}/${snap.total}`,
+          includeInTotal:matured,
+          synthetic:true,
+          isSettled:matured,
+          tone:addAmountTone(matured)
+        });
+      });
+    });
+  }
+
+  (state.cuotas||[]).forEach(c=>{
+    if((c.paid||0)>=(c.total||0) || !c.day) return;
+    getRecurringDatesInRange(c.day,start,end).forEach(dueDate=>{
+      const matured=hasReachedEffectiveChargeDate(dueDate,todayRef);
+      const cuotaIndex=Math.min(c.total, Math.max(1, matured ? c.paid : c.paid+1));
+      addEntry(`manual-${c.id}-${dateToYMD(dueDate)}`,{
+        date:dueDate,
+        title:c.name,
+        amount:Number(c.amount)||0,
+        currency:c.currency||'ARS',
+        payMethod:c.payMethod||'',
+        group:'cuotas',
+        kind:'Cuota manual',
+        meta:`Cuota ${cuotaIndex}/${c.total}`,
+        includeInTotal:matured,
+        synthetic:true,
+        isSettled:matured,
+        tone:addAmountTone(matured)
+      });
+    });
+  });
+
+  (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
+    getRecurringDatesInRange(s.day,start,end).forEach(dueDate=>{
+      const matured=hasReachedEffectiveChargeDate(dueDate,todayRef);
+      const monthKey=getMonthKey(dueDate);
+      if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
+      addEntry(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,{
+        date:dueDate,
+        title:s.name,
+        amount:Number(s.price)||0,
+        currency:s.currency||'ARS',
+        payMethod:s.payMethod||'',
+        group:'suscripciones',
+        kind:'Suscripción',
+        meta:`Cobro mensual · día ${s.day}`,
+        includeInTotal:matured,
+        synthetic:true,
+        isSettled:matured,
+        tone:addAmountTone(matured)
+      });
+    });
+  });
+
+  (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
+    getRecurringDatesInRange(f.day,start,end).forEach(dueDate=>{
+      const matured=hasReachedEffectiveChargeDate(dueDate,todayRef);
+      addEntry(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,{
+        date:dueDate,
+        title:f.name,
+        amount:Number(f.amount)||0,
+        currency:f.currency||'ARS',
+        payMethod:f.payMethod||'',
+        group:'fijos',
+        kind:'Gasto fijo',
+        meta:`Débito mensual · día ${f.day}`,
+        includeInTotal:matured,
+        synthetic:true,
+        isSettled:matured,
+        tone:addAmountTone(matured)
+      });
+    });
+  });
+
+  return entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
+}
+function sumProjectedCommitmentTotals(entries=[]){
+  return entries.reduce((acc,entry)=>{
+    if(!entry?.includeInTotal) return acc;
+    if((entry.currency||'ARS')==='USD') acc.usd+=(Number(entry.amount)||0);
+    else acc.ars+=(Number(entry.amount)||0);
+    acc.count++;
+    return acc;
+  },{ars:0,usd:0,count:0});
+}
 function updateSidebarStats(){/* sidebar stats removed */}
 function showToast(msg,type='info'){const t=document.getElementById('toast');t.textContent=msg;t.className='toast '+type+' show';setTimeout(()=>t.classList.remove('show'),3500);}
 const _animFrameMap=new WeakMap();

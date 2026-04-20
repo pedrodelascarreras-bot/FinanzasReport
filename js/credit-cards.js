@@ -76,9 +76,32 @@ function ccGetCycleExpenses(cardId, tcCycleId){
     isPendingSubscription:!!t.isPendingSubscription,
     source:'txn'
   }));
+  const projectedExpenses=getProjectedCommitmentEntriesForRange({
+    startStr:openDate,
+    endStr:cycle.closeDate,
+    todayRef:new Date(),
+    txns:state.transactions||[]
+  }).filter(entry=>{
+    if(!(entry.includeInTotal && (entry.synthetic || entry.kind==='Cuota proyectada' || entry.kind==='Suscripción proyectada'))) return false;
+    if(pmKey){
+      const match=entry.payMethod===pmKey||((!entry.payMethod||_tcGeneric.includes(entry.payMethod))&&cardId===genericOwnerId);
+      if(!match) return false;
+    }
+    return !excluded.has(entry._key||'');
+  }).map(entry=>({
+    id:entry._key||`proj-${dateToYMD(entry.date)}-${entry.title}`,
+    date:dateToYMD(entry.date),
+    description:entry.title,
+    category:entry.group==='cuotas'?'Cuotas':entry.group==='suscripciones'?'Suscripciones':'Compromisos',
+    amountARS:(entry.currency||'ARS')==='USD'?0:Number(entry.amount)||0,
+    amountUSD:(entry.currency||'ARS')==='USD'?Number(entry.amount)||0:0,
+    isPendingCuota:entry.group==='cuotas',
+    isPendingSubscription:entry.group==='suscripciones',
+    source:'projected'
+  }));
 
   const manualExpenses=(ccState.manualExpenses||[]).map(e=>({...e,source:'manual'}));
-  return [...txnExpenses,...manualExpenses].sort((a,b)=>b.date.localeCompare(a.date));
+  return [...txnExpenses,...projectedExpenses,...manualExpenses].sort((a,b)=>b.date.localeCompare(a.date));
 }
 
 // ── Totales del ciclo ──

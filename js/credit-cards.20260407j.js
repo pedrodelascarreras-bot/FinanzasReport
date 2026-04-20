@@ -76,9 +76,32 @@ function ccGetCycleExpenses(cardId, tcCycleId){
     isPendingSubscription:!!t.isPendingSubscription,
     source:'txn'
   }));
+  const projectedExpenses=getProjectedCommitmentEntriesForRange({
+    startStr:openDate,
+    endStr:cycle.closeDate,
+    todayRef:new Date(),
+    txns:state.transactions||[]
+  }).filter(entry=>{
+    if(!(entry.includeInTotal && (entry.synthetic || entry.kind==='Cuota proyectada' || entry.kind==='Suscripción proyectada'))) return false;
+    if(pmKey){
+      const match=entry.payMethod===pmKey||((!entry.payMethod||_tcGeneric.includes(entry.payMethod))&&cardId===genericOwnerId);
+      if(!match) return false;
+    }
+    return !excluded.has(entry._key||'');
+  }).map(entry=>({
+    id:entry._key||`proj-${dateToYMD(entry.date)}-${entry.title}`,
+    date:dateToYMD(entry.date),
+    description:entry.title,
+    category:entry.group==='cuotas'?'Cuotas':entry.group==='suscripciones'?'Suscripciones':'Compromisos',
+    amountARS:(entry.currency||'ARS')==='USD'?0:Number(entry.amount)||0,
+    amountUSD:(entry.currency||'ARS')==='USD'?Number(entry.amount)||0:0,
+    isPendingCuota:entry.group==='cuotas',
+    isPendingSubscription:entry.group==='suscripciones',
+    source:'projected'
+  }));
 
   const manualExpenses=(ccState.manualExpenses||[]).map(e=>({...e,source:'manual'}));
-  return [...txnExpenses,...manualExpenses].sort((a,b)=>b.date.localeCompare(a.date));
+  return [...txnExpenses,...projectedExpenses,...manualExpenses].sort((a,b)=>b.date.localeCompare(a.date));
 }
 
 // ── Totales del ciclo ──
@@ -202,7 +225,7 @@ function renderCcActiveCycle(){
   try{
     const cardId=state.ccActiveCard||state.ccCards[0]?.id;
     const card=state.ccCards.find(c=>c.id===cardId);
-    const tcCycles=getTcCycles(card?.payMethodKey||null); 
+    const tcCycles=getTcCycles(); 
 
     if(!tcCycles.length){
       emptyEl.style.display='block';activeEl.style.display='none';
@@ -211,24 +234,17 @@ function renderCcActiveCycle(){
     }
     emptyEl.style.display='none';activeEl.style.display='block';
 
-    // Ciclo visible: el que seleccionó el usuario, o el ciclo actual/ultimo pasado
+    // Ciclo visible: el que seleccionó el usuario, o el más reciente PENDIENTE
     const viewingId=window._ccViewCycle[cardId];
     let activeTcCycle=null;
     if (viewingId) {
       activeTcCycle = tcCycles.find(c=>c.id===viewingId) || tcCycles[0];
     } else {
-      const todayStr=dateToYMD(new Date());
-      const currentCycle=tcCycles.find(c=>{
-        const i=tcCycles.findIndex(x=>x.id===c.id);
-        const open=getTcCycleOpen(tcCycles,i);
-        return open&&todayStr>=open&&todayStr<=c.closeDate;
-      })||null;
-      const latestPast=tcCycles.find(c=>{
-        const i=tcCycles.findIndex(x=>x.id===c.id);
-        const open=getTcCycleOpen(tcCycles,i);
-        return open&&open<=todayStr;
-      })||null;
-      activeTcCycle=currentCycle||latestPast||tcCycles[tcCycles.length-1]||tcCycles[0];
+      // Buscar el más reciente no pagado
+      activeTcCycle = tcCycles.find(c=>{
+        const s = state.ccCycles.find(x => x.cardId === cardId && x.tcCycleId === c.id);
+        return !s || s.status !== 'paid';
+      }) || tcCycles[0];
     }
     const activeCycleIdx=tcCycles.findIndex(c=>c.id===activeTcCycle.id);
     const openDate=getTcCycleOpen(tcCycles, activeCycleIdx) || activeTcCycle.closeDate;
@@ -567,41 +583,11 @@ function ccDeleteManualExpense(tcCycleId, expId){
   renderCcActiveCycle();
 }
 
-function ccSaveViewCycleConfig(){
-  if(typeof ensureViewCycleConfig==='function') ensureViewCycleConfig();
-  const visaOpen=Math.max(1,Math.min(31,Number(document.getElementById('cc-visa-open-day')?.value)||26));
-  const visaClose=Math.max(1,Math.min(31,Number(document.getElementById('cc-visa-close-day')?.value)||25));
-  const visaDue=Math.max(1,Math.min(31,Number(document.getElementById('cc-visa-due-day')?.value)||10));
-  const amexOpen=Math.max(1,Math.min(31,Number(document.getElementById('cc-amex-open-day')?.value)||11));
-  const amexClose=Math.max(1,Math.min(31,Number(document.getElementById('cc-amex-close-day')?.value)||10));
-  const amexDue=Math.max(1,Math.min(31,Number(document.getElementById('cc-amex-due-day')?.value)||27));
-  state.viewCycleConfig={
-    visa:{openDay:visaOpen,closeDay:visaClose,dueDay:visaDue},
-    amex:{openDay:amexOpen,closeDay:amexClose,dueDay:amexDue}
-  };
-  state.dashTcCycle=null;
-  saveState();
-  if(typeof renderDashboard==='function'&&document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
-  if(typeof renderTransactions==='function'&&document.getElementById('page-transactions')?.classList.contains('active')) renderTransactions();
-  if(typeof renderTendencia==='function'&&document.getElementById('page-tendencia')?.classList.contains('active')) renderTendencia();
-  if(typeof renderReportesPage==='function'&&document.getElementById('page-reportes')?.classList.contains('active')) renderReportesPage();
-  renderCcConfigPanel();
-  showToast('Configuracion de vistas guardada', 'success');
-}
-
 // ── Render Apple-style Configuración panel ──
 function renderCcConfigPanel(){
   const el=document.getElementById('cc-config-panel-body');if(!el)return;
-  if(typeof ensureViewCycleConfig==='function') ensureViewCycleConfig();
-  const allCycles=getTcCycles();
-  const range=typeof getViewWindowRange==='function'
-    ? getViewWindowRange()
-    : {startYmd:dateToYMD(new Date(new Date().getFullYear(),new Date().getMonth()-6,1)), todayYmd:dateToYMD(new Date())};
-  const cycles=allCycles.filter(c=>c.closeDate>=range.startYmd&&c.closeDate<=range.todayYmd);
+  const cycles=getTcCycles();
   const cards=state.ccCards||[];
-  const cycleCfg=state.viewCycleConfig||{};
-  const visaCfg=cycleCfg.visa||{openDay:26,closeDay:25,dueDay:10};
-  const amexCfg=cycleCfg.amex||{openDay:11,closeDay:10,dueDay:27};
   const cardOptions=cards.map(card=>`<option value="${esc(card.id)}" ${card.id===(state.ccActiveCard||cards[0]?.id)?'selected':''}>${esc(card.name)}</option>`).join('');
   const cardNameById=id=>cards.find(card=>card.id===id)?.name||'Tarjeta';
 
@@ -640,38 +626,12 @@ function renderCcConfigPanel(){
             ${tot.usd>0?`<div style="font-size:11px;color:var(--accent2);font-family:var(--font);">U$D ${fmtN(tot.usd)}</div>`:''}
             ${!tot.ars&&!tot.usd?'<div style="font-size:11px;color:var(--text3);">sin gastos</div>':''}
           </div>
-          ${c.source==='manual'
-            ? `<button onclick="deleteTcCycle('${c.id}')" title="Eliminar ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:4px 6px;border-radius:6px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color='var(--danger)'" onmouseout="this.style.opacity=.5;this.style.color='var(--text3)'">🗑</button>`
-            : '<span style="width:26px;display:inline-block;"></span>'}
+          <button onclick="deleteTcCycle('${c.id}')" title="Eliminar ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:4px 6px;border-radius:6px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color='var(--danger)'" onmouseout="this.style.opacity=.5;this.style.color='var(--text3)'">🗑</button>
         </div>`;
       }).join('')
     : '<div style="text-align:center;padding:28px 20px;color:var(--text3);font-size:13px;">Sin ciclos registrados.<br><span style="font-size:11px;">Agregá el primero con el formulario de arriba.</span></div>';
 
   el.innerHTML=`
-    <!-- ── Configuracion de vistas inteligentes ── -->
-    <div style="margin-bottom:22px;">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Vistas inteligentes (VISA / AMEX)</div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 18px;">
-        <div style="display:grid;grid-template-columns:120px repeat(3,1fr);gap:10px;align-items:center;">
-          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Vista</div>
-          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Apertura (dia)</div>
-          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Cierre (dia)</div>
-          <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;">Vencimiento (dia)</div>
-
-          <div style="font-size:13px;font-weight:700;color:var(--text);">VISA</div>
-          <input type="number" min="1" max="31" class="cc-cfg-input" id="cc-visa-open-day" value="${Number(visaCfg.openDay)||26}">
-          <input type="number" min="1" max="31" class="cc-cfg-input" id="cc-visa-close-day" value="${Number(visaCfg.closeDay)||25}">
-          <input type="number" min="1" max="31" class="cc-cfg-input" id="cc-visa-due-day" value="${Number(visaCfg.dueDay)||10}">
-
-          <div style="font-size:13px;font-weight:700;color:var(--text);">AMEX</div>
-          <input type="number" min="1" max="31" class="cc-cfg-input" id="cc-amex-open-day" value="${Number(amexCfg.openDay)||11}">
-          <input type="number" min="1" max="31" class="cc-cfg-input" id="cc-amex-close-day" value="${Number(amexCfg.closeDay)||10}">
-          <input type="number" min="1" max="31" class="cc-cfg-input" id="cc-amex-due-day" value="${Number(amexCfg.dueDay)||27}">
-        </div>
-        <button onclick="ccSaveViewCycleConfig()" style="margin-top:14px;width:100%;padding:11px;border-radius:12px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-size:13px;font-weight:700;font-family:var(--font);letter-spacing:.02em;">Guardar vistas VISA/AMEX</button>
-      </div>
-    </div>
-
     <!-- ── Tarjetas configuradas ── -->
     <div style="margin-bottom:28px;">
       <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Tarjetas</div>
@@ -719,10 +679,7 @@ function renderCcConfigPanel(){
 // ── Render TC Config section inline dentro de la página de Tarjeta de Crédito ──
 function renderCcTcConfig(){
   const el=document.getElementById('cc-tc-config-list');if(!el)return;
-  const range=typeof getViewWindowRange==='function'
-    ? getViewWindowRange()
-    : {startYmd:dateToYMD(new Date(new Date().getFullYear(),new Date().getMonth()-6,1)), todayYmd:dateToYMD(new Date())};
-  const cycles=getTcCycles().filter(c=>c.closeDate>=range.startYmd&&c.closeDate<=range.todayYmd);
+  const cycles=getTcCycles();
   const cards=state.ccCards||[];
   const cardNameById=id=>cards.find(card=>card.id===id)?.name||'Tarjeta';
   if(!cycles.length){

@@ -1039,6 +1039,31 @@ function renderDashboard(){
   let arsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   let usdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
   let cntMonth=_allBillable.length;
+  const projectedMonthRange=(()=>{
+    if(_tcModeActive&&activeTcCycle){
+      const scopedCycles=getTcCycles(activeCycleMode);
+      const openStr=getTcCycleOpen(scopedCycles, scopedCycles.findIndex(c=>c.id===activeTcCycle.id))||activeTcCycle.closeDate;
+      return {startStr:openStr,endStr:activeTcCycle.closeDate};
+    }
+    const [year,month]=String(activeMk).split('-').map(Number);
+    const lastDay=new Date(year,month,0).getDate();
+    return {
+      startStr:`${year}-${String(month).padStart(2,'0')}-01`,
+      endStr:`${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`
+    };
+  })();
+  const projectedMonthTotals=sumProjectedCommitmentTotals(
+    getProjectedCommitmentEntriesForRange({
+      ...projectedMonthRange,
+      todayRef:today,
+      txns:state.transactions||[]
+    }).filter(entry=>entry.synthetic || entry.kind==='Cuota proyectada' || entry.kind==='Suscripción proyectada')
+  );
+  if(!_tcModeActive){
+    arsMonth+=projectedMonthTotals.ars;
+    usdMonth+=projectedMonthTotals.usd;
+    cntMonth+=projectedMonthTotals.count;
+  }
   // Disclaimer only for pending third party
   const tpPendingSumArs=thirdPartyTxns.filter(t=>t.thirdPartyStatus!=='settled' && t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   let syntheticARS=0;
@@ -1303,9 +1328,9 @@ function renderDashboard(){
     usdMonth=dashboardCardsUsd+syntheticUSD;
     cntMonth=dashboardCardsCount+syntheticCount;
   }
-  const rawPeriodArsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticARS:0);
-  const rawPeriodUsdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticUSD:0);
-  const rawPeriodCntMonth=_allBillable.length + (_tcModeActive?syntheticCount:0);
+  const rawPeriodArsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticARS:projectedMonthTotals.ars);
+  const rawPeriodUsdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticUSD:projectedMonthTotals.usd);
+  const rawPeriodCntMonth=_allBillable.length + (_tcModeActive?syntheticCount:projectedMonthTotals.count);
   const operationalArsMonth=rawPeriodArsMonth;
   const operationalUsdMonth=rawPeriodUsdMonth;
   const operationalCntMonth=rawPeriodCntMonth;
