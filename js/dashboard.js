@@ -277,6 +277,57 @@ function getDashboardTimelineData(baseDate=new Date()){
   const nextWeek=events.filter(e=>e.days>=0&&e.days<=7&&e.amount);
   return {events,nextClose,nextCommitment,nextWeekCount:nextWeek.length,nextWeekAmount:nextWeek.reduce((s,e)=>s+(e.amount||0),0)};
 }
+function normalizeAgendaDate(value){
+  if(!value) return null;
+  const dt=value instanceof Date?new Date(value):new Date(value);
+  if(isNaN(dt)) return null;
+  dt.setHours(12,0,0,0);
+  return dt;
+}
+function dateToInputValue(value){
+  const dt=normalizeAgendaDate(value);
+  if(!dt) return '';
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`;
+}
+function getTaskAgendaItems(baseDate=new Date(), opts={}){
+  const includePast=!!opts.includePast;
+  const includeDone=!!opts.includeDone;
+  const today=normalizeAgendaDate(baseDate)||normalizeAgendaDate(new Date());
+  return (state.tasks||[])
+    .filter(task=>task && (includeDone || !task.done))
+    .map(task=>{
+      const date=normalizeAgendaDate(task.dueDate);
+      if(!date) return null;
+      const days=Math.round((date-today)/86400000);
+      if(!includePast && days<0) return null;
+      return {
+        type:'task',
+        title:task.text,
+        shortLabel:task.text,
+        date,
+        days,
+        page:'calendar',
+        taskId:task.id,
+        done:!!task.done
+      };
+    })
+    .filter(Boolean);
+}
+function getCalendarAgendaItems(baseDate=new Date(), opts={}){
+  const timeline=getDashboardTimelineData(baseDate);
+  const includePast=!!opts.includePast;
+  const includeDoneTasks=!!opts.includeDoneTasks;
+  const merged=[
+    ...(timeline.events||[]),
+    ...getTaskAgendaItems(baseDate,{includePast,includeDone:includeDoneTasks})
+  ];
+  merged.sort((a,b)=>{
+    const ad=normalizeAgendaDate(a.date);
+    const bd=normalizeAgendaDate(b.date);
+    return ad-bd || String(a.title||'').localeCompare(String(b.title||''),'es');
+  });
+  return merged;
+}
 function openGlobalSearch(prefill=''){
   openModal('modal-global-search');
   setTimeout(()=>{
@@ -457,20 +508,181 @@ function addTask(){
   input.value='';
   saveState();if(typeof renderNotifications==='function')renderNotifications();
 }
+function addCalendarTask(){
+  const input=document.getElementById('calendar-task-input');
+  const dateInput=document.getElementById('calendar-task-date');
+  if(!input||!dateInput)return;
+  const text=input.value.trim();
+  const dueDate=dateInput.value||dateToInputValue(state.calendarSelectedDate||state.calendarMonth||new Date());
+  if(!text||!dueDate)return;
+  if(!state.tasks)state.tasks=[];
+  state.tasks.push({
+    id:Math.random().toString(36).substr(2,9),
+    text,
+    done:false,
+    createdAt:Date.now(),
+    doneAt:null,
+    dueDate
+  });
+  input.value='';
+  dateInput.value=dueDate;
+  saveState();
+  if(typeof renderNotifications==='function')renderNotifications();
+  if(document.getElementById('page-calendar')?.classList.contains('active')) renderCalendarPage();
+  if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
+}
 function toggleTask(id){
   const t=(state.tasks||[]).find(x=>x.id===id);
   if(!t)return;
   t.done=!t.done;
   t.doneAt=t.done?Date.now():null;
   saveState();if(typeof renderNotifications==='function')renderNotifications();
+  if(document.getElementById('page-calendar')?.classList.contains('active')) renderCalendarPage();
+  if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
 }
 function deleteTask(id){
   state.tasks=(state.tasks||[]).filter(x=>x.id!==id);
   saveState();if(typeof renderNotifications==='function')renderNotifications();
+  if(document.getElementById('page-calendar')?.classList.contains('active')) renderCalendarPage();
+  if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
 }
 function clearDoneTasks(){
   state.tasks=(state.tasks||[]).filter(t=>!t.done);
   saveState();if(typeof renderNotifications==='function')renderNotifications();
+  if(document.getElementById('page-calendar')?.classList.contains('active')) renderCalendarPage();
+  if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
+}
+function setCalendarMonthOffset(offset){
+  const base=normalizeAgendaDate(state.calendarMonth||new Date())||new Date();
+  const next=new Date(base.getFullYear(),base.getMonth()+offset,1,12,0,0,0);
+  state.calendarMonth=dateToInputValue(next);
+  const selected=normalizeAgendaDate(state.calendarSelectedDate);
+  if(!selected || selected.getMonth()!==next.getMonth() || selected.getFullYear()!==next.getFullYear()){
+    state.calendarSelectedDate=dateToInputValue(next);
+  }
+  renderCalendarPage();
+}
+function jumpCalendarToToday(){
+  const today=normalizeAgendaDate(new Date());
+  state.calendarMonth=dateToInputValue(today);
+  state.calendarSelectedDate=dateToInputValue(today);
+  renderCalendarPage();
+}
+function selectCalendarDate(dateValue){
+  state.calendarSelectedDate=dateValue;
+  renderCalendarPage();
+}
+function renderCalendarPage(){
+  const page=document.getElementById('page-calendar');
+  if(!page) return;
+  const baseMonth=normalizeAgendaDate(state.calendarMonth||new Date())||normalizeAgendaDate(new Date());
+  const monthStart=new Date(baseMonth.getFullYear(),baseMonth.getMonth(),1,12,0,0,0);
+  const monthEnd=new Date(baseMonth.getFullYear(),baseMonth.getMonth()+1,0,12,0,0,0);
+  const monthLabel=document.getElementById('calendar-month-label');
+  const gridEl=document.getElementById('calendar-grid');
+  const selectedLabelEl=document.getElementById('calendar-selected-label');
+  const selectedSubEl=document.getElementById('calendar-selected-sub');
+  const dayListEl=document.getElementById('calendar-day-list');
+  const upcomingEl=document.getElementById('calendar-upcoming-list');
+  const taskDateEl=document.getElementById('calendar-task-date');
+  if(!gridEl||!selectedLabelEl||!selectedSubEl||!dayListEl||!upcomingEl) return;
+
+  state.calendarMonth=dateToInputValue(monthStart);
+  if(monthLabel){
+    monthLabel.textContent=monthStart.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+  }
+
+  const allItems=getCalendarAgendaItems(new Date(),{includePast:true,includeDoneTasks:false});
+  const monthItems=allItems.filter(item=>{
+    const dt=normalizeAgendaDate(item.date);
+    return dt && dt.getMonth()===monthStart.getMonth() && dt.getFullYear()===monthStart.getFullYear();
+  });
+  const itemsByDay=new Map();
+  monthItems.forEach(item=>{
+    const key=dateToInputValue(item.date);
+    if(!itemsByDay.has(key)) itemsByDay.set(key,[]);
+    itemsByDay.get(key).push(item);
+  });
+
+  const selectedDate=normalizeAgendaDate(
+    state.calendarSelectedDate && normalizeAgendaDate(state.calendarSelectedDate)?.getMonth()===monthStart.getMonth() && normalizeAgendaDate(state.calendarSelectedDate)?.getFullYear()===monthStart.getFullYear()
+      ? state.calendarSelectedDate
+      : monthStart
+  ) || monthStart;
+  state.calendarSelectedDate=dateToInputValue(selectedDate);
+  if(taskDateEl) taskDateEl.value=state.calendarSelectedDate;
+
+  const startWeekday=(monthStart.getDay()+6)%7;
+  const cells=[];
+  for(let i=0;i<startWeekday;i++) cells.push(null);
+  for(let d=1;d<=monthEnd.getDate();d++){
+    cells.push(new Date(monthStart.getFullYear(),monthStart.getMonth(),d,12,0,0,0));
+  }
+  while(cells.length%7!==0) cells.push(null);
+
+  gridEl.innerHTML=cells.map((cell,idx)=>{
+    if(!cell) return `<div class="calendar-cell calendar-cell-empty" aria-hidden="true"></div>`;
+    const key=dateToInputValue(cell);
+    const items=itemsByDay.get(key)||[];
+    const isToday=key===dateToInputValue(new Date());
+    const isSelected=key===state.calendarSelectedDate;
+    const itemCount=items.length;
+    const toneClass=items.some(item=>item.type==='task')?'has-task':items.some(item=>item.type==='due')?'has-due':items.length?'has-event':'';
+    const preview=items.slice(0,2).map(item=>`<span class="calendar-chip ${item.type==='task'?'task':''}">${esc((item.shortLabel||item.title||'').slice(0,18))}</span>`).join('');
+    return `<button class="calendar-cell ${isToday?'is-today':''} ${isSelected?'is-selected':''} ${toneClass}" onclick="selectCalendarDate('${key}')">
+      <span class="calendar-cell-day">${cell.getDate()}</span>
+      ${itemCount?`<span class="calendar-cell-count">${itemCount}</span>`:''}
+      <span class="calendar-cell-preview">${preview}</span>
+    </button>`;
+  }).join('');
+
+  const selectedItems=(itemsByDay.get(state.calendarSelectedDate)||[]).sort((a,b)=>normalizeAgendaDate(a.date)-normalizeAgendaDate(b.date));
+  selectedLabelEl.textContent=selectedDate.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
+  const selectedTasks=selectedItems.filter(item=>item.type==='task').length;
+  selectedSubEl.textContent=selectedItems.length
+    ? `${selectedItems.length} item${selectedItems.length!==1?'s':''}${selectedTasks?` · ${selectedTasks} task${selectedTasks!==1?'s':''}`:''}`
+    : 'No hay items para este día';
+  dayListEl.innerHTML=selectedItems.length ? selectedItems.map(item=>{
+    const when=item.type==='task'
+      ? 'Task'
+      : item.type==='due'
+        ? 'Vencimiento'
+        : item.type==='close'
+          ? 'Cierre TC'
+          : item.type==='subscription'
+            ? 'Suscripción'
+            : item.type==='fixed'
+              ? 'Gasto fijo'
+              : 'Compromiso';
+    const amount=item.amount?`$${fmtN(Math.round(item.amount))}`:'';
+    const meta=[when,amount].filter(Boolean).join(' · ');
+    const action=item.type==='task'
+      ? `<div class="calendar-item-actions">
+          <button class="calendar-item-check ${item.done?'checked':''}" onclick="event.stopPropagation();toggleTask('${item.taskId}')">${item.done?'✓':''}</button>
+          <button class="calendar-item-delete" onclick="event.stopPropagation();deleteTask('${item.taskId}')">✕</button>
+        </div>`
+      : `<button class="calendar-item-link" onclick="event.stopPropagation();nav('${item.page||'cuotas'}')">Abrir</button>`;
+    return `<div class="calendar-item-card ${item.type==='task'?'task':''}">
+      <div class="calendar-item-main">
+        <div class="calendar-item-title">${esc(item.shortLabel||item.title||'Item')}</div>
+        <div class="calendar-item-meta">${meta}</div>
+      </div>
+      ${action}
+    </div>`;
+  }).join('') : '<div class="calendar-empty">Este día está libre. Podés usarlo para programar una task.</div>';
+
+  const upcoming=getCalendarAgendaItems(new Date(),{includePast:false,includeDoneTasks:false}).slice(0,8);
+  upcomingEl.innerHTML=upcoming.length ? upcoming.map(item=>{
+    const dt=normalizeAgendaDate(item.date);
+    const when=item.days===0?'Hoy':item.days===1?'Mañana':`En ${item.days} días`;
+    return `<div class="calendar-upcoming-item ${item.type==='task'?'task':''}">
+      <div class="calendar-upcoming-date">${dt?dt.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}).replace('.',''):'—'}</div>
+      <div class="calendar-upcoming-copy">
+        <div class="calendar-upcoming-title">${esc(item.shortLabel||item.title||'Item')}</div>
+        <div class="calendar-upcoming-meta">${when}</div>
+      </div>
+    </div>`;
+  }).join('') : '<div class="calendar-empty">No hay nada próximo en la agenda.</div>';
 }
 function toggleDecisionCenter(){
   state.decisionCenterCollapsed=!state.decisionCenterCollapsed;
@@ -1208,7 +1420,7 @@ function renderDashboard(){
   }));
   // Agenda viva: simplemente tomamos los próximos 3 eventos por fecha
   // (cuotas, suscripciones, gastos fijos, cierre de TC y vencimiento de TC)
-  const rawEvents=(timelineData.events||[]).filter(e=>e&&e.days>=0);
+  const rawEvents=getCalendarAgendaItems(today,{includePast:false,includeDoneTasks:false});
   const seenTimeline=new Set();
   const timelineCards=[];
   const pushTimelineEvent=e=>{
@@ -1243,6 +1455,14 @@ function renderDashboard(){
         chip:'suscripción',
         value:e.shortLabel,
         meta:`${when} · $${fmtN(Math.round(e.amount||0))}`
+      };
+    }
+    if(e.type==='task'){
+      return {
+        label:'Task',
+        chip:'agenda',
+        value:e.shortLabel,
+        meta:`${when} · Pendiente`
       };
     }
     if(e.type==='fixed'){
@@ -2766,6 +2986,13 @@ function renderDb2CatDonut(monthTxns){
 
   const sorted = Object.entries(grouped).filter(([,d]) => d.total > 0).sort((a,b) => b[1].total - a[1].total).slice(0,8);
   const total = sorted.reduce((s,[,d]) => s + d.total, 0);
+  const activeMonthKey=typeof getActiveDashMonth==='function'?getActiveDashMonth():getMonthKey(new Date());
+  const [catYear,catMonth]=String(activeMonthKey||'').split('-').map(Number);
+  const catMonthEl=document.getElementById('db2-cat-month');
+  if(catMonthEl && catYear && catMonth){
+    const dt=new Date(catYear,catMonth-1,1);
+    catMonthEl.textContent=dt.toLocaleDateString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
+  }
 
   // Update donut total label
   const totalEl = document.getElementById('db2-cat-total');
@@ -2777,8 +3004,28 @@ function renderDb2CatDonut(monthTxns){
     return;
   }
 
-  const DONUT_COLORS = ['#4361ee','#f77f00','#2ec4b6','#e63946','#7b2d8b','#06a77d','#0096c7','#ff6b6b'];
+  const DONUT_COLORS = ['#3f7dff','#6a35f2','#e64ac2','#f38a2f','#59c8b7','#3ca38c','#7ca8ff','#ffc463'];
   const colors = sorted.map(([,d],i) => d.color || DONUT_COLORS[i % DONUT_COLORS.length]);
+
+  const getCategoryIconSvg = name => {
+    const n=String(name||'').toLowerCase();
+    if(n.includes('aliment')) return `<svg viewBox="0 0 24 24"><path d="M7 4v8"/><path d="M10 4v8"/><path d="M8.5 12v8"/><path d="M15 4v18"/><path d="M18 4c0 3-1.6 4.5-3 4.5S12 7 12 4"/></svg>`;
+    if(n.includes('regal')) return `<svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="13" rx="2"/><path d="M12 8v13"/><path d="M3 12h18"/><path d="M7.5 8C6 8 5 7 5 5.8 5 4.6 6 4 7.2 4c1.8 0 3 1.7 4.8 4"/><path d="M16.5 8c1.5 0 2.5-1 2.5-2.2 0-1.2-1-1.8-2.2-1.8-1.8 0-3 1.7-4.8 4"/></svg>`;
+    if(n.includes('vida')||n.includes('social')) return `<svg viewBox="0 0 24 24"><path d="M12 20s-6.5-4.3-8.5-8A5.2 5.2 0 0 1 12 5.8 5.2 5.2 0 0 1 20.5 12C18.5 15.7 12 20 12 20Z"/></svg>`;
+    if(n.includes('transp')) return `<svg viewBox="0 0 24 24"><path d="M5 16V9.5A2.5 2.5 0 0 1 7.5 7h9A2.5 2.5 0 0 1 19 9.5V16"/><path d="M3 16h18"/><circle cx="7" cy="17.5" r="1.7"/><circle cx="17" cy="17.5" r="1.7"/><path d="M7 12h10"/></svg>`;
+    if(n.includes('educ')) return `<svg viewBox="0 0 24 24"><path d="M4 6.5A2.5 2.5 0 0 1 6.5 4H12v16H6.5A2.5 2.5 0 0 0 4 22z"/><path d="M20 6.5A2.5 2.5 0 0 0 17.5 4H12v16h5.5A2.5 2.5 0 0 1 20 22z"/></svg>`;
+    return `<svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="4"/><path d="M8 10h8"/><path d="M8 14h5"/></svg>`;
+  };
+  const getCategoryTone = index => {
+    const tones=[
+      {bg:'linear-gradient(180deg,#dbe8ff 0%,#cfdcff 100%)', color:'#3f7dff'},
+      {bg:'linear-gradient(180deg,#ede7ff 0%,#e3dcff 100%)', color:'#6a35f2'},
+      {bg:'linear-gradient(180deg,#f8e2f3 0%,#f2d8ee 100%)', color:'#e64ac2'},
+      {bg:'linear-gradient(180deg,#fdebd9 0%,#f8e0c7 100%)', color:'#f38a2f'},
+      {bg:'linear-gradient(180deg,#def5f1 0%,#d4f0ea 100%)', color:'#59c8b7'}
+    ];
+    return tones[index % tones.length];
+  };
 
   const chart = new Chart(ctx, {
     type: 'doughnut',
@@ -2786,16 +3033,16 @@ function renderDb2CatDonut(monthTxns){
       labels: sorted.map(([name]) => name),
       datasets: [{
         data: sorted.map(([,d]) => d.total),
-        backgroundColor: colors.map(c => c + 'cc'),
+        backgroundColor: colors,
         borderColor: colors,
-        borderWidth: 2,
-        hoverOffset: 4
+        borderWidth: 0,
+        hoverOffset: 3
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: true,
-      cutout: '68%',
+      cutout: '72%',
       plugins: {
         legend: { display: false },
         tooltip: { ..._chartTooltip(), callbacks: {
@@ -2812,21 +3059,42 @@ function renderDb2CatDonut(monthTxns){
     listEl.innerHTML = sorted.slice(0,5).map(([name,d],i) => {
       const pct = total > 0 ? Math.round(d.total/total*100) : 0;
       const color = colors[i];
-      return `<div class="db2-cat-item">
-        <div class="db2-cat-swatch" style="background:${color}"></div>
-        <span class="db2-cat-name">${esc(name)}</span>
-        <span class="db2-cat-pct">${pct}%</span>
-        <span class="db2-cat-amt">$${fmtN(Math.round(d.total))}</span>
+      const tone=getCategoryTone(i);
+      return `<div class="db2-cat-item ${i===0?'is-top':''}">
+        <div class="db2-cat-iconbox" style="background:${tone.bg};color:${tone.color}">
+          ${getCategoryIconSvg(name)}
+        </div>
+        <div class="db2-cat-copy">
+          <span class="db2-cat-name">${esc(name)}</span>
+          <span class="db2-cat-amt">$${fmtN(Math.round(d.total))}</span>
+        </div>
+        <span class="db2-cat-pct" style="color:${color}">${pct}%</span>
       </div>`;
     }).join('');
   }
 
   // Bottom note
   const noteEl = document.getElementById('db2-cat-note');
-  if(noteEl && sorted[0]){
-    const top = sorted[0];
-    const topPct = total > 0 ? Math.round(top[1].total/total*100) : 0;
-    noteEl.textContent = `🏆 La categoría ${top[0]} representa el ${topPct}% del total gastado.`;
+  if(noteEl){
+    const prevTxns = typeof getTxnsFor==='function'
+      ? getTxnsFor(getMonthKey(new Date(catYear, (catMonth||1)-2, 1)))
+      : [];
+    const prevGrouped = {};
+    (prevTxns||[]).filter(t => t.category && t.category !== 'Procesando...' && t.category !== 'Uncategorized').forEach(t => {
+      const amt = t.currency === 'USD' ? t.amount * (USD_TO_ARS||1420) : t.amount;
+      const parent = typeof catGroup === 'function' ? catGroup(t.category) : t.category;
+      prevGrouped[parent] = (prevGrouped[parent] || 0) + amt;
+    });
+    const prevTotal = Object.values(prevGrouped).reduce((s,v)=>s+v,0);
+    const deltaPct = prevTotal>0 ? ((total-prevTotal)/prevTotal)*100 : 0;
+    const deltaText = `${Math.abs(deltaPct).toFixed(1).replace('.',',')}%`;
+    noteEl.innerHTML = `<div class="db2-cat-note-icon">
+      <svg viewBox="0 0 24 24"><path d="M4 18h16"/><path d="M7 15v-5"/><path d="M12 18V8"/><path d="M17 18v-9"/><path d="m8 8 3-3 3 3"/><path d="M11 5h6v6"/></svg>
+    </div>
+    <div class="db2-cat-note-copy">
+      <div class="db2-cat-note-value">${deltaText} ${deltaPct>=0?'más':'menos'} que</div>
+      <div class="db2-cat-note-text">el mes anterior</div>
+    </div>`;
     noteEl.style.display = 'flex';
   }
 }
@@ -2837,7 +3105,7 @@ function renderDb2Agenda(timelineData){
   const pillEl = document.getElementById('timeline-card-pill');
   if(!listEl) return;
 
-  const events = (timelineData.events || []).filter(e => e && e.days >= 0).slice(0, 3);
+  const events = getCalendarAgendaItems(new Date(),{includePast:false,includeDoneTasks:false}).slice(0, 3);
 
   // Update pill count
   if(pillEl) pillEl.textContent = events.length + ' evento' + (events.length!==1?'s':'') + ' →';
@@ -2864,6 +3132,7 @@ function renderDb2Agenda(timelineData){
     if(type === 'close') return {bg:'#ff9f0a', letter:'💳'};
     if(type === 'due')   return {bg:'#ff3b30', letter:'!'};
     if(type === 'fixed') return {bg:'#7d3aec', letter:'📌'};
+    if(type === 'task')  return {bg:'#4f46e5', letter:'✓'};
     const palette = ['#4361ee','#e63946','#2ec4b6','#7b2d8b','#0096c7','#ff6b6b'];
     const bg = palette[(name||'?').charCodeAt(0) % palette.length];
     return {bg, letter: (name||'?')[0].toUpperCase()};
@@ -2878,7 +3147,8 @@ function renderDb2Agenda(timelineData){
     const typeLabel = e.type === 'subscription' ? 'Suscripción' :
                       e.type === 'close'        ? 'Cierre TC'   :
                       e.type === 'due'          ? 'Vencimiento' :
-                      e.type === 'fixed'        ? 'Gasto fijo'  : 'Cuota';
+                      e.type === 'fixed'        ? 'Gasto fijo'  :
+                      e.type === 'task'         ? 'Task'        : 'Cuota';
     const descLine = [typeLabel, amtStr].filter(Boolean).join(' · ');
     const timeStr = e.date instanceof Date
       ? e.date.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}).replace('.','') + '<br>' + e.date.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})

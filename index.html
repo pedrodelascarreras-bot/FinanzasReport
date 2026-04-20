@@ -19,7 +19,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260419i">
+<link rel="stylesheet" href="css/styles.css?v=20260419l">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -489,12 +489,12 @@
               </div>
               <span class="db2-title">Agenda Viva</span>
             </div>
-            <button class="db2-link" id="timeline-card-pill" onclick="nav('cuotas')">3 eventos →</button>
+            <button class="db2-link" id="timeline-card-pill" onclick="nav('calendar')">3 eventos →</button>
           </div>
           <div class="db2-agenda-list" id="db2-agenda-list">
             <!-- populated by JS -->
           </div>
-          <button class="db2-link" style="font-size:11.5px;padding-top:2px" onclick="nav('cuotas')">Ver calendario completo →</button>
+          <button class="db2-link" style="font-size:11.5px;padding-top:2px" onclick="nav('calendar')">Ver calendario completo →</button>
         </div>
 
       </div><!-- /row-2 -->
@@ -540,20 +540,40 @@
         <!-- CATEGORÍAS DEL MES -->
         <div class="db2-w db2-cat-card">
           <div class="db2-hd">
-            <span class="db2-title">Categorías del Mes</span>
+            <div class="db2-hd-left db2-cat-head">
+              <div class="db2-cat-head-icon" aria-hidden="true">
+                <span></span><span></span><span></span>
+              </div>
+              <div class="db2-cat-head-copy">
+                <span class="db2-title">Categorías del Mes</span>
+                <div class="db2-cat-month" id="db2-cat-month">—</div>
+              </div>
+            </div>
             <button class="db2-link" onclick="nav('tendencia')">Ver detalle →</button>
           </div>
           <div class="db2-cat-body">
-            <div class="db2-cat-donut-wrap">
-              <canvas id="chart-cat-donut"></canvas>
+            <div class="db2-cat-list-panel">
+              <div class="db2-cat-list" id="db2-cat-list"><!-- populated by JS --></div>
+            </div>
+            <div class="db2-cat-visual-panel">
+              <div class="db2-cat-donut-wrap">
+                <canvas id="chart-cat-donut"></canvas>
+                <div class="db2-cat-donut-center">
+                  <div class="db2-cat-donut-lbl">TOTAL</div>
+                  <div class="db2-cat-donut-val" id="db2-cat-total">—</div>
+                </div>
+              </div>
+              <div class="db2-cat-note" id="db2-cat-note" style="display:none">—</div>
+            </div>
+          </div>
+          <div style="display:none" aria-hidden="true">
+            <div>
               <div class="db2-cat-donut-center">
                 <div class="db2-cat-donut-lbl">TOTAL</div>
-                <div class="db2-cat-donut-val" id="db2-cat-total">—</div>
+                <div class="db2-cat-donut-val">—</div>
               </div>
             </div>
-            <div class="db2-cat-list" id="db2-cat-list"><!-- populated by JS --></div>
           </div>
-          <div class="db2-cat-note" id="db2-cat-note" style="display:none">🏆 —</div>
         </div>
 
       </div><!-- /row-3 -->
@@ -562,7 +582,7 @@
       <div class="db2-w db2-due-card">
         <div class="db2-hd">
           <span class="db2-title">Próximos Vencimientos</span>
-          <button class="db2-link" onclick="nav('cuotas')">Ver calendario completo →</button>
+          <button class="db2-link" onclick="nav('calendar')">Ver calendario completo →</button>
         </div>
         <div class="db2-due-grid" id="db2-due-grid"><!-- populated by JS --></div>
       </div>
@@ -674,6 +694,63 @@
     </div>
   </div>
 
+</div>
+
+<!-- CALENDARIO -->
+<div id="page-calendar" class="page">
+  <div class="page-header fade-up">
+    <div>
+      <div class="page-title">Calendario</div>
+      <div class="page-subtitle">Pagos, vencimientos, cierres y tasks en una sola vista operativa.</div>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost" onclick="nav('dashboard')">← Volver al dashboard</button>
+    </div>
+  </div>
+
+  <div class="calendar-shell fade-up d1">
+    <section class="calendar-main-card">
+      <div class="calendar-toolbar">
+        <div class="calendar-toolbar-copy">
+          <div class="calendar-toolbar-kicker">Agenda completa</div>
+          <div class="calendar-toolbar-title" id="calendar-month-label">—</div>
+        </div>
+        <div class="calendar-toolbar-actions">
+          <button class="calendar-nav-btn" onclick="setCalendarMonthOffset(-1)" title="Mes anterior">‹</button>
+          <button class="calendar-nav-btn" onclick="jumpCalendarToToday()">Hoy</button>
+          <button class="calendar-nav-btn" onclick="setCalendarMonthOffset(1)" title="Mes siguiente">›</button>
+        </div>
+      </div>
+
+      <div class="calendar-weekdays">
+        <span>Lun</span><span>Mar</span><span>Mié</span><span>Jue</span><span>Vie</span><span>Sáb</span><span>Dom</span>
+      </div>
+      <div id="calendar-grid" class="calendar-grid"></div>
+    </section>
+
+    <aside class="calendar-side">
+      <section class="calendar-panel calendar-panel-selected">
+        <div class="calendar-panel-kicker">Fecha seleccionada</div>
+        <div class="calendar-selected-label" id="calendar-selected-label">—</div>
+        <div class="calendar-selected-sub" id="calendar-selected-sub">—</div>
+        <div class="calendar-day-list" id="calendar-day-list"></div>
+      </section>
+
+      <section class="calendar-panel">
+        <div class="calendar-panel-kicker">Agregar task</div>
+        <div class="calendar-task-form">
+          <input id="calendar-task-input" class="calendar-task-input" type="text" placeholder="Ej. Llamar al banco o pagar servicio" onkeydown="if(event.key==='Enter'){event.preventDefault();addCalendarTask();}">
+          <input id="calendar-task-date" class="calendar-task-date" type="date">
+          <button class="calendar-task-submit" onclick="addCalendarTask()">Agregar task</button>
+        </div>
+      </section>
+
+      <section class="calendar-panel">
+        <div class="calendar-panel-kicker">Próximos items</div>
+        <div class="calendar-upcoming-list" id="calendar-upcoming-list"></div>
+      </section>
+    </aside>
+  </div>
 </div>
 
 <!-- DISEÑO DEL DASHBOARD -->
@@ -3225,7 +3302,7 @@
 <script src="js/i18n.js"></script>
 <script src="js/utils.js?v=20260419d"></script>
 <script src="js/import.js"></script>
-<script src="js/dashboard.js?v=20260419h"></script>
+<script src="js/dashboard.js?v=20260419l"></script>
 <script src="js/transactions.js"></script>
 <script src="js/analytics.js"></script>
 <script src="js/insights.js"></script>
