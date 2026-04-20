@@ -1239,15 +1239,17 @@ function parseSantanderEmail(email, currentBatch, rule) {
       const ptMatch = body.replace(/<[^>]+>/g, '\n').match(/Comercio\s*\n+([^\n]+)/i);
       if (ptMatch) comercio = ptMatch[1].trim();
     }
-    comercio = comercio.replace(/\s*\*[A-Z0-9]+$/i, '').replace(/\s{2,}/g, ' ').trim();
+    comercio = comercio.replace(/\s{2,}/g, ' ').trim();
     const merchantKey = comercio.toLowerCase().replace(/[^a-z0-9]/g,'');
 
     // Extract Fecha (DD/MM/YYYY)
     let txnDate = new Date();
+    let parsedFromFecha = false;
     const fechaMatch = body.match(/Fecha[\s\S]*?(\d{2}\/\d{2}\/\d{4})/i);
     if (fechaMatch) {
       const [d, m, y] = fechaMatch[1].split('/');
       txnDate = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+      parsedFromFecha = true;
     } else if (dateHeader) {
       txnDate = new Date(dateHeader);
     }
@@ -1256,6 +1258,20 @@ function parseSantanderEmail(email, currentBatch, rule) {
     let hora = '';
     const horaMatch = body.match(/Hora[\s\S]*?(\d{2}:\d{2})/i);
     if (horaMatch) hora = horaMatch[1];
+    const headerDate = dateHeader ? new Date(dateHeader) : null;
+    const hasValidHeaderTime = headerDate && !Number.isNaN(headerDate.getTime());
+    if (hora) {
+      const [hh, mm] = hora.split(':').map(v => parseInt(v, 10));
+      if (!Number.isNaN(hh) && !Number.isNaN(mm)) {
+        txnDate.setHours(hh, mm, 0, 0);
+      }
+    } else if (parsedFromFecha && hasValidHeaderTime) {
+      // Keep purchase date from body, but recover time from Gmail metadata when available.
+      txnDate.setHours(headerDate.getHours(), headerDate.getMinutes(), 0, 0);
+      hora = String(headerDate.getHours()).padStart(2,'0') + ':' + String(headerDate.getMinutes()).padStart(2,'0');
+    } else if (!parsedFromFecha && hasValidHeaderTime) {
+      hora = String(headerDate.getHours()).padStart(2,'0') + ':' + String(headerDate.getMinutes()).padStart(2,'0');
+    }
 
     // Detect Cuotas (installments) from email body
     let cuotaTotal = null;
@@ -1293,9 +1309,7 @@ function parseSantanderEmail(email, currentBatch, rule) {
     }
 
     const baseDesc = comercio;
-    const description = cuotaTotal && cuotaTotal >= 2
-      ? baseDesc + ' (Cuota ' + cuotaNum + '/' + cuotaTotal + ')' + (hora ? ' ' + hora : '')
-      : baseDesc + (hora ? ' ' + hora : '');
+    const description = baseDesc;
     const id = 'gmail_' + emailId; // stable ID = no duplicates
 
     return {
@@ -1305,6 +1319,7 @@ function parseSantanderEmail(email, currentBatch, rule) {
       date: txnDate,
       description,
       _baseDesc: baseDesc,
+      gmailMerchantRaw: baseDesc,
       amount,
       currency: txnCurrency,
       category: rule?.category || 'Procesando...',
@@ -1314,6 +1329,8 @@ function parseSantanderEmail(email, currentBatch, rule) {
       importRuleId: rule?.id || null,
       importRuleName: rule?.name || 'Gmail',
       sourceBank: rule?.bank || 'Gmail',
+      txnTime: hora || '00:00',
+      gmailDateHeader: dateHeader || null,
       importKind,
       movementType: rule?.movementType || (isAutoDebit ? 'subscription' : 'expense'),
       isAutoDebit,
@@ -1598,6 +1615,8 @@ function normalizeStateOwnership(ownerProfileId){
   state.savGoals = markOwnedItems(state.savGoals, profileId);
   state.savDeposits = markOwnedItems(state.savDeposits, profileId);
   state.catRules = markOwnedItems(state.catRules, profileId);
+  state.nameRules = markOwnedItems(state.nameRules, profileId);
+  state.logoRules = markOwnedItems(state.logoRules, profileId);
 }
 
 function ensureActiveUserProfileBootstrap(){
@@ -1665,6 +1684,8 @@ function getCurrentProfileSnapshot(){
     categoryGroups: cloneDeepProfileValue(state.categoryGroups || []),
     categories: cloneDeepProfileValue(state.categories || []),
     catRules: cloneDeepProfileValue(markOwnedItems(state.catRules || [], state.activeUserProfileId || 'default-profile')),
+    nameRules: cloneDeepProfileValue(markOwnedItems(state.nameRules || [], state.activeUserProfileId || 'default-profile')),
+    logoRules: cloneDeepProfileValue(markOwnedItems(state.logoRules || [], state.activeUserProfileId || 'default-profile')),
     catHistory: cloneDeepProfileValue(state.catHistory || {}),
     savingsGoal: state.savingsGoal || 20,
     alertThreshold: state.alertThreshold || 80,
@@ -1810,6 +1831,8 @@ function applyUserProfile(profileId){
   state.categoryGroups = cloneDeepProfileValue(profile.categoryGroups || state.categoryGroups || []);
   state.categories = cloneDeepProfileValue(profile.categories || state.categories || []);
   state.catRules = cloneDeepProfileValue(profile.catRules || []);
+  state.nameRules = cloneDeepProfileValue(profile.nameRules || []);
+  state.logoRules = cloneDeepProfileValue(profile.logoRules || []);
   state.catHistory = cloneDeepProfileValue(profile.catHistory || {});
   if(typeof normalizeCategoryState === 'function') normalizeCategoryState(state);
   state.savingsGoal = profile.savingsGoal || state.savingsGoal || 20;

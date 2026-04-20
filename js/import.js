@@ -670,6 +670,130 @@ const BASE_RULES = [
   {keyword:'mantenimiento cuenta',category:'Comisiones bancarias'},
 ];
 
+const BRAND_LOGO_PRESETS = {
+  rappi:{label:'R',bg:'#20BFA9',text:'#FFFFFF',match:['rappi']},
+  pedidosya:{label:'P',bg:'#EF4354',text:'#FFFFFF',match:['pedidosya','pedido ya','dlo*pedidos','dlo*pedidosya']},
+  mcdonalds:{label:'M',bg:'#DA1E2A',text:'#FFC928',match:['mcdonald','mc donald']},
+  mercadopago:{label:'MP',bg:'#009EE3',text:'#FFFFFF',match:['mercadopago','merpago','mercado pago']},
+  ypf:{label:'YPF',bg:'#1F64D8',text:'#FFFFFF',match:['ypf']},
+  netflix:{label:'N',bg:'#F5F5F8',text:'#E30C18',match:['netflix']},
+  starbucks:{label:'S',bg:'#0B7A52',text:'#FFFFFF',match:['starbucks']},
+  uber:{label:'U',bg:'#111111',text:'#FFFFFF',match:['uber']},
+  cabify:{label:'C',bg:'#5B2CF6',text:'#FFFFFF',match:['cabify']},
+  farmacity:{label:'F',bg:'#6A5CFF',text:'#FFFFFF',match:['pharmacity','farmacity']},
+  personal:{label:'P',bg:'#0A2F6B',text:'#FFFFFF',match:['personal']},
+  movistar:{label:'M',bg:'#00A9E0',text:'#FFFFFF',match:['movistar']},
+  claro:{label:'C',bg:'#D52B1E',text:'#FFFFFF',match:['claro']},
+  shell:{label:'S',bg:'#F7D417',text:'#D71920',match:['shell']},
+  axion:{label:'A',bg:'#1B5FA9',text:'#FFFFFF',match:['axion']},
+  amazon:{label:'a',bg:'#131A22',text:'#FF9900',match:['amazon']}
+};
+
+function normalizeSearchText(v){
+  return String(v||'')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+function normalizeRuleKeyword(v){
+  return normalizeSearchText(v).replace(/\s+/g,' ');
+}
+
+function txnRuleHaystack(t){
+  return normalizeSearchText([
+    t.description,
+    t._baseDesc,
+    t.gmailMerchantRaw,
+    t.comercio_detectado
+  ].filter(Boolean).join(' | '));
+}
+
+function getNameRulesSorted(){
+  const rules = Array.isArray(state.nameRules) ? state.nameRules : [];
+  return [...rules]
+    .filter(r=>r && r.active!==false && normalizeRuleKeyword(r.keyword))
+    .sort((a,b)=>(b.priority||0)-(a.priority||0));
+}
+
+function getLogoRulesSorted(){
+  const rules = Array.isArray(state.logoRules) ? state.logoRules : [];
+  return [...rules]
+    .filter(r=>r && r.active!==false && normalizeRuleKeyword(r.keyword) && r.logoKey)
+    .sort((a,b)=>(b.priority||0)-(a.priority||0));
+}
+
+function splitTxnDescriptionSuffix(desc){
+  let core = String(desc||'').trim();
+  let suffix = '';
+  const cuota = core.match(/\s*\(Cuota\s*\d+\/\d+\)\s*$/i);
+  if(cuota){
+    suffix = cuota[0] + suffix;
+    core = core.slice(0, -cuota[0].length).trim();
+  }
+  const hour = core.match(/\s+\d{2}:\d{2}\s*$/);
+  if(hour){
+    suffix = hour[0] + suffix;
+    core = core.slice(0, -hour[0].length).trim();
+  }
+  return { core, suffix };
+}
+
+function applyNameRulesToTransaction(t){
+  const rules = getNameRulesSorted();
+  if(!rules.length) return false;
+  const haystack = txnRuleHaystack(t);
+  if(!haystack) return false;
+  for(const rule of rules){
+    const keyword = normalizeRuleKeyword(rule.keyword);
+    const renameTo = String(rule.renameTo||'').trim();
+    if(!keyword || !renameTo) continue;
+    if(!haystack.includes(keyword)) continue;
+    const parts = splitTxnDescriptionSuffix(t.description || t.gmailMerchantRaw || t._baseDesc || '');
+    t.description = (renameTo + (parts.suffix||'')).trim();
+    t._baseDesc = renameTo;
+    t.appliedNameRuleId = rule.id || null;
+    return true;
+  }
+  return false;
+}
+
+function detectBuiltinLogoKey(t){
+  const haystack = txnRuleHaystack(t);
+  if(!haystack) return null;
+  for(const [logoKey, preset] of Object.entries(BRAND_LOGO_PRESETS)){
+    if((preset.match||[]).some(term => haystack.includes(normalizeRuleKeyword(term)))) return logoKey;
+  }
+  return null;
+}
+
+function applyLogoRulesToTransaction(t){
+  const hasCustomLogo = !!(t.customLogoUrl || t.logoUrl || t.merchantLogoUrl);
+  if(hasCustomLogo) return false;
+  const haystack = txnRuleHaystack(t);
+  if(!haystack) return false;
+  const logoRules = getLogoRulesSorted();
+  for(const rule of logoRules){
+    const keyword = normalizeRuleKeyword(rule.keyword);
+    if(!keyword || !haystack.includes(keyword)) continue;
+    t.logoKey = rule.logoKey;
+    t.appliedLogoRuleId = rule.id || null;
+    return true;
+  }
+  const builtin = detectBuiltinLogoKey(t);
+  if(builtin){
+    t.logoKey = builtin;
+    return true;
+  }
+  return false;
+}
+
+window.getBrandLogoPresets = function(){
+  return BRAND_LOGO_PRESETS;
+};
+
 // Detectar comercio normalizado desde descripción
 function detectComercio(desc){
   const d = String(desc||'').toLowerCase();
@@ -684,6 +808,7 @@ function detectComercio(desc){
     {patterns:['uber'],name:'Uber'},
     {patterns:['cabify'],name:'Cabify'},
     {patterns:['rappi'],name:'Rappi'},
+    {patterns:['mercado pago'],name:'MercadoPago'},
     {patterns:['netflix'],name:'Netflix'},
     {patterns:['spotify'],name:'Spotify'},
     {patterns:['mercadopago','merpago'],name:'MercadoPago'},
@@ -768,7 +893,11 @@ function enrichTransaction(t, origen){
     // Retroactively fix already-stored Gmail transactions with wrong origin
     t.origen_del_movimiento='importado_desde_gmail';
   }
-  if(!t.comercio_detectado) t.comercio_detectado = detectComercio(t.description)||null;
+  if(!t.description) t.description = t._baseDesc || t.gmailMerchantRaw || 'Movimiento';
+  if(!t._baseDesc) t._baseDesc = t.gmailMerchantRaw || t.description;
+  applyNameRulesToTransaction(t);
+  t.comercio_detectado = detectComercio(t.description) || t.comercio_detectado || null;
+  applyLogoRulesToTransaction(t);
   if(!t.cat_sugerida || !t.cat_motivo){
     const sug = suggestCategory(t.description);
     t.cat_sugerida = sug.category;

@@ -991,7 +991,14 @@ function renderDashboard(){
         const openD=new Date(open+'T12:00:00');
         const closeD=new Date(activeTcCycle.closeDate+'T12:00:00');
         tcPeriodLabel=getViewModeLabel(activeCycleMode)+' · '+expandPeriodYearLabel(activeTcCycle.label)+' · '+openD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' → '+closeD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'});
-        monthTxns=getTcCycleTxns(activeTcCycle, cycles);
+        // In TC views, dashboard metrics should use the selected cycle window,
+        // but aggregate charges across both cards in that same date range.
+        monthTxns=(state.transactions||[]).filter(t=>{
+          const d=dateToYMD(t.date);
+          const pm=(t.payMethod||'').toLowerCase();
+          const isNonCc=pm==='deb'||pm==='ef';
+          return d>=open&&d<=activeTcCycle.closeDate&&!isNonCc;
+        });
       } else {
         monthTxns=[];
         tcPeriodLabel=getViewModeLabel(activeCycleMode)+' · '+expandPeriodYearLabel(activeTcCycle.label);
@@ -1035,9 +1042,9 @@ function renderDashboard(){
   const _allBillable=monthTxns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription&&(_tcModeActive?!_isNonCC(t):true));
   const billableTxns=_allBillable.filter(t=>!t.isThirdParty);
   const thirdPartyTxns=_allBillable.filter(t=>!!t.isThirdParty);
-  const tpArs=thirdPartyTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const tpUsd=thirdPartyTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-  const tpPending=thirdPartyTxns.filter(t=>t.thirdPartyStatus!=='settled');
+  const tpSettled=thirdPartyTxns.filter(t=>t.thirdPartyStatus==='settled');
+  const tpSettledArs=tpSettled.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  const tpSettledUsd=tpSettled.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
   let arsMonth=billableTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   let usdMonth=billableTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
   let cntMonth=billableTxns.length;
@@ -1208,9 +1215,56 @@ function renderDashboard(){
   let dashboardCardsUsd=0;
   let dashboardCardsCount=0;
   const dashboardCards=(state.ccCards||[]);
+  const dashboardCardCycleByCardId={};
+  const dashboardCardCycleByKey={};
+  const _dashboardAnchorYmd=(dashboardCycleForCards?.closeDate)||dateToYMD(today);
+  const _resolveCardCycleByMode=(modeKey)=>{
+    const mode=normalizeViewMode(modeKey||'mes');
+    const cardCycles=getTcCycles(mode);
+    if(!cardCycles.length) return null;
+    const containing=cardCycles.find(c=>{
+      const idx=cardCycles.findIndex(x=>x.id===c.id);
+      const open=getTcCycleOpen(cardCycles, idx);
+      return open&&_dashboardAnchorYmd>=open&&_dashboardAnchorYmd<=c.closeDate;
+    });
+    if(containing) return containing;
+    const latestPast=cardCycles.find(c=>(c.closeDate||'')<=_dashboardAnchorYmd);
+    if(latestPast) return latestPast;
+    return cardCycles[cardCycles.length-1]||cardCycles[0]||null;
+  };
+  if(dashboardCards.length){
+    dashboardCards.forEach(card=>{
+      const cardMode=normalizeViewMode((card.payMethodKey||'mes').toLowerCase());
+      let cardCycle=null;
+      if(
+        dashboardCycleForCards &&
+        (
+          (dashboardCycleForCards.cardId&&dashboardCycleForCards.cardId===card.id) ||
+          (
+            !dashboardCycleForCards.cardId &&
+            normalizeViewMode((dashboardCycleForCards.payMethodKey||activeCycleMode||'mes').toLowerCase())===cardMode
+          )
+        )
+      ){
+        cardCycle=dashboardCycleForCards;
+      }else{
+        cardCycle=_resolveCardCycleByMode(cardMode);
+      }
+      if(cardCycle){
+        dashboardCardCycleByCardId[card.id]=cardCycle;
+        dashboardCardCycleByKey[(card.payMethodKey||card.id||'').toLowerCase()]=cardCycle;
+      }
+    });
+  }
   if(dashboardCycleForCards&&dashboardCards.length&&typeof ccGetCycleExpenses==='function'&&typeof ccGetTotals==='function'){
     dashboardCards.forEach(card=>{
-      const expenses=ccGetCycleExpenses(card.id,dashboardCycleForCards.id).filter(isCountableCycleExpense);
+      const scopedCycle=dashboardCardCycleByCardId[card.id]||dashboardCycleForCards;
+      if(!scopedCycle){
+        dashboardCardTotals[card.payMethodKey||card.id]={ars:0,usd:0,count:0};
+        dashboardCardDisplayTotals[card.payMethodKey||card.id]={ars:0,usd:0,count:0};
+        return;
+      }
+      const expenses=ccGetCycleExpenses(card.id,scopedCycle.id).filter(isCountableCycleExpense);
       const totals=ccGetTotals(expenses);
       dashboardCardTotals[card.payMethodKey||card.id]={ars:totals.ars||0,usd:totals.usd||0,count:totals.count||0};
       dashboardCardDisplayTotals[card.payMethodKey||card.id]={ars:totals.ars||0,usd:totals.usd||0,count:totals.count||0};
@@ -1245,9 +1299,11 @@ function renderDashboard(){
   const rawPeriodArsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticARS:0);
   const rawPeriodUsdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticUSD:0);
   const rawPeriodCntMonth=_allBillable.length + (_tcModeActive?syntheticCount:0);
-  const operationalArsMonth=Math.max(0,rawPeriodArsMonth-tpArs);
-  const operationalUsdMonth=Math.max(0,rawPeriodUsdMonth-tpUsd);
-  const operationalCntMonth=Math.max(0,rawPeriodCntMonth-thirdPartyTxns.length);
+  // Business rule: only third-party expenses marked as "cobrado/settled"
+  // are removed from Gasto Total. Pending third-party stays visible.
+  const operationalArsMonth=Math.max(0,rawPeriodArsMonth-tpSettledArs);
+  const operationalUsdMonth=Math.max(0,rawPeriodUsdMonth-tpSettledUsd);
+  const operationalCntMonth=Math.max(0,rawPeriodCntMonth-tpSettled.length);
   const creditCycleArsTotal=arsMonth;
 
   // ── Ingresos ──
@@ -1311,6 +1367,8 @@ function renderDashboard(){
     daysLeft = isCurrentMonth ? daysInMonth - today.getDate() : 0;
     dailyRate = dayOfMonth > 0 ? totalGastoARS / dayOfMonth : 0;
     projected = isCurrentMonth ? Math.round(dailyRate * daysInMonth) : totalGastoARS;
+    // Keep close date aligned to selected month, not necessarily current month.
+    projPeriodClose = new Date(pY, pM, 0, 12, 0, 0);
   }
 
   const dashMonthNames=[t('month_1'),t('month_2'),t('month_3'),t('month_4'),t('month_5'),t('month_6'),t('month_7'),t('month_8'),t('month_9'),t('month_10'),t('month_11'),t('month_12')];
@@ -1837,7 +1895,11 @@ function renderDashboard(){
   renderDb2Dashboard({
     arsMonth, usdMonth, margen, pct, incTotalARS, spendBudget,
     projected, totalGastoARS, daysLeft, dailyRate, projPeriodClose,
-    timelineData, monthTxns
+    timelineData, monthTxns,
+    ccWidgetData:{
+      cycleByKey:dashboardCardCycleByKey,
+      totalsByKey:dashboardCardDisplayTotals
+    }
   });
 }
 
@@ -2651,11 +2713,13 @@ function setDb2EvoMode(mode){
 }
 
 // ── CC Cycle widget ──
-function renderDb2CcCycles(){
+function renderDb2CcCycles(data){
   const today = new Date();
   const todayYmd = dateToYMD(today);
   const cards = state.ccCards || [];
   const allCycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
+  const cycleByKey = data?.cycleByKey || {};
+  const totalsByKey = data?.totalsByKey || {};
 
   const fmt = ymd => {
     if(!ymd) return '—';
@@ -2681,9 +2745,10 @@ function renderDb2CcCycles(){
     if(!card){ if(itemEl) itemEl.style.opacity='0.4'; return; }
     if(itemEl) itemEl.style.opacity='1';
 
-    // Find most recent/active cycle for this card
+    // Prefer dashboard-scoped cycle (keeps widget aligned with selected period),
+    // then fallback to active/first card cycle.
     const cardCycles = allCycles.filter(c => c.cardId === card.id);
-    let activeCycle = cardCycles.find(c => {
+    let activeCycle = cycleByKey[prefix] || cardCycles.find(c => {
       const idx = allCycles.findIndex(x => x.id === c.id);
       const open = getTcCycleOpen(allCycles, idx);
       return open && todayYmd >= open && todayYmd <= c.closeDate;
@@ -2715,9 +2780,10 @@ function renderDb2CcCycles(){
     const amtArsEl = document.getElementById(`kpi-${prefix}-ars`);
     const amtUsdEl = document.getElementById(`kpi-${prefix}-usd`);
     if(amtArsEl){
-      const cycleTxns = typeof getTcCycleTxns === 'function' ? getTcCycleTxns(activeCycle, allCycles) : [];
-      const arsTotal = cycleTxns.filter(t => t.currency === 'ARS' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
-      const usdTotal = cycleTxns.filter(t => t.currency === 'USD' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
+      const scopedTotals = totalsByKey[prefix] || totalsByKey[card.payMethodKey||card.id] || null;
+      const cycleTxns = !scopedTotals && typeof getTcCycleTxns === 'function' ? getTcCycleTxns(activeCycle, allCycles) : [];
+      const arsTotal = scopedTotals ? (scopedTotals.ars||0) : cycleTxns.filter(t => t.currency === 'ARS' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
+      const usdTotal = scopedTotals ? (scopedTotals.usd||0) : cycleTxns.filter(t => t.currency === 'USD' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
       animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
       if(amtUsdEl){
         if(usdTotal > 0){
@@ -2744,7 +2810,7 @@ function renderDb2CcCycles(){
 }
 
 // ── Projection widget extras ──
-function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, daysLeft, dailyRate, projPeriodClose){
+function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, spendBudget, daysLeft, dailyRate, projPeriodClose){
   const remainingEl = document.getElementById('db2-proj-remaining');
   const closeDateEl = document.getElementById('db2-proj-closedate');
   const r1El = document.getElementById('db2-proj-r1');
@@ -2752,10 +2818,11 @@ function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, daysLeft, da
   const l2El = document.getElementById('db2-proj-l2');
   const r3El = document.getElementById('db2-proj-r3');
   const barEl = document.getElementById('db2-proj-bar');
+  const referenceBudget = (spendBudget && spendBudget > 0) ? spendBudget : (incTotalARS || 0);
 
   if(remainingEl){
-    if(incTotalARS > 0 && projected > 0){
-      const rem = incTotalARS - totalGastoARS;
+    if(referenceBudget > 0){
+      const rem = referenceBudget - totalGastoARS;
       remainingEl.textContent = (rem >= 0 ? '$' : '-$') + fmtN(Math.abs(Math.round(rem)));
     } else remainingEl.textContent = '—';
   }
@@ -2771,18 +2838,18 @@ function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, daysLeft, da
     } else closeDateEl.textContent = '—';
   }
 
-  if(r1El && projected > 0) r1El.textContent = '$' + fmtN(Math.round(projected));
+  if(r1El){
+    r1El.textContent = projected > 0 ? '$' + fmtN(Math.round(projected)) : '$0';
+  }
   if(r2El){
     if(totalGastoARS > 0){
       if(l2El){
-        l2El.textContent = dailyRate > 0
-          ? `Si gastás $${fmtN(Math.round(dailyRate))}/día`
-          : 'Ritmo diario actual';
+        l2El.textContent = 'Gasto acumulado';
       }
       r2El.textContent = '$' + fmtN(Math.round(totalGastoARS));
-    } else if(incTotalARS > 0){
+    } else if(referenceBudget > 0){
       if(l2El) l2El.textContent = 'Presupuesto disponible';
-      r2El.textContent = '$' + fmtN(Math.round(incTotalARS));
+      r2El.textContent = '$' + fmtN(Math.round(referenceBudget));
     } else {
       r2El.textContent = '—';
     }
@@ -2793,8 +2860,8 @@ function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, daysLeft, da
   }
 
   // progress bar: what % of income/limit has been spent
-  if(barEl && incTotalARS > 0 && projected > 0){
-    const pct = Math.min(100, Math.round(projected / incTotalARS * 100));
+  if(barEl && referenceBudget > 0 && projected > 0){
+    const pct = Math.min(100, Math.round(projected / referenceBudget * 100));
     animateProgressBar(barEl, pct);
     if(pct >= 100) barEl.classList.add('over');
     else barEl.classList.remove('over');
@@ -3206,7 +3273,7 @@ function renderDb2Agenda(timelineData){
                       e.type === 'task'         ? 'Task'        : 'Cuota';
     const descLine = [typeLabel, amtStr].filter(Boolean).join(' · ');
     const timeStr = e.date instanceof Date
-      ? e.date.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}).replace('.','') + '<br>' + e.date.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'})
+      ? e.date.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}).replace('.','')
       : '—';
     return `<div class="db2-agenda-item">
       <div class="db2-agenda-time">${timeStr}</div>
@@ -3220,45 +3287,136 @@ function renderDb2Agenda(timelineData){
   }).join('');
 }
 
-// ── Próximos Vencimientos strip ──
+// ── Gastos de terceros (recordatorios de cobro) ──
 function renderDb2DueStrip(timelineData){
-  const grid = document.getElementById('db2-due-grid');
+  const grid = document.getElementById('db2-third-grid');
+  const summary = document.getElementById('db2-third-summary');
   if(!grid) return;
 
-  const events = (timelineData.events || [])
-    .filter(e => e && e.days >= 0 && e.amount > 0)
-    .slice(0, 3);
+  const today = new Date();
+  const toArs = (amount, currency) => ((currency || 'ARS') === 'USD'
+    ? (Number(amount) || 0) * (USD_TO_ARS || 1420)
+    : (Number(amount) || 0));
+  const toDisplayAmount = (amount, currency) => `${(currency || 'ARS') === 'USD' ? 'U$D ' : '$'}${fmtN(Math.round(Number(amount) || 0))}`;
+  const getAgeLabel = dateValue => {
+    const d = new Date(String(dateValue).includes('T') ? dateValue : `${dateValue}T12:00:00`);
+    if(Number.isNaN(d.getTime())) return 'sin fecha';
+    const diff = Math.max(0, Math.round((today - d) / 86400000));
+    if(diff === 0) return 'hoy';
+    if(diff === 1) return 'hace 1 día';
+    return `hace ${diff} días`;
+  };
+  const shortDate = dateValue => {
+    const d = new Date(String(dateValue).includes('T') ? dateValue : `${dateValue}T12:00:00`);
+    if(Number.isNaN(d.getTime())) return 'sin fecha';
+    return d.toLocaleDateString('es-AR', {day:'2-digit', month:'short'}).replace('.', '');
+  };
+  const initials = text => {
+    const base = String(text || '').trim();
+    if(!base) return '$';
+    const words = base.split(/\s+/).slice(0,2);
+    const chars = words.map(w => (w[0] || '').toUpperCase()).join('');
+    return chars || base.slice(0,1).toUpperCase();
+  };
+  const palette = ['#5B3BFF','#2D6BFF','#F97316','#14B8A6','#E11D48','#7C3AED'];
 
-  if(!events.length){
-    grid.innerHTML = '<div style="grid-column:1/-1;font-size:12px;color:var(--text3);padding:8px 0">Sin vencimientos próximos</div>';
+  const pendingItems = (state.transactions || [])
+    .filter(t =>
+      !!t.isThirdParty &&
+      !t.isPendingCuota &&
+      !t.isPendingSubscription &&
+      Number(t.amount) > 0
+    )
+    .map(t => {
+      const recoverBase = Number(t.thirdPartyAmount) || Number(t.amount) || 0;
+      const settledBase = Number(t.thirdPartySettledAmount) || 0;
+      const status = t.thirdPartyStatus || 'pending';
+      const recoveredAmount = status === 'settled'
+        ? (settledBase > 0 ? Math.min(settledBase, recoverBase) : recoverBase)
+        : (status === 'partial' ? Math.min(settledBase, recoverBase) : 0);
+      const pendingAmount = Math.max(0, recoverBase - recoveredAmount);
+      return {
+        id: t.id,
+        name: t.thirdPartyNote || t.description || 'Gasto de tercero',
+        date: dateToYMD(t.date),
+        currency: t.currency || 'ARS',
+        pendingAmount,
+        recoveredAmount,
+        recoverBase,
+        status,
+        pendingArs: toArs(pendingAmount, t.currency),
+        totalArs: toArs(recoverBase, t.currency)
+      };
+    })
+    .filter(item => item.pendingAmount > 0 && item.status !== 'settled')
+    .sort((a, b) => {
+      if(a.status !== b.status) return a.status === 'partial' ? -1 : 1;
+      return new Date(a.date) - new Date(b.date);
+    });
+
+  const totalOpenArs = pendingItems.reduce((s, item) => s + item.pendingArs, 0);
+  const partialCount = pendingItems.filter(item => item.status === 'partial').length;
+  const pendingCount = pendingItems.filter(item => item.status === 'pending').length;
+
+  if(summary){
+    if(pendingItems.length){
+      summary.innerHTML = `
+        <div class="db2-third-pill">
+          <span class="db2-third-pill-label">Por cobrar</span>
+          <span class="db2-third-pill-value">$${fmtN(Math.round(totalOpenArs))}</span>
+        </div>
+        <div class="db2-third-pill">
+          <span class="db2-third-pill-label">Pendientes</span>
+          <span class="db2-third-pill-value">${pendingCount}</span>
+        </div>
+        <div class="db2-third-pill">
+          <span class="db2-third-pill-label">Parciales</span>
+          <span class="db2-third-pill-value">${partialCount}</span>
+        </div>
+      `;
+    }else{
+      summary.innerHTML = `
+        <div class="db2-third-pill is-ok">
+          <span class="db2-third-pill-label">Estado</span>
+          <span class="db2-third-pill-value">Todo cobrado</span>
+        </div>
+      `;
+    }
+  }
+
+  if(!pendingItems.length){
+    grid.innerHTML = `
+      <div class="db2-third-empty">
+        No tenés gastos de terceros pendientes. Cuando marques uno en Movimientos, aparece acá como recordatorio.
+      </div>
+    `;
     return;
   }
 
-  const MONTHS_ES = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
-  const accentColors = ['#4361ee','#e63946','#2ec4b6'];
-
-  grid.innerHTML = events.map((e, i) => {
-    const d = e.date instanceof Date ? e.date : new Date();
-    const day = d.getDate();
-    const mo = MONTHS_ES[d.getMonth()] || '—';
-    const name = e.shortLabel || e.title || 'Evento';
-    const amt = '$' + fmtN(Math.round(e.amount));
-    const when = e.days === 0 ? 'Hoy' : e.days === 1 ? 'Mañana' : `En ${e.days} días`;
-    const chipCls = e.days === 0 ? 'today' : e.days <= 3 ? 'soon' : '';
-    const color = accentColors[i % accentColors.length];
-    const icon = e.type === 'subscription' ? '📺' : e.type === 'close' ? '💳' : e.type === 'due' ? '⚠️' : '📌';
-    return `<div class="db2-due-item">
-      <div class="db2-due-date-box" style="background:${color}">
-        <div class="db2-due-date-day">${day}</div>
-        <div class="db2-due-date-mo">${mo}</div>
+  grid.innerHTML = pendingItems.slice(0, 3).map((item, i) => {
+    const tone = item.status === 'partial' ? 'partial' : 'pending';
+    const statusLabel = item.status === 'partial' ? 'Cobro parcial' : 'Pendiente';
+    const since = shortDate(item.date);
+    const age = getAgeLabel(item.date);
+    const color = palette[i % palette.length];
+    return `<button class="db2-third-item ${tone}" onclick="openThirdPartyTransactions()" title="Abrir terceros en Movimientos">
+      <div class="db2-third-avatar" style="background:${color}">${initials(item.name)}</div>
+      <div class="db2-third-body">
+        <div class="db2-third-name">${esc(item.name)}</div>
+        <div class="db2-third-meta">${statusLabel} · desde ${since}</div>
       </div>
-      <div class="db2-due-body">
-        <div class="db2-due-name">${icon} ${esc(name)}</div>
-        <div class="db2-due-amt">${amt}</div>
-      </div>
-      <div class="db2-due-chip ${chipCls}">${when}</div>
-    </div>`;
+      <div class="db2-third-amount">${toDisplayAmount(item.pendingAmount, item.currency)}</div>
+      <div class="db2-third-chip">${age}</div>
+    </button>`;
   }).join('');
+
+  if(pendingItems.length > 3){
+    grid.innerHTML += `
+      <button class="db2-third-more" onclick="openThirdPartyTransactions()">
+        Ver ${pendingItems.length - 3} recordatorio${pendingItems.length - 3 !== 1 ? 's' : ''} más →
+      </button>
+    `;
+  }
 }
 
 // ── Dollar sparkline ──
@@ -3297,8 +3455,8 @@ function renderDb2Dashboard(data){
   //         projected, totalGastoARS, daysLeft, dailyRate, projPeriodClose,
   //         timelineData, monthTxns }
   renderDb2HeroExtras(data.arsMonth, data.usdMonth, data.margen, data.pct, data.incTotalARS, data.spendBudget);
-  renderDb2CcCycles();
-  renderDb2ProjExtras(data.projected, data.totalGastoARS, data.incTotalARS, data.daysLeft, data.dailyRate, data.projPeriodClose);
+  renderDb2CcCycles(data.ccWidgetData);
+  renderDb2ProjExtras(data.projected, data.totalGastoARS, data.incTotalARS, data.spendBudget, data.daysLeft, data.dailyRate, data.projPeriodClose);
   renderDb2Agenda(data.timelineData);
   renderDb2EvolutionChart();
   renderDb2CatDonut(data.monthTxns);

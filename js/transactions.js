@@ -176,6 +176,34 @@ function txnCategoryName(tx){
 function txnNoteText(tx){
   return tx.notes || tx.note || tx.thirdPartyNote || '';
 }
+function txnExtractTimeToken(value){
+  const m = String(value || '').match(/(?:^|\s)([01]\d|2[0-3]):([0-5]\d)(?:\s|$)/);
+  return m ? (m[1] + ':' + m[2]) : '';
+}
+function txnTimeLabel(tx){
+  const asHHMM = d => {
+    if(!(d instanceof Date) || Number.isNaN(d.getTime())) return '';
+    return String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  };
+  const fromField = txnExtractTimeToken(tx.txnTime || tx.hora || '');
+  if(fromField) return fromField;
+
+  const isGmailTxn = (tx.source === 'gmail') || (tx.origen_del_movimiento === 'importado_desde_gmail') || !!tx.gmailId;
+  if(isGmailTxn){
+    const fromDesc = txnExtractTimeToken(tx.description || '');
+    if(fromDesc) return fromDesc;
+    if(tx.gmailDateHeader){
+      const h = asHHMM(new Date(tx.gmailDateHeader));
+      if(h) return h;
+    }
+    const fromDate = asHHMM(tx.date instanceof Date ? tx.date : new Date(tx.date));
+    if(fromDate && fromDate !== '00:00') return fromDate;
+    return '00:00';
+  }
+
+  // Manual / pasted / CSV without reliable time metadata.
+  return '00:00';
+}
 function txnRelativeTimeLabel(iso){
   if(!iso) return '';
   const d=txnParseMetaDate(iso);
@@ -227,14 +255,20 @@ function txnSyncMetadata(){
   return items;
 }
 function txnMerchantLogoData(tx){
+  const presets=(typeof getBrandLogoPresets==='function' ? getBrandLogoPresets() : null) || {};
+  const fromRule = tx.logoKey && presets[tx.logoKey] ? presets[tx.logoKey] : null;
+  if(fromRule){
+    return { bg:fromRule.bg, text:fromRule.text, label:fromRule.label, kind:'text' };
+  }
   const merchant=txnMerchantName(tx).toLowerCase();
   const logoMap=[
     {match:['mcdonald'], bg:'#DA1E2A', text:'#FFC928', label:'M', kind:'text'},
-    {match:['pedidosya'], bg:'#EF4354', text:'#FFFFFF', label:'P', kind:'text'},
+    {match:['pedidosya','pedido ya'], bg:'#EF4354', text:'#FFFFFF', label:'P', kind:'text'},
+    {match:['rappi'], bg:'#20BFA9', text:'#FFFFFF', label:'R', kind:'text'},
+    {match:['mercadopago','merpago'], bg:'#009EE3', text:'#FFFFFF', label:'MP', kind:'text'},
     {match:['ypf'], bg:'#1F64D8', text:'#FFFFFF', label:'YPF', kind:'text'},
     {match:['netflix'], bg:'#F5F5F8', text:'#E30C18', label:'N', kind:'text'},
     {match:['starbucks'], bg:'#0B7A52', text:'#FFFFFF', label:'S', kind:'text'},
-    {match:['changomas'], bg:'#FFFFFF', text:'#EB3A44', label:'C', kind:'text'},
   ];
   return logoMap.find(item=>item.match.some(m=>merchant.includes(m))) || null;
 }
@@ -1228,7 +1262,7 @@ function renderTransactions(){
                   const amountClass=(tx.currency==='USD'?' usd':'');
                   return '<div class="mv-row" onclick="openTxnDetail(\''+tx.id+'\')">'
                     +txnMerchantAvatar(tx)
-                    +'<div class="mv-time">'+new Date(tx.date).toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false})+'</div>'
+                    +'<div class="mv-time">'+txnTimeLabel(tx)+'</div>'
                     +'<div><div class="mv-merchant">'+esc(txnMerchantName(tx))+'</div><div class="mv-meta"><span class="mv-cat" style="background:'+catColor(cat)+'18;color:'+catColor(cat)+';"><span style="font-size:7px;">◆</span>'+esc(cat)+'</span>'+(txnNoteText(tx)?'<span class="mv-note">↪ '+esc(txnNoteText(tx))+'</span>':'')+'</div></div>'
                     +'<div class="mv-amount"><div class="mv-amount-main'+amountClass+'">'+txnAmountLabel(tx)+'</div>'+(((tx.currency||'ARS')==='USD')?'<div class="mv-amount-sub">'+txnEquivalentLabel(tx)+'</div>':'')+'</div>'
                     +'<div style="position:relative;"><button class="mv-menu-btn" onclick="event.stopPropagation();toggleTxnActionMenu(\''+tx.id+'\')">⋮</button>'+menuForTxn(tx.id)+'</div>'

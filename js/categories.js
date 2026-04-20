@@ -11,118 +11,260 @@ function closeRulesPanel(){
   if(rp&&rp.classList.contains('open')){rp.classList.remove('open');_iosUnlock();}
   document.removeEventListener('click', _closePanelsOnOutside);
 }
+
+function rulesCategoryOptionsHTML(){
+  let html='';
+  CATEGORY_GROUPS.forEach(g=>{
+    html+='<optgroup label="'+g.emoji+' '+g.group+'">';
+    g.subs.forEach(s=>{ html+='<option value="'+esc(s)+'">'+esc(s)+'</option>'; });
+    html+='</optgroup>';
+  });
+  return html;
+}
+
+function rulesLogoOptionsHTML(selected){
+  const presets = (typeof getBrandLogoPresets==='function' ? getBrandLogoPresets() : {}) || {};
+  const keys = Object.keys(presets);
+  if(!keys.length) return '<option value="">Sin presets</option>';
+  return keys.map(k=>{
+    const p = presets[k] || {};
+    return '<option value="'+esc(k)+'" '+(selected===k?'selected':'')+'>'+esc((p.label||k)+' · '+k)+'</option>';
+  }).join('');
+}
+
+function rulesCountMatches(keyword){
+  const kw = normalizeRuleKeyword(keyword);
+  if(!kw) return 0;
+  return (state.transactions||[]).filter(t=>txnRuleHaystack(t).includes(kw)).length;
+}
+
+function rulesBuildCategorySuggestions(){
+  const suggestions=[];
+  const counts={};
+  (state.transactions||[]).forEach(t=>{
+    const com=t.comercio_detectado||detectComercio(t.description);
+    if(!com) return;
+    const key=normalizeRuleKeyword(com);
+    if(!counts[key]) counts[key]={displayName:com,total:0,cats:{}};
+    counts[key].total++;
+    const cat=t.category;
+    if(cat&&cat!=='Procesando...'&&cat!=='Uncategorized') counts[key].cats[cat]=(counts[key].cats[cat]||0)+1;
+  });
+  const existing=new Set((state.catRules||[]).map(r=>normalizeRuleKeyword(r.keyword)));
+  Object.entries(counts).forEach(([key,data])=>{
+    if(data.total<2 || existing.has(key)) return;
+    const top=Object.entries(data.cats).sort((a,b)=>b[1]-a[1])[0];
+    if(!top) return;
+    const confidence=Math.round((top[1]/data.total)*100);
+    if(confidence>=60) suggestions.push({keyword:key,displayName:data.displayName,category:top[0],count:data.total,confidence});
+  });
+  return suggestions.sort((a,b)=>b.count-a.count).slice(0,18);
+}
+
+function rulesBuildNameSuggestions(){
+  const suggestions=[];
+  const existing=new Set((state.nameRules||[]).map(r=>normalizeRuleKeyword(r.keyword)));
+  const seen=new Set();
+  (state.transactions||[]).forEach(t=>{
+    const base=String(t.gmailMerchantRaw||t._baseDesc||t.description||'').trim();
+    const detected=detectComercio(base);
+    if(!base||!detected) return;
+    const kw=normalizeRuleKeyword(base);
+    if(!kw || existing.has(kw) || seen.has(kw)) return;
+    if(normalizeRuleKeyword(base)===normalizeRuleKeyword(detected)) return;
+    seen.add(kw);
+    suggestions.push({keyword:base,renameTo:detected,count:rulesCountMatches(base)});
+  });
+  return suggestions.sort((a,b)=>b.count-a.count).slice(0,18);
+}
+
+function rulesBuildLogoSuggestions(){
+  const suggestions=[];
+  const existing=new Set((state.logoRules||[]).map(r=>normalizeRuleKeyword(r.keyword)));
+  const presets=(typeof getBrandLogoPresets==='function' ? getBrandLogoPresets() : {}) || {};
+  const seen=new Set();
+  (state.transactions||[]).forEach(t=>{
+    const logoKey=detectBuiltinLogoKey(t);
+    if(!logoKey||!presets[logoKey]) return;
+    const keyword=String(t.gmailMerchantRaw||t._baseDesc||t.comercio_detectado||t.description||'').trim();
+    const kwNorm=normalizeRuleKeyword(keyword);
+    if(!kwNorm||existing.has(kwNorm)||seen.has(kwNorm)) return;
+    seen.add(kwNorm);
+    suggestions.push({keyword,logoKey,count:rulesCountMatches(keyword)});
+  });
+  return suggestions.sort((a,b)=>b.count-a.count).slice(0,18);
+}
+
 function renderRulesPanel(){
   window._rulesJustRendered=true;
-  const panel=document.getElementById('rules-panel');if(!panel)return;
-  const rules=state.catRules||[];
-  const histEntries=Object.entries(state.catHistory||{}).sort((a,b)=>{
-    const aMax=Math.max(...Object.values(a[1]));const bMax=Math.max(...Object.values(b[1]));return bMax-aMax;
-  });
-  let catOptsHtml='';
-  CATEGORY_GROUPS.forEach(g=>{
-    catOptsHtml+='<optgroup label="'+g.emoji+' '+g.group+'">';
-    g.subs.forEach(s=>{catOptsHtml+='<option value="'+esc(s)+'">'+esc(s)+'</option>';});
-    catOptsHtml+='</optgroup>';
-  });
+  const panel=document.getElementById('rules-panel');
+  if(!panel) return;
 
-  // Suggestions
-  const suggestions=[];
-  const comercioCounts={};
-  state.transactions.forEach(t=>{
-    const com=t.comercio_detectado;if(!com)return;
-    const key=com.toLowerCase();
-    if(!comercioCounts[key])comercioCounts[key]={name:com,cats:{},total:0};
-    comercioCounts[key].total++;
-    const cat=t.category;
-    if(cat&&cat!=='Procesando...'&&cat!=='Uncategorized') comercioCounts[key].cats[cat]=(comercioCounts[key].cats[cat]||0)+1;
-  });
-  const existingKw=new Set((rules||[]).map(r=>r.keyword.toLowerCase()));
-  Object.entries(comercioCounts).forEach(([key,data])=>{
-    if(data.total<2||existingKw.has(key))return;
-    const catEntries=Object.entries(data.cats).sort((a,b)=>b[1]-a[1]);
-    if(!catEntries.length)return;
-    const top=catEntries[0];const confidence=Math.round(top[1]/data.total*100);
-    if(confidence>=60) suggestions.push({keyword:key,displayName:data.name,category:top[0],count:data.total,confidence});
-  });
-  suggestions.sort((a,b)=>b.count-a.count);
+  if(!Array.isArray(state.catRules)) state.catRules=[];
+  if(!Array.isArray(state.nameRules)) state.nameRules=[];
+  if(!Array.isArray(state.logoRules)) state.logoRules=[];
 
-  // Stats
-  const uncategorized=state.transactions.filter(t=>!t.category||t.category==='Procesando...'||t.category==='Uncategorized').length;
-  const tab=(state._rulesTab==='suggest'?'suggest':'rules');
+  const catRules=state.catRules;
+  const nameRules=state.nameRules;
+  const logoRules=state.logoRules;
+  const tab = ['category','name','logo','suggest'].includes(state._rulesTab) ? state._rulesTab : 'category';
+  state._rulesTab = tab;
 
-  panel.innerHTML=`
-    <div class="rp-header">
-      <div>
-        <div class="rp-title">⚡ Reglas de categorización</div>
-        <div style="font-size:12px;color:var(--text3);margin-top:4px;font-family:var(--font);">${rules.length} reglas activas${uncategorized>0?' · <span style="color:var(--danger);font-weight:700;">'+uncategorized+' sin categoría</span>':''}</div>
-      </div>
-      <button class="tdp-close" onclick="closeRulesPanel()">✕</button>
-    </div>
-    <div class="rp-body">
-      <!-- TABS -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:2px;">
-        <button onclick="state._rulesTab='rules';renderRulesPanel();" style="padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:11.4px;font-weight:700;font-family:var(--font);transition:all .12s;${tab==='rules'?'background:var(--accent);color:#fff;box-shadow:0 8px 16px rgba(87,50,243,.18);':'background:#f5f5fb;color:var(--text3);'}">📋 Mis reglas (${rules.length})</button>
-        <button onclick="state._rulesTab='suggest';renderRulesPanel();" style="padding:8px 14px;border-radius:999px;border:none;cursor:pointer;font-size:11.4px;font-weight:700;font-family:var(--font);transition:all .12s;${tab==='suggest'?'background:var(--accent);color:#fff;box-shadow:0 8px 16px rgba(87,50,243,.18);':'background:#f5f5fb;color:var(--text3);'}">💡 Sugeridas (${suggestions.length})</button>
-      </div>
+  const catSuggestions = rulesBuildCategorySuggestions();
+  const nameSuggestions = rulesBuildNameSuggestions();
+  const logoSuggestions = rulesBuildLogoSuggestions();
 
-      ${tab==='rules'?`
-      <!-- ═══ TAB: MIS REGLAS ═══ -->
-      ${rules.length===0?'<div style="color:var(--text3);font-size:12.4px;padding:22px 16px;text-align:center;background:#f8f8fc;border-radius:16px;border:1px solid var(--border);font-family:var(--font);">Sin reglas. Creá la primera abajo o aceptá una sugerencia.</div>':''}
-      ${rules.map((r,i)=>{
-        const cc=catColor(r.category);
-        const matchCount=state.transactions.filter(t=>(t.description||'').toLowerCase().includes(r.keyword.toLowerCase())).length;
-        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:16px;margin-bottom:6px;border:1px solid var(--border);'+(r.active===false?'opacity:.45;':'')+'">'
-          +'<div style="flex:1;min-width:0;">'
-            +'<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;">'
-              +'<span style="font-size:12.4px;font-weight:700;color:var(--text);background:#fff;padding:3px 8px;border-radius:999px;border:1px solid var(--border);font-family:var(--font);">'+esc(r.keyword)+'</span>'
-              +'<span style="font-size:10.5px;color:var(--text3);font-family:var(--font);">→</span>'
-              +'<span style="font-size:11.2px;font-weight:700;color:'+cc+';background:'+cc+'12;padding:3px 8px;border-radius:999px;font-family:var(--font);">'+esc(r.category)+'</span>'
-            +'</div>'
-            +'<div style="font-size:10.8px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+matchCount+' coincidencia'+(matchCount!==1?'s':'')+'</div>'
-          +'</div>'
-          +'<button style="background:none;border:none;cursor:pointer;font-size:14px;color:'+(r.active!==false?'var(--accent)':'var(--text3)')+';padding:2px 4px;" onclick="toggleRule('+i+')" title="'+(r.active!==false?'Desactivar':'Activar')+'">'+(r.active!==false?'●':'○')+'</button>'
-          +'<button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.5;" onclick="deleteRule('+i+')" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'">✕</button>'
-        +'</div>';
-      }).join('')}
-      <!-- Add new rule form -->
-      <div style="margin-top:12px;padding:16px;background:#f8f8fc;border-radius:18px;border:1px solid var(--border);">
-        <div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:12px;font-family:var(--font);">+ Nueva regla</div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">
-          <div style="flex:1;min-width:120px;">
-            <div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-family:var(--font);">Keyword</div>
-            <input id="rule-new-keyword" type="text" placeholder="ej: PEDIDOSYA" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:14px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);">
-          </div>
-          <div style="flex:1;min-width:120px;">
-            <div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;font-family:var(--font);">Categoría</div>
-            <select id="rule-new-cat" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:14px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);">${catOptsHtml}</select>
-          </div>
-          <button style="padding:10px 16px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:12.4px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="addUserRule()">Agregar</button>
-        </div>
-      </div>
-      <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:10px;" onclick="reApplySuggestionsAll()">↺ Re-aplicar reglas a movimientos sin categoría</button>
-      `:''}
+  const totalRules = catRules.length + nameRules.length + logoRules.length;
+  const uncategorized=(state.transactions||[]).filter(t=>!t.category||t.category==='Procesando...'||t.category==='Uncategorized').length;
+  const catOptsHtml=rulesCategoryOptionsHTML();
 
-      ${tab==='suggest'?`
-      <!-- ═══ TAB: SUGERIDAS ═══ -->
-      <div style="font-size:11.4px;color:var(--text3);margin-bottom:10px;font-family:var(--font);">Reglas sugeridas basadas en patrones detectados en tus movimientos.</div>
-      ${suggestions.length===0?'<div style="font-size:12.4px;color:var(--text3);text-align:center;padding:22px 16px;background:#f8f8fc;border-radius:16px;border:1px solid var(--border);font-family:var(--font);">No hay sugerencias nuevas. Importá más movimientos o asigná categorías para generar patrones.</div>':''}
-      ${suggestions.slice(0,15).map(s=>{
-        const cc=catColor(s.category);
-        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:16px;margin-bottom:6px;border:1px solid var(--border);">'
-          +'<div style="flex:1;min-width:0;">'
-            +'<div style="display:flex;align-items:center;gap:6px;">'
-              +'<span style="font-size:12.4px;font-weight:700;color:var(--text);font-family:var(--font);">'+esc(s.displayName)+'</span>'
-              +'<span style="font-size:10px;color:var(--text3);font-family:var(--font);">→</span>'
-              +'<span style="font-size:11.2px;font-weight:700;color:'+cc+';font-family:var(--font);">'+esc(s.category)+'</span>'
-            +'</div>'
-            +'<div style="font-size:10.8px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+s.count+' movimientos · '+s.confidence+'% confianza</div>'
-          +'</div>'
-          +'<button style="padding:7px 12px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:10.8px;font-weight:700;cursor:pointer;font-family:var(--font);white-space:nowrap;" data-kw="'+esc(s.keyword)+'" data-cat="'+esc(s.category)+'" onclick="acceptRuleSuggestion(this.dataset.kw,this.dataset.cat)">+ Crear</button>'
-        +'</div>';
-      }).join('')}
-      `:''}
-    </div>
-  `;
+  panel.innerHTML=''
+    +'<div class="rp-header">'
+      +'<div>'
+        +'<div class="rp-title">🧠 Reglas inteligentes</div>'
+        +'<div style="font-size:12px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+totalRules+' reglas totales'+(uncategorized>0?' · <span style="color:var(--danger);font-weight:700;">'+uncategorized+' sin categoría</span>':'')+'</div>'
+      +'</div>'
+      +'<button class="tdp-close" onclick="closeRulesPanel()">✕</button>'
+    +'</div>'
+    +'<div class="rp-body">'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">'
+        +'<button onclick="state._rulesTab=\'category\';renderRulesPanel();" style="padding:8px 13px;border-radius:999px;border:none;cursor:pointer;font-size:11.4px;font-weight:700;font-family:var(--font);'+(tab==='category'?'background:var(--accent);color:#fff;':'background:#f5f5fb;color:var(--text3);')+'">🏷 Categorías ('+catRules.length+')</button>'
+        +'<button onclick="state._rulesTab=\'name\';renderRulesPanel();" style="padding:8px 13px;border-radius:999px;border:none;cursor:pointer;font-size:11.4px;font-weight:700;font-family:var(--font);'+(tab==='name'?'background:var(--accent);color:#fff;':'background:#f5f5fb;color:var(--text3);')+'">✍ Nombres ('+nameRules.length+')</button>'
+        +'<button onclick="state._rulesTab=\'logo\';renderRulesPanel();" style="padding:8px 13px;border-radius:999px;border:none;cursor:pointer;font-size:11.4px;font-weight:700;font-family:var(--font);'+(tab==='logo'?'background:var(--accent);color:#fff;':'background:#f5f5fb;color:var(--text3);')+'">🖼 Logos ('+logoRules.length+')</button>'
+        +'<button onclick="state._rulesTab=\'suggest\';renderRulesPanel();" style="padding:8px 13px;border-radius:999px;border:none;cursor:pointer;font-size:11.4px;font-weight:700;font-family:var(--font);'+(tab==='suggest'?'background:var(--accent);color:#fff;':'background:#f5f5fb;color:var(--text3);')+'">💡 Sugeridas</button>'
+      +'</div>'
+      +(tab==='category' ? renderCategoryRulesTab(catRules, catOptsHtml) : '')
+      +(tab==='name' ? renderNameRulesTab(nameRules) : '')
+      +(tab==='logo' ? renderLogoRulesTab(logoRules) : '')
+      +(tab==='suggest' ? renderSuggestedRulesTab(catSuggestions, nameSuggestions, logoSuggestions) : '')
+      +'<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:12px;" onclick="reApplySuggestionsAll()">↺ Re-aplicar reglas a todos los movimientos</button>'
+    +'</div>';
+}
+
+function renderCategoryRulesTab(rules, catOptsHtml){
+  let html='';
+  if(!rules.length) html+='<div style="color:var(--text3);font-size:12.4px;padding:18px 14px;text-align:center;background:#f8f8fc;border-radius:14px;border:1px solid var(--border);font-family:var(--font);">Sin reglas de categoría.</div>';
+  html += rules.map((r,i)=>{
+    const cc=catColor(r.category);
+    const count=rulesCountMatches(r.keyword);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:14px;margin-bottom:6px;border:1px solid var(--border);'+(r.active===false?'opacity:.45;':'')+'">'
+      +'<div style="flex:1;min-width:0;">'
+        +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+          +'<span style="font-size:12.2px;font-weight:700;color:var(--text);background:#fff;padding:3px 8px;border-radius:999px;border:1px solid var(--border);font-family:var(--font);">'+esc(r.keyword)+'</span>'
+          +'<span style="font-size:10px;color:var(--text3);">→</span>'
+          +'<span style="font-size:11px;font-weight:700;color:'+cc+';background:'+cc+'12;padding:3px 8px;border-radius:999px;font-family:var(--font);">'+esc(r.category)+'</span>'
+        +'</div>'
+        +'<div style="font-size:10.5px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+count+' coincidencias</div>'
+      +'</div>'
+      +'<button style="background:none;border:none;cursor:pointer;font-size:14px;color:'+(r.active!==false?'var(--accent)':'var(--text3)')+';padding:2px 4px;" onclick="toggleRule('+i+')">'+(r.active!==false?'●':'○')+'</button>'
+      +'<button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.6;" onclick="deleteRule('+i+')">✕</button>'
+    +'</div>';
+  }).join('');
+  html += '<div style="margin-top:12px;padding:14px;background:#f8f8fc;border-radius:16px;border:1px solid var(--border);">'
+    +'<div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:10px;font-family:var(--font);">+ Nueva regla de categoría</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">'
+      +'<div style="flex:1;min-width:120px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Keyword</div><input id="rule-new-keyword" type="text" placeholder="ej: PEDIDOSYA" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);"></div>'
+      +'<div style="flex:1;min-width:120px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Categoría</div><select id="rule-new-cat" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);">'+catOptsHtml+'</select></div>'
+      +'<button style="padding:10px 14px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="addUserRule()">Agregar</button>'
+    +'</div>'
+  +'</div>';
+  return html;
+}
+
+function renderNameRulesTab(rules){
+  let html='';
+  if(!rules.length) html+='<div style="color:var(--text3);font-size:12.4px;padding:18px 14px;text-align:center;background:#f8f8fc;border-radius:14px;border:1px solid var(--border);font-family:var(--font);">Sin reglas de nombre.</div>';
+  html += rules.map((r,i)=>{
+    const count=rulesCountMatches(r.keyword);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:14px;margin-bottom:6px;border:1px solid var(--border);'+(r.active===false?'opacity:.45;':'')+'">'
+      +'<div style="flex:1;min-width:0;">'
+        +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+          +'<span style="font-size:12.2px;font-weight:700;color:var(--text);background:#fff;padding:3px 8px;border-radius:999px;border:1px solid var(--border);font-family:var(--font);">'+esc(r.keyword)+'</span>'
+          +'<span style="font-size:10px;color:var(--text3);">→</span>'
+          +'<span style="font-size:11px;font-weight:700;color:var(--accent);background:rgba(87,50,243,0.12);padding:3px 8px;border-radius:999px;font-family:var(--font);">'+esc(r.renameTo)+'</span>'
+        +'</div>'
+        +'<div style="font-size:10.5px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+count+' coincidencias</div>'
+      +'</div>'
+      +'<button style="background:none;border:none;cursor:pointer;font-size:14px;color:'+(r.active!==false?'var(--accent)':'var(--text3)')+';padding:2px 4px;" onclick="toggleNameRule('+i+')">'+(r.active!==false?'●':'○')+'</button>'
+      +'<button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.6;" onclick="deleteNameRule('+i+')">✕</button>'
+    +'</div>';
+  }).join('');
+  html += '<div style="margin-top:12px;padding:14px;background:#f8f8fc;border-radius:16px;border:1px solid var(--border);">'
+    +'<div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:10px;font-family:var(--font);">+ Nueva regla de nombre</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">'
+      +'<div style="flex:1;min-width:120px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Detectar</div><input id="name-rule-keyword" type="text" placeholder="ej: MC DONALDS" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);"></div>'
+      +'<div style="flex:1;min-width:120px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Renombrar a</div><input id="name-rule-target" type="text" placeholder="ej: McDonald\'s" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);"></div>'
+      +'<button style="padding:10px 14px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="addNameRule()">Agregar</button>'
+    +'</div>'
+  +'</div>';
+  return html;
+}
+
+function ruleLogoPreviewHtml(logoKey){
+  const presets=(typeof getBrandLogoPresets==='function' ? getBrandLogoPresets() : {}) || {};
+  const p=presets[logoKey];
+  if(!p) return '<span style="font-size:10px;color:var(--text3);">Sin preset</span>';
+  return '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:8px;background:'+p.bg+';color:'+p.text+';font-size:10px;font-weight:800;">'+esc(p.label||logoKey.slice(0,2).toUpperCase())+'</span>';
+}
+
+function renderLogoRulesTab(rules){
+  let html='';
+  if(!rules.length) html+='<div style="color:var(--text3);font-size:12.4px;padding:18px 14px;text-align:center;background:#f8f8fc;border-radius:14px;border:1px solid var(--border);font-family:var(--font);">Sin reglas de logo.</div>';
+  html += rules.map((r,i)=>{
+    const count=rulesCountMatches(r.keyword);
+    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:14px;margin-bottom:6px;border:1px solid var(--border);'+(r.active===false?'opacity:.45;':'')+'">'
+      +'<div style="flex:1;min-width:0;">'
+        +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">'
+          +'<span style="font-size:12.2px;font-weight:700;color:var(--text);background:#fff;padding:3px 8px;border-radius:999px;border:1px solid var(--border);font-family:var(--font);">'+esc(r.keyword)+'</span>'
+          +'<span style="font-size:10px;color:var(--text3);">→</span>'
+          +ruleLogoPreviewHtml(r.logoKey)
+          +'<span style="font-size:11px;font-weight:700;color:var(--text);font-family:var(--font);">'+esc(r.logoKey)+'</span>'
+        +'</div>'
+        +'<div style="font-size:10.5px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+count+' coincidencias</div>'
+      +'</div>'
+      +'<button style="background:none;border:none;cursor:pointer;font-size:14px;color:'+(r.active!==false?'var(--accent)':'var(--text3)')+';padding:2px 4px;" onclick="toggleLogoRule('+i+')">'+(r.active!==false?'●':'○')+'</button>'
+      +'<button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.6;" onclick="deleteLogoRule('+i+')">✕</button>'
+    +'</div>';
+  }).join('');
+  html += '<div style="margin-top:12px;padding:14px;background:#f8f8fc;border-radius:16px;border:1px solid var(--border);">'
+    +'<div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:10px;font-family:var(--font);">+ Nueva regla de logo</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">'
+      +'<div style="flex:1;min-width:120px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Detectar</div><input id="logo-rule-keyword" type="text" placeholder="ej: RAPPI" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);"></div>'
+      +'<div style="flex:1;min-width:130px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Logo</div><select id="logo-rule-key" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);">'+rulesLogoOptionsHTML('')+'</select></div>'
+      +'<button style="padding:10px 14px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="addLogoRule()">Agregar</button>'
+    +'</div>'
+  +'</div>';
+  return html;
+}
+
+function renderSuggestedRulesTab(catSuggestions, nameSuggestions, logoSuggestions){
+  let html='<div style="font-size:11.2px;color:var(--text3);margin-bottom:10px;font-family:var(--font);">Sugerencias basadas en patrones reales de tus movimientos.</div>';
+
+  html+='<div style="font-size:11px;font-weight:800;color:var(--text2);margin:8px 0 6px;font-family:var(--font);">Categoría</div>';
+  html += (catSuggestions.length?catSuggestions.map(s=>
+    '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:14px;margin-bottom:6px;border:1px solid var(--border);">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:12.1px;font-weight:700;color:var(--text);">'+esc(s.displayName)+'</div><div style="font-size:10.5px;color:var(--text3);">'+s.count+' mov · '+s.confidence+'% · '+esc(s.category)+'</div></div>'
+      +'<button style="padding:6px 10px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:10.8px;font-weight:700;cursor:pointer;" data-kw="'+esc(s.keyword)+'" data-cat="'+esc(s.category)+'" onclick="acceptRuleSuggestion(this.dataset.kw,this.dataset.cat)">+ Crear</button>'
+    +'</div>'
+  ).join(''):'<div style="font-size:11px;color:var(--text3);padding:8px 0;">Sin sugerencias.</div>');
+
+  html+='<div style="font-size:11px;font-weight:800;color:var(--text2);margin:10px 0 6px;font-family:var(--font);">Nombre</div>';
+  html += (nameSuggestions.length?nameSuggestions.map(s=>
+    '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:14px;margin-bottom:6px;border:1px solid var(--border);">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:12.1px;font-weight:700;color:var(--text);">'+esc(s.keyword)+'</div><div style="font-size:10.5px;color:var(--text3);">→ '+esc(s.renameTo)+' · '+s.count+' mov</div></div>'
+      +'<button style="padding:6px 10px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:10.8px;font-weight:700;cursor:pointer;" data-kw="'+esc(s.keyword)+'" data-rename="'+esc(s.renameTo)+'" onclick="acceptNameSuggestion(this.dataset.kw,this.dataset.rename)">+ Crear</button>'
+    +'</div>'
+  ).join(''):'<div style="font-size:11px;color:var(--text3);padding:8px 0;">Sin sugerencias.</div>');
+
+  html+='<div style="font-size:11px;font-weight:800;color:var(--text2);margin:10px 0 6px;font-family:var(--font);">Logo</div>';
+  html += (logoSuggestions.length?logoSuggestions.map(s=>
+    '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:14px;margin-bottom:6px;border:1px solid var(--border);">'
+      +'<div style="flex:1;min-width:0;"><div style="font-size:12.1px;font-weight:700;color:var(--text);">'+esc(s.keyword)+'</div><div style="font-size:10.5px;color:var(--text3);">'+esc(s.logoKey)+' · '+s.count+' mov</div></div>'
+      +'<button style="padding:6px 10px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:10.8px;font-weight:700;cursor:pointer;" data-kw="'+esc(s.keyword)+'" data-logo="'+esc(s.logoKey)+'" onclick="acceptLogoSuggestion(this.dataset.kw,this.dataset.logo)">+ Crear</button>'
+    +'</div>'
+  ).join(''):'<div style="font-size:11px;color:var(--text3);padding:8px 0;">Sin sugerencias.</div>');
+
+  return html;
 }
 
 function deleteLearned(comercio){
@@ -147,22 +289,13 @@ function clearAllLearned(){
   showToast('🗑 Historial de aprendizaje borrado','info');
 }
 
-
 function acceptRuleSuggestion(keyword,category){
-  window._rulesJustRendered=true;
   if(!state.catRules)state.catRules=[];
   const id=Date.now().toString(36);
   state.catRules.unshift({id,keyword,category,active:true,priority:state.catRules.length+1});
-  // Also apply immediately to matching transactions
-  let applied=0;
-  state.transactions.forEach(t=>{
-    if(t.estado_revision==='confirmado_por_usuario')return;
-    if((t.description||'').toLowerCase().includes(keyword)){
-      t.category=category;applied++;
-    }
-  });
+  reApplySuggestionsAll(false);
   saveState();renderRulesPanel();renderTransactions();
-  showToast('✓ Regla creada y aplicada a '+applied+' movimientos','success');
+  showToast('✓ Regla de categoría creada','success');
 }
 
 function addUserRule(){
@@ -170,33 +303,108 @@ function addUserRule(){
   const cat=document.getElementById('rule-new-cat')?.value||'';
   if(!kw||!cat){showToast('Completá keyword y categoría','error');return;}
   if(!state.catRules)state.catRules=[];
-  const id=Date.now().toString(36);
-  state.catRules.unshift({id,keyword:kw,category:cat,active:true,priority:state.catRules.length+1});
-  window._rulesJustRendered=true;saveState();renderRulesPanel();showToast('✓ Regla agregada: "'+kw+'" → '+cat,'success');
+  state.catRules.unshift({id:Date.now().toString(36),keyword:kw,category:cat,active:true,priority:state.catRules.length+1});
+  reApplySuggestionsAll(false);
+  saveState();renderRulesPanel();
+  showToast('✓ Regla de categoría agregada','success');
 }
+
 function toggleRule(idx){
   if(!state.catRules[idx])return;
   state.catRules[idx].active=state.catRules[idx].active===false?true:false;
-  window._rulesJustRendered=true;saveState();renderRulesPanel();
+  reApplySuggestionsAll(false);
+  saveState();renderRulesPanel();
 }
+
 function deleteRule(idx){
   if(!confirm('¿Eliminar regla?'))return;
   state.catRules.splice(idx,1);
+  reApplySuggestionsAll(false);
   saveState();renderRulesPanel();
 }
-function reApplySuggestionsAll(){
+
+function addNameRule(){
+  const kw=(document.getElementById('name-rule-keyword')?.value||'').trim();
+  const renameTo=(document.getElementById('name-rule-target')?.value||'').trim();
+  if(!kw||!renameTo){showToast('Completá detectar y renombrar','error');return;}
+  if(!state.nameRules) state.nameRules=[];
+  state.nameRules.unshift({id:Date.now().toString(36),keyword:kw,renameTo,active:true,priority:state.nameRules.length+1});
+  reApplySuggestionsAll(false);
+  saveState();renderRulesPanel();
+  showToast('✓ Regla de nombre agregada','success');
+}
+
+function acceptNameSuggestion(keyword, renameTo){
+  if(!state.nameRules) state.nameRules=[];
+  state.nameRules.unshift({id:Date.now().toString(36),keyword,renameTo,active:true,priority:state.nameRules.length+1});
+  reApplySuggestionsAll(false);
+  saveState();renderRulesPanel();
+  showToast('✓ Regla de nombre creada','success');
+}
+
+function toggleNameRule(idx){
+  if(!state.nameRules[idx]) return;
+  state.nameRules[idx].active = state.nameRules[idx].active===false?true:false;
+  reApplySuggestionsAll(false);
+  saveState();renderRulesPanel();
+}
+
+function deleteNameRule(idx){
+  if(!confirm('¿Eliminar regla?'))return;
+  state.nameRules.splice(idx,1);
+  reApplySuggestionsAll(false);
+  saveState();renderRulesPanel();
+}
+
+function addLogoRule(){
+  const kw=(document.getElementById('logo-rule-keyword')?.value||'').trim();
+  const logoKey=(document.getElementById('logo-rule-key')?.value||'').trim();
+  if(!kw||!logoKey){showToast('Completá detectar y logo','error');return;}
+  if(!state.logoRules) state.logoRules=[];
+  state.logoRules.unshift({id:Date.now().toString(36),keyword:kw,logoKey,active:true,priority:state.logoRules.length+1});
+  reApplySuggestionsAll(false);
+  saveState();renderRulesPanel();
+  showToast('✓ Regla de logo agregada','success');
+}
+
+function acceptLogoSuggestion(keyword, logoKey){
+  if(!state.logoRules) state.logoRules=[];
+  state.logoRules.unshift({id:Date.now().toString(36),keyword,logoKey,active:true,priority:state.logoRules.length+1});
+  reApplySuggestionsAll(false);
+  saveState();renderRulesPanel();
+  showToast('✓ Regla de logo creada','success');
+}
+
+function toggleLogoRule(idx){
+  if(!state.logoRules[idx]) return;
+  state.logoRules[idx].active = state.logoRules[idx].active===false?true:false;
+  reApplySuggestionsAll(false);
+  saveState();renderRulesPanel();
+}
+
+function deleteLogoRule(idx){
+  if(!confirm('¿Eliminar regla?'))return;
+  state.logoRules.splice(idx,1);
+  reApplySuggestionsAll(false);
+  saveState();renderRulesPanel();
+}
+
+function reApplySuggestionsAll(showMessage=true){
   let count=0;
-  state.transactions.forEach(t=>{
-    if(t.estado_revision==='confirmado_por_usuario')return;
-    t.comercio_detectado=detectComercio(t.description)||t.comercio_detectado;
-    const sug=suggestCategory(t.description);
-    t.cat_sugerida=sug.category;t.cat_motivo=sug.reason;t.cat_source=sug.source;
-    if(t.category==='Otros'||t.category==='Procesando...'||t.category==='Uncategorized'||!t.category){
-      t.category=sug.category;count++;
+  (state.transactions||[]).forEach(t=>{
+    const prevDesc=t.description;
+    const prevLogo=t.logoKey||'';
+    enrichTransaction(t);
+    if((t.category==='Otros'||t.category==='Procesando...'||t.category==='Uncategorized'||!t.category) && t.cat_sugerida){
+      t.category=t.cat_sugerida;
+      count++;
     }
+    if(prevDesc!==t.description || prevLogo!==(t.logoKey||'')) count++;
   });
-  saveState();renderTransactions();
-  showToast('↺ '+count+' categorías actualizadas','success');
+  saveState();
+  if(typeof renderTransactions==='function') renderTransactions();
+  if(typeof renderDashboard==='function') renderDashboard();
+  if(showMessage) showToast('↺ Reglas re-aplicadas en '+count+' cambios','success');
 }
 
 // ══ CATEGORIES ══

@@ -27,6 +27,8 @@ let state={
   txnFilterMode:'visa',
   charts:{},_assigningTxnId:null,apiKey:'',
   catRules:[],           // [{id, keyword, category, active, priority}]
+  nameRules:[],          // [{id, keyword, renameTo, active, priority}]
+  logoRules:[],          // [{id, keyword, logoKey, active, priority}]
   catHistory:{},         // {comercio_normalized: {cat: count}} — aprendizaje local
   txnEstadoFilter:'all', // 'all'|'pendiente_de_revision'|'duplicado_sospechoso'|'confirmado_por_usuario'|'detectado_automaticamente'
   txnCardFilter:'',      // ''|'visa'|'amex' — card filter in transactions view
@@ -75,7 +77,7 @@ function getStateSnapshot(){
     incomeSources:state.incomeSources,incomeMonths:state.incomeMonths,
     savAccounts:state.savAccounts,savGoals:state.savGoals,savDeposits:state.savDeposits||[],tcConfig:state.tcConfig,viewCycleConfig:state.viewCycleConfig||{},
     usdRate:state.usdRate||1420,usdRateBuy:state.usdRateBuy||state.usdRate||1420,usdRateSell:state.usdRateSell||state.usdRate||1420,usdRateSource:state.usdRateSource||'blue',usdRateUpdated:state.usdRateUpdated||null,
-    catRules:state.catRules||[],catHistory:state.catHistory||{},
+    catRules:state.catRules||[],nameRules:state.nameRules||[],logoRules:state.logoRules||[],catHistory:state.catHistory||{},
     ccCards:state.ccCards||[],ccCycles:state.ccCycles||[],ccActiveCard:state.ccActiveCard||null,
     gmailImportRules:state.gmailImportRules||[],
     bankProfiles:state.bankProfiles||[],
@@ -329,6 +331,8 @@ async function loadFromDrive(){
     state.usdRateUpdated=s.usdRateUpdated||null;
     USD_TO_ARS=state.usdRate;
     state.catRules=s.catRules||[];
+    state.nameRules=s.nameRules||[];
+    state.logoRules=s.logoRules||[];
     state.catHistory=s.catHistory||{};
     state.ccCards=s.ccCards||[];
     state.ccCycles=s.ccCycles||[];
@@ -411,6 +415,8 @@ function loadState(){
     state.usdRateUpdated=s.usdRateUpdated||null;
     USD_TO_ARS=state.usdRate;
     state.catRules=s.catRules||[];
+    state.nameRules=s.nameRules||[];
+    state.logoRules=s.logoRules||[];
     state.catHistory=s.catHistory||{};
     state.ccCards=s.ccCards||[];
     state.ccCycles=s.ccCycles||[];

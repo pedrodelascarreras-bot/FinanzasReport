@@ -237,6 +237,7 @@
       <div><div class="page-title" id="dash-page-title" style="display:none"></div><div class="page-subtitle" id="dash-date">—</div></div>
     </div>
 
+    <div class="dash-control-deck">
     <div class="dashboard-smart-toolbar" id="dashboard-smart-toolbar" role="toolbar" aria-label="Accesos rápidos del dashboard">
       <div class="dash-smart-kicker">Accesos inteligentes</div>
       <div class="dash-smart-actions">
@@ -274,8 +275,9 @@
         </button>
       </div>
     </div>
-    
-    <div class="header-actions">
+
+    <div class="header-actions dash-view-toolbar">
+      <div class="dash-view-kicker">Vistas</div>
       <!-- Mes toggle -->
       <div class="surface-toggle" style="display:none">
         <button id="dash-toggle-mes" class="surface-toggle-btn active" onclick="setDashView('mes')">Mes</button>
@@ -286,7 +288,7 @@
       <select id="dash-month-select" class="txn-select" onchange="setDashMonthFromSelect(this.value)">
         <option value="">Mes actual</option>
       </select>
-      <button class="edit-layout-btn" id="edit-btn-dashboard" onclick="nav('dashboard-design')">◫ Editar diseño</button>
+    </div>
     </div>
   <!-- Cabecera de ciclo de tarjeta (solo visible en vista TC) -->
   <div id="dash-tc-cycle-header" class="dash-tc-cycle-header" style="display:none;">
@@ -646,13 +648,14 @@
 
       </div><!-- /row-3 -->
 
-      <!-- ROW 4: Próximos Vencimientos -->
-      <div class="db2-w db2-due-card">
+      <!-- ROW 4: Recordatorios de terceros -->
+      <div class="db2-w db2-third-card">
         <div class="db2-hd">
-          <span class="db2-title">Próximos Vencimientos</span>
-          <button class="db2-link" onclick="nav('calendar')">Ver calendario completo →</button>
+          <span class="db2-title">Gastos de terceros</span>
+          <button class="db2-link" onclick="openThirdPartyTransactions()">Ver en movimientos →</button>
         </div>
-        <div class="db2-due-grid" id="db2-due-grid"><!-- populated by JS --></div>
+        <div class="db2-third-summary" id="db2-third-summary"><!-- populated by JS --></div>
+        <div class="db2-third-grid" id="db2-third-grid"><!-- populated by JS --></div>
       </div>
 
     </div><!-- /db2-grid -->
