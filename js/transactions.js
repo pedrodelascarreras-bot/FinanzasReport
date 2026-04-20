@@ -76,7 +76,6 @@ function setTxnFilterMode(mode){
   state.txnFilterMode=normalizeViewMode(mode||'visa');
   document.getElementById('tft-mes')?.classList.toggle('active',state.txnFilterMode==='mes');
   document.getElementById('tft-visa')?.classList.toggle('active',state.txnFilterMode==='visa');
-  document.getElementById('tft-amex')?.classList.toggle('active',state.txnFilterMode==='amex');
   document.getElementById('txn-month-wrap').style.display=state.txnFilterMode==='mes'?'':'none';
   document.getElementById('txn-tc-wrap').style.display=state.txnFilterMode!=='mes'?'':'none';
   renderTransactions();
@@ -1038,8 +1037,7 @@ function renderTransactions(){
     const chips=[
       {key:'todos',label:'Todos',active:quickFilter==='todos' && !activeCur && !activeCat},
       {key:'ciclo-visa',label:'Vista VISA',active:activeMode==='visa'},
-      {key:'ciclo-amex',label:'Vista AMEX',active:activeMode==='amex'},
-      {key:'ciclo-act',label:'Ciclo actual',active:activeMode==='mes'},
+      {key:'ciclo-act',label:'Vista Mes',active:activeMode==='mes'},
       {key:'ars-usd',label:'ARS + USD',active:!activeCur},
       {key:'sin-cat',label:'Sin categoría',active:activeEstado==='sin_categoria'},
     ];
@@ -1233,10 +1231,9 @@ function renderTransactions(){
               +'<select class="txn-select" onchange="txnSetCategoryFilter(this.value)">'+(function(){const cats=[...new Set(state.transactions.map(t=>txnCategoryName(t)))].sort();return '<option value="">Todas las categorías</option>'+cats.map(c=>'<option value="'+esc(c)+'" '+(activeCat===c?'selected':'')+'>'+esc(c)+'</option>').join('');})()+'</select>'
               +'<button class="mv-chip'+(activeMode==='mes'?' active':'')+'" onclick="txnSetMode(\'mes\')">Por mes</button>'
               +'<button class="mv-chip'+(activeMode==='visa'?' active':'')+'" onclick="txnSetMode(\'visa\')">Vista VISA</button>'
-              +'<button class="mv-chip'+(activeMode==='amex'?' active':'')+'" onclick="txnSetMode(\'amex\')">Vista AMEX</button>'
               +'<button class="mv-chip'+((state.txnCardFilter||'')===''?' active':'')+'" onclick="txnSetCardChip(\'\')">Todas</button>'
-              +'<button class="mv-chip'+((state.txnCardFilter||'')==='visa'?' active':'')+'" onclick="txnSetCardChip(\'visa\')">VISA</button>'
-              +'<button class="mv-chip'+((state.txnCardFilter||'')==='amex'?' active':'')+'" onclick="txnSetCardChip(\'amex\')">AMEX</button>'
+              +'<button class="mv-chip'+((state.txnCardFilter||'')==='visa'?' active':'')+'" onclick="txnSetCardChip(\'visa\')">Solo VISA</button>'
+              +'<button class="mv-chip'+((state.txnCardFilter||'')==='amex'?' active':'')+'" onclick="txnSetCardChip(\'amex\')">Solo AMEX</button>'
             +'</div>')
           +'<div class="mv-summary">'
             +'<div class="mv-card mv-summary-card"><div class="k">SALDO EN ARS</div><div class="v">$'+fmtN(arsTotal)+'</div></div>'

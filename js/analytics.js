@@ -25,7 +25,6 @@ function setTendMode(m){
   state.tendMode=normalizeViewMode(m);
   document.getElementById('tend-tog-mes')?.classList.toggle('active',state.tendMode==='mes');
   document.getElementById('tend-tog-visa')?.classList.toggle('active',state.tendMode==='visa');
-  document.getElementById('tend-tog-amex')?.classList.toggle('active',state.tendMode==='amex');
   renderTendencia();
 }
 function getTendPeriodKeys(){
@@ -195,7 +194,6 @@ function renderTendencia(){
 
   document.getElementById('tend-tog-mes')?.classList.toggle('active',state.tendMode==='mes');
   document.getElementById('tend-tog-visa')?.classList.toggle('active',state.tendMode==='visa');
-  document.getElementById('tend-tog-amex')?.classList.toggle('active',state.tendMode==='amex');
 
   const keys=getTendPeriodKeys();
   if(keys.length<1){document.getElementById('tendencia-empty').style.display='block';document.getElementById('tendencia-content').style.display='none';return;}
@@ -470,7 +468,7 @@ function renderTendencia(){
   }
 
   const _tMode=normalizeViewMode(state.tendMode||'visa');
-  document.getElementById('tend-sub-title').textContent=(_tMode==='mes'?'Vista mes':_tMode==='visa'?'Vista VISA':'Vista AMEX')+' · '+activeParents.length+' categorías activas';
+  document.getElementById('tend-sub-title').textContent=(_tMode==='mes'?'Vista mes':'Vista VISA')+' · '+activeParents.length+' categorías activas';
 }
 
 // ══ COMPARE ══

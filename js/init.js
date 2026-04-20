@@ -17,8 +17,9 @@ function openTcConfigModal(){ openTcConfig(); }
 // state.tcCycles = [{id, label, cardId, openDate, closeDate, dueDate}] sorted desc by closeDate
 
 function normalizeViewMode(mode){
-  if(mode==='mes'||mode==='visa'||mode==='amex') return mode;
-  if(mode==='tc') return 'visa';
+  if(mode==='mes') return 'mes';
+  if(mode==='visa'||mode==='tc') return 'visa';
+  if(mode==='amex') return 'visa';
   return 'mes';
 }
 
@@ -47,7 +48,6 @@ function isMonthKeyInViewWindow(monthKey){
 function getViewModeLabel(mode){
   const key=normalizeViewMode(mode);
   if(key==='visa') return 'Vista VISA';
-  if(key==='amex') return 'Vista AMEX';
   return 'Vista Mes';
 }
 
@@ -154,8 +154,8 @@ function getTcCycles(mode){
           : 'mes');
     return {...c,viewMode:inferredMode,source:c.source||'manual'};
   });
-  const autoVisa=_buildGeneratedCyclesForMode('visa', 18, 0);
-  const autoAmex=_buildGeneratedCyclesForMode('amex', 18, 0);
+  const autoVisa=_buildGeneratedCyclesForMode('visa', 18, 1);
+  const autoAmex=_buildGeneratedCyclesForMode('amex', 18, 1);
   const mergedMap=new Map();
   [...legacy,...autoVisa,...autoAmex].forEach(c=>{
     const key=(c.id||'')+'::'+(c.cardId||'')+'::'+(c.closeDate||'');
@@ -173,7 +173,11 @@ function getTcCycles(mode){
     });
   }
   const range=getViewWindowRange();
-  rows=rows.filter(c=>(c.closeDate||'')>=range.startYmd && (c.closeDate||'')<=range.todayYmd);
+  rows=rows.filter(c=>{
+    const close=c.closeDate||'';
+    const open=c.openDate||close;
+    return close>=range.startYmd && open<=range.todayYmd;
+  });
   return rows.slice().sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
 }
 

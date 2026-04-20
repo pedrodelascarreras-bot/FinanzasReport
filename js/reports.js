@@ -1,8 +1,8 @@
 // ══ REPORTES ══
 const MNAMES_R=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 function normalizeRepMode(mode){
-  if(mode==='mes'||mode==='visa'||mode==='amex'||mode==='rango'||mode==='todo') return mode;
-  if(mode==='tc') return 'visa';
+  if(mode==='mes'||mode==='visa'||mode==='rango'||mode==='todo') return mode;
+  if(mode==='amex'||mode==='tc') return 'visa';
   return 'visa';
 }
 
@@ -191,7 +191,7 @@ function renderReportesPage(){
 function setRepMode(mode){
   state.repMode=normalizeRepMode(mode||'visa');
   // HTML button id "rep-mode-all" maps to mode value "todo"
-  ['mes','visa','amex','rango','all'].forEach(m=>{
+  ['mes','visa','rango','all'].forEach(m=>{
     const modeKey = m==='all' ? 'todo' : m;
     document.getElementById('rep-mode-'+m)?.classList.toggle('active', modeKey===state.repMode);
   });
@@ -217,7 +217,7 @@ function setRepMode(mode){
       .sort()
       .reverse();
     sel.innerHTML=months.map(m=>{const[y,mo]=m.split('-');return'<option value="'+m+'">'+MNAMES_R[+mo-1]+' '+y+'</option>';}).join('');
-  } else if(state.repMode==='visa' || state.repMode==='amex'){
+  } else if(state.repMode==='visa'){
     sel.disabled=false;
     const cycles=getTcCycles(state.repMode);
     if(cycles.length){
@@ -266,7 +266,7 @@ function getRepTxns(){
     if(sel<range.startMonthKey||sel>range.currentMonthKey) return [];
     return state.transactions.filter(t=>(t.month||getMonthKey(t.date))===sel);
   }
-  if(mode==='visa' || mode==='amex'){
+  if(mode==='visa'){
     const cycleId=sel.replace('cycle:','');
     const cycles=getTcCycles(mode);
     const cycle=cycles.find(c=>c.id===cycleId);

@@ -473,7 +473,8 @@ function loadState(){
 }
 
 function _normalizeViewMode(mode){
-  if(mode==='visa'||mode==='amex'||mode==='mes') return mode;
-  if(mode==='tc') return 'visa';
+  if(mode==='mes') return 'mes';
+  if(mode==='visa'||mode==='tc') return 'visa';
+  if(mode==='amex') return 'visa';
   return 'visa';
 }

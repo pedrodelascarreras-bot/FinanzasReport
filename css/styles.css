@@ -16560,6 +16560,7 @@ body:not(.light-mode) .db2-hd-icon{
 }
 
 body:not(.light-mode) .db2-hero-card{
+  background: linear-gradient(135deg, #5f43ff 0%, #4930f3 44%, #3423d9 100%);
   border-color: rgba(107, 91, 255, 0.52);
   box-shadow: 0 24px 48px rgba(44, 34, 132, 0.28), 0 8px 18px rgba(0,0,0,0.18);
 }

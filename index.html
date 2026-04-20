@@ -282,7 +282,6 @@
       <div class="surface-toggle" style="display:none">
         <button id="dash-toggle-mes" class="surface-toggle-btn active" onclick="setDashView('mes')">Mes</button>
         <button id="dash-toggle-visa" class="surface-toggle-btn" onclick="setDashView('visa')" style="display:none">Vista VISA</button>
-        <button id="dash-toggle-amex" class="surface-toggle-btn" onclick="setDashView('amex')" style="display:none">Vista AMEX</button>
       </div>
       <!-- Period selector (changes based on toggle) -->
       <select id="dash-month-select" class="txn-select" onchange="setDashMonthFromSelect(this.value)">
@@ -1285,7 +1284,6 @@
           <div class="rep-mode-grid">
             <button class="tft-btn rep-mode-btn active" id="rep-mode-mes" onclick="setRepMode('mes')">Mes</button>
             <button class="tft-btn rep-mode-btn" id="rep-mode-visa" onclick="setRepMode('visa')">Vista VISA</button>
-            <button class="tft-btn rep-mode-btn" id="rep-mode-amex" onclick="setRepMode('amex')">Vista AMEX</button>
             <button class="tft-btn rep-mode-btn" id="rep-mode-rango" onclick="setRepMode('rango')">Rango</button>
             <button class="tft-btn rep-mode-btn" id="rep-mode-all" onclick="setRepMode('todo')">Histórico</button>
           </div>
@@ -1480,7 +1478,6 @@
       <div class="txn-filter-toggle">
         <button class="tft-btn active" id="tft-mes" onclick="setTxnFilterMode('mes')">📅 Por mes</button>
         <button class="tft-btn" id="tft-visa" onclick="setTxnFilterMode('visa')">💳 Vista VISA</button>
-        <button class="tft-btn" id="tft-amex" onclick="setTxnFilterMode('amex')">💳 Vista AMEX</button>
       </div>
 
       <!-- Selector de mes (visible en modo mes) -->
@@ -1579,7 +1576,6 @@
       <div class="view-toggle">
         <button class="toggle-btn active" id="tend-tog-mes" onclick="setTendMode('mes')">Vista mes</button>
         <button class="toggle-btn" id="tend-tog-visa" onclick="setTendMode('visa')">Vista VISA</button>
-        <button class="toggle-btn" id="tend-tog-amex" onclick="setTendMode('amex')">Vista AMEX</button>
       </div>
     </div>
   </div>

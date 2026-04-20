@@ -721,20 +721,15 @@ function toggleDecisionCenter(){
 }
 function setDashView(mode){
   state.dashView=normalizeViewMode(mode);
-  // Update toggle button styles
   const btnMes=document.getElementById('dash-toggle-mes');
   const btnVisa=document.getElementById('dash-toggle-visa');
-  const btnAmex=document.getElementById('dash-toggle-amex');
-  if(btnMes&&btnVisa&&btnAmex){
+  if(btnMes&&btnVisa){
     const isMes=state.dashView==='mes';
     const isVisa=state.dashView==='visa';
-    const isAmex=state.dashView==='amex';
     btnMes.style.background=isMes?'var(--accent)':'transparent';
     btnMes.style.color=isMes?'#ffffff':'var(--text3)';
     btnVisa.style.background=isVisa?'var(--accent)':'transparent';
     btnVisa.style.color=isVisa?'#ffffff':'var(--text3)';
-    btnAmex.style.background=isAmex?'var(--accent)':'transparent';
-    btnAmex.style.color=isAmex?'#ffffff':'var(--text3)';
   }
   saveState();
   renderDashboard();
@@ -912,17 +907,13 @@ function renderDashboard(){
   // ── Sync toggle buttons ──
   const _btnM=document.getElementById('dash-toggle-mes');
   const _btnV=document.getElementById('dash-toggle-visa');
-  const _btnA=document.getElementById('dash-toggle-amex');
-  if(_btnM&&_btnV&&_btnA){
+  if(_btnM&&_btnV){
     const isMes=state.dashView==='mes';
     const isVisa=state.dashView==='visa';
-    const isAmex=state.dashView==='amex';
     _btnM.style.background=isMes?'var(--accent)':'transparent';
     _btnM.style.color=isMes?'#ffffff':'var(--text3)';
     _btnV.style.background=isVisa?'var(--accent)':'transparent';
     _btnV.style.color=isVisa?'#ffffff':'var(--text3)';
-    _btnA.style.background=isAmex?'var(--accent)':'transparent';
-    _btnA.style.color=isAmex?'#ffffff':'var(--text3)';
   }
   // Keep period selector in sync
   const _dashSel=document.getElementById('dash-month-select');
