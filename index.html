@@ -19,7 +19,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260419h">
+<link rel="stylesheet" href="css/styles.css?v=20260419i">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -280,47 +280,63 @@
 
         <!-- HERO WIDGET -->
         <div class="db2-w db2-hero-card" onclick="nav('transactions')" style="cursor:pointer" title="Ver detalle de gastos">
-          <div class="db2-hero-eyebrow">
-            <div class="db2-hero-eyebrow-l">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>
-              <span>GASTO TOTAL</span> · <span id="dhc-month-label">—</span>
+          <div class="db2-hero-left-panel">
+            <div class="db2-hero-top">
+              <div class="db2-hero-head">
+                <div class="db2-hero-square-icon">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="3"/><path d="M2.5 10.5h19"/></svg>
+                </div>
+                <div class="db2-hero-labels">
+                  <div class="db2-hero-month" id="dhc-month-label">—</div>
+                  <div class="db2-hero-kicker">GASTO TOTAL</div>
+                </div>
+              </div>
+              <button class="db2-hero-eye" onclick="event.stopPropagation()" title="Ver/ocultar">
+                <div class="db2-hero-eye-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
+              </button>
             </div>
-            <button class="db2-hero-eye" onclick="event.stopPropagation()" title="Ver/ocultar">
-              <div class="db2-hero-eye-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
-            </button>
-          </div>
-          <div class="db2-hero-stack">
+
             <div class="db2-hero-main-amt" id="kpi-ars">—</div>
-            <div class="db2-hero-subrow">
-              <div class="db2-hero-usd-sub" id="dhc-usd-line">—</div>
-              <div id="dhc-pct-inline" class="db2-hero-pct"></div>
+            <div class="db2-hero-usd-sub" id="dhc-usd-line">—</div>
+            <div id="dhc-pct-inline" class="db2-hero-pct"></div>
+
+            <div class="db2-hero-dots" aria-hidden="true">
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span><span></span><span></span>
             </div>
           </div>
-          <div class="db2-hero-inner">
-            <!-- Total ARS -->
+
+          <div class="db2-hero-right-panel">
             <div class="db2-hero-sub db2-hero-sub-ars">
               <div class="db2-hero-sub-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>
               </div>
-              <div class="db2-hero-sub-title">Total en ARS</div>
-              <div class="db2-hero-sub-val" id="db2-ars-val">—</div>
+              <div class="db2-hero-sub-copy">
+                <div class="db2-hero-sub-title">TOTAL EN ARS</div>
+                <div class="db2-hero-sub-val" id="db2-ars-val">—</div>
+              </div>
             </div>
-            <!-- Total USD -->
+
             <div class="db2-hero-sub db2-hero-sub-usd">
               <div class="db2-hero-sub-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M9 9h4.5a2.5 2.5 0 0 1 0 5H9m0 0h5.5a2.5 2.5 0 0 1 0 5H9"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v10"/><path d="M9.5 9.5h4a2 2 0 1 1 0 4h-3a2 2 0 1 0 0 4h4"/></svg>
               </div>
-              <div class="db2-hero-sub-title">Total en USD</div>
-              <div class="db2-hero-sub-val" id="db2-usd-val">—</div>
+              <div class="db2-hero-sub-copy">
+                <div class="db2-hero-sub-title">TOTAL EN USD</div>
+                <div class="db2-hero-sub-val" id="db2-usd-val">—</div>
+              </div>
             </div>
-            <!-- Margen disponible -->
+
             <div class="db2-hero-sub db2-hero-sub-margen" onclick="event.stopPropagation();nav('income')" style="cursor:pointer" title="Ver ingresos">
               <div class="db2-hero-sub-icon">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7h-1a2 2 0 0 0-2 2v1H8.5A2.5 2.5 0 0 0 6 12.5v4A2.5 2.5 0 0 0 8.5 19H17a3 3 0 0 0 3-3V9a2 2 0 0 0-2-2Z"/><path d="M16 12h4"/><path d="M6 10V8a3 3 0 0 1 3-3h7"/></svg>
               </div>
-              <div class="db2-hero-sub-title">Margen disponible</div>
-              <div class="db2-hero-sub-val" id="db2-margen-val">—</div>
-              <div class="db2-hero-sub-pct" id="db2-margen-pct" style="display:none"></div>
+              <div class="db2-hero-sub-copy">
+                <div class="db2-hero-sub-title">MARGEN DISPONIBLE</div>
+                <div class="db2-hero-sub-val" id="db2-margen-val">—</div>
+                <div class="db2-hero-sub-pct" id="db2-margen-pct" style="display:none"></div>
+              </div>
             </div>
           </div>
         </div>
