@@ -17687,3 +17687,297 @@ body.light-mode .app.sidebar-collapsed .sidebar .nav-item{
 body.light-mode .app.sidebar-collapsed .sidebar .nav-item.active{
   box-shadow:0 10px 20px rgba(88, 108, 255, 0.18) !important;
 }
+
+/* Disable legacy GSAP nav indicator for the replicated sidebar */
+#gsap-nav-indicator{
+  display:none !important;
+  opacity:0 !important;
+  visibility:hidden !important;
+}
+
+/* Shared wallet-like sidebar fixes */
+.sidebar-brand{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  min-width:0;
+}
+.sidebar-brand-name{
+  white-space:nowrap;
+}
+.gmail-sync-copy{
+  min-width:0;
+  display:flex;
+  flex-direction:column;
+  justify-content:center;
+  flex:1;
+}
+#gmail-sync-label{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-width:0;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+}
+.sidebar-theme-switch{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.theme-mode-btn{
+  min-width:0;
+  overflow:hidden;
+}
+.theme-mode-btn span:last-child{
+  min-width:0;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* Dark mode replica */
+body:not(.light-mode) .sidebar{
+  background:
+    linear-gradient(180deg, rgba(20,24,40,0.96), rgba(14,18,34,0.94)),
+    radial-gradient(circle at 0% 100%, rgba(120, 92, 255, 0.10), transparent 30%);
+  border-right: 1px solid rgba(79, 92, 134, 0.34);
+  box-shadow:
+    0 18px 40px rgba(0, 0, 0, 0.22),
+    inset -1px 0 0 rgba(255,255,255,0.04);
+  padding: 18px 14px 16px;
+  gap: 0;
+}
+body:not(.light-mode) .sidebar::after{
+  content:'';
+  position:absolute;
+  inset:14px 12px;
+  border-radius:28px;
+  border:1px solid rgba(70, 82, 124, 0.36);
+  background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01));
+  pointer-events:none;
+  z-index:0;
+}
+body:not(.light-mode) .sidebar > *{
+  position:relative;
+  z-index:1;
+}
+body:not(.light-mode) .sidebar-logo-row{
+  justify-content:space-between;
+  align-items:center;
+  min-height:68px;
+  margin-bottom:14px;
+  padding:0 10px 0 12px;
+}
+body:not(.light-mode) .sidebar-brand-mark{
+  width:38px;
+  height:38px;
+  border-radius:12px;
+  box-shadow:
+    0 14px 24px rgba(28, 35, 82, 0.34),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+}
+body:not(.light-mode) .sidebar-brand-name{
+  font-size:20px;
+  font-weight:700;
+  letter-spacing:-0.04em;
+  color:#eef2ff;
+}
+body:not(.light-mode) .sidebar-toggle{
+  width:44px;
+  height:44px;
+  border-radius:14px;
+  border:1px solid rgba(80, 91, 128, 0.42);
+  background:linear-gradient(180deg, rgba(33,39,63,0.92), rgba(25,31,52,0.9));
+  color:#aab5d3;
+  box-shadow:0 8px 18px rgba(0,0,0,0.18);
+}
+body:not(.light-mode) .sidebar-toggle:hover{
+  color:#d3daf0;
+  background:linear-gradient(180deg, rgba(38,45,73,0.96), rgba(28,34,58,0.94));
+}
+body:not(.light-mode) .sidebar .nav-group{
+  gap:4px;
+  padding:0 8px;
+}
+body:not(.light-mode) .sidebar .nav-item{
+  min-height:52px;
+  padding:0 16px;
+  gap:14px;
+  border-radius:18px;
+  margin:0;
+  border:1px solid transparent !important;
+  background:transparent !important;
+  color:#a2aece !important;
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:-0.02em;
+  transform:none !important;
+  box-shadow:none !important;
+}
+body:not(.light-mode) .sidebar .nav-item::before{
+  display:none;
+}
+body:not(.light-mode) .sidebar .nav-item .nav-icon{
+  width:18px;
+  height:18px;
+  opacity:0.8;
+  color:#8e9cc2 !important;
+}
+body:not(.light-mode) .sidebar .nav-item:hover{
+  background:linear-gradient(180deg, rgba(91, 110, 255, 0.10), rgba(166, 120, 255, 0.08)) !important;
+  color:#eef2ff !important;
+  border-color:rgba(88, 99, 146, 0.34) !important;
+}
+body:not(.light-mode) .sidebar .nav-item:hover .nav-icon{
+  color:#cdd7f4 !important;
+  opacity:1;
+}
+body:not(.light-mode) .sidebar .nav-item.active{
+  background:linear-gradient(90deg, #416fff 0%, #5969ff 48%, #a56fff 100%) !important;
+  color:#ffffff !important;
+  border-color:rgba(111, 126, 255, 0.18) !important;
+  box-shadow:
+    0 10px 22px rgba(39, 60, 181, 0.28),
+    inset 0 1px 0 rgba(255,255,255,0.18) !important;
+}
+body:not(.light-mode) .sidebar .nav-item.active .nav-icon{
+  color:#ffffff !important;
+  opacity:1;
+}
+body:not(.light-mode) .sidebar-bottom-tools{
+  margin-top:auto;
+  padding:18px 10px 4px;
+  gap:10px;
+  background:linear-gradient(180deg, rgba(8,10,20,0), rgba(14,17,31,0.8) 22%, rgba(14,17,31,0.94));
+}
+body:not(.light-mode) .gmail-sync-btn{
+  min-height:72px;
+  align-items:center;
+  gap:14px;
+  padding:14px 16px;
+  border-radius:18px;
+  background:linear-gradient(180deg, rgba(29,34,56,0.98), rgba(22,27,46,0.96)) !important;
+  border:1px solid rgba(71, 83, 122, 0.4);
+  color:#b09eff;
+  box-shadow:0 12px 24px rgba(0,0,0,0.18);
+}
+body:not(.light-mode) .gmail-sync-btn:hover{
+  color:#c0b3ff;
+}
+body:not(.light-mode) .gmail-sync-glyph{
+  width:34px;
+  height:34px;
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(180deg, rgba(125, 90, 242, 0.18), rgba(107, 82, 255, 0.12));
+  color:#ab8eff;
+  font-size:24px;
+  font-weight:900;
+  line-height:1;
+  flex-shrink:0;
+}
+body:not(.light-mode) .gmail-sync-title{
+  font-size:14px;
+  font-weight:800;
+  color:#b19cff;
+  letter-spacing:-0.02em;
+}
+body:not(.light-mode) .gmail-sync-meta{
+  font-size:11px;
+  font-weight:600;
+  color:#8c98b6;
+  letter-spacing:-0.01em;
+}
+body:not(.light-mode) #gmail-sync-dot{
+  width:12px !important;
+  height:12px !important;
+  border-radius:999px !important;
+  box-shadow:0 0 0 4px rgba(123, 92, 255, 0.08);
+}
+body:not(.light-mode) .theme-mode-btn{
+  min-height:46px;
+  border-radius:999px;
+  border:1px solid rgba(71, 83, 122, 0.42);
+  background:linear-gradient(180deg, rgba(29,34,56,0.96), rgba(22,27,46,0.92));
+  color:#aab5d3;
+  font-family:var(--font);
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:-0.02em;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  cursor:pointer;
+  box-shadow:0 10px 20px rgba(0,0,0,0.14);
+  transition:all .18s var(--ease-premium);
+}
+body:not(.light-mode) .theme-mode-btn:hover{
+  color:#e6ebff;
+  transform:translateY(-1px);
+}
+body:not(.light-mode) .theme-mode-btn.active{
+  background:linear-gradient(180deg, #5f59ad 0%, #3d3a78 100%);
+  border-color:rgba(111, 126, 255, 0.26);
+  color:#ffffff;
+  box-shadow:0 12px 24px rgba(53, 52, 109, 0.28);
+}
+body:not(.light-mode) .theme-mode-icon{
+  font-size:16px;
+  line-height:1;
+}
+
+/* Smaller, safer bottom controls in both themes */
+body.light-mode .theme-mode-btn,
+body:not(.light-mode) .theme-mode-btn{
+  padding:0 12px;
+}
+body.light-mode .sidebar-theme-switch,
+body:not(.light-mode) .sidebar-theme-switch{
+  grid-template-columns:minmax(0,1fr) minmax(0,1fr);
+}
+body.light-mode .theme-mode-btn span:last-child,
+body:not(.light-mode) .theme-mode-btn span:last-child{
+  font-size:12px;
+}
+
+/* Collapsed rail styling in both themes */
+body:not(.light-mode) .app.sidebar-collapsed .sidebar{
+  padding:14px 8px 14px;
+}
+body:not(.light-mode) .app.sidebar-collapsed .sidebar::after{
+  inset:10px 6px;
+  border-radius:22px;
+}
+body:not(.light-mode) .app.sidebar-collapsed .sidebar-logo-row{
+  justify-content:center !important;
+  padding:0;
+  min-height:56px;
+  margin-bottom:10px !important;
+}
+body:not(.light-mode) .app.sidebar-collapsed .sidebar-brand{
+  display:none;
+}
+body:not(.light-mode) .app.sidebar-collapsed .sidebar-toggle{
+  position:static;
+  width:38px;
+  height:38px;
+  border-radius:13px;
+  margin:0 auto;
+}
+body:not(.light-mode) .app.sidebar-collapsed .sidebar .nav-group{
+  padding:0;
+  gap:8px;
+}
+body:not(.light-mode) .app.sidebar-collapsed .sidebar .nav-item{
+  width:48px;
+  min-width:48px;
+  height:48px;
+  min-height:48px;
+  padding:0;
+  border-radius:16px;
+}
