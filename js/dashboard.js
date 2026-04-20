@@ -716,25 +716,28 @@ function toggleDecisionCenter(){
   renderDashboard();
 }
 function setDashView(mode){
-  state.dashView=mode;
+  state.dashView=normalizeViewMode(mode);
   // Update toggle button styles
   const btnMes=document.getElementById('dash-toggle-mes');
-  const btnTc=document.getElementById('dash-toggle-tc');
-  if(btnMes&&btnTc){
-    if(mode==='tc'){
-      btnMes.style.background='transparent';btnMes.style.color='var(--text3)';
-      btnTc.style.background='var(--accent)';btnTc.style.color='#ffffff';
-    } else {
-      btnMes.style.background='var(--accent)';btnMes.style.color='#ffffff';
-      btnTc.style.background='transparent';btnTc.style.color='var(--text3)';
-    }
+  const btnVisa=document.getElementById('dash-toggle-visa');
+  const btnAmex=document.getElementById('dash-toggle-amex');
+  if(btnMes&&btnVisa&&btnAmex){
+    const isMes=state.dashView==='mes';
+    const isVisa=state.dashView==='visa';
+    const isAmex=state.dashView==='amex';
+    btnMes.style.background=isMes?'var(--accent)':'transparent';
+    btnMes.style.color=isMes?'#ffffff':'var(--text3)';
+    btnVisa.style.background=isVisa?'var(--accent)':'transparent';
+    btnVisa.style.color=isVisa?'#ffffff':'var(--text3)';
+    btnAmex.style.background=isAmex?'var(--accent)':'transparent';
+    btnAmex.style.color=isAmex?'#ffffff':'var(--text3)';
   }
   saveState();
   renderDashboard();
 }
 
 function setDashMonthFromSelect(val){
-  if(state.dashView==='tc'){
+  if(state.dashView!=='mes'){
     state.dashTcCycle=val||null;
   } else {
     const currentMk=getMonthKey(new Date());
@@ -750,7 +753,7 @@ function setDashMonthFromSelect(val){
 }
 function updateMonthPicker(){
   // In TC mode, the selector is managed by renderDashboard's TC branch — don't touch it
-  if(state.dashView==='tc') return;
+  if(state.dashView!=='mes') return;
   const sel=document.getElementById('dash-month-select');
   if(!sel)return;
   const months=getAvailableMonths();
@@ -885,9 +888,10 @@ function renderDashNotifications() {
 function renderDashboard(){
   renderDashNotifications();
   if(typeof ccInit==='function') ccInit();
+  state.dashView=normalizeViewMode(state.dashView||'visa');
   const today=new Date();
   const todayYmd=dateToYMD(today);
-  const allTcCycles=typeof getTcCycles==='function'?getTcCycles():[];
+  const allTcCycles=typeof getTcCycles==='function'?getTcCycles(state.dashView):[];
   const currentTcCycle=allTcCycles.find((c,i)=>{
     const open=getTcCycleOpen(allTcCycles,i);
     return open&&todayYmd>=open&&todayYmd<=c.closeDate;
@@ -896,24 +900,32 @@ function renderDashboard(){
   let activeMk = getActiveDashMonth();
   if(!activeMk) activeMk = getMonthKey(new Date());
   // ── TC vs Mes mode (declared here, used throughout the function) ──
-  const isTcView=state.dashView==='tc';
+  const isTcView=state.dashView!=='mes';
+  const activeCycleMode=isTcView?state.dashView:'mes';
   // ── Sync toggle buttons ──
   const _btnM=document.getElementById('dash-toggle-mes');
-  const _btnT=document.getElementById('dash-toggle-tc');
-  if(_btnM&&_btnT){
-    _btnM.style.background=isTcView?'transparent':'var(--accent)';
-    _btnM.style.color=isTcView?'var(--text3)':'#ffffff';
-    _btnT.style.background=isTcView?'var(--accent)':'transparent';
-    _btnT.style.color=isTcView?'#ffffff':'var(--text3)';
+  const _btnV=document.getElementById('dash-toggle-visa');
+  const _btnA=document.getElementById('dash-toggle-amex');
+  if(_btnM&&_btnV&&_btnA){
+    const isMes=state.dashView==='mes';
+    const isVisa=state.dashView==='visa';
+    const isAmex=state.dashView==='amex';
+    _btnM.style.background=isMes?'var(--accent)':'transparent';
+    _btnM.style.color=isMes?'#ffffff':'var(--text3)';
+    _btnV.style.background=isVisa?'var(--accent)':'transparent';
+    _btnV.style.color=isVisa?'#ffffff':'var(--text3)';
+    _btnA.style.background=isAmex?'var(--accent)':'transparent';
+    _btnA.style.color=isAmex?'#ffffff':'var(--text3)';
   }
   // Keep period selector in sync
   const _dashSel=document.getElementById('dash-month-select');
   if(_dashSel){
     if(isTcView){
       // TC mode: show cycle list
-      const _cycles=getTcCycles();
+      const _cycles=getTcCycles(activeCycleMode);
       const _selId=state.dashTcCycle||'';
-      _dashSel.innerHTML='<option value="">Ciclo actual</option>'+_cycles.map(c=>'<option value="'+c.id+'" '+(c.id===_selId?'selected':'')+'>'+esc(expandPeriodYearLabel(c.label||''))+'</option>').join('');
+      const _title=getViewModeLabel(activeCycleMode);
+      _dashSel.innerHTML='<option value="">'+esc(_title+' actual')+'</option>'+_cycles.map(c=>'<option value="'+c.id+'" '+(c.id===_selId?'selected':'')+'>'+esc(expandPeriodYearLabel(c.label||''))+'</option>').join('');
     } else {
       // Mes mode: show calendar months (sin meses futuros)
       const _curMk=getMonthKey(new Date());
@@ -956,7 +968,7 @@ function renderDashboard(){
   if(_tcHeader) _tcHeader.style.display='none';
   let monthTxns, tcPeriodLabel='', activeTcCycle=null;
   if(isTcView){
-    const cycles=getTcCycles(); // sorted desc by closeDate
+    const cycles=getTcCycles(activeCycleMode); // sorted desc by closeDate
     if(cycles.length){
       activeTcCycle=_resolveDashboardTcCycle(cycles);
       // Sync selector value
@@ -967,15 +979,15 @@ function renderDashboard(){
       if(open){
         const openD=new Date(open+'T12:00:00');
         const closeD=new Date(activeTcCycle.closeDate+'T12:00:00');
-        tcPeriodLabel='Ciclo actual · '+expandPeriodYearLabel(activeTcCycle.label)+' · '+openD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' → '+closeD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'});
+        tcPeriodLabel=getViewModeLabel(activeCycleMode)+' · '+expandPeriodYearLabel(activeTcCycle.label)+' · '+openD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' → '+closeD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'});
         monthTxns=getTcCycleTxns(activeTcCycle, cycles);
       } else {
         monthTxns=[];
-        tcPeriodLabel='Ciclo actual · '+expandPeriodYearLabel(activeTcCycle.label);
+        tcPeriodLabel=getViewModeLabel(activeCycleMode)+' · '+expandPeriodYearLabel(activeTcCycle.label);
       }
     } else {
       monthTxns=[];
-      tcPeriodLabel='Sin ciclos configurados — agregá uno en ⚙ Tarjeta de Crédito';
+      tcPeriodLabel='Sin ciclos configurados para '+getViewModeLabel(activeCycleMode)+' — configurá fechas en ⚙ Tarjeta de Crédito';
     }
   } else {
     monthTxns=getCurrentMonthTxns();
@@ -1024,7 +1036,8 @@ function renderDashboard(){
   const getSyntheticCycleTotals=cycle=>{
     if(!cycle) return {ars:0,usd:0,count:0};
     const totals={ars:0,usd:0,count:0};
-    const openDateValue=getTcCycleOpen(getTcCycles(), getTcCycles().findIndex(c=>c.id===cycle.id))||cycle.closeDate;
+    const scopedCycles=getTcCycles(activeCycleMode);
+    const openDateValue=getTcCycleOpen(scopedCycles, scopedCycles.findIndex(c=>c.id===cycle.id))||cycle.closeDate;
     const openDate=new Date(openDateValue+'T00:00:00');
     const closeDate=new Date(cycle.closeDate+'T23:59:59');
     const extraKeys=new Set();
@@ -1083,7 +1096,8 @@ function renderDashboard(){
     return totals;
   };
   if(_tcModeActive){
-    const _openDate=new Date((getTcCycleOpen(getTcCycles(), getTcCycles().findIndex(c=>c.id===activeTcCycle.id))||activeTcCycle.closeDate)+'T00:00:00');
+    const _scopedCycles=getTcCycles(activeCycleMode);
+    const _openDate=new Date((getTcCycleOpen(_scopedCycles, _scopedCycles.findIndex(c=>c.id===activeTcCycle.id))||activeTcCycle.closeDate)+'T00:00:00');
     const _closeDate=new Date(activeTcCycle.closeDate+'T23:59:59');
     let extraARS=0;
     let extraUSD=0;
@@ -1165,7 +1179,7 @@ function renderDashboard(){
   const hasPayTags=monthTxns.some(t=>t.payMethod);
 
   // ── Widget Tarjeta: usa el mismo ciclo activo del dashboard en vista TC, o el actual como fallback ──
-  const _tcCycles=getTcCycles();
+  const _tcCycles=getTcCycles(isTcView?activeCycleMode:null);
   const dashboardCycleForCards=(isTcView&&activeTcCycle)?activeTcCycle:currentTcCycle;
   let _tcWidgetTxns=monthTxns; // fallback: mismo período
   if(dashboardCycleForCards){
@@ -1232,7 +1246,7 @@ function renderDashboard(){
   let incUSD=state.income.usd+state.income.varUsd;
   const incomeCandidates=[];
   if(isTcView&&activeTcCycle){
-    const _cycleList=getTcCycles();
+    const _cycleList=getTcCycles(activeCycleMode);
     const _cycleIdx=_cycleList.findIndex(c=>c.id===activeTcCycle.id);
     const _openMonth=getTcCycleOpen(_cycleList,_cycleIdx)?.slice(0,7);
     const _closeMonth=activeTcCycle.closeDate?.slice(0,7);
@@ -1270,7 +1284,8 @@ function renderDashboard(){
 
   if(isTcView && activeTcCycle){
     // Modo TC: proyectar hasta el cierre del ciclo TC activo
-    const _tcOpen=getTcCycleOpen(getTcCycles(), getTcCycles().findIndex(c=>c.id===activeTcCycle.id));
+    const _cycleList=getTcCycles(activeCycleMode);
+    const _tcOpen=getTcCycleOpen(_cycleList, _cycleList.findIndex(c=>c.id===activeTcCycle.id));
     const _tcOpenD = _tcOpen ? new Date(_tcOpen+'T12:00:00') : new Date();
     const _tcCloseD = new Date(activeTcCycle.closeDate+'T12:00:00');
     const _totalDays = Math.max(1, Math.round((_tcCloseD - _tcOpenD) / 86400000) + 1);
@@ -2001,10 +2016,11 @@ function renderTop5(){
   const el=document.getElementById('top5-list');
   const sub=document.getElementById('top5-sub');
   if(!el)return;
-  const isTcView=state.dashView==='tc';
+  const mode=normalizeViewMode(state.dashView||'visa');
+  const isTcView=mode!=='mes';
   let txns=[];
   if(isTcView){
-    const cycles=getTcCycles();
+    const cycles=getTcCycles(mode);
     const selId=state.dashTcCycle||'';
     const activeCycle=(selId&&cycles.find(c=>c.id===selId))||cycles[0]||null;
     txns=activeCycle?getTcCycleTxns(activeCycle,cycles):[];
@@ -2013,10 +2029,11 @@ function renderTop5(){
   }
   txns=txns.filter(t=>t.currency==='ARS'&&!t.isPendingCuota).sort((a,b)=>b.amount-a.amount).slice(0,5);
   if(!txns.length){
-    el.innerHTML='<div style="color:var(--text3);font-size:12px;font-family:var(--font);padding:8px 0;">'+(isTcView?'Sin movimientos en este ciclo':'Sin movimientos este mes')+'</div>';
+    const cycleLabel=isTcView?getViewModeLabel(mode).toLowerCase():'este mes';
+    el.innerHTML='<div style="color:var(--text3);font-size:12px;font-family:var(--font);padding:8px 0;">'+(isTcView?('Sin movimientos en '+cycleLabel):'Sin movimientos este mes')+'</div>';
     return;
   }
-  if(sub)sub.textContent=txns.length+' movimientos más altos del '+(isTcView?'ciclo':'mes');
+  if(sub)sub.textContent=txns.length+' movimientos más altos del '+(isTcView?getViewModeLabel(mode).toLowerCase():'mes');
   const medals=['🥇','🥈','🥉','4º','5º'];
   el.innerHTML=txns.map((t,i)=>{
     const c=catColor(t.category);

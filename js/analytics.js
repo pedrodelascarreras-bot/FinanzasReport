@@ -22,33 +22,24 @@ function animateTendCanvas(canvas){
   );
 }
 function setTendMode(m){
-  state.tendMode=m;
-  const weekBtn=document.getElementById('tend-tog-week');
-  if(weekBtn)weekBtn.classList.toggle('active',m==='week');
-  document.getElementById('tend-tog-month').classList.toggle('active',m==='month');
-  const tcBtn=document.getElementById('tend-tog-tc');
-  if(tcBtn){tcBtn.classList.toggle('active',m==='tc');tcBtn.style.display=getTcCycles().length?'':'none';}
+  state.tendMode=normalizeViewMode(m);
+  document.getElementById('tend-tog-mes')?.classList.toggle('active',state.tendMode==='mes');
+  document.getElementById('tend-tog-visa')?.classList.toggle('active',state.tendMode==='visa');
+  document.getElementById('tend-tog-amex')?.classList.toggle('active',state.tendMode==='amex');
   renderTendencia();
 }
 function getTendPeriodKeys(){
-  if(state.tendMode==='week')return[...new Set(state.transactions.map(t=>t.week||getWeekKey(t.date)))].sort();
-  if(state.tendMode==='tc'){
-    const cycles=getTcCycles().slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
+  const mode=normalizeViewMode(state.tendMode||'visa');
+  if(mode!=='mes'){
+    const cycles=getTcCycles(mode).slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
     return cycles.map(c=>c.id);
   }
   return[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))].sort();
 }
 function getTendPeriodLabel(k){
-  if(state.tendMode==='week'){
-    const d=new Date(k+'T12:00:00');
-    const e=new Date(d);
-    e.setDate(e.getDate()+6);
-    const ds=`${d.getDate()} ${d.toLocaleDateString('es-AR',{month:'short'}).replace('.','')}`;
-    const de=`${e.getDate()} ${e.toLocaleDateString('es-AR',{month:'short'}).replace('.','')}`;
-    return `${ds} → ${de}`;
-  }
-  if(state.tendMode==='tc'){
-    const cycle=getTcCycles().find(c=>c.id===k);
+  const mode=normalizeViewMode(state.tendMode||'visa');
+  if(mode!=='mes'){
+    const cycle=getTcCycles(mode).find(c=>c.id===k);
     return cycle?cycle.label||cycle.closeDate:k;
   }
   const[y,m]=k.split('-');return new Date(parseInt(y),parseInt(m)-1,1).toLocaleDateString('es-AR',{month:'short',year:'2-digit'});
@@ -175,9 +166,9 @@ function getTcCycleTrendTxns(cycle, cycles){
   return [...baseTxns, ...extras];
 }
 function getTxnsForTendPeriod(k){
-  if(state.tendMode==='week')return state.transactions.filter(t=>(t.week||getWeekKey(t.date))===k);
-  if(state.tendMode==='tc'){
-    const cycles=getTcCycles();
+  const mode=normalizeViewMode(state.tendMode||'visa');
+  if(mode!=='mes'){
+    const cycles=getTcCycles(mode);
     const cycle=cycles.find(c=>c.id===k);
     return cycle?getTcCycleTrendTxns(cycle,cycles):[];
   }
@@ -195,17 +186,11 @@ function setTendChartMode(mode){
 }
 
 function renderTendencia(){
-  if(!state.tendMode) state.tendMode = 'tc';
+  state.tendMode = normalizeViewMode(state.tendMode || 'visa');
 
-  const weekBtn=document.getElementById('tend-tog-week');
-  if(weekBtn)weekBtn.classList.toggle('active',state.tendMode==='week');
-  const monthBtn=document.getElementById('tend-tog-month');
-  if(monthBtn)monthBtn.classList.toggle('active',state.tendMode==='month');
-  const tcBtn=document.getElementById('tend-tog-tc');
-  if(tcBtn){
-    tcBtn.classList.toggle('active',state.tendMode==='tc');
-    tcBtn.style.display=getTcCycles().length?'':'none';
-  }
+  document.getElementById('tend-tog-mes')?.classList.toggle('active',state.tendMode==='mes');
+  document.getElementById('tend-tog-visa')?.classList.toggle('active',state.tendMode==='visa');
+  document.getElementById('tend-tog-amex')?.classList.toggle('active',state.tendMode==='amex');
 
   const keys=getTendPeriodKeys();
   if(keys.length<1){document.getElementById('tendencia-empty').style.display='block';document.getElementById('tendencia-content').style.display='none';return;}
@@ -322,7 +307,7 @@ function renderTendencia(){
   if(tendMode==='bar'&&ctx1){
     // VISTA 1: Ranking (barras horizontales, solo cats con gasto)
     chartTitle.textContent='Ranking de gasto';
-    chartSub.textContent=activeParents.length+' categorías · '+activeKeys.length+' '+(state.tendMode==='week'?'semanas':'períodos');
+    chartSub.textContent=activeParents.length+' categorías · '+activeKeys.length+' '+(normalizeViewMode(state.tendMode||'visa')==='mes'?'meses':'ciclos');
     const overallAvg=activeCatTotals.reduce((s,v)=>s+v,0)/Math.max(activeCatTotals.length,1);
     state.charts.tendMain=new Chart(ctx1,{
       type:'bar',
@@ -339,7 +324,7 @@ function renderTendencia(){
   } else if(tendMode==='line'&&ctx1){
     // VISTA 2: Evolución temporal por categoría
     chartTitle.textContent='Evolución por categoría';
-    chartSub.textContent='Top '+Math.min(activeParents.length,8)+' categorías · '+keys.length+' '+(state.tendMode==='week'?'semanas':'períodos');
+    chartSub.textContent='Top '+Math.min(activeParents.length,8)+' categorías · '+keys.length+' '+(normalizeViewMode(state.tendMode||'visa')==='mes'?'meses':'ciclos');
     const lineLabels=keys.map(k=>getTendPeriodLabel(k));
     const lineCats=activeParents.slice(0,8);
     const datasets=lineCats.map(([parent])=>{
@@ -434,7 +419,7 @@ function renderTendencia(){
   // ════════════════════════════════════════════
   const breakdownEl=document.getElementById('tend-breakdown');
   const breakdownSub=document.getElementById('tend-breakdown-sub');
-  if(breakdownSub)breakdownSub.textContent=activeParents.length+' categorías con gasto · '+activeKeys.length+' '+(state.tendMode==='week'?'semanas':'períodos');
+  if(breakdownSub)breakdownSub.textContent=activeParents.length+' categorías con gasto · '+activeKeys.length+' '+(normalizeViewMode(state.tendMode||'visa')==='mes'?'meses':'ciclos');
   if(breakdownEl){
     const maxParentVal=sortedParents.length?sortedParents[0][1]:1;
     let bHtml='';
@@ -479,7 +464,8 @@ function renderTendencia(){
     breakdownEl.innerHTML=bHtml;
   }
 
-  document.getElementById('tend-sub-title').textContent=(state.tendMode==='week'?'Por semana':state.tendMode==='tc'?'Por ciclo de tarjeta':'Por mes')+' · '+activeParents.length+' categorías activas';
+  const _tMode=normalizeViewMode(state.tendMode||'visa');
+  document.getElementById('tend-sub-title').textContent=(_tMode==='mes'?'Vista mes':_tMode==='visa'?'Vista VISA':'Vista AMEX')+' · '+activeParents.length+' categorías activas';
 }
 
 // ══ COMPARE ══

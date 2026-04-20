@@ -16,8 +16,132 @@ function openTcConfigModal(){ openTcConfig(); }
 
 // state.tcCycles = [{id, label, cardId, openDate, closeDate, dueDate}] sorted desc by closeDate
 
-function getTcCycles(){
-  return (state.tcCycles||[]).slice().sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
+function normalizeViewMode(mode){
+  if(mode==='mes'||mode==='visa'||mode==='amex') return mode;
+  if(mode==='tc') return 'visa';
+  return 'mes';
+}
+
+function getViewModeLabel(mode){
+  const key=normalizeViewMode(mode);
+  if(key==='visa') return 'Vista VISA';
+  if(key==='amex') return 'Vista AMEX';
+  return 'Vista Mes';
+}
+
+function resolvePayMethodKeyFromMode(mode){
+  const key=normalizeViewMode(mode);
+  return key==='visa'||key==='amex' ? key : null;
+}
+
+function ensureViewCycleConfig(){
+  if(!state.viewCycleConfig||typeof state.viewCycleConfig!=='object'){
+    state.viewCycleConfig={};
+  }
+  state.viewCycleConfig.visa={
+    openDay:Number(state.viewCycleConfig?.visa?.openDay)||26,
+    closeDay:Number(state.viewCycleConfig?.visa?.closeDay)||25,
+    dueDay:Number(state.viewCycleConfig?.visa?.dueDay)||10
+  };
+  state.viewCycleConfig.amex={
+    openDay:Number(state.viewCycleConfig?.amex?.openDay)||11,
+    closeDay:Number(state.viewCycleConfig?.amex?.closeDay)||10,
+    dueDay:Number(state.viewCycleConfig?.amex?.dueDay)||27
+  };
+}
+
+function _safeCycleDay(value, fallback){
+  const n=Math.max(1, Math.min(31, Number(value)||fallback));
+  return Number.isFinite(n)?n:fallback;
+}
+
+function _toYmd(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+
+function _addMonths(baseDate, diff){
+  const d=new Date(baseDate.getFullYear(), baseDate.getMonth(), 1);
+  d.setMonth(d.getMonth()+diff);
+  return d;
+}
+
+function _resolveCardForMode(mode){
+  const payMethod=resolvePayMethodKeyFromMode(mode);
+  if(!payMethod) return null;
+  const cards=state.ccCards||[];
+  return cards.find(c=>(c.payMethodKey||'')===payMethod) || null;
+}
+
+function _buildGeneratedCyclesForMode(mode, monthsBack=18, monthsAhead=2){
+  const payMethod=resolvePayMethodKeyFromMode(mode);
+  if(!payMethod) return [];
+  ensureViewCycleConfig();
+  const cfg=state.viewCycleConfig[payMethod]||{};
+  const openDay=_safeCycleDay(cfg.openDay, payMethod==='visa'?26:11);
+  const closeDay=_safeCycleDay(cfg.closeDay, payMethod==='visa'?25:10);
+  const dueDay=_safeCycleDay(cfg.dueDay, payMethod==='visa'?10:27);
+  const today=new Date();
+  const card=_resolveCardForMode(mode);
+  const cardId=card?.id||null;
+  const rows=[];
+
+  for(let i=-monthsBack;i<=monthsAhead;i++){
+    const closeMonthBase=_addMonths(today,i);
+    const maxClose=new Date(closeMonthBase.getFullYear(), closeMonthBase.getMonth()+1, 0).getDate();
+    const closeDate=new Date(closeMonthBase.getFullYear(), closeMonthBase.getMonth(), Math.min(closeDay,maxClose), 12,0,0,0);
+
+    let openMonthBase=_addMonths(closeDate,-1);
+    if(openDay<=closeDay) openMonthBase=_addMonths(closeDate,0);
+    const maxOpen=new Date(openMonthBase.getFullYear(), openMonthBase.getMonth()+1, 0).getDate();
+    const openDate=new Date(openMonthBase.getFullYear(), openMonthBase.getMonth(), Math.min(openDay,maxOpen), 12,0,0,0);
+
+    if(openDate>closeDate) continue;
+
+    let dueMonthBase=_addMonths(closeDate,0);
+    if(dueDay<=closeDay) dueMonthBase=_addMonths(closeDate,1);
+    const maxDue=new Date(dueMonthBase.getFullYear(), dueMonthBase.getMonth()+1, 0).getDate();
+    const dueDate=new Date(dueMonthBase.getFullYear(), dueMonthBase.getMonth(), Math.min(dueDay,maxDue), 12,0,0,0);
+
+    const openYmd=_toYmd(openDate);
+    const closeYmd=_toYmd(closeDate);
+    const dueYmd=_toYmd(dueDate);
+    const closeLabel=closeDate.toLocaleDateString('es-AR',{month:'short',year:'numeric'}).replace('.','');
+    rows.push({
+      id:`${payMethod}_auto_${closeYmd}`,
+      label:`${payMethod.toUpperCase()} · ${closeLabel}`,
+      viewMode:payMethod,
+      source:'auto',
+      payMethodKey:payMethod,
+      cardId,
+      openDate:openYmd,
+      closeDate:closeYmd,
+      dueDate:dueYmd
+    });
+  }
+  return rows.sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
+}
+
+function getTcCycles(mode){
+  const normalizedMode=mode?normalizeViewMode(mode):null;
+  const legacy=(state.tcCycles||[]).map(c=>({...c,viewMode:c.viewMode?normalizeViewMode(c.viewMode):(c.payMethodKey?normalizeViewMode(c.payMethodKey):'tc'),source:c.source||'manual'}));
+  const autoVisa=_buildGeneratedCyclesForMode('visa');
+  const autoAmex=_buildGeneratedCyclesForMode('amex');
+  const mergedMap=new Map();
+  [...legacy,...autoVisa,...autoAmex].forEach(c=>{
+    const key=(c.id||'')+'::'+(c.cardId||'')+'::'+(c.closeDate||'');
+    if(!mergedMap.has(key)) mergedMap.set(key,c);
+  });
+  let rows=[...mergedMap.values()];
+  if(normalizedMode==='visa'||normalizedMode==='amex'){
+    rows=rows.filter(c=>{
+      const pm=(c.payMethodKey||'').toLowerCase();
+      const vm=normalizeViewMode(c.viewMode||'mes');
+      const card=_resolveCardForMode(normalizedMode);
+      const cardMatches=card?.id ? (c.cardId===card.id) : false;
+      return pm===normalizedMode || vm===normalizedMode || cardMatches;
+    });
+  }
+  return rows.slice().sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
 }
 
 function getTcCycleOpen(cycles, idx){
@@ -26,7 +150,7 @@ function getTcCycleOpen(cycles, idx){
   if(cycle?.openDate) return cycle.openDate;
   const sorted=[...cycles]
     .filter(c=>(c.cardId||'')===(cycle?.cardId||''))
-    .sort((a,b)=>a.closeDate.localeCompare(b.closeDate)); // asc, misma tarjeta
+    .sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
   const ascIdx=sorted.findIndex(c=>c.id===cycle.id);
   if(ascIdx===0){
     const d=new Date(sorted[0].closeDate+'T12:00:00');
@@ -39,13 +163,13 @@ function getTcCycleOpen(cycles, idx){
   return dateToYMD(d);
 }
 
-function getTcCycleForDate(dateStr){
-  const cycles=getTcCycles();
+function getTcCycleForDate(dateStr, mode){
+  const cycles=getTcCycles(mode);
   const sorted=[...cycles].sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
   for(let i=0;i<sorted.length;i++){
     const open=getTcCycleOpen(cycles,cycles.findIndex(c=>c.id===sorted[i].id));
     const close=sorted[i].closeDate;
-    if(dateStr>=open&&dateStr<=close) return sorted[i];
+    if(open&&dateStr>=open&&dateStr<=close) return sorted[i];
   }
   return null;
 }
@@ -63,9 +187,19 @@ function getTcCycleTxns(cycle, cyclesArg){
   if(idx<0)return[];
   const open=getTcCycleOpen(cycles,idx);
   if(!open)return[];
+  const payMethod=(cycle.payMethodKey||'').toLowerCase();
+  let cardPayMethod=payMethod;
+  if(!cardPayMethod&&cycle.cardId){
+    const card=(state.ccCards||[]).find(c=>c.id===cycle.cardId);
+    cardPayMethod=(card?.payMethodKey||'').toLowerCase();
+  }
   return state.transactions.filter(t=>{
     const d=dateToYMD(t.date);
-    return d>=open&&d<=cycle.closeDate;
+    if(!(d>=open&&d<=cycle.closeDate)) return false;
+    if(cardPayMethod==='visa'||cardPayMethod==='amex'){
+      return (t.payMethod||'').toLowerCase()===cardPayMethod;
+    }
+    return true;
   });
 }
 
@@ -124,7 +258,7 @@ function deleteTcCycle(id){
   renderTcCycleList();
   renderCcTcConfig();
   if(typeof renderCcConfigPanel==='function') renderCcConfigPanel();
-  if(state.dashView==='tc')renderDashboard();
+  if(state.dashView!=='mes')renderDashboard();
   showToast('Ciclo eliminado','info');
 }
 
@@ -218,6 +352,11 @@ function setPayMethod(method){
 // ══ INIT ══
 window.addEventListener('DOMContentLoaded',()=>{
   loadState();
+  ensureViewCycleConfig();
+  state.dashView=normalizeViewMode(state.dashView||'visa');
+  state.txnFilterMode=normalizeViewMode(state.txnFilterMode||'visa');
+  state.tendMode=normalizeViewMode(state.tendMode||'visa');
+  state.repMode=normalizeViewMode(state.repMode||'visa');
   ensureActiveUserProfileBootstrap();
   ensureGmailImportRules();
   state.gmailClientId = getGmailClientId();
@@ -230,7 +369,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   loadSidebar();
   updateUsdRateUI();
   setChartMode(state.chartMode||'bars');
-  setTxnFilterMode(state.txnFilterMode||'mes');
+  setTxnFilterMode(state.txnFilterMode||'visa');
   if(state.transactions.length){updateSidebarStats();renderDashboard();renderTransactions();document.getElementById('dash-empty').style.display='none';document.getElementById('dash-content').style.display='flex';setTimeout(()=>applyLayout('dashboard'),0);}
   if(typeof renderProfilePage === 'function') renderProfilePage();
   if(typeof renderSecurityPage === 'function') renderSecurityPage();
@@ -1481,6 +1620,7 @@ function getCurrentProfileSnapshot(){
     incomeSources: cloneDeepProfileValue(markOwnedItems(state.incomeSources || [], state.activeUserProfileId || 'default-profile')),
     incomeMonths: cloneDeepProfileValue(markOwnedItems(state.incomeMonths || [], state.activeUserProfileId || 'default-profile')),
     tcConfig: cloneDeepProfileValue(state.tcConfig || {}),
+    viewCycleConfig: cloneDeepProfileValue(state.viewCycleConfig || {}),
     tcCycles: cloneDeepProfileValue(state.tcCycles || []),
     ccCards: cloneDeepProfileValue(markOwnedItems(state.ccCards || [], state.activeUserProfileId || 'default-profile')),
     ccCycles: cloneDeepProfileValue(markOwnedItems(state.ccCycles || [], state.activeUserProfileId || 'default-profile')),
@@ -1497,15 +1637,15 @@ function getCurrentProfileSnapshot(){
     alertThreshold: state.alertThreshold || 80,
     spendPct: state.spendPct || 100,
     insightsBufferMonths: state.insightsBufferMonths || 3,
-    dashView: state.dashView || 'mes',
+    dashView: normalizeViewMode(state.dashView || 'visa'),
     dashMonth: state.dashMonth || null,
     dashTcCycle: state.dashTcCycle || null,
     chartMode: state.chartMode || 'bars',
-    tendMode: state.tendMode || 'tc',
+    tendMode: normalizeViewMode(state.tendMode || 'visa'),
     activeTendCats: cloneDeepProfileValue(state.activeTendCats || null),
     compareMode: state.compareMode || 'month',
     repDesign: state.repDesign || 'executive',
-    txnFilterMode: state.txnFilterMode || 'tc',
+    txnFilterMode: normalizeViewMode(state.txnFilterMode || 'visa'),
     txnCardFilter: state.txnCardFilter || '',
     lastGmailSync: state.lastGmailSync || null,
     lastTransactionsExport: state.lastTransactionsExport || null,
@@ -1622,6 +1762,10 @@ function applyUserProfile(profileId){
   state.incomeSources = cloneDeepProfileValue(profile.incomeSources || []);
   state.incomeMonths = cloneDeepProfileValue(profile.incomeMonths || []);
   state.tcConfig = { ...(state.tcConfig || {}), ...(profile.tcConfig || {}) };
+  if(profile.viewCycleConfig){
+    state.viewCycleConfig = cloneDeepProfileValue(profile.viewCycleConfig);
+  }
+  ensureViewCycleConfig();
   state.tcCycles = cloneDeepProfileValue(profile.tcCycles || []);
   state.ccCards = cloneDeepProfileValue(profile.ccCards || []);
   state.ccCycles = cloneDeepProfileValue(profile.ccCycles || []);
@@ -1639,15 +1783,15 @@ function applyUserProfile(profileId){
   state.alertThreshold = profile.alertThreshold || state.alertThreshold || 80;
   state.spendPct = profile.spendPct || state.spendPct || 100;
   state.insightsBufferMonths = profile.insightsBufferMonths || state.insightsBufferMonths || 3;
-  state.dashView = profile.dashView || state.dashView || 'mes';
+  state.dashView = normalizeViewMode(profile.dashView || state.dashView || 'visa');
   state.dashMonth = profile.dashMonth || null;
   state.dashTcCycle = profile.dashTcCycle || null;
   state.chartMode = profile.chartMode || state.chartMode || 'bars';
-  state.tendMode = profile.tendMode || state.tendMode || 'tc';
+  state.tendMode = normalizeViewMode(profile.tendMode || state.tendMode || 'visa');
   state.activeTendCats = cloneDeepProfileValue(profile.activeTendCats || null);
   state.compareMode = profile.compareMode || state.compareMode || 'month';
   state.repDesign = profile.repDesign || state.repDesign || 'executive';
-  state.txnFilterMode = profile.txnFilterMode || state.txnFilterMode || 'tc';
+  state.txnFilterMode = normalizeViewMode(profile.txnFilterMode || state.txnFilterMode || 'visa');
   state.txnCardFilter = profile.txnCardFilter || '';
   state.lastGmailSync = profile.lastGmailSync || null;
   state.lastTransactionsExport = profile.lastTransactionsExport || null;

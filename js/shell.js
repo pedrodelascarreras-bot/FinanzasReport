@@ -774,6 +774,57 @@
     window.nav?.('import');
   }
 
+  function openDashboardMonthPicker(){
+    if(typeof window.setDashView === 'function'){
+      try{ window.setDashView('mes'); }catch(_err){}
+    }
+    const monthSelect = document.getElementById('dash-month-select');
+    if(!monthSelect){
+      window.nav?.('dashboard');
+      return;
+    }
+    try{
+      if(typeof monthSelect.showPicker === 'function') monthSelect.showPicker();
+      else monthSelect.focus();
+    }catch(_err){
+      monthSelect.focus();
+    }
+  }
+
+  function quickGmailImport(){
+    if(typeof window.gmailSync === 'function'){
+      window.gmailSync();
+      return;
+    }
+    window.nav?.('import');
+  }
+
+  function openQuickCategoryCreate(){
+    window.nav?.('categories');
+    requestAnimationFrame(() => {
+      if(typeof window.openCat === 'function') window.openCat();
+    });
+  }
+
+  function openQuickTaskCreate(){
+    window.nav?.('calendar');
+    requestAnimationFrame(() => {
+      const taskInput = document.getElementById('calendar-task-input');
+      const dateInput = document.getElementById('calendar-task-date');
+      const todayValue = typeof window.dateToInputValue === 'function'
+        ? window.dateToInputValue(new Date())
+        : new Date().toISOString().slice(0,10);
+      if(dateInput && !dateInput.value) dateInput.value = todayValue;
+      if(taskInput){
+        taskInput.focus();
+        const len = taskInput.value.length;
+        if(typeof taskInput.setSelectionRange === 'function'){
+          taskInput.setSelectionRange(len, len);
+        }
+      }
+    });
+  }
+
   function exportSelectedData(){
     const format = document.getElementById('security-export-format')?.value || 'csv';
     if(format === 'json'){
@@ -1128,6 +1179,10 @@
   window.toggleCreateMenu = toggleCreateMenu;
   window.closeCreateMenu = closeCreateMenu;
   window.openQuickExpenseFlow = openQuickExpenseFlow;
+  window.openDashboardMonthPicker = openDashboardMonthPicker;
+  window.quickGmailImport = quickGmailImport;
+  window.openQuickCategoryCreate = openQuickCategoryCreate;
+  window.openQuickTaskCreate = openQuickTaskCreate;
   window.exportSelectedData = exportSelectedData;
   window.toggleSettingsSetupGuide = toggleSettingsSetupGuide;
   window.deleteBankProfileById = deleteBankProfileById;

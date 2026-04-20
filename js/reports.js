@@ -1,5 +1,10 @@
 // ══ REPORTES ══
 const MNAMES_R=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+function normalizeRepMode(mode){
+  if(mode==='mes'||mode==='visa'||mode==='amex'||mode==='rango'||mode==='todo') return mode;
+  if(mode==='tc') return 'visa';
+  return 'visa';
+}
 
 // ── Email Report ──────────────────────────────────────────────────────────────
 // URL del servidor de reportes:
@@ -25,7 +30,8 @@ function openSendReportModal() {
   // Reset status
   const status = document.getElementById('sre-status');
   if(status) { status.style.display='none'; status.textContent=''; }
-  const preferredPeriod = state.repMode === 'tc' ? 'tc' : (state.repMode === 'mes' ? 'month' : 'week');
+  const repMode=normalizeRepMode(state.repMode||'visa');
+  const preferredPeriod = repMode === 'mes' ? 'month' : 'tc';
   const activeRadio = document.querySelector(`input[name="sre-period"][value="${preferredPeriod}"]`);
   if(activeRadio){
     activeRadio.checked = true;
@@ -179,41 +185,41 @@ async function sendReportNow() {
 }
 
 function renderReportesPage(){
-  setRepMode(state.repMode||'mes');
+  setRepMode(normalizeRepMode(state.repMode||'visa'));
 }
 
 function setRepMode(mode){
-  state.repMode=mode;
+  state.repMode=normalizeRepMode(mode||'visa');
   // HTML button id "rep-mode-all" maps to mode value "todo"
-  ['mes','tc','rango','all'].forEach(m=>{
+  ['mes','visa','amex','rango','all'].forEach(m=>{
     const modeKey = m==='all' ? 'todo' : m;
-    document.getElementById('rep-mode-'+m)?.classList.toggle('active', modeKey===mode);
+    document.getElementById('rep-mode-'+m)?.classList.toggle('active', modeKey===state.repMode);
   });
   const sel=document.getElementById('rep-period-select');
   const rangeWrap=document.getElementById('rep-range-wrap');
 
   // Show/hide appropriate controls
-  if(sel)sel.style.display=(mode==='rango'||mode==='todo')?'none':'block';
-  if(rangeWrap)rangeWrap.style.display=mode==='rango'?'flex':'none';
+  if(sel)sel.style.display=(state.repMode==='rango'||state.repMode==='todo')?'none':'block';
+  if(rangeWrap)rangeWrap.style.display=state.repMode==='rango'?'flex':'none';
 
   if(!sel)return;
 
-  if(mode==='todo'){
+  if(state.repMode==='todo'){
     sel.innerHTML='<option value="all">Todos los datos</option>';
     sel.disabled=true;
-  } else if(mode==='mes'){
+  } else if(state.repMode==='mes'){
     sel.disabled=false;
     const months=[...new Set(state.transactions.map(t=>t.month||getMonthKey(t.date)))].sort().reverse();
     sel.innerHTML=months.map(m=>{const[y,mo]=m.split('-');return'<option value="'+m+'">'+MNAMES_R[+mo-1]+' '+y+'</option>';}).join('');
-  } else if(mode==='tc'){
+  } else if(state.repMode==='visa' || state.repMode==='amex'){
     sel.disabled=false;
-    const cycles=getTcCycles();
+    const cycles=getTcCycles(state.repMode);
     if(cycles.length){
-      sel.innerHTML=cycles.map(c=>'<option value="tc:'+c.id+'">'+esc(c.label||c.closeDate)+'</option>').join('');
+      sel.innerHTML=cycles.map(c=>'<option value="cycle:'+c.id+'">'+esc(c.label||c.closeDate)+'</option>').join('');
     } else {
-      sel.innerHTML='<option value="">Sin ciclos configurados</option>';
+      sel.innerHTML='<option value="">Sin ciclos configurados para '+esc(getViewModeLabel(state.repMode))+'</option>';
     }
-  } else if(mode==='rango'){
+  } else if(state.repMode==='rango'){
     // Set defaults: last 30 days
     const from=document.getElementById('rep-range-from');
     const to=document.getElementById('rep-range-to');
@@ -244,13 +250,13 @@ function toggleReportSectionGroup(group, checked){
 }
 
 function getRepTxns(){
-  const mode=state.repMode||'mes';
+  const mode=normalizeRepMode(state.repMode||'visa');
   const sel=document.getElementById('rep-period-select')?.value||'';
   if(mode==='todo'||sel==='all')return state.transactions;
   if(mode==='mes')return state.transactions.filter(t=>(t.month||getMonthKey(t.date))===sel);
-  if(mode==='tc'){
-    const cycleId=sel.replace('tc:','');
-    const cycles=getTcCycles();
+  if(mode==='visa' || mode==='amex'){
+    const cycleId=sel.replace('cycle:','');
+    const cycles=getTcCycles(mode);
     const cycle=cycles.find(c=>c.id===cycleId);
     return cycle?getTcCycleTxns(cycle,cycles):[];
   }
@@ -269,7 +275,7 @@ function getRepSections(){
 }
 
 function getRepPeriodLabel(){
-  const mode=state.repMode||'mes';
+  const mode=normalizeRepMode(state.repMode||'visa');
   if(mode==='todo')return 'Todos los datos';
   if(mode==='rango'){
     const from=document.getElementById('rep-range-from')?.value||'';

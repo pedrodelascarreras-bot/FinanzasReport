@@ -73,11 +73,12 @@ window.exportTransactionsCSV = function() {
 
 // Toggle modo filtro: 'mes' | 'tc'
 function setTxnFilterMode(mode){
-  state.txnFilterMode=mode||'mes';
+  state.txnFilterMode=normalizeViewMode(mode||'visa');
   document.getElementById('tft-mes')?.classList.toggle('active',state.txnFilterMode==='mes');
-  document.getElementById('tft-tc')?.classList.toggle('active',state.txnFilterMode==='tc');
+  document.getElementById('tft-visa')?.classList.toggle('active',state.txnFilterMode==='visa');
+  document.getElementById('tft-amex')?.classList.toggle('active',state.txnFilterMode==='amex');
   document.getElementById('txn-month-wrap').style.display=state.txnFilterMode==='mes'?'':'none';
-  document.getElementById('txn-tc-wrap').style.display=state.txnFilterMode==='tc'?'':'none';
+  document.getElementById('txn-tc-wrap').style.display=state.txnFilterMode!=='mes'?'':'none';
   renderTransactions();
 }
 
@@ -405,7 +406,7 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
 }
 
 function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef){
-  if(!(mode==='tc' && activeCycleMeta && !searchVal)) return [];
+  if(!(mode!=='mes' && activeCycleMeta && !searchVal)) return [];
   const todayYmd=dateToYMD(todayRef);
   const getCommitmentTone=settled=>settled ? '#34c759' : '#ff9500';
   const hasReachedChargeDate=value=>{
@@ -609,7 +610,7 @@ function getTxnDisplaySummaryTotals(opts){
   let usdTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
 
   const canUseDashboardAlignedTcTotals=
-    mode==='tc' &&
+    mode!=='mes' &&
     activeCycleMeta &&
     !searchVal &&
     !hasCategoryFilter &&
@@ -684,7 +685,8 @@ function resolveDupInline(groupIdx, action){
 
 function renderTransactions(){
   state.lastTransactionsRefresh = new Date().toISOString();
-  const mode=state.txnFilterMode||'mes';
+  const mode=normalizeViewMode(state.txnFilterMode||'visa');
+  state.txnFilterMode=mode;
   let activeCycleMeta=null;
   const todayRef=new Date();
   todayRef.setHours(23,59,59,999);
@@ -703,9 +705,10 @@ function renderTransactions(){
   }
   const tcf=document.getElementById('f-tc-cycle');const tcv=tcf?.value||'';
   if(tcf){
-    const cycles=getTcCycles();
+    const cycles=getTcCycles(mode);
     if(cycles.length){
-      tcf.innerHTML='<option value="">Ciclo actual</option>'+cycles.map(c=>'<option value="'+c.id+'" '+(c.id===tcv?'selected':'')+'>'+esc(c.label)+'</option>').join('');
+      const pickerLabel=getViewModeLabel(mode);
+      tcf.innerHTML='<option value="">'+esc(pickerLabel+' actual')+'</option>'+cycles.map(c=>'<option value="'+c.id+'" '+(c.id===tcv?'selected':'')+'>'+esc(c.label)+'</option>').join('');
     } else { tcf.innerHTML='<option value="">Sin ciclos</option>'; }
   }
   const cats=[...new Set(state.transactions.map(t=>t.category))].filter(c=>c&&c!=='Procesando...'&&c!=='Uncategorized').sort();
@@ -754,7 +757,7 @@ function renderTransactions(){
     } else { periodoLabel=t('global_all_months'); }
   } else {
     const selCycleId=tcf?.value||'';
-    const allCycles=getTcCycles();
+    const allCycles=getTcCycles(mode);
     let activeCycle=selCycleId?allCycles.find(c=>c.id===selCycleId):null;
     if(!activeCycle&&allCycles.length){
       const todayStr=dateToYMD(new Date());
@@ -766,7 +769,7 @@ function renderTransactions(){
       activeCycleMeta={cycle:activeCycle,openStr,closeStr:activeCycle.closeDate};
       txns=txns.filter(t=>{const d=dateToYMD(t.date);return d>=openStr&&d<=activeCycle.closeDate;});
       const openD=new Date(openStr+'T12:00:00');const closeD=new Date(activeCycle.closeDate+'T12:00:00');
-      periodoLabel=activeCycle.label+' ('+openD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' → '+closeD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+')';
+      periodoLabel=getViewModeLabel(mode)+' · '+activeCycle.label+' ('+openD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' → '+closeD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+')';
     }
   }
 
@@ -827,10 +830,10 @@ function renderTransactions(){
       if(mode==='mes'){
         const mfv=mf?.value||activeMesKey;
         if(mfv)base=base.filter(t=>(t.month||getMonthKey(t.date))===mfv);
-      } else if(mode==='tc'){
-        // Aplicar el mismo filtro de ciclo TC para que los badges sean del período actual
+      } else if(mode!=='mes'){
+        // Aplicar el mismo filtro de ciclo para que los badges sean del período actual
         const _selId=tcf?.value||'';
-        const _allCyc=getTcCycles();
+        const _allCyc=getTcCycles(mode);
         let _actCyc=_selId?_allCyc.find(c=>c.id===_selId):null;
         if(!_actCyc&&_allCyc.length){
           const _todayS=dateToYMD(new Date());
@@ -974,7 +977,7 @@ function renderTransactions(){
     const activeCur=document.getElementById('f-cur')?.value||'';
     const activeCat=document.getElementById('f-cat')?.value||'';
     const activeSearch=(document.getElementById('f-search')?.value||'').trim();
-    const activeMode=state.txnFilterMode||'mes';
+    const activeMode=normalizeViewMode(state.txnFilterMode||'visa');
     const activeEstado=state.txnEstadoFilter||'all';
     const monthOptions=Array.from(mf?.options||[]).map(opt=>'<option value="'+esc(opt.value)+'" '+(opt.selected?'selected':'')+'>'+esc(opt.textContent||'')+'</option>').join('');
     const cycleOptions=Array.from(tcf?.options||[]).map(opt=>'<option value="'+esc(opt.value)+'" '+(opt.selected?'selected':'')+'>'+esc(opt.textContent||'')+'</option>').join('');
@@ -987,7 +990,8 @@ function renderTransactions(){
     ].filter(item=>item.count>0 || item.key==='all');
     const chips=[
       {key:'todos',label:'Todos',active:quickFilter==='todos' && !activeCur && !activeCat},
-      {key:'ciclo-tc',label:'Ciclo TC',active:activeMode==='tc'},
+      {key:'ciclo-visa',label:'Vista VISA',active:activeMode==='visa'},
+      {key:'ciclo-amex',label:'Vista AMEX',active:activeMode==='amex'},
       {key:'ciclo-act',label:'Ciclo actual',active:activeMode==='mes'},
       {key:'ars-usd',label:'ARS + USD',active:!activeCur},
       {key:'sin-cat',label:'Sin categoría',active:activeEstado==='sin_categoria'},
@@ -1181,7 +1185,8 @@ function renderTransactions(){
               +'<select class="txn-select" onchange="txnSetCurrencyFilter(this.value)"><option value="" '+(!activeCur?'selected':'')+'>ARS + USD</option><option value="ARS" '+(activeCur==='ARS'?'selected':'')+'>Solo ARS</option><option value="USD" '+(activeCur==='USD'?'selected':'')+'>Solo USD</option></select>'
               +'<select class="txn-select" onchange="txnSetCategoryFilter(this.value)">'+(function(){const cats=[...new Set(state.transactions.map(t=>txnCategoryName(t)))].sort();return '<option value="">Todas las categorías</option>'+cats.map(c=>'<option value="'+esc(c)+'" '+(activeCat===c?'selected':'')+'>'+esc(c)+'</option>').join('');})()+'</select>'
               +'<button class="mv-chip'+(activeMode==='mes'?' active':'')+'" onclick="txnSetMode(\'mes\')">Por mes</button>'
-              +'<button class="mv-chip'+(activeMode==='tc'?' active':'')+'" onclick="txnSetMode(\'tc\')">Ciclo TC</button>'
+              +'<button class="mv-chip'+(activeMode==='visa'?' active':'')+'" onclick="txnSetMode(\'visa\')">Vista VISA</button>'
+              +'<button class="mv-chip'+(activeMode==='amex'?' active':'')+'" onclick="txnSetMode(\'amex\')">Vista AMEX</button>'
               +'<button class="mv-chip'+((state.txnCardFilter||'')===''?' active':'')+'" onclick="txnSetCardChip(\'\')">Todas</button>'
               +'<button class="mv-chip'+((state.txnCardFilter||'')==='visa'?' active':'')+'" onclick="txnSetCardChip(\'visa\')">VISA</button>'
               +'<button class="mv-chip'+((state.txnCardFilter||'')==='amex'?' active':'')+'" onclick="txnSetCardChip(\'amex\')">AMEX</button>'
@@ -1387,7 +1392,7 @@ function renderTransactions(){
     }
   };
 
-  if(mode==='tc' && activeCycleMeta && !searchVal){
+  if(mode!=='mes' && activeCycleMeta && !searchVal){
     const entries=getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef);
     renderTxnCycleCommitmentsPanel(wrap, entries);
 

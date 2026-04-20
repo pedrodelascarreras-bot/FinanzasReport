@@ -59,11 +59,7 @@
     <button class="sidebar-toggle" onclick="toggleSidebar()" title="Ocultar menú">‹</button>
   </div>
 
-  <div class="sidebar-rail-top" aria-hidden="true">
-    <button class="rail-gmail-btn" id="rail-gmail-btn" onclick="gmailSync()" title="Estado de Gmail">
-      <span class="rail-gmail-letter">G</span>
-    </button>
-  </div>
+  <div class="sidebar-rail-top" aria-hidden="true"></div>
 
   <nav class="nav-group">
     <button class="nav-item active" id="ni-dashboard" onclick="nav('dashboard')" title="Dashboard">
@@ -120,6 +116,9 @@
   </div>
 
   <div class="sidebar-rail-bottom" aria-hidden="true">
+    <button class="rail-gmail-btn" id="rail-gmail-btn" onclick="gmailSync()" title="Estado de Gmail">
+      <span class="rail-gmail-letter">G</span>
+    </button>
     <button class="rail-theme-btn" id="rail-theme-light" onclick="setThemeMode('light')" title="Modo claro">
       <span>☀️</span>
     </button>
@@ -237,12 +236,47 @@
       </button>
       <div><div class="page-title" id="dash-page-title" style="display:none"></div><div class="page-subtitle" id="dash-date">—</div></div>
     </div>
+
+    <div class="dashboard-smart-toolbar" id="dashboard-smart-toolbar" role="toolbar" aria-label="Accesos rápidos del dashboard">
+      <div class="dash-smart-kicker">Accesos inteligentes</div>
+      <div class="dash-smart-actions">
+        <button class="dash-smart-btn dash-smart-btn-primary" onclick="openQuickExpenseFlow()" title="Registrar un gasto manual rápido">
+          <span class="dash-smart-icon">＋</span>
+          <span>Nuevo gasto</span>
+        </button>
+        <button class="dash-smart-btn" onclick="openDashboardMonthPicker()" title="Abrir selector de mes para navegar el calendario financiero">
+          <span class="dash-smart-icon">📅</span>
+          <span>Calendario</span>
+        </button>
+        <button class="dash-smart-btn" onclick="quickGmailImport()" title="Sincronizar consumos desde Gmail">
+          <span class="dash-smart-icon">✉️</span>
+          <span>Importar Gmail</span>
+        </button>
+        <button class="dash-smart-btn" onclick="openQuickCategoryCreate()" title="Crear una categoría y seguir">
+          <span class="dash-smart-icon">🏷️</span>
+          <span>Nueva categoría</span>
+        </button>
+        <button class="dash-smart-btn" onclick="openQuickTaskCreate()" title="Crear una task y verla en el calendario">
+          <span class="dash-smart-icon">✅</span>
+          <span>Nueva task</span>
+        </button>
+        <button class="dash-smart-btn" onclick="nav('import-history')" title="Revisar las últimas importaciones y su estado">
+          <span class="dash-smart-icon">🕘</span>
+          <span>Historial</span>
+        </button>
+        <button class="dash-smart-btn" onclick="nav('income')" title="Actualizar o revisar tus ingresos">
+          <span class="dash-smart-icon">💸</span>
+          <span>Ingresos</span>
+        </button>
+      </div>
+    </div>
     
     <div class="header-actions">
       <!-- Mes toggle -->
       <div class="surface-toggle" style="display:none">
         <button id="dash-toggle-mes" class="surface-toggle-btn active" onclick="setDashView('mes')">Mes</button>
-        <button id="dash-toggle-tc" class="surface-toggle-btn" onclick="setDashView('tc')" style="display:none">Ciclo TC</button>
+        <button id="dash-toggle-visa" class="surface-toggle-btn" onclick="setDashView('visa')" style="display:none">Vista VISA</button>
+        <button id="dash-toggle-amex" class="surface-toggle-btn" onclick="setDashView('amex')" style="display:none">Vista AMEX</button>
       </div>
       <!-- Period selector (changes based on toggle) -->
       <select id="dash-month-select" class="txn-select" onchange="setDashMonthFromSelect(this.value)">
@@ -1243,7 +1277,8 @@
         <div class="rep-stack">
           <div class="rep-mode-grid">
             <button class="tft-btn rep-mode-btn active" id="rep-mode-mes" onclick="setRepMode('mes')">Mes</button>
-            <button class="tft-btn rep-mode-btn" id="rep-mode-tc" onclick="setRepMode('tc')">Ciclo TC</button>
+            <button class="tft-btn rep-mode-btn" id="rep-mode-visa" onclick="setRepMode('visa')">Vista VISA</button>
+            <button class="tft-btn rep-mode-btn" id="rep-mode-amex" onclick="setRepMode('amex')">Vista AMEX</button>
             <button class="tft-btn rep-mode-btn" id="rep-mode-rango" onclick="setRepMode('rango')">Rango</button>
             <button class="tft-btn rep-mode-btn" id="rep-mode-all" onclick="setRepMode('todo')">Histórico</button>
           </div>
@@ -1437,7 +1472,8 @@
       <!-- Modo de filtro: mes calendario vs ciclo TC -->
       <div class="txn-filter-toggle">
         <button class="tft-btn active" id="tft-mes" onclick="setTxnFilterMode('mes')">📅 Por mes</button>
-        <button class="tft-btn" id="tft-tc" onclick="setTxnFilterMode('tc')">💳 Ciclo TC</button>
+        <button class="tft-btn" id="tft-visa" onclick="setTxnFilterMode('visa')">💳 Vista VISA</button>
+        <button class="tft-btn" id="tft-amex" onclick="setTxnFilterMode('amex')">💳 Vista AMEX</button>
       </div>
 
       <!-- Selector de mes (visible en modo mes) -->
@@ -1534,9 +1570,9 @@
         <option value="">Todos los períodos</option>
       </select>
       <div class="view-toggle">
-        <button class="toggle-btn" id="tend-tog-week" onclick="setTendMode('week')">Semanas</button>
-        <button class="toggle-btn active" id="tend-tog-month" onclick="setTendMode('month')">Meses</button>
-        <button class="toggle-btn" id="tend-tog-tc" onclick="setTendMode('tc')">Ciclo TC</button>
+        <button class="toggle-btn active" id="tend-tog-mes" onclick="setTendMode('mes')">Vista mes</button>
+        <button class="toggle-btn" id="tend-tog-visa" onclick="setTendMode('visa')">Vista VISA</button>
+        <button class="toggle-btn" id="tend-tog-amex" onclick="setTendMode('amex')">Vista AMEX</button>
       </div>
     </div>
   </div>

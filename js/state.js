@@ -3,7 +3,7 @@ let state={
   transactions:[],categories:[...DEFAULT_CATS],categoryGroups:[...DEFAULT_CATEGORY_GROUPS],
   income:{ars:0,varArs:0,usd:0,varUsd:0},
   savingsGoal:20,alertThreshold:80,spendPct:100,insightsBufferMonths:3,tendChartMode:'bar',
-  imports:[],compareMode:'month',balanceView:'summary',repDesign:'executive',tendMode:'tc',
+  imports:[],compareMode:'month',balanceView:'summary',repDesign:'executive',tendMode:'visa',
   activeTendCats:null,
   _selectedTxns:new Set(),
   cuotas:[],autoCuotaConfig:{},subscriptions:[],fixedExpenses:[],
@@ -15,12 +15,16 @@ let state={
   savDeposits:[],        // [{id,month:'2025-03',accountId,amount,currency,note,kind}] — 100% manual
   incViewCurrency:'ARS',
   tcConfig:{cardName:'',closeDay:0,dueDay:0,limit:0,mixTarget:70},
+  viewCycleConfig:{
+    visa:{openDay:26,closeDay:25,dueDay:10},
+    amex:{openDay:11,closeDay:10,dueDay:27}
+  },
   tcCycles:[],
   dashTcCycle:null,
-  dashView:'mes',
+  dashView:'visa',
   chartMode:'bars',
   dashMonth:null,
-  txnFilterMode:'tc',
+  txnFilterMode:'visa',
   charts:{},_assigningTxnId:null,apiKey:'',
   catRules:[],           // [{id, keyword, category, active, priority}]
   catHistory:{},         // {comercio_normalized: {cat: count}} — aprendizaje local
@@ -64,11 +68,12 @@ function getStateSnapshot(){
     try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
   }
   return {
-    transactions:state.transactions,categories:state.categories,categoryGroups:state.categoryGroups||[],income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'mes',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],balanceView:state.balanceView||'summary',
+    transactions:state.transactions,categories:state.categories,categoryGroups:state.categoryGroups||[],income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'visa',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],balanceView:state.balanceView||'summary',
+    txnFilterMode:state.txnFilterMode||'visa',tendMode:state.tendMode||'visa',repMode:state.repMode||'visa',
     savingsGoal:state.savingsGoal,alertThreshold:state.alertThreshold,spendPct:state.spendPct||100,insightsBufferMonths:state.insightsBufferMonths||3,tendChartMode:state.tendChartMode||'bar',imports:state.imports,
     cuotas:state.cuotas,autoCuotaConfig:state.autoCuotaConfig,subscriptions:state.subscriptions,fixedExpenses:state.fixedExpenses||[],
     incomeSources:state.incomeSources,incomeMonths:state.incomeMonths,
-    savAccounts:state.savAccounts,savGoals:state.savGoals,savDeposits:state.savDeposits||[],tcConfig:state.tcConfig,
+    savAccounts:state.savAccounts,savGoals:state.savGoals,savDeposits:state.savDeposits||[],tcConfig:state.tcConfig,viewCycleConfig:state.viewCycleConfig||{},
     usdRate:state.usdRate||1420,usdRateBuy:state.usdRateBuy||state.usdRate||1420,usdRateSell:state.usdRateSell||state.usdRate||1420,usdRateSource:state.usdRateSource||'blue',usdRateUpdated:state.usdRateUpdated||null,
     catRules:state.catRules||[],catHistory:state.catHistory||{},
     ccCards:state.ccCards||[],ccCycles:state.ccCycles||[],ccActiveCard:state.ccActiveCard||null,
@@ -307,8 +312,14 @@ async function loadFromDrive(){
     state.savGoals=s.savGoals||[];
     state.savDeposits=s.savDeposits||[];
     if(s.tcConfig)state.tcConfig={...state.tcConfig,...s.tcConfig};
+    if(s.viewCycleConfig){
+      state.viewCycleConfig={
+        visa:{...(state.viewCycleConfig?.visa||{}),...(s.viewCycleConfig.visa||{})},
+        amex:{...(state.viewCycleConfig?.amex||{}),...(s.viewCycleConfig.amex||{})}
+      };
+    }
     state.dashMonth=s.dashMonth||null;
-    state.dashView=s.dashView||'mes';
+    state.dashView=s.dashView||'visa';
     state.dashTcCycle=s.dashTcCycle||null;
     state.tcCycles=s.tcCycles||[];
     state.usdRate=s.usdRate||1420;
@@ -346,6 +357,10 @@ async function loadFromDrive(){
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
     state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';
+    state.txnFilterMode=_normalizeViewMode(s.txnFilterMode||state.txnFilterMode||'visa');
+    state.tendMode=_normalizeViewMode(s.tendMode||state.tendMode||'visa');
+    state.dashView=_normalizeViewMode(s.dashView||state.dashView||'visa');
+    state.repMode=_normalizeViewMode(s.repMode||state.repMode||'visa');
     if(typeof normalizeCategoryState === 'function'){
       try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
     }
@@ -379,8 +394,14 @@ function loadState(){
     state.incomeSources=s.incomeSources||[];state.incomeMonths=s.incomeMonths||[];
     state.savAccounts=s.savAccounts||[];state.savGoals=s.savGoals||[];state.savDeposits=s.savDeposits||[];
     if(s.tcConfig)state.tcConfig={...state.tcConfig,...s.tcConfig};
+    if(s.viewCycleConfig){
+      state.viewCycleConfig={
+        visa:{...(state.viewCycleConfig?.visa||{}),...(s.viewCycleConfig.visa||{})},
+        amex:{...(state.viewCycleConfig?.amex||{}),...(s.viewCycleConfig.amex||{})}
+      };
+    }
     state.dashMonth=s.dashMonth||null;
-    state.dashView=s.dashView||'mes';
+    state.dashView=s.dashView||'visa';
     state.dashTcCycle=s.dashTcCycle||null;
     state.tcCycles=s.tcCycles||[];
     state.usdRate=s.usdRate||1420;
@@ -418,6 +439,10 @@ function loadState(){
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
     state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';
+    state.txnFilterMode=_normalizeViewMode(s.txnFilterMode||state.txnFilterMode||'visa');
+    state.tendMode=_normalizeViewMode(s.tendMode||state.tendMode||'visa');
+    state.dashView=_normalizeViewMode(s.dashView||state.dashView||'visa');
+    state.repMode=_normalizeViewMode(s.repMode||state.repMode||'visa');
     state.apiKey=localStorage.getItem('fin_apikey')||'';
     if(typeof normalizeCategoryState === 'function'){
       try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
@@ -439,4 +464,10 @@ function loadState(){
     }
 
   }catch(e){console.warn('loadState error',e);}
+}
+
+function _normalizeViewMode(mode){
+  if(mode==='visa'||mode==='amex'||mode==='mes') return mode;
+  if(mode==='tc') return 'visa';
+  return 'visa';
 }
