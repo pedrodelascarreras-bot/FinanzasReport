@@ -410,6 +410,14 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
   margin-bottom: 18px; padding: 0 8px;
   display: flex; align-items: center; gap: 8px;
 }
+.sidebar-logo-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 32px;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
 .logo-dot {
   width: 8px; height: 8px;
   background: var(--blue); border-radius: 50%; flex-shrink: 0;
@@ -641,30 +649,14 @@ body.light-mode .panel-heading {
   isolation: isolate;
 }
 #page-dashboard.page.active {
-  gap: 22px;
+  gap: 16px;
 }
-#page-dashboard::before {
-  content: '';
-  position: absolute;
-  inset: -20px -18px -22px -18px;
-  z-index: -1;
-  pointer-events: none;
-  background: #F3F1FC;
-  border-radius: 34px;
-}
+#page-dashboard::before,
 #page-dashboard::after {
-  content: '';
-  position: absolute;
-  inset: -6px -4px auto -4px;
-  height: 118px;
-  z-index: -1;
-  pointer-events: none;
-  background: linear-gradient(180deg, rgba(255,255,255,0.5), rgba(255,255,255,0));
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  content: none;
 }
 #page-dashboard .content-stack {
-  gap: 18px;
+  gap: 14px;
 }
 #page-dashboard .layout-section {
   display: flex;
@@ -675,8 +667,9 @@ body.light-mode .panel-heading {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  margin-bottom: 2px;
-  padding-top: 8px;
+  margin-bottom: 0;
+  padding-top: 0;
+  min-height: 0;
 }
 #page-dashboard .dashboard-header .notif-trigger,
 #page-dashboard .dashboard-header .dashboard-search-trigger {
@@ -684,7 +677,7 @@ body.light-mode .panel-heading {
 }
 #page-dashboard .header-actions {
   gap: 10px;
-  margin-bottom: 4px;
+  margin-bottom: 0;
 }
 #page-dashboard .header-actions .surface-toggle {
   display: inline-flex !important;

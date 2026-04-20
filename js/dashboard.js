@@ -1189,7 +1189,11 @@ function renderDashboard(){
   updateMonthPicker();
   const MNAMES=[t('month_1'),t('month_2'),t('month_3'),t('month_4'),t('month_5'),t('month_6'),t('month_7'),t('month_8'),t('month_9'),t('month_10'),t('month_11'),t('month_12')];
   const _spendLabel = totalGastoARS>0 ? ' · $'+fmtN(totalGastoARS)+' gastados' : '';
-  document.getElementById('dash-date').textContent='Tené el control total de tus finanzas en un vistazo.';
+  const dashDateEl=document.getElementById('dash-date');
+  if(dashDateEl){
+    dashDateEl.textContent='';
+    dashDateEl.style.display='none';
+  }
 
   // ── Título dinámico del dashboard ──
   const _titleEl=document.getElementById('dash-page-title');
