@@ -107,11 +107,6 @@
               <span>merece <em>seguridad.</em></span>
             </h1>
             <p class="spw-subtitle">Conectá tu cuenta de Google y empezá a tener el control total de tus finanzas.</p>
-            <div class="spw-feature-row">
-              ${renderFeature('shield', 'Privado y seguro', 'Solo vos podés ver tu información.')}
-              ${renderFeature('sync', 'Actualización automática', 'Tus datos siempre al día, sin esfuerzo.')}
-              ${renderFeature('spark', 'Decisiones inteligentes', 'Detectá patrones y optimizá tu dinero.')}
-            </div>
           </div>
 
           <div class="spw-hero-visual" aria-hidden="true">
@@ -168,25 +163,6 @@
           </aside>
         </section>
 
-        <section class="spw-benefits">
-          <span class="spw-benefits-kicker">¿QUÉ PODÉS HACER UNA VEZ CONECTADO?</span>
-          <div class="spw-benefits-grid">
-            ${renderBenefit('wallet', 'CONTROL TOTAL', 'Vas a ver todo claro', 'Tus gastos, ingresos y proyecciones en un solo lugar.', 'tone-violet')}
-            ${renderBenefit('pie', 'MEJORES DECISIONES', 'Entendés y decidís mejor', 'Detectás patrones y optimizás tu dinero.', 'tone-blue')}
-            ${renderBenefit('bolt', 'TODO SINCRONIZADO', 'Se actualiza solo', 'Tus datos se sincronizan automáticamente.', 'tone-cyan')}
-          </div>
-        </section>
-
-        <section class="spw-trust-bar">
-          <div class="spw-trust-copy">
-            <div class="spw-trust-icon">${iconSVG('shield')}</div>
-            <p>Tu información está protegida. Nunca compartimos tus datos con terceros y solo accedemos a lo que necesitás para que todo funcione.</p>
-          </div>
-          <button class="spw-trust-link" type="button" onclick="handleSplashTopAction('security', event)">
-            <span>Saber más</span>
-            <span class="spw-trust-link-arrow">${iconSVG('arrow')}</span>
-          </button>
-        </section>
       </div>
     `;
   }

@@ -290,11 +290,13 @@
               <div class="db2-hero-eye-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
             </button>
           </div>
-          <div style="display:flex;flex-direction:column;gap:4px;margin-top:4px;">
+          <div class="db2-hero-stack">
             <div class="db2-hero-main-amt" id="kpi-ars">—</div>
-            <div class="db2-hero-usd-sub" id="dhc-usd-line">—</div>
+            <div class="db2-hero-subrow">
+              <div class="db2-hero-usd-sub" id="dhc-usd-line">—</div>
+              <div id="dhc-pct-inline" class="db2-hero-pct"></div>
+            </div>
           </div>
-          <div id="dhc-pct-inline" class="db2-hero-pct"></div>
           <div class="db2-hero-inner">
             <!-- Total ARS -->
             <div class="db2-hero-sub db2-hero-sub-ars">
@@ -445,10 +447,16 @@
             <span class="db2-title">Dólar Oficial</span>
           </div>
           <div class="db2-dollar-badge" id="usd-rate-source-badge">OFICIAL BNA</div>
-          <div class="db2-dollar-buy" id="usd-rate-buy-display">—</div>
-          <div class="db2-dollar-lbl">Compra</div>
-          <div class="db2-dollar-sell" id="usd-rate-sell-display">—</div>
-          <div class="db2-dollar-lbl">Venta</div>
+          <div class="db2-dollar-prices">
+            <div class="db2-dollar-price-block">
+              <div class="db2-dollar-lbl">Compra</div>
+              <div class="db2-dollar-buy" id="usd-rate-buy-display">—</div>
+            </div>
+            <div class="db2-dollar-price-block">
+              <div class="db2-dollar-lbl">Venta</div>
+              <div class="db2-dollar-sell" id="usd-rate-sell-display">—</div>
+            </div>
+          </div>
           <div class="db2-dollar-chart-wrap">
             <canvas id="db2-dollar-spark" height="36" style="width:100%;height:36px;"></canvas>
           </div>
