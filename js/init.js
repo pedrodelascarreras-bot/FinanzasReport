@@ -146,6 +146,36 @@ function _buildGeneratedCyclesForMode(mode, monthsBack=18, monthsAhead=2){
   return rows.sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
 }
 
+function getTcCyclePayMethodKey(cycle){
+  if(!cycle) return '';
+  const explicit=(cycle.payMethodKey||'').toLowerCase();
+  if(explicit) return explicit;
+  if(cycle.cardId){
+    const card=(state.ccCards||[]).find(c=>c.id===cycle.cardId);
+    const cardPayMethod=(card?.payMethodKey||'').toLowerCase();
+    if(cardPayMethod) return cardPayMethod;
+  }
+  const viewMode=normalizeViewMode(cycle.viewMode||'mes');
+  return viewMode==='visa'||viewMode==='amex' ? viewMode : '';
+}
+
+function getTcCycleSignature(cycle){
+  if(!cycle) return '';
+  const payMethod=getTcCyclePayMethodKey(cycle)||'mes';
+  return [payMethod, cycle.cardId||'', cycle.closeDate||''].join('::');
+}
+
+function isTcCycleHidden(cycle){
+  const signature=getTcCycleSignature(cycle);
+  if(!signature) return false;
+  return (state.hiddenTcCycles||[]).includes(signature);
+}
+
+function _ensureTcCycleVisible(signature){
+  if(!signature) return;
+  state.hiddenTcCycles=(state.hiddenTcCycles||[]).filter(item=>item!==signature);
+}
+
 function getTcCycles(mode){
   const normalizedMode=mode?normalizeViewMode(mode):null;
   const legacy=(state.tcCycles||[]).map(c=>{
@@ -159,9 +189,11 @@ function getTcCycles(mode){
   });
   const autoVisa=_buildGeneratedCyclesForMode('visa', 18, 1);
   const autoAmex=_buildGeneratedCyclesForMode('amex', 18, 1);
+  const hiddenSet=new Set(state.hiddenTcCycles||[]);
   const mergedMap=new Map();
   [...legacy,...autoVisa,...autoAmex].forEach(c=>{
-    const key=(c.id||'')+'::'+(c.cardId||'')+'::'+(c.closeDate||'');
+    const key=getTcCycleSignature(c);
+    if(!key || hiddenSet.has(key)) return;
     if(!mergedMap.has(key)) mergedMap.set(key,c);
   });
   let rows=[...mergedMap.values()];
@@ -272,33 +304,89 @@ function addTcCycleFromCC(){
   const openDate=(openEl?openEl.value:'').trim();
   const closeDate=(closeEl?closeEl.value:'');
   const dueDate=(dueEl?dueEl.value:'');
+  const editingId=window._tcCycleEditId||'';
   if(!cardId||!openDate||!closeDate||!dueDate){showToast('⚠️ Completá tarjeta, apertura, cierre y vencimiento','error');return;}
   if(!label){showToast('⚠️ Completá el nombre del ciclo','error');return;}
   if(openDate>closeDate){showToast('⚠️ La apertura no puede ser posterior al cierre','error');return;}
   if(dueDate<closeDate){showToast('⚠️ El vencimiento no puede ser anterior al cierre','error');return;}
   if(!state.tcCycles)state.tcCycles=[];
-  if(state.tcCycles.find(c=>(c.cardId||'')===cardId&&c.closeDate===closeDate)){showToast('⚠️ Ya existe un ciclo para esa tarjeta con esa fecha de cierre','error');return;}
-  const id='tc_'+Date.now().toString(36);
-  state.tcCycles.push({id,label,cardId,openDate,closeDate,dueDate});
+  if(!state.hiddenTcCycles) state.hiddenTcCycles=[];
+  const card=(state.ccCards||[]).find(c=>c.id===cardId);
+  const payMethodKey=(card?.payMethodKey||'').toLowerCase();
+  const nextCycle={id:editingId||('tc_'+Date.now().toString(36)),label,cardId,openDate,closeDate,dueDate,payMethodKey,viewMode:payMethodKey||'mes',source:'manual'};
+  const nextSignature=getTcCycleSignature(nextCycle);
+  const duplicate=(getTcCycles()||[]).find(c=>c.id!==editingId && getTcCycleSignature(c)===nextSignature);
+  if(duplicate){showToast('⚠️ Ya existe un ciclo para esa tarjeta con esa fecha de cierre','error');return;}
+  _ensureTcCycleVisible(nextSignature);
+  const existingIdx=(state.tcCycles||[]).findIndex(c=>c.id===editingId);
+  if(existingIdx>=0){
+    state.tcCycles[existingIdx]={...state.tcCycles[existingIdx],...nextCycle};
+  }else{
+    state.tcCycles.push(nextCycle);
+  }
+  window._tcCycleEditId='';
+  window._ccConfigDraftCardId=cardId||'';
   saveState();
+  if(typeof refreshAll==='function') refreshAll();
   renderCcTcConfig();
   if(typeof renderCcConfigPanel==='function') renderCcConfigPanel();
-  showToast('✓ Ciclo agregado: '+label,'success');
+  showToast(editingId?'✓ Ciclo actualizado':'✓ Ciclo agregado: '+label,'success');
   if(labelEl)labelEl.value='';
-  if(cardEl)cardEl.value=state.ccActiveCard||state.ccCards?.[0]?.id||'';
+  if(cardEl)cardEl.value=window._ccConfigDraftCardId||state.ccActiveCard||state.ccCards?.[0]?.id||'';
   if(openEl)openEl.value='';
   if(closeEl)closeEl.value='';
   if(dueEl)dueEl.value='';
 }
 
+function editTcCycle(id){
+  const cycles=getTcCycles();
+  const idx=cycles.findIndex(c=>c.id===id);
+  if(idx<0){showToast('No se encontró el ciclo','error');return;}
+  const cycle=cycles[idx];
+  window._tcCycleEditId=id;
+  window._ccConfigDraftCardId=cycle.cardId||'';
+  if(typeof renderCcConfigPanel==='function') renderCcConfigPanel();
+  const labelEl=document.getElementById('tc-cycle-label-cc');
+  const cardEl=document.getElementById('tc-cycle-card-cc');
+  const openEl=document.getElementById('tc-cycle-open-cc');
+  const closeEl=document.getElementById('tc-cycle-close-cc');
+  const dueEl=document.getElementById('tc-cycle-due-cc');
+  if(labelEl) labelEl.value=cycle.label||'';
+  if(cardEl) cardEl.value=cycle.cardId||state.ccActiveCard||state.ccCards?.[0]?.id||'';
+  if(openEl) openEl.value=getTcCycleOpen(cycles, idx)||cycle.openDate||'';
+  if(closeEl) closeEl.value=cycle.closeDate||'';
+  if(dueEl) dueEl.value=cycle.dueDate||'';
+  labelEl?.focus();
+  labelEl?.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function cancelTcCycleEdit(){
+  window._tcCycleEditId='';
+  window._ccConfigDraftCardId='';
+  if(typeof renderCcConfigPanel==='function') renderCcConfigPanel();
+}
+
 function deleteTcCycle(id){
   if(!confirm('¿Eliminar este ciclo?'))return;
-  state.tcCycles=(state.tcCycles||[]).filter(c=>c.id!==id);
+  const cycle=(getTcCycles()||[]).find(c=>c.id===id) || (state.tcCycles||[]).find(c=>c.id===id);
+  const signature=getTcCycleSignature(cycle);
+  if(signature){
+    state.hiddenTcCycles=Array.from(new Set([...(state.hiddenTcCycles||[]), signature]));
+  }
+  state.tcCycles=(state.tcCycles||[]).filter(c=>c.id!==id && getTcCycleSignature(c)!==signature);
+  state.ccCycles=(state.ccCycles||[]).filter(c=>c.tcCycleId!==id);
+  if(state.dashTcCycle===id) state.dashTcCycle=null;
+  if(window._tcCycleEditId===id) window._tcCycleEditId='';
+  if(window._ccViewCycle){
+    Object.keys(window._ccViewCycle).forEach(cardId=>{
+      if(window._ccViewCycle[cardId]===id) window._ccViewCycle[cardId]=null;
+    });
+  }
   saveState();
+  if(typeof refreshAll==='function') refreshAll();
   renderTcCycleList();
   renderCcTcConfig();
   if(typeof renderCcConfigPanel==='function') renderCcConfigPanel();
-  if(state.dashView!=='mes')renderDashboard();
   showToast('Ciclo eliminado','info');
 }
 
@@ -323,6 +411,7 @@ function renderTcCycleList(){
         '<div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;">'+fmtD(openD)+' → '+fmtD(closeD)+dueDStr+'</div>'+
       '</div>'+
       '<div style="font-size:13px;font-weight:700;color:var(--accent);font-family:var(--font);">'+(total>0?'$'+fmtN(total):'sin gastos')+'</div>'+
+      '<button class="btn btn-secondary btn-sm btn-icon" onclick="editTcCycle(\''+c.id+'\')" title="Editar">✎</button>'+
       '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteTcCycle(\''+c.id+'\')" title="Eliminar">🗑</button>'+
     '</div>';
   }).join('');
@@ -1681,6 +1770,7 @@ function getCurrentProfileSnapshot(){
     tcConfig: cloneDeepProfileValue(state.tcConfig || {}),
     viewCycleConfig: cloneDeepProfileValue(state.viewCycleConfig || {}),
     tcCycles: cloneDeepProfileValue(state.tcCycles || []),
+    hiddenTcCycles: cloneDeepProfileValue(state.hiddenTcCycles || []),
     ccCards: cloneDeepProfileValue(markOwnedItems(state.ccCards || [], state.activeUserProfileId || 'default-profile')),
     ccCycles: cloneDeepProfileValue(markOwnedItems(state.ccCycles || [], state.activeUserProfileId || 'default-profile')),
     ccActiveCard: state.ccActiveCard || null,
@@ -1828,6 +1918,7 @@ function applyUserProfile(profileId){
   }
   ensureViewCycleConfig();
   state.tcCycles = cloneDeepProfileValue(profile.tcCycles || []);
+  state.hiddenTcCycles = cloneDeepProfileValue(profile.hiddenTcCycles || []);
   state.ccCards = cloneDeepProfileValue(profile.ccCards || []);
   state.ccCycles = cloneDeepProfileValue(profile.ccCycles || []);
   state.ccActiveCard = profile.ccActiveCard || null;

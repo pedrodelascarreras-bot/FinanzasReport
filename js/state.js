@@ -20,6 +20,7 @@ let state={
     amex:{openDay:11,closeDay:10,dueDay:27}
   },
   tcCycles:[],
+  hiddenTcCycles:[],
   dashTcCycle:null,
   dashView:'visa',
   chartMode:'bars',
@@ -70,7 +71,7 @@ function getStateSnapshot(){
     try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
   }
   return {
-    transactions:state.transactions,categories:state.categories,categoryGroups:state.categoryGroups||[],income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'visa',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],balanceView:state.balanceView||'summary',
+    transactions:state.transactions,categories:state.categories,categoryGroups:state.categoryGroups||[],income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'visa',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],hiddenTcCycles:state.hiddenTcCycles||[],balanceView:state.balanceView||'summary',
     txnFilterMode:state.txnFilterMode||'visa',tendMode:state.tendMode||'visa',repMode:state.repMode||'visa',
     savingsGoal:state.savingsGoal,alertThreshold:state.alertThreshold,spendPct:state.spendPct||100,insightsBufferMonths:state.insightsBufferMonths||3,tendChartMode:state.tendChartMode||'bar',imports:state.imports,
     cuotas:state.cuotas,autoCuotaConfig:state.autoCuotaConfig,subscriptions:state.subscriptions,fixedExpenses:state.fixedExpenses||[],
@@ -324,6 +325,7 @@ async function loadFromDrive(){
     state.dashView=s.dashView||'visa';
     state.dashTcCycle=s.dashTcCycle||null;
     state.tcCycles=s.tcCycles||[];
+    state.hiddenTcCycles=s.hiddenTcCycles||[];
     state.usdRate=s.usdRate||1420;
     state.usdRateBuy=s.usdRateBuy||s.usdRate||1420;
     state.usdRateSell=s.usdRateSell||s.usdRate||1420;
@@ -408,6 +410,7 @@ function loadState(){
     state.dashView=s.dashView||'visa';
     state.dashTcCycle=s.dashTcCycle||null;
     state.tcCycles=s.tcCycles||[];
+    state.hiddenTcCycles=s.hiddenTcCycles||[];
     state.usdRate=s.usdRate||1420;
     state.usdRateBuy=s.usdRateBuy||s.usdRate||1420;
     state.usdRateSell=s.usdRateSell||s.usdRate||1420;

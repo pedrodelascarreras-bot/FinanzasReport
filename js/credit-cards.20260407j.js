@@ -583,95 +583,214 @@ function ccDeleteManualExpense(tcCycleId, expId){
   renderCcActiveCycle();
 }
 
+function ccFocusCycleComposer(){
+  const labelEl=document.getElementById('tc-cycle-label-cc');
+  labelEl?.focus();
+  labelEl?.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+function ccOpenCycleComposer(cardId){
+  window._tcCycleEditId='';
+  window._ccConfigDraftCardId=cardId||state.ccActiveCard||state.ccCards?.[0]?.id||'';
+  renderCcConfigPanel();
+  ccFocusCycleComposer();
+}
+
 // ── Render Apple-style Configuración panel ──
 function renderCcConfigPanel(){
   const el=document.getElementById('cc-config-panel-body');if(!el)return;
   const cycles=getTcCycles();
   const cards=state.ccCards||[];
-  const cardOptions=cards.map(card=>`<option value="${esc(card.id)}" ${card.id===(state.ccActiveCard||cards[0]?.id)?'selected':''}>${esc(card.name)}</option>`).join('');
+  const editingId=window._tcCycleEditId||'';
+  const editingCycle=editingId ? cycles.find(c=>c.id===editingId) : null;
+  const draftCardId=window._ccConfigDraftCardId||editingCycle?.cardId||state.ccActiveCard||cards[0]?.id||'';
+  const cardOptions=cards.map(card=>`<option value="${esc(card.id)}" ${card.id===draftCardId?'selected':''}>${esc(card.name)}</option>`).join('');
   const cardNameById=id=>cards.find(card=>card.id===id)?.name||'Tarjeta';
+  const totalManual=cycles.filter(c=>(c.source||'manual')!=='auto').length;
+  const totalAuto=cycles.filter(c=>(c.source||'manual')==='auto').length;
+  const totalPending=cycles.filter(c=>{
+    const ownerCardId=c.cardId||draftCardId||cards[0]?.id;
+    const statusEntry=state.ccCycles.find(x=>x.tcCycleId===c.id&&x.cardId===ownerCardId);
+    return statusEntry?.status!=='paid';
+  }).length;
+  const fmtD=s=>s?new Date(s+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}):'—';
+  const cycleGroups=cards.map(card=>{
+    const items=cycles
+      .map((cycle, idx)=>({cycle, idx}))
+      .filter(({cycle})=>((cycle.cardId||cards[0]?.id)===card.id));
+    return { card, items };
+  });
 
-  // ── Cards section ──
-  const cardsHtml=cards.map((card,ci)=>`
-    <div style="display:flex;align-items:center;gap:14px;padding:14px 16px;${ci>0?'border-top:1px solid var(--border)':''};">
-      <div style="width:40px;height:40px;border-radius:12px;background:${card.color}22;display:flex;align-items:center;justify-content:center;font-size:20px;">💳</div>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:14px;font-weight:700;color:var(--text);">${esc(card.name)}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px;">Tag: <strong style="color:${card.color};">${card.payMethodKey?.toUpperCase()||'—'}</strong></div>
+  const summaryHtml=`
+    <div class="txn-summary-row">
+      <div class="txn-summary-grid">
+        <div class="summary-stat-card">
+          <span class="summary-stat-label">Tarjetas activas</span>
+          <span class="summary-stat-value">${cards.length}</span>
+        </div>
+        <div class="summary-stat-card">
+          <span class="summary-stat-label">Ciclos visibles</span>
+          <span class="summary-stat-value">${cycles.length}</span>
+        </div>
+        <div class="summary-stat-card">
+          <span class="summary-stat-label">Overrides manuales</span>
+          <span class="summary-stat-value">${totalManual}</span>
+        </div>
+        <div class="summary-stat-card total">
+          <span class="summary-stat-label">Pendientes</span>
+          <span class="summary-stat-value primary">${totalPending}</span>
+        </div>
       </div>
-      <div style="width:12px;height:12px;border-radius:50%;background:${card.color};flex-shrink:0;"></div>
-    </div>`).join('');
-
-  // ── Cycles section ──
-  const cyclesListHtml=cycles.length
-    ? cycles.map((c,idx)=>{
-        const open=getTcCycleOpen(cycles,idx);
-        const fmtD=s=>new Date(s+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'});
-        const ownerCardId=c.cardId||state.ccActiveCard||cards[0]?.id;
-        const exp=ccGetCycleExpenses(ownerCardId, c.id);
-        const tot=ccGetTotals(exp);
-        const statusEntry=state.ccCycles.find(x=>x.tcCycleId===c.id&&x.cardId===ownerCardId);
-        const isPaid=statusEntry?.status==='paid';
-        return `<div style="display:flex;align-items:center;gap:12px;padding:14px 16px;${idx>0?'border-top:1px solid var(--border)':''};">
-          <div style="flex:1;min-width:0;">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
-              ${isPaid?'<span style="background:rgba(52,199,89,0.15);color:var(--green-sys);font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.04em;">✓ PAGADO</span>':'<span style="background:rgba(255,149,0,0.12);color:var(--orange);font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.04em;">⏳ PENDIENTE</span>'}
-              <span style="background:rgba(255,255,255,0.06);color:var(--text2);font-size:10px;font-weight:700;padding:2px 7px;border-radius:20px;letter-spacing:.04em;">${esc(cardNameById(c.cardId))}</span>
-              <span style="font-size:13px;font-weight:700;color:var(--text);">${esc(c.label)}</span>
-            </div>
-            <div style="font-size:11px;color:var(--text3);">${fmtD(open)} → ${fmtD(c.closeDate)}${c.dueDate?' · Vto: <strong>'+fmtD(c.dueDate)+'</strong>':''}</div>
-          </div>
-          <div style="text-align:right;flex-shrink:0;">
-            ${tot.ars>0?`<div style="font-size:13px;font-weight:700;color:var(--accent);font-family:var(--font);">$${fmtN(Math.round(tot.ars))}</div>`:''}
-            ${tot.usd>0?`<div style="font-size:11px;color:var(--accent2);font-family:var(--font);">U$D ${fmtN(tot.usd)}</div>`:''}
-            ${!tot.ars&&!tot.usd?'<div style="font-size:11px;color:var(--text3);">sin gastos</div>':''}
-          </div>
-          <button onclick="deleteTcCycle('${c.id}')" title="Eliminar ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:16px;padding:4px 6px;border-radius:6px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color='var(--danger)'" onmouseout="this.style.opacity=.5;this.style.color='var(--text3)'">🗑</button>
-        </div>`;
-      }).join('')
-    : '<div style="text-align:center;padding:28px 20px;color:var(--text3);font-size:13px;">Sin ciclos registrados.<br><span style="font-size:11px;">Agregá el primero con el formulario de arriba.</span></div>';
-
-  el.innerHTML=`
-    <!-- ── Tarjetas configuradas ── -->
-    <div style="margin-bottom:28px;">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Tarjetas</div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;">${cardsHtml}</div>
+      <div class="txns-detail txn-summary-detail">Base automática: ${totalAuto} ciclo${totalAuto===1?'':'s'} · Editar un ciclo lo convierte en override manual y se refleja en Dashboard, Movimientos y Tarjetas.</div>
     </div>
+  `;
 
-    <!-- ── Agregar ciclo ── -->
-    <div style="margin-bottom:20px;">
-      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Nuevo ciclo</div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:18px 20px;">
-        <div style="display:grid;grid-template-columns:1fr 1fr 160px 160px 160px;gap:12px;margin-bottom:14px;align-items:end;">
-          <div>
-            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Nombre del ciclo</div>
-            <input class="cc-cfg-input" id="tc-cycle-label-cc" placeholder="Ej: Marzo 2026" autocomplete="off">
+  const quickCardsHtml=cards.map(card=>{
+    const cardCycles=cycleGroups.find(group=>group.card.id===card.id)?.items||[];
+    const activeCycle=cardCycles[0]?.cycle||null;
+    return `
+      <button class="cc-config-quick-card ${card.id===draftCardId?'is-active':''}" onclick="ccOpenCycleComposer('${card.id}')">
+        <span class="cc-config-quick-dot" style="background:${card.color};"></span>
+        <span class="cc-config-quick-copy">
+          <strong>${esc(card.name)}</strong>
+          <small>${cardCycles.length} ciclo${cardCycles.length===1?'':'s'}${activeCycle?' · último cierre '+esc(fmtD(activeCycle.closeDate)):''}</small>
+        </span>
+      </button>
+    `;
+  }).join('');
+
+  const recordsHtml=cycleGroups.map((group,groupIdx)=>{
+    const { card, items } = group;
+    const openAccordion=(editingCycle?.cardId||draftCardId||state.ccActiveCard||cards[0]?.id)===card.id || (!editingCycle && groupIdx===0);
+    const manualCount=items.filter(({cycle})=>(cycle.source||'manual')!=='auto').length;
+    const pendingCount=items.filter(({cycle})=>{
+      const statusEntry=state.ccCycles.find(x=>x.tcCycleId===cycle.id&&x.cardId===card.id);
+      return statusEntry?.status!=='paid';
+    }).length;
+    const rowsHtml=items.length ? items.map(({cycle, idx})=>{
+      const open=getTcCycleOpen(cycles,idx);
+      const totals=ccGetTotals(ccGetCycleExpenses(card.id, cycle.id));
+      const statusEntry=state.ccCycles.find(x=>x.tcCycleId===cycle.id&&x.cardId===card.id);
+      const isPaid=statusEntry?.status==='paid';
+      const isManual=(cycle.source||'manual')!=='auto';
+      return `
+        <div class="cc-config-row">
+          <div class="cc-config-row-main">
+            <div class="cc-config-row-title">
+              <span class="cc-config-row-name">${esc(cycle.label)}</span>
+              <span class="cc-config-chip ${isPaid?'is-paid':'is-pending'}">${isPaid?'Pagado':'Pendiente'}</span>
+              <span class="cc-config-chip ${isManual?'is-manual':'is-auto'}">${isManual?'Editable':'Auto'}</span>
+            </div>
+            <div class="cc-config-row-meta">
+              <span>Apertura ${esc(fmtD(open))}</span>
+              <span>Cierre ${esc(fmtD(cycle.closeDate))}</span>
+              <span>Vto ${esc(fmtD(cycle.dueDate))}</span>
+            </div>
           </div>
-          <div>
-            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Tarjeta</div>
-            <select class="cc-cfg-input" id="tc-cycle-card-cc">${cardOptions}</select>
+          <div class="cc-config-row-amounts">
+            <strong>${totals.ars>0?'$'+fmtN(Math.round(totals.ars)):'—'}</strong>
+            <small>${totals.usd>0?'U$D '+fmtN(totals.usd):totals.count+' item'+(totals.count===1?'':'s')}</small>
           </div>
-          <div>
-            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Fecha de apertura</div>
-            <input type="date" class="cc-cfg-input" id="tc-cycle-open-cc">
-          </div>
-          <div>
-            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Fecha de cierre</div>
-            <input type="date" class="cc-cfg-input" id="tc-cycle-close-cc">
-          </div>
-          <div>
-            <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px;">Vencimiento pago</div>
-            <input type="date" class="cc-cfg-input" id="tc-cycle-due-cc">
+          <div class="cc-config-row-actions">
+            <button class="btn btn-ghost btn-sm" onclick="editTcCycle('${cycle.id}')">Editar</button>
+            <button class="btn btn-ghost btn-sm" onclick="deleteTcCycle('${cycle.id}')">Borrar</button>
           </div>
         </div>
-        <button onclick="addTcCycleFromCC()" style="width:100%;padding:12px;border-radius:12px;border:none;cursor:pointer;background:var(--accent);color:#fff;font-size:14px;font-weight:700;font-family:var(--font);letter-spacing:.02em;transition:opacity .13s;" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">+ Agregar ciclo</button>
+      `;
+    }).join('') : `
+      <div class="cc-config-empty-card">
+        <div class="cc-config-empty-title">Todavía no hay ciclos visibles para ${esc(card.name)}</div>
+        <div class="cc-config-empty-sub">Podés cargar uno manual o usar esta tarjeta como base para un ajuste puntual.</div>
+        <button class="btn btn-primary btn-sm" onclick="ccOpenCycleComposer('${card.id}')">Nuevo ciclo</button>
       </div>
-    </div>
+    `;
 
-    <!-- ── Historial de ciclos ── -->
-    <div>
-      <div style="font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Ciclos registrados</div>
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;">${cyclesListHtml}</div>
+    return `
+      <details class="cc-config-accordion" ${openAccordion?'open':''}>
+        <summary class="cc-config-accordion-summary">
+          <div class="cc-config-accordion-title">
+            <span class="cc-config-accordion-dot" style="background:${card.color};"></span>
+            <div>
+              <strong>${esc(card.name)}</strong>
+              <small>${items.length} ciclo${items.length===1?'':'s'} · ${manualCount} editable${manualCount===1?'':'s'} · ${pendingCount} pendiente${pendingCount===1?'':'s'}</small>
+            </div>
+          </div>
+          <span class="cc-config-accordion-cta">Ver registros</span>
+        </summary>
+        <div class="cc-config-accordion-body">
+          <div class="cc-config-table-head">
+            <span>Período</span>
+            <span>Total</span>
+            <span>Acciones</span>
+          </div>
+          ${rowsHtml}
+        </div>
+      </details>
+    `;
+  }).join('');
+
+  el.innerHTML=`
+    <div class="cc-config-shell">
+      <section class="txn-filter-bar cc-config-overview fade-up d1">
+        <div class="cc-config-overview-copy">
+          <div class="cc-config-kicker">Configuración de ciclos</div>
+          <h3>Administrá ciclos sin perderte entre aperturas, cierres y vencimientos.</h3>
+          <p>El flujo ahora está ordenado como Movimientos: resumen rápido arriba, editor único en el medio y registros agrupados abajo por tarjeta.</p>
+        </div>
+        <div class="cc-config-quick-grid">${quickCardsHtml}</div>
+        <div class="txn-summary cc-config-summary">${summaryHtml}</div>
+      </section>
+
+      <section class="table-card cc-config-composer fade-up d2">
+        <div class="cc-config-block-head">
+          <div>
+            <div class="cc-config-kicker">${editingCycle?'Editando ciclo':'Editor de ciclos'}</div>
+            <div class="cc-config-block-title">${editingCycle?esc(editingCycle.label||'Ciclo actual'):'Nuevo ciclo manual u override puntual'}</div>
+          </div>
+          <div class="cc-config-head-actions">
+            <button class="btn btn-ghost btn-sm" onclick="ccOpenCycleComposer('${draftCardId}')">Nuevo</button>
+            ${editingCycle?'<button class="btn btn-ghost btn-sm" onclick="cancelTcCycleEdit()">Cancelar edición</button>':''}
+          </div>
+        </div>
+        ${editingCycle?`<div class="cc-config-edit-banner">Estás ajustando un ciclo existente. Si era automático, esta edición pasa a ser un registro manual editable.</div>`:''}
+        <div class="cc-config-form-grid">
+          <label class="cc-config-field">
+            <span>Nombre del ciclo</span>
+            <input class="cc-cfg-input" id="tc-cycle-label-cc" placeholder="Ej: Abril 2026 extendido" autocomplete="off">
+          </label>
+          <label class="cc-config-field">
+            <span>Tarjeta</span>
+            <select class="cc-cfg-input" id="tc-cycle-card-cc">${cardOptions}</select>
+          </label>
+          <label class="cc-config-field">
+            <span>Fecha de apertura</span>
+            <input type="date" class="cc-cfg-input" id="tc-cycle-open-cc">
+          </label>
+          <label class="cc-config-field">
+            <span>Fecha de cierre</span>
+            <input type="date" class="cc-cfg-input" id="tc-cycle-close-cc">
+          </label>
+          <label class="cc-config-field">
+            <span>Fecha de vencimiento</span>
+            <input type="date" class="cc-cfg-input" id="tc-cycle-due-cc">
+          </label>
+        </div>
+        <div class="cc-config-form-actions">
+          <button class="btn btn-primary" onclick="addTcCycleFromCC()">${editingCycle?'Guardar cambios':'Guardar ciclo'}</button>
+          <div class="cc-config-form-note">Consejo: usá este editor cuando el banco te corra el cierre o el vencimiento y quieras que toda la app quede alineada con el resumen real.</div>
+        </div>
+      </section>
+
+      <section class="table-card cc-config-records fade-up d3">
+        <div class="cc-config-block-head">
+          <div>
+            <div class="cc-config-kicker">Registros</div>
+            <div class="cc-config-block-title">Ciclos agrupados por tarjeta</div>
+          </div>
+          <div class="cc-config-records-note">Abrí cada tarjeta para ver, editar o borrar sus períodos.</div>
+        </div>
+        <div class="cc-config-accordion-stack">${recordsHtml}</div>
+      </section>
     </div>
   `;
 }
@@ -700,6 +819,7 @@ function renderCcTcConfig(){
         '<div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;">'+fmtD(openD)+' → '+fmtD(closeD)+dueDStr+'</div>'+
       '</div>'+
       '<div style="font-size:13px;font-weight:700;color:var(--accent);font-family:var(--font);">'+(total>0?'$'+fmtN(total):'sin gastos')+'</div>'+
+      '<button class="btn btn-secondary btn-sm btn-icon" onclick="editTcCycle(\''+c.id+'\')" title="Editar">✎</button>'+
       '<button class="btn btn-danger btn-sm btn-icon" onclick="deleteTcCycle(\''+c.id+'\')" title="Eliminar">🗑</button>'+
     '</div>';
   }).join('');

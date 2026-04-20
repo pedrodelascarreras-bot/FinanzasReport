@@ -9478,6 +9478,298 @@ body.light-mode .cc-tab-chip.active {
 }
 .cc-cfg-input:focus { border-color: var(--accent); }
 .cc-cfg-input::placeholder { color: var(--text3); }
+.cc-config-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.cc-config-overview,
+.cc-config-composer,
+.cc-config-records {
+  padding: 18px;
+}
+.cc-config-overview-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.cc-config-kicker {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text3);
+}
+.cc-config-overview-copy h3,
+.cc-config-block-title {
+  margin: 0;
+  color: var(--text);
+  font-size: 20px;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.cc-config-overview-copy p,
+.cc-config-records-note,
+.cc-config-form-note {
+  margin: 0;
+  color: var(--text3);
+  font-size: 12px;
+  line-height: 1.55;
+}
+.cc-config-quick-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.cc-config-quick-card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 16px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .18s ease, background .18s ease, transform .18s ease;
+}
+.cc-config-quick-card:hover {
+  transform: translateY(-1px);
+  border-color: color-mix(in srgb, var(--accent) 40%, var(--border));
+}
+.cc-config-quick-card.is-active {
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border-color: color-mix(in srgb, var(--accent) 32%, var(--border));
+}
+.cc-config-quick-dot,
+.cc-config-accordion-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.cc-config-quick-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+.cc-config-quick-copy strong {
+  font-size: 13px;
+}
+.cc-config-quick-copy small,
+.cc-config-accordion-title small {
+  color: var(--text3);
+  font-size: 11px;
+  line-height: 1.45;
+}
+.cc-config-summary {
+  width: 100%;
+  text-align: left;
+}
+.cc-config-block-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.cc-config-head-actions,
+.cc-config-form-actions,
+.cc-config-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.cc-config-edit-banner {
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin-bottom: 14px;
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  color: var(--text2);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.cc-config-form-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 12px;
+}
+.cc-config-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+.cc-config-field span {
+  font-size: 10px;
+  font-weight: 800;
+  color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .06em;
+}
+.cc-config-form-actions {
+  justify-content: space-between;
+  margin-top: 14px;
+}
+.cc-config-form-note {
+  max-width: 720px;
+}
+.cc-config-accordion-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.cc-config-accordion {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  overflow: hidden;
+}
+.cc-config-accordion-summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.cc-config-accordion-summary::-webkit-details-marker {
+  display: none;
+}
+.cc-config-accordion-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.cc-config-accordion-title strong {
+  display: block;
+  font-size: 14px;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.cc-config-accordion-cta {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  white-space: nowrap;
+}
+.cc-config-accordion[open] .cc-config-accordion-cta {
+  color: var(--accent);
+}
+.cc-config-accordion-body {
+  border-top: 1px solid var(--border);
+  padding: 8px 14px 12px;
+}
+.cc-config-table-head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px 150px;
+  gap: 12px;
+  padding: 8px 6px 10px;
+  color: var(--text3);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.cc-config-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 140px 150px;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 6px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 74%, transparent);
+}
+.cc-config-row:first-of-type {
+  border-top: none;
+}
+.cc-config-row-main {
+  min-width: 0;
+}
+.cc-config-row-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 4px;
+}
+.cc-config-row-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.cc-config-chip {
+  font-size: 10px;
+  font-weight: 800;
+  padding: 3px 7px;
+  border-radius: 999px;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.cc-config-chip.is-paid {
+  background: rgba(52,199,89,0.14);
+  color: var(--green-sys);
+}
+.cc-config-chip.is-pending {
+  background: rgba(255,149,0,0.14);
+  color: var(--orange);
+}
+.cc-config-chip.is-manual {
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  color: var(--accent);
+}
+.cc-config-chip.is-auto {
+  background: rgba(142,142,147,0.14);
+  color: var(--text3);
+}
+.cc-config-row-meta {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  color: var(--text3);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.cc-config-row-amounts {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  gap: 3px;
+}
+.cc-config-row-amounts strong {
+  color: var(--text);
+  font-size: 14px;
+}
+.cc-config-row-amounts small {
+  color: var(--text3);
+  font-size: 11px;
+}
+.cc-config-empty-card {
+  padding: 20px 8px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+.cc-config-empty-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+.cc-config-empty-sub {
+  color: var(--text3);
+  font-size: 12px;
+  line-height: 1.55;
+}
 .cc-period-picker {
   display: flex;
   align-items: center;
@@ -9503,6 +9795,50 @@ body.light-mode .cc-tab-chip.active {
   font-family: var(--font);
   cursor: pointer;
   outline: none;
+}
+@media (max-width: 1100px) {
+  .cc-config-form-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 860px) {
+  .cc-config-overview,
+  .cc-config-composer,
+  .cc-config-records {
+    padding: 16px;
+  }
+  .cc-config-table-head {
+    display: none;
+  }
+  .cc-config-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+    padding: 14px 4px;
+  }
+  .cc-config-row-amounts,
+  .cc-config-row-actions {
+    align-items: flex-start;
+    text-align: left;
+  }
+}
+@media (max-width: 640px) {
+  .cc-config-form-grid {
+    grid-template-columns: 1fr;
+  }
+  .cc-config-form-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .cc-config-head-actions {
+    width: 100%;
+  }
+  .cc-config-head-actions .btn {
+    flex: 1;
+  }
+  .cc-config-accordion-summary {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 .cc-cycle-shell {
   background: var(--surface);
