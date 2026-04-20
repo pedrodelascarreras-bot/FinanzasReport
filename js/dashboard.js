@@ -1036,9 +1036,11 @@ function renderDashboard(){
   const tpSettled=thirdPartyTxns.filter(t=>t.thirdPartyStatus==='settled');
   const tpSettledArs=tpSettled.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   const tpSettledUsd=tpSettled.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-  let arsMonth=billableTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  let usdMonth=billableTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-  let cntMonth=billableTxns.length;
+  let arsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  let usdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+  let cntMonth=_allBillable.length;
+  // Disclaimer only for pending third party
+  const tpPendingSumArs=thirdPartyTxns.filter(t=>t.thirdPartyStatus!=='settled' && t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   let syntheticARS=0;
   let syntheticUSD=0;
   let syntheticCount=0;
@@ -1304,11 +1306,9 @@ function renderDashboard(){
   const rawPeriodArsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticARS:0);
   const rawPeriodUsdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticUSD:0);
   const rawPeriodCntMonth=_allBillable.length + (_tcModeActive?syntheticCount:0);
-  // Business rule: only third-party expenses marked as "cobrado/settled"
-  // are removed from Gasto Total. Pending third-party stays visible.
-  const operationalArsMonth=Math.max(0,rawPeriodArsMonth-tpSettledArs);
-  const operationalUsdMonth=Math.max(0,rawPeriodUsdMonth-tpSettledUsd);
-  const operationalCntMonth=Math.max(0,rawPeriodCntMonth-tpSettled.length);
+  const operationalArsMonth=rawPeriodArsMonth;
+  const operationalUsdMonth=rawPeriodUsdMonth;
+  const operationalCntMonth=rawPeriodCntMonth;
   const creditCycleArsTotal=arsMonth;
 
   // ── Ingresos ──
@@ -1623,6 +1623,16 @@ function renderDashboard(){
   }
   if(_pctInline&&pct!==null)_pctInline.textContent=pct+'% del ingreso';
   else if(_pctInline)_pctInline.textContent='';
+
+  const tpNoteEl=document.getElementById('dhc-third-party-note');
+  if(tpNoteEl){
+    if(tpPendingSumArs>0){
+      tpNoteEl.style.display='block';
+      tpNoteEl.innerHTML=`<span style="color:var(--accent);font-weight:700;">+ $${fmtN(Math.round(tpPendingSumArs))}</span> a recuperar de terceros`;
+    } else {
+      tpNoteEl.style.display='none';
+    }
+  }
   // Hidden compat
   document.getElementById('kpi-ars-d').textContent=cntMonth+' movimientos · $'+fmtN(cntMonth>0?totalGastoARS/cntMonth:0)+' promedio';
   // 3 totals breakdown

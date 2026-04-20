@@ -485,6 +485,7 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
       title:t._baseDesc||t.description,
       amount:t.amount,
       currency:t.currency,
+      payMethod:t.payMethod,
       group:t.isPendingCuota?'cuotas':'suscripciones',
       kind:t.isPendingCuota?'Cuota proyectada':'Suscripción proyectada',
       meta:t.isPendingCuota?`Cuota ${t.cuotaNum}/${t.cuotaTotal}`:'Próximo cobro',
@@ -648,13 +649,11 @@ function getTxnDisplaySummaryTotals(opts){
     !searchVal &&
     !hasCategoryFilter &&
     !hasCurrencyFilter &&
-    !hasCardFilter &&
     estadoFilter==='all';
 
   if(canUseDashboardAlignedTcTotals){
     const isNonCC=t=>t.payMethod==='deb'||t.payMethod==='ef';
     const billableActualTxns=txns.filter(t=>
-      !t.isThirdParty &&
       !t.isPendingCuota &&
       !t.isPendingSubscription &&
       !isNonCC(t)
@@ -664,7 +663,18 @@ function getTxnDisplaySummaryTotals(opts){
 
     const commitmentEntries=getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef);
     commitmentEntries
-      .filter(entry=>entry.synthetic && entry.includeInTotal)
+      .filter(entry=>{
+        if (!entry.includeInTotal) return false;
+        if (!(entry.synthetic || entry.kind === 'Cuota proyectada' || entry.kind === 'Suscripción proyectada')) return false;
+        if (hasCardFilter && entry.payMethod && entry.payMethod !== state.txnCardFilter) return false;
+        if (hasCardFilter && !entry.payMethod && entry.synthetic) {
+          const defaultOwner = (state.ccActiveCard || (state.ccCards||[]).find(c=>c.payMethodKey==='visa')?.id) 
+            ? ((state.ccCards||[]).find(c=>c.id===(state.ccActiveCard || (state.ccCards||[]).find(c=>c.payMethodKey==='visa')?.id))?.payMethodKey || 'visa') 
+            : 'visa';
+          if (state.txnCardFilter !== defaultOwner) return false;
+        }
+        return true;
+      })
       .forEach(entry=>{
         if((entry.currency||'ARS')==='USD') usdTotal+=Number(entry.amount)||0;
         else arsTotal+=Number(entry.amount)||0;
@@ -927,7 +937,7 @@ function renderTransactions(){
   }
 
   // ── Resumen ──
-  const summaryTxns=estadoF==='terceros'?txns:txns.filter(t=>!t.isThirdParty);
+  const summaryTxns=txns;
   const excludedThirdPartyCount=estadoF==='terceros'?0:txns.filter(t=>!!t.isThirdParty).length;
   const displayTotals=getTxnDisplaySummaryTotals({
     mode,
