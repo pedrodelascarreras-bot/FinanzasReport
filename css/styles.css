@@ -19123,14 +19123,24 @@ body:not(.light-mode) #page-dashboard .header-actions .txn-select{
   text-transform:uppercase;
   color:#0f172a;
 }
-.df-drip{color:var(--text);}
+.df-drip{color:#eef4ff;}
 .df-flow{
   background:linear-gradient(90deg,#2563EB 0%,#3B82F6 50%,#7C3AED 100%);
   -webkit-background-clip:text;background-clip:text;
   -webkit-text-fill-color:transparent;color:transparent;
 }
-body:not(.dark-mode) .df-wordmark{color:#0f172a;}
-.dark-mode .df-wordmark{color:#f8fbff;}
+body.light-mode .df-drip{color:#111827;}
+body:not(.light-mode) .df-drip{color:#eef4ff;}
+body.light-mode .df-flow{
+  background:linear-gradient(90deg,#2563EB 0%,#3B82F6 50%,#5B45F5 100%);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+}
+body:not(.light-mode) .df-flow{
+  background:linear-gradient(90deg,#60A5FA 0%,#3B82F6 48%,#8B5CF6 100%);
+  -webkit-background-clip:text;background-clip:text;
+  -webkit-text-fill-color:transparent;color:transparent;
+}
 
 .df-wordmark-lg{font-size:22px;letter-spacing:0.22em;}
 .df-logo-mark-lg{width:38px;height:38px;border-radius:12px;font-size:19px;}
@@ -19197,13 +19207,13 @@ body:not(.dark-mode) .df-wordmark{color:#0f172a;}
   font-weight:900 !important;
 }
 .sidebar .df-wordmark{
-  font-size:13px;
-  letter-spacing:0.22em;
+  font-size:13.5px;
+  letter-spacing:0.18em;
 }
 .app-header-name{
-  font-size:16px;
-  letter-spacing:0.24em;
-  font-weight:800;
+  font-size:18px;
+  letter-spacing:0.18em;
+  font-weight:900;
 }
 .app-header-brand{
   gap:12px;
@@ -19213,6 +19223,23 @@ body:not(.dark-mode) .df-wordmark{color:#0f172a;}
   width:35px;
   height:35px;
   border-radius:11px;
+}
+.sidebar-brand.df-logo{
+  gap:10px;
+  min-width:0;
+  overflow:visible;
+}
+.sidebar-brand .df-logo-mark{
+  width:34px;
+  height:34px;
+  border-radius:11px;
+}
+.app.sidebar-collapsed .sidebar-brand .df-wordmark{
+  display:none;
+}
+.app.sidebar-collapsed .sidebar-brand.df-logo{
+  justify-content:center;
+  width:34px;
 }
 
 /* ═══ SIDEBAR WALLET REFERENCE ═══ */
@@ -19969,6 +19996,39 @@ body:not(.light-mode) .app.sidebar-collapsed .sidebar .nav-item{
 }
 .app.sidebar-collapsed .rail-theme-btn span{
   font-size:14px !important;
+}
+
+/* Final brand lockup overrides: keep DRIPFLOW legible in both themes. */
+.sidebar-brand.df-logo,
+body:not(.light-mode) .app.sidebar-collapsed .sidebar-brand.df-logo{
+  display:inline-flex !important;
+}
+.app.sidebar-collapsed .sidebar-brand.df-logo{
+  width:34px !important;
+  min-width:34px !important;
+  overflow:visible !important;
+}
+.app.sidebar-collapsed .sidebar-brand .df-wordmark{
+  display:none !important;
+}
+.sidebar-brand .df-logo-mark{
+  width:34px !important;
+  height:34px !important;
+}
+.app-header-brand .app-header-name{
+  font-size:18px !important;
+  letter-spacing:0.18em !important;
+  font-weight:900 !important;
+}
+body.light-mode .app-header-brand .df-drip,
+body.light-mode .sidebar-brand .df-drip{
+  color:#111827 !important;
+  -webkit-text-fill-color:#111827 !important;
+}
+body:not(.light-mode) .app-header-brand .df-drip,
+body:not(.light-mode) .sidebar-brand .df-drip{
+  color:#f8fbff !important;
+  -webkit-text-fill-color:#f8fbff !important;
 }
 
 /* ══════════════════════════════════════════════

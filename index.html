@@ -19,7 +19,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260421e">
+<link rel="stylesheet" href="css/styles.css?v=20260421f">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -51,8 +51,9 @@
 
 <aside class="sidebar">
   <div class="sidebar-logo-row">
-    <div class="sidebar-brand">
-      <img class="sidebar-brand-logo" src="design-system/branding/logo.svg" alt="DRIPFLOW">
+    <div class="sidebar-brand df-logo" aria-label="DRIPFLOW">
+      <span class="df-logo-mark" aria-hidden="true"><span>D</span></span>
+      <span class="df-wordmark"><span class="df-drip">DRIP</span><span class="df-flow">FLOW</span></span>
     </div>
     <button class="sidebar-toggle" onclick="toggleSidebar()" title="Ocultar menú">‹</button>
   </div>
@@ -133,7 +134,8 @@
 <header id="app-header" class="app-header">
   <div class="app-header-left">
     <div class="app-header-brand df-logo" onclick="nav('dashboard')">
-      <img class="df-logo-img app-header-logo" src="design-system/branding/logo.svg" alt="DRIPFLOW">
+      <span class="df-logo-mark" aria-hidden="true"><span>D</span></span>
+      <span class="df-wordmark app-header-name"><span class="df-drip">DRIP</span><span class="df-flow">FLOW</span></span>
     </div>
   </div>
   <div class="app-header-right">
