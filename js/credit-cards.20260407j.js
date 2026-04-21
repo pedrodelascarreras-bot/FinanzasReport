@@ -160,6 +160,12 @@ function renderCreditCards(){
   ccInit();
   renderCcCardTabs();
   const tab=state.ccPageTab||'resumen';
+  const sub=document.getElementById('cc-page-subtitle');
+  if(sub){
+    sub.textContent=tab==='config'
+      ? 'Ajustá aperturas, cierres y vencimientos sin perder consistencia en la app.'
+      : 'Centro operativo para revisar resumen, vencimiento, consumos y conciliación.';
+  }
   // Apply tab visibility
   document.getElementById('cpt-resumen')?.classList.toggle('active',tab==='resumen');
   document.getElementById('cpt-config')?.classList.toggle('active',tab==='config');
@@ -183,15 +189,20 @@ function renderCreditCards(){
 
 function renderCcCardTabs(){
   const el=document.getElementById('cc-card-tabs');if(!el)return;
+  const cycles=getTcCycles();
   el.innerHTML=state.ccCards.map(card=>{
     const isActive=state.ccActiveCard===card.id;
-    return '<button onclick="ccSelectCard(\''+card.id+'\')" style="'
-      +'display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:10px;border:2px solid '
-      +(isActive?card.color:'var(--border)')+';background:'+(isActive?card.color+'18':'var(--surface)')+';color:'
-      +(isActive?card.color:'var(--text)')+';font-size:13px;font-weight:700;cursor:pointer;transition:all .15s;font-family:var(--font);">'
-      +'<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:'+card.color+';"></span>'
-      +esc(card.name)
-      +'</button>';
+    const cycle=cycles.find(c=>((c.cardId||state.ccCards[0]?.id)===card.id));
+    const totals=cycle?ccGetTotals(ccGetCycleExpenses(card.id,cycle.id)):{ars:0,usd:0,count:0};
+    const status=cycle?state.ccCycles.find(s=>s.cardId===card.id&&s.tcCycleId===cycle.id):null;
+    return `<button class="cc-card-switch ${isActive?'is-active':''}" onclick="ccSelectCard('${card.id}')" style="--cc-card-color:${card.color};">
+      <span class="cc-card-switch-dot"></span>
+      <span class="cc-card-switch-main">
+        <strong>${esc(card.name)}</strong>
+        <small>${cycle?esc(cycle.label):'Sin ciclo'} · ${status?.status==='paid'?'pagado':'pendiente'}</small>
+      </span>
+      <span class="cc-card-switch-total">${totals.ars>0?'$'+fmtN(Math.round(totals.ars)):'—'}</span>
+    </button>`;
   }).join('');
 }
 
@@ -199,14 +210,19 @@ function ccSelectCard(cardId){
   ccInit();
   state.ccActiveCard=cardId;
   window._ccViewCycle[cardId]=null; // reset viewed cycle for this card
-  renderCcCardTabs();
-  renderCcActiveCycle();
+  renderCreditCards();
 }
 
 function ccSelectViewCycle(cycleId){
   const cardId=state.ccActiveCard||state.ccCards[0]?.id;
   window._ccViewCycle[cardId]=cycleId;
   renderCreditCards();
+}
+
+function ccEditCycleFromSummary(cycleId){
+  state.ccPageTab='config';
+  renderCreditCards();
+  editTcCycle(cycleId);
 }
 
 function renderCcActiveCycle(){
@@ -260,10 +276,17 @@ function renderCcActiveCycle(){
   const totals=ccGetTotals(expenses);
   const catSummary=ccGetCatSummary(expenses);
   const isPaid=ccState.status==='paid';
-
-  const statusBadge=isPaid
-    ?'<span class="cc-status-pill paid">✓ Pagado</span>'
-    :'<span class="cc-status-pill pending">⏳ Pendiente</span>';
+  const dueDate=ccState.dueDate || activeTcCycle.dueDate;
+  const dueMeta=ccCountdown(dueDate);
+  const today=new Date();today.setHours(0,0,0,0);
+  const openD=new Date(openDate+'T12:00:00');openD.setHours(0,0,0,0);
+  const closeD=new Date(activeTcCycle.closeDate+'T12:00:00');closeD.setHours(0,0,0,0);
+  const totalDays=Math.max(1,Math.round((closeD-openD)/86400000)+1);
+  const elapsedDays=Math.min(totalDays,Math.max(0,Math.round((today-openD)/86400000)+1));
+  const progressPct=Math.max(0,Math.min(100,Math.round((elapsedDays/totalDays)*100)));
+  const projectedCount=expenses.filter(e=>e.source==='projected').length;
+  const manualCount=expenses.filter(e=>e.source==='manual').length;
+  const realCount=expenses.filter(e=>e.source==='txn').length;
 
   // Selector de ciclo en la cabecera
   if(actionsEl){
@@ -281,123 +304,104 @@ function renderCcActiveCycle(){
     `;
   }
 
-  const catRows=catSummary.map(r=>'<tr>'
-    +'<td style="padding:6px 8px;font-size:12px;color:var(--text);">'+esc(r.cat)+'</td>'
-    +'<td style="padding:6px 8px;font-size:12px;font-family:var(--font);text-align:right;color:var(--accent);">'+(r.ars>0?'$'+fmtN(Math.round(r.ars)):'—')+'</td>'
-    +'<td style="padding:6px 8px;font-size:12px;font-family:var(--font);text-align:right;color:var(--accent2);">'+(r.usd>0?'U$D '+fmtN(r.usd):'—')+'</td>'
-    +'</tr>'
-  ).join('');
+  const catRows=catSummary.slice(0,6).map(r=>`
+    <div class="cc-cat-line">
+      <span>${esc(r.cat)}</span>
+      <strong>${r.ars>0?'$'+fmtN(Math.round(r.ars)):'—'}${r.usd>0?' · U$D '+fmtN(r.usd):''}</strong>
+    </div>
+  `).join('');
 
   const expRows=expenses.map(e=>{
     const removeBtn=e.source==='txn'
-      ?'<button onclick="ccExcludeTxn(\''+activeTcCycle.id+'\',\''+e.id+'\')" title="Excluir de este ciclo" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 6px;border-radius:4px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'">✕</button>'
-      :'<button onclick="ccDeleteManualExpense(\''+activeTcCycle.id+'\',\''+e.id+'\')" title="Eliminar gasto manual" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;padding:2px 6px;border-radius:4px;opacity:.5;transition:opacity .13s;" onmouseover="this.style.opacity=1;this.style.color=\'var(--danger)\'" onmouseout="this.style.opacity=.5;this.style.color=\'var(--text3)\'">✕</button>';
-    return '<tr style="border-bottom:1px solid var(--border);">'
-      +'<td style="padding:8px;font-size:12px;color:var(--text3);white-space:nowrap;font-family:var(--font);">'+ccFmtDate(e.date)+'</td>'
-      +'<td style="padding:8px;font-size:13px;color:var(--text);max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(e.description)+'</td>'
-      +'<td style="padding:8px;font-size:11px;color:var(--text3);">'+esc(e.category)+'</td>'
-      +'<td style="padding:8px;font-size:13px;font-family:var(--font);text-align:right;color:var(--accent);">'+(e.amountARS>0?'$'+fmtN(Math.round(e.amountARS)):'—')+'</td>'
-      +'<td style="padding:8px;font-size:13px;font-family:var(--font);text-align:right;color:var(--accent2);">'+(e.amountUSD>0?'U$D '+fmtN(e.amountUSD):'—')+'</td>'
-      +'<td style="padding:8px;text-align:right;">'+removeBtn+'</td>'
-    +'</tr>';
+      ?`<button class="cc-row-clean-btn" onclick="ccExcludeTxn('${activeTcCycle.id}','${e.id}')" title="Excluir de este ciclo">Excluir</button>`
+      :`<button class="cc-row-clean-btn" onclick="ccDeleteManualExpense('${activeTcCycle.id}','${e.id}')" title="Eliminar gasto manual">Borrar</button>`;
+    const sourceLabel=e.source==='projected'?'Proyectado':e.source==='manual'?'Manual':'Movimiento';
+    return `<div class="cc-expense-row">
+      <div class="cc-expense-date">${ccFmtDate(e.date)}</div>
+      <div class="cc-expense-main">
+        <strong>${esc(e.description)}</strong>
+        <small>${esc(e.category)} · ${sourceLabel}</small>
+      </div>
+      <div class="cc-expense-amount">
+        <strong>${e.amountARS>0?'$'+fmtN(Math.round(e.amountARS)):'—'}</strong>
+        <small>${e.amountUSD>0?'U$D '+fmtN(e.amountUSD):''}</small>
+      </div>
+      ${removeBtn}
+    </div>`;
   }).join('');
-
-  // Botón PAGADO
-  const actionBtns=isPaid
-    ?''
-    :'<div class="cc-hero-actions">'
-      +'<button class="btn btn-ghost btn-sm" onclick="ccOpenManualExpenseModal(\''+activeTcCycle.id+'\')">+ Agregar gasto</button>'
-      +'<button class="cc-primary-pay-btn" onclick="ccMarkPaid(\''+activeTcCycle.id+'\')">✓ Pagado</button>'
-    +'</div>';
-
-  const noGastosHtml='<div class="cc-empty-inline">Sin gastos en este ciclo</div>';
-
-  // Due date
-  const countdown = ccCountdown(ccState?.dueDate);
 
   // Paid history
   const paidCycles = (state.ccCycles||[]).filter(c => c.cardId === cardId && c.status === 'paid');
-  const paidHistoryHtml = paidCycles.length ? _ccBuildPaidHistoryHtml(cardId, paidCycles, tcCycles) : '';
 
   activeEl.innerHTML=`
-    <div class="cc-cycle-shell">
-      <div class="cc-cycle-hero">
-        <div class="cc-cycle-copy">
-          <div class="cc-cycle-topline">
-            ${statusBadge}
-            ${card?'<span class="cc-card-chip" style="color:'+card.color+';background:'+card.color+'15;">'+esc(card.name)+'</span>':''}
+    <div class="cc-workspace">
+      <section class="cc-focus-panel fade-up d1">
+        <div class="cc-focus-main">
+          <div class="cc-focus-topline">
+            <span class="cc-focus-chip ${isPaid?'is-paid':'is-pending'}">${isPaid?'Pagado':'Pendiente'}</span>
+            ${card?`<span class="cc-focus-card" style="--cc-card-color:${card.color};">${esc(card.name)}</span>`:''}
+            <span class="cc-focus-muted">${esc(activeTcCycle.label)}</span>
           </div>
-          <div class="cc-cycle-meta">
-            <span>Apertura: <strong class="cc-cycle-meta-strong">${ccFmtDate(openDate)}</strong></span>
-            <span>Cierre: <strong class="cc-cycle-meta-strong">${ccFmtDate(activeTcCycle.closeDate)}</strong></span>
-            ${(() => {
-              const d = ccState.dueDate || activeTcCycle.dueDate;
-              if (d) {
-                const c = ccCountdown(d);
-                return `<span>Vencimiento: <strong style="color:${c.overdue?'var(--red)':c.urgent?'var(--orange)':'var(--text)'}">${ccFmtDate(d)}</strong>&nbsp;<span class="cc-cycle-deadline-note" style="color:${c.overdue?'var(--red)':c.urgent?'var(--orange)':'var(--text3)'};">(${c.text})</span></span>`;
-              }
-              return `<button onclick="ccSetDueDate('${activeTcCycle.id}')" class="cc-due-btn">📅 + Vencimiento</button>`;
-            })()}
+          <div class="cc-focus-total">$${fmtN(Math.round(totals.ars))}</div>
+          <div class="cc-focus-sub">${totals.usd>0?'U$D '+fmtN(totals.usd)+' · ':''}${expenses.length} item${expenses.length===1?'':'s'} en el ciclo</div>
+          <div class="cc-cycle-progress">
+            <div class="cc-cycle-progress-head"><span>${ccFmtDate(openDate)}</span><strong>${progressPct}% del ciclo</strong><span>${ccFmtDate(activeTcCycle.closeDate)}</span></div>
+            <div class="cc-cycle-progress-track"><span style="width:${progressPct}%;"></span></div>
           </div>
         </div>
-        ${actionBtns}
-      </div>
+        <aside class="cc-focus-side">
+          <div class="cc-due-block ${dueMeta.overdue?'is-overdue':dueMeta.urgent?'is-urgent':''}">
+            <span>Vencimiento</span>
+            <strong>${ccFmtDate(dueDate)}</strong>
+            <small>${dueMeta.text}</small>
+          </div>
+          <div class="cc-action-grid">
+            <button class="btn btn-primary btn-sm" onclick="ccOpenManualExpenseModal('${activeTcCycle.id}')">Agregar gasto</button>
+            <button class="btn btn-ghost btn-sm" onclick="ccEditCycleFromSummary('${activeTcCycle.id}')">Editar ciclo</button>
+            <button class="btn btn-ghost btn-sm" onclick="nav('cc-compare')">Comparar PDF</button>
+            ${isPaid?'<button class="btn btn-ghost btn-sm" disabled>Pagado</button>':`<button class="btn btn-ghost btn-sm" onclick="ccMarkPaid('${activeTcCycle.id}')">Marcar pagado</button>`}
+          </div>
+        </aside>
+      </section>
 
-      <!-- KPIs -->
-      <div class="cc-kpi-grid">
-        <div class="cc-kpi-card">
-          <div class="cc-kpi-label">Total ARS</div>
-          <div class="cc-kpi-value ars">$${fmtN(Math.round(totals.ars))}</div>
+      <section class="cc-ops-grid fade-up d2">
+        <div class="table-card cc-insight-panel">
+          <div class="cc-panel-head">
+            <div><span class="cc-panel-kicker">Composición</span><strong>Qué pesa en este resumen</strong></div>
+            <small>${catSummary.length} categoría${catSummary.length===1?'':'s'}</small>
+          </div>
+          <div class="cc-cat-list">${catRows || '<div class="cc-empty-inline">Sin categorías todavía</div>'}</div>
         </div>
-        <div class="cc-kpi-card">
-          <div class="cc-kpi-label">Total USD</div>
-          <div class="cc-kpi-value usd">${totals.usd>0?'U$D '+fmtN(totals.usd):'—'}</div>
+        <div class="table-card cc-insight-panel">
+          <div class="cc-panel-head">
+            <div><span class="cc-panel-kicker">Origen</span><strong>Lectura del total</strong></div>
+          </div>
+          <div class="cc-origin-grid">
+            <div><span>Reales</span><strong>${realCount}</strong></div>
+            <div><span>Proyectados</span><strong>${projectedCount}</strong></div>
+            <div><span>Manuales</span><strong>${manualCount}</strong></div>
+          </div>
+          <p class="cc-panel-note">Los proyectados incluyen cuotas y compromisos ya maduros dentro del período.</p>
         </div>
-        <div class="cc-kpi-card">
-          <div class="cc-kpi-label">Items</div>
-          <div class="cc-kpi-value">${totals.count}</div>
-        </div>
-      </div>
+      </section>
 
-      ${catSummary.length?`
-      <!-- Resumen por categoría -->
-      <div style="padding:16px 20px;border-top:1px solid var(--border);">
-        <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);margin-bottom:10px;">Por categoría</div>
-        <table style="width:100%;border-collapse:collapse;">
-          <thead><tr>
-            <th style="text-align:left;font-size:10px;color:var(--text3);font-weight:600;padding:4px 8px;text-transform:uppercase;letter-spacing:.03em;">Categoría</th>
-            <th style="text-align:right;font-size:10px;color:var(--text3);font-weight:600;padding:4px 8px;text-transform:uppercase;letter-spacing:.03em;">ARS</th>
-            <th style="text-align:right;font-size:10px;color:var(--text3);font-weight:600;padding:4px 8px;text-transform:uppercase;letter-spacing:.03em;">USD</th>
-          </tr></thead>
-          <tbody>${catRows}</tbody>
-        </table>
-      </div>
+      <details class="table-card cc-record-panel fade-up d3" open>
+        <summary>
+          <div><span class="cc-panel-kicker">Movimientos</span><strong>Gastos del ciclo (${expenses.length})</strong></div>
+          <span>Desplegar</span>
+        </summary>
+        <div class="cc-expense-list">${expenses.length?expRows:'<div class="cc-empty-inline">Sin gastos en este ciclo</div>'}</div>
+      </details>
+
+      ${paidCycles.length?`
+        <details class="table-card cc-record-panel fade-up d3">
+          <summary>
+            <div><span class="cc-panel-kicker">Historial</span><strong>Ciclos pagados (${paidCycles.length})</strong></div>
+            <span>Desplegar</span>
+          </summary>
+          <div class="cc-paid-list">${_ccBuildPaidHistoryHtml(cardId, paidCycles, tcCycles)}</div>
+        </details>
       `:''}
-
-      <!-- Tabla de gastos (collapsible) -->
-      <div style="padding:16px 20px;border-top:1px solid var(--border);">
-        <div onclick="ccToggleExpenses()" style="display:flex;align-items:center;justify-content:space-between;cursor:pointer;">
-          <div style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);">Gastos del ciclo (${expenses.length})</div>
-          <span id="cc-expenses-toggle-arrow" style="font-size:12px;color:var(--text3);transition:transform .15s;">▾</span>
-        </div>
-        <div id="cc-expenses-toggle-body" style="margin-top:10px;">
-        ${expenses.length?`
-        <div style="overflow-x:auto;">
-          <table style="width:100%;border-collapse:collapse;">
-            <thead><tr>
-              <th style="text-align:left;font-size:10px;color:var(--text3);font-weight:600;padding:6px 8px;text-transform:uppercase;letter-spacing:.03em;">Fecha</th>
-              <th style="text-align:left;font-size:10px;color:var(--text3);font-weight:600;padding:6px 8px;text-transform:uppercase;letter-spacing:.03em;">Descripción</th>
-              <th style="text-align:left;font-size:10px;color:var(--text3);font-weight:600;padding:6px 8px;text-transform:uppercase;letter-spacing:.03em;">Categoría</th>
-              <th style="text-align:right;font-size:10px;color:var(--text3);font-weight:600;padding:6px 8px;text-transform:uppercase;letter-spacing:.03em;">ARS</th>
-              <th style="text-align:right;font-size:10px;color:var(--text3);font-weight:600;padding:6px 8px;text-transform:uppercase;letter-spacing:.03em;">USD</th>
-              <th style="width:36px;"></th>
-            </tr></thead>
-            <tbody>${expRows}</tbody>
-          </table>
-        </div>
-        `:noGastosHtml}
-        </div>
-      </div>
     </div>
   `;
 
@@ -405,13 +409,8 @@ function renderCcActiveCycle(){
     const histSec = document.getElementById('cc-history-section');
     const histList = document.getElementById('cc-history-list');
     if (histSec && histList) {
-      if (paidCycles.length) {
-        histSec.style.display = 'block';
-        histList.innerHTML = _ccBuildPaidHistoryHtml(cardId, paidCycles, tcCycles);
-      } else {
-        histSec.style.display = 'none';
-        histList.innerHTML = '';
-      }
+      histSec.style.display = 'none';
+      histList.innerHTML = '';
     }
   }catch(err){
     console.error('renderCcActiveCycle error', err);

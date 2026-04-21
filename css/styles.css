@@ -19965,3 +19965,99 @@ body.light-mode .tend-ins-progress-track { background: rgba(0,0,0,0.07); }
 @media (max-width: 480px) {
   .tend-top-card-value { font-size: 21px; }
 }
+
+/* ── Ranking accordion ── */
+.tend-rank-group { border-bottom: 1px solid rgba(255,255,255,0.04); }
+.tend-rank-group:last-child { border-bottom: none; }
+.tend-rank-row { border-bottom: none; }
+.tend-rank-clickable { cursor: pointer; }
+.tend-rank-clickable:hover { background: rgba(255,255,255,0.04); border-radius: 10px; }
+.tend-rank-chev {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text3);
+  transition: transform 0.22s var(--ease-premium);
+  flex-shrink: 0;
+  width: 18px;
+  text-align: center;
+  line-height: 1;
+  display: inline-block;
+}
+.tend-rank-chev-ph { width: 18px; flex-shrink: 0; }
+
+/* Subcategory rows */
+.tend-rank-subs {
+  padding: 4px 0 8px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.tend-rank-subrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 0;
+}
+.tend-rank-subdot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tend-rank-subinfo { flex: 1; min-width: 0; }
+.tend-rank-subname {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Insights hide/show controls ── */
+.tend-ins-kicker-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+}
+.tend-ins-hide-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text3);
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.14s;
+  font-family: var(--font);
+}
+.tend-ins-hide-btn:hover { color: var(--text); }
+
+#tend-ins-show-bar {
+  display: flex;
+  justify-content: flex-end;
+}
+.tend-ins-show-btn {
+  background: rgba(124,58,237,0.12);
+  border: 1px solid rgba(124,58,237,0.28);
+  color: var(--accent4);
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 18px;
+  border-radius: 99px;
+  cursor: pointer;
+  font-family: var(--font);
+  transition: all 0.15s;
+  letter-spacing: 0.01em;
+}
+.tend-ins-show-btn:hover {
+  background: rgba(124,58,237,0.22);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(124,58,237,0.22);
+}
+
+body.light-mode .tend-rank-clickable:hover { background: rgba(0,0,0,0.04); }
+body.light-mode .tend-ins-hide-btn { color: var(--text3); }

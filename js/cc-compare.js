@@ -581,13 +581,12 @@ function renderCccResults() {
   let periodHtml = '';
   if(cccState.pdfPeriod) {
     const fmtPD = s => s ? new Date(s+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}) : '—';
-    periodHtml = `<div style="display:flex;align-items:center;gap:10px;padding:10px 16px;background:rgba(var(--accent-rgb,52,199,89),0.07);border:1px solid rgba(52,199,89,0.2);border-radius:12px;margin-bottom:20px;flex-wrap:wrap;">
-      <span style="font-size:20px;">📄</span>
+    periodHtml = `<div class="ccc-period-strip">
       <div>
-        <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);">Período del resumen</div>
-        <div style="font-size:13px;font-weight:700;color:var(--text);">${fmtPD(cccState.pdfPeriod.open)} → ${fmtPD(cccState.pdfPeriod.close)}</div>
+        <span>Período del PDF</span>
+        <strong>${fmtPD(cccState.pdfPeriod.open)} → ${fmtPD(cccState.pdfPeriod.close)}</strong>
       </div>
-      ${cccState.pdfPeriod.vencimiento ? `<div style="margin-left:auto;text-align:right;"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--text3);">Vencimiento</div><div style="font-size:13px;font-weight:700;color:var(--orange);">${fmtPD(cccState.pdfPeriod.vencimiento)}</div></div>` : ''}
+      ${cccState.pdfPeriod.vencimiento ? `<div><span>Vencimiento</span><strong class="warn">${fmtPD(cccState.pdfPeriod.vencimiento)}</strong></div>` : ''}
     </div>`;
   }
 
@@ -601,45 +600,38 @@ function renderCccResults() {
   const allResolved = groups.pending.length === 0;
 
   cccEls.resultsArea.innerHTML = `
-    ${periodHtml}
-    <!-- Hero -->
-    <div class="ccc-summary-hero fade-up" id="ccc-hero-widget">
-      <div class="ccc-stat-item">
-        <div class="ccc-stat-label">Saldo Actual (PDF)</div>
-        <div class="ccc-stat-val">$${fmtN(Math.round(heroARS))}</div>
-        ${heroUSD > 0 ? `<div style="font-size:12px;font-weight:600;color:var(--accent2);margin-top:2px;">+ U$S ${fmtN(heroUSD)}</div>` : ''}
+    <section class="ccc-results-shell fade-up">
+      ${periodHtml}
+      <div class="ccc-reconcile-hero" id="ccc-hero-widget">
+        <div class="ccc-hero-copy">
+          <span class="cc-panel-kicker">Estado de conciliación</span>
+          <strong>${isBalanced?'Todo cuadra':'Hay diferencias para resolver'}</strong>
+          <small>${concCount} conciliados · ${pendCount} pendientes · ${bankFees.length} cargos bancarios</small>
+        </div>
+        <div class="ccc-hero-metrics">
+          <div><span>PDF</span><strong>$${fmtN(Math.round(heroARS))}</strong>${heroUSD > 0 ? `<small>+ U$S ${fmtN(heroUSD)}</small>` : ''}</div>
+          <div><span>App</span><strong>$${fmtN(Math.round(totalAppARS))}</strong>${totalAppUSD > 0 ? `<small>U$S ${fmtN(totalAppUSD)}</small>` : ''}</div>
+          <div><span>Gap</span><strong class="${Math.abs(diffARS) > 1 ? 'diff' : 'match'}">${diffARS > 0 ? '+' : ''}$${fmtN(Math.round(diffARS))}</strong>${Math.abs(diffUSD) > 0.01 ? `<small>USD ${diffUSD > 0 ? '+' : ''}${fmtN(diffUSD)}</small>` : ''}</div>
+        </div>
       </div>
-      <div class="ccc-stat-item">
-        <div class="ccc-stat-label">Registrado en App</div>
-        <div class="ccc-stat-val">$${fmtN(Math.round(totalAppARS))}</div>
-        ${totalAppUSD > 0 ? `<div style="font-size:12px;font-weight:600;color:var(--accent2);margin-top:2px;">U$S ${fmtN(totalAppUSD)}</div>` : ''}
+      <div class="ccc-action-bar">
+        <div>
+          <strong>Resolver pendientes</strong>
+          <span>Trabajá de arriba hacia abajo: lo urgente queda primero.</span>
+        </div>
+        <div>
+          <button class="btn btn-primary btn-sm" onclick="cccSmartMatch()">Auto-match</button>
+          <button class="btn btn-ghost btn-sm" onclick="cccSaveSession()">Guardar</button>
+          ${allResolved ? `<button class="btn btn-primary btn-sm" onclick="cccMarkReviewed()">Marcar pagado y cerrar</button>` : ''}
+        </div>
       </div>
-      <div class="ccc-stat-item">
-        <div class="ccc-stat-label">Gap ARS</div>
-        <div class="ccc-stat-val ${Math.abs(diffARS) > 1 ? 'diff' : 'match'}">${diffARS > 0 ? '+' : ''}$${fmtN(Math.round(diffARS))}</div>
+      <div id="ccc-matching-container" class="ccc-matching-stack">
+        ${renderGroup('Pendientes', groups.pending, 'Todo conciliado. No hay diferencias pendientes.')}
+        ${renderBankFeeGroup(bankFees)}
+        ${renderGroup('Conciliados', groups.conc, 'Nada conciliado aún.')}
+        ${groups.excl.length ? renderGroup('Descartados', groups.excl, '') : ''}
       </div>
-      ${Math.abs(diffUSD) > 0.01 ? `<div class="ccc-stat-item">
-        <div class="ccc-stat-label">Gap USD</div>
-        <div class="ccc-stat-val diff">${diffUSD > 0 ? '+' : ''}U$S ${fmtN(Math.abs(diffUSD))}</div>
-      </div>` : ''}
-    </div>
-
-    <!-- Controls -->
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:12px;flex-wrap:wrap;">
-      <div style="font-size:14px;font-weight:700;color:var(--text2);">Conciliación · <span style="color:var(--text3);font-weight:500;font-size:12px;">${concCount} OK · ${pendCount} pendientes · ${bankFees.length} cargos bancarios</span></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <button class="btn btn-sm btn-accent" onclick="cccSmartMatch()"><span style="margin-right:4px;">✨</span>Auto-match</button>
-        <button class="btn btn-sm btn-secondary" onclick="cccSaveSession()">💾 Guardar</button>
-        ${allResolved ? `<button class="btn btn-sm" style="background:linear-gradient(135deg,#00c853,#00e676);color:#fff;font-weight:700;border:none;" onclick="cccMarkReviewed()">✓ Marcar pagado y cerrar</button>` : ''}
-      </div>
-    </div>
-
-    <div id="ccc-matching-container">
-      ${renderGroup('Pendientes', groups.pending, '¡Todo conciliado! No hay diferencias pendientes.')}
-      ${renderBankFeeGroup(bankFees)}
-      ${renderGroup('Conciliados', groups.conc, 'Nada conciliado aún.')}
-      ${groups.excl.length ? renderGroup('Descartados', groups.excl, '') : ''}
-    </div>
+    </section>
   `;
 }
 
@@ -659,22 +651,20 @@ function cccUpdateHero() {
   const diffUSD = heroUSD - totalAppUSD;
   const el = document.getElementById('ccc-hero-widget');
   if(!el) return;
+  const regularPending = cccState.matches.filter(m => m.status !== 'bank_fee' && !m.pdfTxn?.isBankFee && ['orphan_pdf','orphan_app','diff','posible'].includes(m.status)).length;
+  const regularOk = cccState.matches.filter(m => m.status !== 'bank_fee' && !m.pdfTxn?.isBankFee && m.status==='conc').length;
+  const bankFees = cccState.matches.filter(m => m.status === 'bank_fee' || m.pdfTxn?.isBankFee).length;
   el.innerHTML = `
-    <div class="ccc-stat-item">
-      <div class="ccc-stat-label">Saldo Actual (PDF)</div>
-      <div class="ccc-stat-val">$${fmtN(Math.round(heroARS))}</div>
-      ${heroUSD > 0 ? `<div style="font-size:12px;font-weight:600;color:var(--accent2);margin-top:2px;">+ U$S ${fmtN(heroUSD)}</div>` : ''}
+    <div class="ccc-hero-copy">
+      <span class="cc-panel-kicker">Estado de conciliación</span>
+      <strong>${Math.abs(diffARS) < 1 && Math.abs(diffUSD) < 0.01?'Todo cuadra':'Hay diferencias para resolver'}</strong>
+      <small>${regularOk} conciliados · ${regularPending} pendientes · ${bankFees} cargos bancarios</small>
     </div>
-    <div class="ccc-stat-item">
-      <div class="ccc-stat-label">Registrado en App</div>
-      <div class="ccc-stat-val">$${fmtN(Math.round(totalAppARS))}</div>
-      ${totalAppUSD > 0 ? `<div style="font-size:12px;font-weight:600;color:var(--accent2);margin-top:2px;">U$S ${fmtN(totalAppUSD)}</div>` : ''}
+    <div class="ccc-hero-metrics">
+      <div><span>PDF</span><strong>$${fmtN(Math.round(heroARS))}</strong>${heroUSD > 0 ? `<small>+ U$S ${fmtN(heroUSD)}</small>` : ''}</div>
+      <div><span>App</span><strong>$${fmtN(Math.round(totalAppARS))}</strong>${totalAppUSD > 0 ? `<small>U$S ${fmtN(totalAppUSD)}</small>` : ''}</div>
+      <div><span>Gap</span><strong class="${Math.abs(diffARS) > 1 ? 'diff' : 'match'}">${diffARS > 0 ? '+' : ''}$${fmtN(Math.round(diffARS))}</strong>${Math.abs(diffUSD) > 0.01 ? `<small>USD ${diffUSD > 0 ? '+' : ''}${fmtN(diffUSD)}</small>` : ''}</div>
     </div>
-    <div class="ccc-stat-item">
-      <div class="ccc-stat-label">Gap ARS</div>
-      <div class="ccc-stat-val ${Math.abs(diffARS) > 1 ? 'diff' : 'match'}">${diffARS > 0 ? '+' : ''}$${fmtN(Math.round(diffARS))}</div>
-    </div>
-    ${Math.abs(diffUSD) > 0.01 ? `<div class="ccc-stat-item"><div class="ccc-stat-label">Gap USD</div><div class="ccc-stat-val diff">${diffUSD > 0 ? '+' : ''}U$S ${fmtN(Math.abs(diffUSD))}</div></div>` : ''}
   `;
 }
 

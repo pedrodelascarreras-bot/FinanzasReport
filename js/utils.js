@@ -380,7 +380,7 @@ function toggleTheme(){
   const themeIcon=document.getElementById('theme-icon');
   const themeLabel=document.getElementById('theme-label');
   if(themeIcon) themeIcon.textContent=isLight?'🌙':'☀️';
-  if(themeLabel) themeLabel.textContent=isLight?'Modo oscuro':'Modo claro';
+  if(themeLabel) themeLabel.textContent=isLight?'Oscuro':'Claro';
   syncThemeModeButtons();
   // Rebuild charts with new colors
   if(state.transactions.length){
@@ -432,7 +432,7 @@ function loadTheme(){
     const themeIcon=document.getElementById('theme-icon');
     const themeLabel=document.getElementById('theme-label');
     if(themeIcon) themeIcon.textContent='🌙';
-    if(themeLabel) themeLabel.textContent='Modo oscuro';
+    if(themeLabel) themeLabel.textContent='Oscuro';
     if(typeof Chart!=='undefined')Chart.defaults.plugins.tooltip.backgroundColor='rgba(255,255,255,0.95)';
   }
   syncRailSidebarState();

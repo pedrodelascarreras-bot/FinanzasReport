@@ -441,15 +441,39 @@ function _tend_drawChart(){
 }
 
 // ─ Draw ranking list (reads _tendRankingState)
+// ─ Accordion toggle for ranking rows
+function toggleTendRankRow(id){
+  const sub=document.getElementById('trs-'+id);
+  const chev=document.getElementById('trc-'+id);
+  if(!sub) return;
+  const open=sub.style.display!=='none'&&sub.style.display!=='';
+  sub.style.display=open?'none':'block';
+  if(chev) chev.style.transform=open?'rotate(0deg)':'rotate(90deg)';
+}
+
+// ─ Show/hide insights panel
+function setTendInsightsVisible(v){
+  state.tendInsightsOpen=v;
+  const panel=document.getElementById('tend-insights-panel');
+  const showBar=document.getElementById('tend-ins-show-bar');
+  const dualCol=document.querySelector('.tend-dual-col');
+  if(panel) panel.style.display=v?'flex':'none';
+  if(showBar) showBar.style.display=v?'none':'flex';
+  if(dualCol) dualCol.style.gridTemplateColumns=v?'1fr 260px':'1fr';
+  // Re-render insights so toggle button reflects state
+  if(v&&_tendInsightsArgs) _tend_drawInsights(..._tendInsightsArgs);
+}
+
+let _tendInsightsArgs=null;
+
 function _tend_drawRanking(){
   if(!_tendRankingState) return;
-  const{sortedParents,parentDeltas,grandTotal,prevLabel}=_tendRankingState;
+  const{sortedParents,parentDeltas,grandTotal,prevLabel,parentSubTotals}=_tendRankingState;
   const tab=state.tendRankingTab||'monto';
   const el=document.getElementById('tend-ranking-list');
   const subEl=document.getElementById('tend-ranking-sub');
   if(!el) return;
 
-  // Sort rows per tab
   let rows=[...sortedParents];
   if(tab==='anterior'){
     rows=Object.entries(parentDeltas)
@@ -460,7 +484,7 @@ function _tend_drawRanking(){
     rows=[...sortedParents];
     if(subEl) subEl.textContent='Porcentaje del total del período';
   } else {
-    if(subEl) subEl.textContent='Por monto total';
+    if(subEl) subEl.textContent='Por monto total · toca una categoría para desglosar';
   }
 
   const maxAmt=sortedParents.length?sortedParents[0][1]:1;
@@ -473,6 +497,12 @@ function _tend_drawRanking(){
     const amount=d.last;
     const pct=grandTotal>0?Math.round(amount/grandTotal*100):0;
     const barW=maxAmt>0?Math.max(Math.round(amount/maxAmt*100),2):0;
+    const safeId=parent.replace(/[^a-zA-Z0-9]/g,'_');
+
+    // Subcategories
+    const subData=parentSubTotals?parentSubTotals[parent]||{}:{};
+    const subArr=Object.entries(subData).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+    const hasChildren=subArr.length>0;
 
     let right='';
     if(tab==='anterior'){
@@ -494,13 +524,37 @@ function _tend_drawRanking(){
         <div style="display:inline-block;font-size:10px;font-weight:600;color:${c};background:${c}22;padding:2px 8px;border-radius:99px;margin-top:3px;">${pct}%</div>
       </div>`;
     }
-    return `<div class="tend-rank-row">
-      <span class="tend-rank-emoji">${emoji}</span>
-      <div class="tend-rank-info">
-        <div class="tend-rank-name">${parent}</div>
-        <div class="tend-rank-bar-wrap"><div class="tend-rank-bar" style="width:${barW}%;background:${c};"></div></div>
+
+    // Subcategory rows
+    const subHtml=hasChildren?`<div id="trs-${safeId}" class="tend-rank-subs" style="display:none;">
+      ${subArr.map(([sub,amt])=>{
+        const subPct=amount>0?Math.round(amt/amount*100):0;
+        const subW=amount>0?Math.max(Math.round(amt/amount*100),2):0;
+        return `<div class="tend-rank-subrow">
+          <span class="tend-rank-subdot" style="background:${c};"></span>
+          <div class="tend-rank-subinfo">
+            <div class="tend-rank-subname">${sub}</div>
+            <div class="tend-rank-bar-wrap"><div class="tend-rank-bar" style="width:${subW}%;background:${c};opacity:0.45;"></div></div>
+          </div>
+          <div style="text-align:right;flex-shrink:0;min-width:72px;">
+            <div style="font-size:12px;font-weight:600;color:${c};font-family:var(--font);">$${fmtN(amt)}</div>
+            <div style="font-size:10px;color:var(--text3);">${subPct}%</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`:'';
+
+    return `<div class="tend-rank-group">
+      <div class="tend-rank-row${hasChildren?' tend-rank-clickable':''}" ${hasChildren?`onclick="toggleTendRankRow('${safeId}')"`:''}>
+        <span class="tend-rank-emoji">${emoji}</span>
+        <div class="tend-rank-info">
+          <div class="tend-rank-name">${parent}</div>
+          <div class="tend-rank-bar-wrap"><div class="tend-rank-bar" style="width:${barW}%;background:${c};"></div></div>
+        </div>
+        ${right}
+        ${hasChildren?`<span id="trc-${safeId}" class="tend-rank-chev">›</span>`:`<span class="tend-rank-chev-ph"></span>`}
       </div>
-      ${right}
+      ${subHtml}
     </div>`;
   }).join('');
 }
@@ -551,6 +605,7 @@ function _tend_drawTopCards(currentTotal,totalDeltaPct,prevLabel,topUp,topDown,c
 
 // ─ Draw insights panel
 function _tend_drawInsights(currentTxns,prevTxns,sortedParents,parentDeltas,grandTotal,totalDeltaPct,currentLabel,prevLabel,lastKey,mode){
+  _tendInsightsArgs=[currentTxns,prevTxns,sortedParents,parentDeltas,grandTotal,totalDeltaPct,currentLabel,prevLabel,lastKey,mode];
   const el=document.getElementById('tend-insights-panel');
   if(!el) return;
   const curTotal=currentTxns.reduce((s,t)=>s+t.amount,0);
@@ -607,7 +662,10 @@ function _tend_drawInsights(currentTxns,prevTxns,sortedParents,parentDeltas,gran
   const sProgress=prevTotal>0?Math.min(Math.round(curTotal/prevTotal*100),200):100;
   const sSub=sDelta!==null?(sDelta>0?`Llevás $${fmtN(Math.abs(curTotal-prevTotal))} más que ${prevLabel}.`:`Ahorrás $${fmtN(Math.abs(curTotal-prevTotal))} vs. ${prevLabel}.`):`Primer período sin comparación.`;
 
-  let html=`<div class="tend-ins-kicker">INSIGHTS</div>
+  let html=`<div class="tend-ins-kicker-row">
+    <span class="tend-ins-kicker">INSIGHTS</span>
+    <button class="tend-ins-hide-btn" onclick="setTendInsightsVisible(false)" title="Ocultar panel">‹</button>
+  </div>
   <div class="tend-ins-status-card" style="background:${sBg};border-color:${sColor}44;">
     <div class="tend-ins-status-row">
       <span style="font-size:24px;">${sEmoji}</span>
@@ -775,9 +833,17 @@ function renderTendencia(){
     ].map(t=>`<button class="tend-view-btn${t.id===cm?' active':''}" id="tv2-${t.id}" onclick="setTendChartMode('${t.id}')">${t.label}</button>`).join('');
   }
 
+  // Subcategory totals for accordion
+  const parentSubTotals={};
+  currentTxns.forEach(t=>{
+    const p=catGroup(t.category);
+    if(!parentSubTotals[p]) parentSubTotals[p]={};
+    parentSubTotals[p][t.category]=(parentSubTotals[p][t.category]||0)+t.amount;
+  });
+
   // Store state refs
   _tendChartState={currentTxns,prevTxns,lastKey,prevKey,mode,currentLabel,prevLabel,grandTotal,sortedParents,parentDeltas};
-  _tendRankingState={sortedParents,parentDeltas,grandTotal,prevLabel};
+  _tendRankingState={sortedParents,parentDeltas,grandTotal,prevLabel,parentSubTotals};
 
   // Render all sections
   _tend_drawTopCards(curTotal,totalDeltaPct,prevLabel,topUp,topDown,closeDateStr,daysRemaining);
