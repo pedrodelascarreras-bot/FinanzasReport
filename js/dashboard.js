@@ -197,7 +197,7 @@ function renderUiGlyph(name){
     card:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M3 10h18"/></svg>',
     alert:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.8 2.9 17a2 2 0 0 0 1.7 3h14.8a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0Z"/></svg>',
     trend:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16 10 10l4 4 6-8"/><path d="M20 6v4h-4"/></svg>',
-    loop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1v6h-6"/><path d="M7 23v-6h6"/><path d="M20.5 9A9 9 0 0 0 6 5.3L3 8"/><path d="M3.5 15A9 9 0 0 0 18 18.7L21 16"/></svg>',
+    loop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1v6h-6"/><path d="M7 23v-6h6"/><path d="M20.5 9A9 9 0 0 0 6 5.3L3 8" style="clip-path: polygon(0 0, 94% 0, 100% 0, 88% 100%, 0 100%);"/><path d="M3.5 15A9 9 0 0 0 18 18.7L21 16"/></svg>',
     tag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m20 10-8 8-8-8V4h6z"/><path d="M7.5 7.5h.01"/></svg>',
     spark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9Z"/><path d="M5 3v3"/><path d="M19 18v3"/><path d="M3 5h3"/><path d="M18 19h3"/></svg>',
     calendar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>',
@@ -1669,8 +1669,17 @@ function renderDashboard(){
 
   // ── Hero ──
   const dhcML=document.getElementById('dhc-month-label');
-  if(dhcML)dhcML.textContent=isTcView&&activeTcCycle?expandPeriodYearLabel(activeTcCycle.label||'').toUpperCase():(MNAMES[pM-1]+' '+pY).toUpperCase();
-  animateNumberText(document.getElementById('kpi-ars'),totalGastoARS,{prefix:'$',decimals:2,duration:920});
+  if(dhcML){
+    let label = isTcView&&activeTcCycle?expandPeriodYearLabel(activeTcCycle.label||''):((MNAMES[pM-1]||'')+ ' ' + pY);
+    if(isTcView) label = 'VISA + AMEX · ' + label;
+    dhcML.textContent = label.toUpperCase();
+  }
+  if(isMasked()) {
+    const _kpiMain = document.getElementById('kpi-ars');
+    if(_kpiMain) _kpiMain.textContent = '••••••••';
+  } else {
+    animateNumberText(document.getElementById('kpi-ars'),totalGastoARS,{prefix:'$',decimals:2,duration:920});
+  }
   // ARS/USD breakdown line
   const _arsLine=document.getElementById('dhc-ars-line');
   const _usdLine=document.getElementById('dhc-usd-line');
@@ -1680,7 +1689,10 @@ function renderDashboard(){
     if(usdMonth>0)animateNumberText(_usdLine,usdMonth,{prefix:'U$D ',decimals:2,duration:760});
     else _usdLine.textContent='—';
   }
-  if(_pctInline&&pct!==null)_pctInline.textContent=pct+'% del ingreso';
+  if(_pctInline&&pct!==null){
+    if(isMasked()) _pctInline.textContent = '••% del presupuesto';
+    else _pctInline.textContent=pct+'% del ingreso';
+  }
   else if(_pctInline)_pctInline.textContent='';
 
   const tpNoteEl=document.getElementById('dhc-third-party-note');
@@ -1695,9 +1707,17 @@ function renderDashboard(){
   // Hidden compat
   document.getElementById('kpi-ars-d').textContent=cntMonth+' movimientos · $'+fmtN(cntMonth>0?totalGastoARS/cntMonth:0)+' promedio';
   // 3 totals breakdown
-  animateNumberText(document.getElementById('kpi-total-ars'),arsMonth,{prefix:'$',decimals:2,duration:760});
-  if(usdMonth>0)animateNumberText(document.getElementById('kpi-total-usd'),usdMonth,{prefix:'U$D ',decimals:2,duration:760});
-  else{const _usdTotalEl=document.getElementById('kpi-total-usd');if(_usdTotalEl)_usdTotalEl.textContent='—';}
+  const _kpiArs = document.getElementById('kpi-total-ars');
+  if(_kpiArs) {
+    if(isMasked()) _kpiArs.textContent = '••••••••';
+    else animateNumberText(_kpiArs,arsMonth,{prefix:'$',decimals:2,duration:760});
+  }
+  const _usdTotalEl=document.getElementById('kpi-total-usd');
+  if(usdMonth>0 && _usdTotalEl) {
+    if(isMasked()) _usdTotalEl.textContent = '••••••••';
+    else animateNumberText(_usdTotalEl,usdMonth,{prefix:'U$D ',decimals:2,duration:760});
+  }
+  else if(_usdTotalEl){ _usdTotalEl.textContent='—'; }
 
   // Badge %
   const badge=document.getElementById('dhc-pct-badge');
@@ -2854,10 +2874,13 @@ function renderDb2CcCycles(data){
       if(amtArsEl){
         const arsTotal = scopedTotals ? (scopedTotals.ars||0) : 0;
         const usdTotal = scopedTotals ? (scopedTotals.usd||0) : 0;
-        animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
+        if(isMasked()) amtArsEl.textContent = '••••••••';
+        else animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
+        
         if(amtUsdEl){
           if(usdTotal > 0){
-            animateNumberText(amtUsdEl, usdTotal, {prefix: 'U$D ', decimals: 2, duration: 760});
+            if(isMasked()) amtUsdEl.textContent = '••••';
+            else animateNumberText(amtUsdEl, usdTotal, {prefix: 'U$D ', decimals: 2, duration: 760});
             amtUsdEl.style.display = '';
           } else {
             amtUsdEl.textContent = '';
@@ -2904,13 +2927,18 @@ function renderDb2CcCycles(data){
       const cycleTxns = !scopedTotals && typeof getTcCycleTxns === 'function' ? getTcCycleTxns(activeCycle, allCycles) : [];
       const arsTotal = scopedTotals ? (scopedTotals.ars||0) : cycleTxns.filter(t => t.currency === 'ARS' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
       const usdTotal = scopedTotals ? (scopedTotals.usd||0) : cycleTxns.filter(t => t.currency === 'USD' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
-      animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
-      if(amtUsdEl){
-        if(usdTotal > 0){
-          animateNumberText(amtUsdEl, usdTotal, {prefix: 'U$D ', decimals: 2, duration: 760});
-          amtUsdEl.style.display = '';
-        } else {
-          amtUsdEl.textContent = '';
+      if(isMasked()){
+        amtArsEl.textContent = '••••••••';
+        if(amtUsdEl) amtUsdEl.textContent = (usdTotal > 0 ? '••••' : '');
+      } else {
+        animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
+        if(amtUsdEl){
+          if(usdTotal > 0){
+            animateNumberText(amtUsdEl, usdTotal, {prefix: 'U$D ', decimals: 2, duration: 760});
+            amtUsdEl.style.display = '';
+          } else {
+            amtUsdEl.textContent = '';
+          }
         }
       }
     }
@@ -2984,7 +3012,8 @@ function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, spendBudget,
   if(remainingEl){
     if(salaryLimit > 0){
       const rem = salaryLimit - totalGastoARS;
-      remainingEl.textContent = (rem >= 0 ? '$' : '-$') + fmtN(Math.abs(Math.round(rem)));
+      if(isMasked()) remainingEl.textContent = '••••••••';
+      else remainingEl.textContent = (rem >= 0 ? '$' : '-$') + fmtN(Math.abs(Math.round(rem)));
       remainingEl.style.color = rem < 0 ? '#F3382E' : '#070B1D';
     } else {
       remainingEl.textContent = '—';
@@ -3004,14 +3033,17 @@ function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, spendBudget,
   }
 
   if(r1El){
-    r1El.textContent = Number.isFinite(projected) ? '$' + fmtN(Math.round(projected || 0)) : '—';
+    if(isMasked()) r1El.textContent = '••••••••';
+    else r1El.textContent = Number.isFinite(projected) ? '$' + fmtN(Math.round(projected || 0)) : '—';
   }
   if(r2El){
     if(l2El) l2El.textContent = 'Gasto acumulado';
-    r2El.textContent = Number.isFinite(totalGastoARS) ? '$' + fmtN(Math.round(totalGastoARS || 0)) : '—';
+    if(isMasked()) r2El.textContent = '••••••••';
+    else r2El.textContent = Number.isFinite(totalGastoARS) ? '$' + fmtN(Math.round(totalGastoARS || 0)) : '—';
   }
   if(r3El){
-    r3El.textContent = salaryLimit > 0 ? '$' + fmtN(Math.round(salaryLimit)) : '—';
+    if(isMasked()) r3El.textContent = '••••••••';
+    else r3El.textContent = salaryLimit > 0 ? '$' + fmtN(Math.round(salaryLimit)) : '—';
   }
 
   if(pctEl && pctLimitEl && pctRingEl){
@@ -3071,43 +3103,69 @@ function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, spendBudget,
 
 // ── Hero sub-cards ──
 function renderDb2HeroExtras(arsMonth, usdMonth, margen, pct, incTotalARS, spendBudget){
+  const heroMasked = state.hideHero || state.globalHide;
+
   // ARS card
   const arsEl = document.getElementById('db2-ars-val');
-  if(arsEl) animateNumberText(arsEl, arsMonth, {prefix:'$', decimals:2, duration:760});
+  if(arsEl) {
+    if(heroMasked) arsEl.textContent = '••••••••';
+    else animateNumberText(arsEl, arsMonth, {prefix:'$', decimals:2, duration:760});
+  }
 
   // USD card
   const usdEl = document.getElementById('db2-usd-val');
   if(usdEl){
-    if(usdMonth > 0) animateNumberText(usdEl, usdMonth, {prefix:'U$D ', decimals:2, duration:760});
+    if(usdMonth > 0) {
+      if(heroMasked) usdEl.textContent = '••••';
+      else animateNumberText(usdEl, usdMonth, {prefix:'U$D ', decimals:2, duration:760});
+    }
     else usdEl.textContent = '—';
   }
 
   // USD sub-line below main amount
   const usdLine = document.getElementById('dhc-usd-line');
   if(usdLine){
-    if(usdMonth > 0) animateNumberText(usdLine, usdMonth, {prefix:'USD ', decimals:2, duration:760});
+    if(usdMonth > 0) {
+      if(heroMasked) usdLine.textContent = 'USD ••••';
+      else animateNumberText(usdLine, usdMonth, {prefix:'USD ', decimals:2, duration:760});
+    }
     else usdLine.textContent = '';
   }
 
   // Margen card
   const margenEl  = document.getElementById('db2-margen-val');
   const margenPct = document.getElementById('db2-margen-pct');
+  const margenTitle = document.querySelector('.db2-hero-sub-margen .db2-hero-sub-title');
+
   if(margenEl){
     if(margen !== null && incTotalARS > 0){
       const isOver = margen < 0;
-      animateNumberText(margenEl, Math.abs(Math.round(margen)), {
-        formatter: n => (isOver ? '-$' : '$') + fmtN(n)
-      });
-      margenEl.style.color = isOver ? 'rgba(255,59,48,0.9)' : 'rgba(52,199,89,0.95)';
+      if(heroMasked) {
+        margenEl.textContent = '••••••••';
+      } else {
+        animateNumberText(margenEl, Math.abs(Math.round(margen)), {
+          formatter: n => (isOver ? '-$' : '$') + fmtN(n)
+        });
+      }
+      margenEl.style.color = isOver ? '#ff453a' : '#32d74b'; // Bright premium colors
+      
+      if(margenTitle) {
+        margenTitle.textContent = isOver ? 'EXCESO DE GASTO' : 'MARGEN DISPONIBLE';
+        margenTitle.style.color = isOver ? 'rgba(255,255,255,0.9)' : '';
+      }
+
       if(margenPct){
         const remPct = spendBudget > 0 ? Math.max(0, Math.round(margen / spendBudget * 100)) : 0;
-        margenPct.textContent = remPct + '% del sueldo';
+        margenPct.textContent = isOver ? 'Excediste tu presupuesto' : Math.round(remPct) + '% del presupuesto';
         margenPct.style.display = '';
+        margenPct.style.background = isOver ? 'rgba(255,69,58,0.2)' : '';
+        margenPct.style.color = isOver ? '#ff9f0a' : '';
       }
     } else {
       margenEl.textContent = incTotalARS > 0 ? '—' : 'Sin ingreso';
       margenEl.style.color = 'rgba(255,255,255,0.6)';
       if(margenPct) margenPct.style.display = 'none';
+      if(margenTitle) margenTitle.textContent = 'MARGEN DISPONIBLE';
     }
   }
 
@@ -3115,12 +3173,69 @@ function renderDb2HeroExtras(arsMonth, usdMonth, margen, pct, incTotalARS, spend
   const pctBadge = document.getElementById('dhc-pct-inline');
   if(pctBadge){
     if(pct !== null){
-      pctBadge.textContent = pct + '% del ingreso';
+      pctBadge.textContent = pct + '% del presupuesto';
       pctBadge.style.display = '';
     } else {
       pctBadge.style.display = 'none';
     }
   }
+
+  // Dynamic Third Party Note
+  const tpNote = document.getElementById('dhc-third-party-note');
+  if(tpNote){
+    const billable = getCurrentMonthTxns().filter(t => !t.isPendingCuota && !t.isPendingSubscription);
+    const tpItems = billable.filter(t => !!t.isThirdParty);
+    const pendingSum = tpItems.reduce((s,t) => {
+       const base = Number(t.thirdPartyAmount) || Number(t.amount) || 0;
+       const settled = Number(t.thirdPartySettledAmount) || 0;
+       return s + Math.max(0, base - settled);
+    }, 0);
+    const recoveredSum = tpItems.reduce((s,t) => s + (Number(t.thirdPartySettledAmount) || 0), 0);
+
+    if(pendingSum > 0 || recoveredSum > 0){
+      tpNote.style.display = 'block';
+      let html = '';
+      if(heroMasked) {
+        html = '<span style="color:var(--accent);font-weight:700;">+ $••••••</span> de terceros';
+      } else {
+        if(pendingSum > 0 && recoveredSum > 0) {
+          html = `<span style="color:#32d74b;font-weight:700;">+$${fmtN(Math.round(recoveredSum))} recuperados</span> · <span style="color:var(--text3)">$${fmtN(Math.round(pendingSum))} pendientes</span>`;
+        } else if(pendingSum > 0) {
+          html = `<span style="color:var(--accent);font-weight:700;">+$${fmtN(Math.round(pendingSum))}</span> a recuperar de terceros`;
+        } else {
+          html = `<span style="color:#32d74b;font-weight:700;">+$${fmtN(Math.round(recoveredSum))}</span> recuperado totalmente`;
+        }
+      }
+      tpNote.innerHTML = html;
+    } else {
+      tpNote.style.display = 'none';
+    }
+  }
+
+  // Update Eye Icons based on state
+  const heroEye = document.getElementById('db2-hero-privacy-btn');
+  if(heroEye) heroEye.classList.toggle('is-hidden', state.hideHero);
+  
+  const globalEye = document.getElementById('db2-global-privacy-btn');
+  const globalLabel = document.getElementById('db2-global-privacy-label');
+  if(globalEye) globalEye.classList.toggle('active', state.globalHide);
+  if(globalLabel) globalLabel.textContent = state.globalHide ? 'Montos ocultos' : 'Ocultar montos';
+}
+
+function isMasked() {
+  return !!state.globalHide;
+}
+
+function toggleHeroPrivacy() {
+  state.hideHero = !state.hideHero;
+  saveState();
+  renderDashboard();
+}
+
+function toggleGlobalPrivacy() {
+  state.globalHide = !state.globalHide;
+  saveState();
+  renderDashboard();
 }
 
 // ── Evolution line chart ──
@@ -3182,8 +3297,8 @@ function renderDb2EvolutionChart(){
   const evoGas = document.getElementById('db2-evo-gastos');
   const totalGastos = gastosAccumData[gastosAccumData.length-1] || 0;
   const totalIngresos = ingresosAccumData[ingresosAccumData.length-1] || 0;
-  if(evoIng) evoIng.textContent = '$' + fmtN(Math.round(totalIngresos));
-  if(evoGas) evoGas.textContent = '$' + fmtN(Math.round(totalGastos));
+  if(evoIng) evoIng.textContent = isMasked() ? '••••••••' : '$' + fmtN(Math.round(totalIngresos));
+  if(evoGas) evoGas.textContent = isMasked() ? '••••••••' : '$' + fmtN(Math.round(totalGastos));
 
   const useAccum = db2EvoMode === 'accum';
   const gasData   = useAccum ? gastosAccumData   : gastosDailyData;
@@ -3319,7 +3434,10 @@ function renderDb2CatDonut(monthTxns){
 
   // Update donut total label
   const totalEl = document.getElementById('db2-cat-total');
-  if(totalEl) totalEl.textContent = total > 0 ? '$' + fmtN(Math.round(total)) : '—';
+  if(totalEl) {
+    if(isMasked()) totalEl.textContent = '••••••••';
+    else totalEl.textContent = total > 0 ? '$' + fmtN(Math.round(total)) : '—';
+  }
 
   if(!sorted.length){
     const listEl = document.getElementById('db2-cat-list');
@@ -3389,7 +3507,7 @@ function renderDb2CatDonut(monthTxns){
         </div>
         <div class="db2-cat-copy">
           <span class="db2-cat-name">${esc(name)}</span>
-          <span class="db2-cat-amt">$${fmtN(Math.round(d.total))}</span>
+          <span class="db2-cat-amt">${isMasked() ? '••••••••' : '$' + fmtN(Math.round(d.total))}</span>
         </div>
         <span class="db2-cat-pct" style="color:${color}">${pct}%</span>
       </div>`;
@@ -3466,7 +3584,7 @@ function renderDb2Agenda(timelineData){
     const chipCls = e.days === 0 ? 'today' : e.days <= 3 ? 'soon' : '';
     const name = e.shortLabel || e.title || 'Evento';
     const logo = getLogoProps(name, e.type);
-    const amtStr = e.amount ? '-$' + fmtN(Math.round(e.amount)) : '';
+    const amtStr = e.amount ? '-$' + (isMasked() ? '••••' : fmtN(Math.round(e.amount))) : '';
     const typeLabel = e.type === 'subscription' ? 'Suscripción' :
                       e.type === 'close'        ? 'Cierre TC'   :
                       e.type === 'due'          ? 'Vencimiento' :
@@ -3569,10 +3687,11 @@ function renderDb2DueStrip(timelineData){
 
   if(summary){
     if(pendingItems.length){
+      const maskedSum = isMasked() ? '$••••••' : `$${fmtN(Math.round(totalOpenArs))}`;
       summary.innerHTML = `
         <div class="db2-third-pill">
           <span class="db2-third-pill-label">Por cobrar</span>
-          <span class="db2-third-pill-value">$${fmtN(Math.round(totalOpenArs))}</span>
+          <span class="db2-third-pill-value">${maskedSum}</span>
         </div>
         <div class="db2-third-pill">
           <span class="db2-third-pill-label">Pendientes</span>
@@ -3614,7 +3733,7 @@ function renderDb2DueStrip(timelineData){
         <div class="db2-third-name">${esc(item.name)}</div>
         <div class="db2-third-meta">${statusLabel} · desde ${since}</div>
       </div>
-      <div class="db2-third-amount">${toDisplayAmount(item.pendingAmount, item.currency)}</div>
+      <div class="db2-third-amount">${isMasked() ? (item.currency === 'USD' ? 'U$D ••••' : '$••••••') : toDisplayAmount(item.pendingAmount, item.currency)}</div>
       <div class="db2-third-chip">${age}</div>
     </button>`;
   }).join('');
@@ -3635,10 +3754,8 @@ function renderDb2DollarSparkline(){
   if(state.charts && state.charts.dollarSpark){ state.charts.dollarSpark.destroy(); state.charts.dollarSpark = null; }
   const emptyEl = document.getElementById('db2-dollar-empty');
   const changeEl = document.getElementById('db2-dollar-change');
-  const points = (state.usdRateHistory || [])
-    .filter(item => item && Number(item.sell) > 0)
-    .slice(-14)
-    .map(item => Number(item.sell));
+  const history = (state.usdRateHistory || []).filter(item => item && Number(item.sell) > 0);
+  const points = history.slice(-15).map(item => Number(item.sell));
 
   if(points.length < 2){
     ctx.style.display = 'none';
@@ -3652,11 +3769,19 @@ function renderDb2DollarSparkline(){
   const first = points[0];
   const last = points[points.length - 1];
   const variation = first > 0 ? ((last - first) / first) * 100 : 0;
+  
   if(changeEl){
-    const sign = variation > 0 ? '+' : '';
+    const sign = variation >= 0 ? '+' : '';
     changeEl.textContent = sign + variation.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%';
     changeEl.classList.toggle('down', variation < 0);
+    changeEl.style.color = variation < 0 ? '#ff453a' : '#30d158'; // iOS style colors
   }
+
+  // Create gradient
+  const chartCtx = ctx.getContext('2d');
+  const gradient = chartCtx.createLinearGradient(0, 0, 0, 118);
+  gradient.addColorStop(0, 'rgba(48, 209, 88, 0.22)');
+  gradient.addColorStop(1, 'rgba(48, 209, 88, 0.02)');
 
   const c = new Chart(ctx, {
     type:'line',
@@ -3664,24 +3789,46 @@ function renderDb2DollarSparkline(){
       labels: points.map((_,i)=>i),
       datasets:[{
         data: points,
-        borderColor: '#179346',
-        borderWidth: 3,
-        pointRadius: ctx => ctx.dataIndex === points.length - 1 ? 5 : 0,
-        pointBackgroundColor: '#179346',
-        pointBorderColor: '#179346',
-        pointHoverRadius: 5,
-        fill: {target:'origin', above:'rgba(23,147,70,0.10)'},
-        tension: 0.34
+        borderColor: '#30d158',
+        borderWidth: 2.8,
+        pointRadius: (context) => (context.dataIndex === points.length - 1 ? 4.5 : 0),
+        pointBackgroundColor: '#30d158',
+        pointBorderColor: '#ffffff',
+        pointBorderWidth: 2,
+        pointHoverRadius: 6,
+        fill: true,
+        backgroundColor: gradient,
+        tension: 0.4,
+        capBezierPoints: true
       }]
     },
     options:{
-      responsive:true, maintainAspectRatio:false,
-      animation:false,
-      plugins:{legend:{display:false}, tooltip:{enabled:false}},
-      elements:{line:{capBezierPoints:true}},
+      responsive:true,
+      maintainAspectRatio:false,
+      animation:{ duration: 800, easing: 'easeOutQuart' },
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          enabled: true,
+          mode: 'index',
+          intersect: false,
+          ..._chartTooltip(),
+          callbacks: {
+            label: (context) => ` $${fmtN(context.parsed.y)}`
+          }
+        }
+      },
+      interaction: { mode: 'nearest', axis: 'x', intersect: false },
       scales:{
         x:{display:false},
-        y:{display:false, min: Math.min(...points) * 0.995, max: Math.max(...points) * 1.005}
+        y:{
+          display:false,
+          min: Math.min(...points) * 0.998,
+          max: Math.max(...points) * 1.002
+        }
+      },
+      elements: {
+        line: { borderCapStyle: 'round' }
       }
     }
   });

@@ -19,7 +19,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260421d">
+<link rel="stylesheet" href="css/styles.css?v=20260421e">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -266,6 +266,10 @@
           <span class="dash-smart-icon">🗂️</span>
           <span>Back Up JSON</span>
         </button>
+        <button class="dash-smart-btn" id="db2-global-privacy-btn" onclick="toggleGlobalPrivacy()" title="Ocultar todos los montos (Privacy Mode)">
+          <span class="dash-smart-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
+          <span id="db2-global-privacy-label">Ocultar montos</span>
+        </button>
         <button class="dash-smart-btn" onclick="fetchUsdRate(true)" title="Actualizar cotización del dólar oficial y blue">
           <span class="dash-smart-icon">💵</span>
           <span>Actualizar dólar</span>
@@ -341,7 +345,7 @@
                   <div class="db2-hero-kicker">GASTO TOTAL</div>
                 </div>
               </div>
-              <button class="db2-hero-eye" onclick="event.stopPropagation()" title="Ver/ocultar">
+              <button class="db2-hero-eye" id="db2-hero-privacy-btn" onclick="event.stopPropagation(); toggleHeroPrivacy()" title="Ocultar montos de este widget">
                 <div class="db2-hero-eye-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></div>
               </button>
             </div>
@@ -3392,9 +3396,9 @@
 <script src="js/utils.js?v=20260420a"></script>
 <script src="js/import.js"></script>
 <script src="js/dashboard.js?v=20260421d"></script>
-<script src="js/transactions.js"></script>
+<script src="js/transactions.js?v=20260421e"></script>
 <script src="js/analytics.js"></script>
-<script src="js/expenses.js"></script>
+<script src="js/expenses.js?v=20260421e"></script>
 <script src="js/income.js?v=20260421d"></script>
 <script src="js/savings.js"></script>
 <script src="js/categories.js"></script>
@@ -3403,8 +3407,8 @@
 <script src="js/ui.20260407j.js"></script>
 <script src="js/splash.js?v=20260421d"></script>
 <script src="js/shell.js?v=1.1"></script>
-<script src="js/init.js?v=20260420a"></script>
-<script src="js/credit-cards.20260407j.js"></script>
+<script src="js/init.js?v=20260421e"></script>
+<script src="js/credit-cards.20260407j.js?v=20260421e"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="js/cc-compare.js"></script>

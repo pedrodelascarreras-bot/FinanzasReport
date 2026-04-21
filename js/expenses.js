@@ -397,7 +397,8 @@ function commitmentsBuildData(){
       remaining:Number(snap.rem)||0,
       remainingTotal:Number(snap.remainingTotal)||0,
       endDate,
-      editAction:'openAutoCuotaModal'
+      editAction:'openAutoCuotaModal',
+      source:'auto'
     };
   }).filter(item=>item.remaining>0);
   const manualCuotas=(state.cuotas||[]).map(c=>{
@@ -425,12 +426,15 @@ function commitmentsBuildData(){
       remaining,
       remainingTotal:remaining*(Number(c.amount)||0),
       endDate,
-      editAction:'editCuota'
+      editAction:'editCuota',
+      source:'manual'
     };
   }).filter(item=>item.remaining>0);
   const cuotaItems=[...autoCuotas,...manualCuotas];
-  const allActive=[...fixedItems,...subsItems,...cuotaItems];
-  return {fixedItems,subsItems,cuotaItems,allActive};
+  const expiredCuotaItems=cuotaItems.filter(item=>item.due?.status==='overdue');
+  const activeCuotaItems=cuotaItems.filter(item=>item.due?.status!=='overdue');
+  const allActive=[...fixedItems,...subsItems,...activeCuotaItems];
+  return {fixedItems,subsItems,cuotaItems:activeCuotaItems,expiredCuotaItems,allActive};
 }
 function commitmentsFilterMatches(item, filter){
   if(!item) return false;
@@ -474,13 +478,25 @@ function commitmentsInvokeEdit(action,id){
   state._commitmentsMenu='';
   if(typeof window[action]==='function') window[action](id);
 }
+function commitmentsDeleteExpiredCuota(source,id){
+  if(!confirm('¿Borrar esta cuota vencida definitivamente? Los movimientos ya registrados no se borran.')) return;
+  if(source==='auto'){
+    dismissAutoCuota(id);
+    return;
+  }
+  state.cuotas=(state.cuotas||[]).filter(c=>c.id!==id);
+  saveState();
+  renderCommitmentsPage();
+  refreshAll();
+  showToast('Cuota vencida eliminada','info');
+}
 function renderCommitmentsPage(){
   const root=document.getElementById('commitments-native-root');
   if(!root) return;
   const monthKey=getMonthKey(new Date());
   const income=commitmentsGetIncomeSnapshot(monthKey);
   const syncLabel=commitmentsSyncStatus();
-  const {fixedItems,subsItems,cuotaItems,allActive}=commitmentsBuildData();
+  const {fixedItems,subsItems,cuotaItems,expiredCuotaItems,allActive}=commitmentsBuildData();
   const filter=state.commitmentsFilter||'all';
   const search=(state.commitmentsSearch||'').trim().toLowerCase();
   const filteredActive=allActive.filter(item=>commitmentsFilterMatches(item,filter)&&commitmentsSearchMatches(item,search));
@@ -488,6 +504,7 @@ function renderCommitmentsPage(){
   const filteredFixed=fixedItems.filter(filterFn);
   const filteredSubs=subsItems.filter(filterFn);
   const filteredCuotas=cuotaItems.filter(filterFn);
+  const filteredExpiredCuotas=(expiredCuotaItems||[]).filter(item=>commitmentsSearchMatches(item,search)&&(filter==='all'||filter==='quotas'||filter==='overdue'));
   const totalCommittedArs=allActive.reduce((sum,item)=>sum+item.amountArs,0);
   const pctIncome=income.total>0?Math.round((totalCommittedArs/income.total)*100):0;
   const freeArs=Math.max(0, income.total-totalCommittedArs);
@@ -570,7 +587,7 @@ function renderCommitmentsPage(){
   const renderSubsBlock=()=>{
     const totalSub=filteredSubs.reduce((sum,item)=>sum+item.amountArs,0);
     return '<section class="cp-card cp-section">'
-      +'<div class="cp-section-head"><div><div class="cp-section-title"><span class="cp-dot subs"></span>Suscripciones</div><div class="cp-section-sub">'+filteredSubs.length+' activas · $'+fmtN(Math.round(totalSub))+' / mes</div></div><div class="cp-head-actions"><button class="cp-link-btn">Ver todas</button></div></div>'
+      +'<div class="cp-section-head"><div class="cp-section-title"><span class="cp-dot subs"></span>Suscripciones</div><div class="cp-head-actions"><button class="cp-link-btn">Ver todas</button></div></div>'
       +(filteredSubs.length?'<div class="cp-list">'+filteredSubs.map(item=>{
         const menuKey='sub-'+item.id;
         return '<article class="cp-row">'
@@ -585,7 +602,7 @@ function renderCommitmentsPage(){
   const renderCuotasBlock=()=>{
     const totalCuotas=filteredCuotas.reduce((sum,item)=>sum+item.amountArs,0);
     return '<section class="cp-card cp-section">'
-      +'<div class="cp-section-head"><div><div class="cp-section-title"><span class="cp-dot cuotas"></span>Cuotas</div><div class="cp-section-sub">'+filteredCuotas.length+' activas · $'+fmtN(Math.round(totalCuotas))+' / mes</div></div><div class="cp-head-actions"><button class="cp-link-btn">Ver todas</button></div></div>'
+      +'<div class="cp-section-head"><div class="cp-section-title"><span class="cp-dot cuotas"></span>Cuotas</div><div class="cp-head-actions"><button class="cp-link-btn">Ver todas</button></div></div>'
       +(filteredCuotas.length?'<div class="cp-quota-list">'+filteredCuotas.map(item=>{
         const menuKey='quota-'+item.id;
         return '<article class="cp-quota-row">'
@@ -596,6 +613,19 @@ function renderCommitmentsPage(){
           +'<div class="cp-menu-wrap"><button class="cp-menu-btn" onclick="commitmentsToggleMenu(\''+menuKey+'\');event.stopPropagation();">⋯</button>'+menuHtml(item,menuKey)+'</div>'
         +'</article>';
       }).join('')+'</div><div class="cp-section-footer"><span class="cp-section-footer-label">Total cuotas</span><span class="cp-section-footer-value">$'+fmtN(Math.round(totalCuotas))+'<span style="font:600 12px var(--font);color:#8b86a1;margin-left:5px;">/ mes</span></span></div>':'<div class="cp-empty-inline">No hay cuotas activas para este filtro.</div>')
+    +'</section>';
+  };
+  const renderExpiredCuotasBlock=()=>{
+    if(!filteredExpiredCuotas.length) return '';
+    return '<section class="cp-card cp-section cp-expired-section">'
+      +'<div class="cp-section-head"><div class="cp-section-title"><span class="cp-dot cuotas"></span>Cuotas vencidas</div><div class="cp-head-actions"><span class="cp-head-meta">'+filteredExpiredCuotas.length+' para revisar</span></div></div>'
+      +'<div class="cp-expired-list">'+filteredExpiredCuotas.map(item=>{
+        return '<article class="cp-expired-row">'
+          +'<div class="cp-row-main">'+commitmentsAvatar(item)+'<div class="cp-row-copy"><div class="cp-row-title">'+esc(item.name)+'</div><div class="cp-row-sub">'+esc(item.subtitle)+(item.endDate?' · terminaba '+commitmentsFmtMonthDay(item.endDate):'')+'</div></div></div>'
+          +'<div class="cp-row-meta"><div class="cp-row-amount">'+rowMoney(item)+'</div>'+dueBadge(item)+'</div>'
+          +'<button class="cp-expired-delete" onclick="commitmentsDeleteExpiredCuota(\''+esc(item.source||'manual')+'\',\''+esc(item.id)+'\')">Borrar definitivamente</button>'
+        +'</article>';
+      }).join('')+'</div>'
     +'</section>';
   };
   root.innerHTML=
@@ -679,6 +709,12 @@ function renderCommitmentsPage(){
       +'.cp-panel-head{display:flex;align-items:center;justify-content:space-between;padding:2px 2px 0 2px;font:700 12px var(--font);color:#726d86;}'
       +'.cp-panel-toggle{width:44px;height:26px;border-radius:999px;border:none;background:'+(state.commitmentsInsightsCollapsed?'#d9d7e7':'#5732f3')+';position:relative;cursor:pointer;}'
       +'.cp-panel-toggle span{position:absolute;top:3px;left:'+(state.commitmentsInsightsCollapsed?'3px':'21px')+';width:20px;height:20px;border-radius:50%;background:#fff;transition:left .18s ease;}'
+      +'.cp-ins-show-bar{margin:0 0 12px;display:flex;justify-content:flex-end;}'
+      +'.cp-ins-show-btn{height:34px;border:none;border-radius:999px;background:#f0ecff;color:#5732f3;padding:0 14px;font:800 11.8px var(--font);letter-spacing:.02em;cursor:pointer;box-shadow:0 8px 18px rgba(87,50,243,.12);}'
+      +'.cp-expired-section{background:linear-gradient(180deg,#fff 0%,#fff8f8 100%);border-color:rgba(255,107,87,.14);}'
+      +'.cp-expired-list{display:flex;flex-direction:column;gap:9px;}'
+      +'.cp-expired-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:12px 14px;border:1px solid rgba(255,107,87,.11);border-radius:15px;background:#fff;}'
+      +'.cp-expired-delete{height:32px;border-radius:999px;border:1px solid rgba(255,107,87,.18);background:#fff0ef;color:#ff5a45;padding:0 12px;font:800 11.4px var(--font);cursor:pointer;}'
       +'.cp-insight-hero{padding:18px 18px 16px;background:linear-gradient(160deg,#2f1b8f,#4027b4 65%,#4d34cb);color:#fff;border:none;box-shadow:0 18px 34px rgba(63,42,183,.24);}'
       +'.cp-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}'
       +'.cp-hero-kicker{font:800 10px var(--font);letter-spacing:.06em;color:rgba(255,255,255,.72);text-transform:uppercase;}'
@@ -730,6 +766,7 @@ function renderCommitmentsPage(){
           +'<div class="cp-title"><h1>Compromisos</h1><p>Tus gastos fijos, cuotas y suscripciones en un solo lugar.</p></div>'
           +'<div class="cp-actions"><button class="cp-btn" onclick="openNewFixedModal()">＋ Gasto fijo</button><button class="cp-btn" onclick="openNewSubModal()">＋ Suscripción</button><button class="cp-btn-primary" onclick="openNewCuotaModal()">＋ Nueva cuota</button><button class="cp-btn" onclick="commitmentsToggleInsights()">'+(state.commitmentsInsightsCollapsed?'Mostrar panel':'Ocultar panel')+'</button></div>'
         +'</div>'
+        +(state.commitmentsInsightsCollapsed?'<div class="cp-ins-show-bar"><button class="cp-ins-show-btn" onclick="commitmentsToggleInsights()">✦ Mostrar insights</button></div>':'')
         +'<div class="cp-search"><span style="font-size:14px;">⌕</span><input placeholder="Buscar compromiso, servicio o proveedor..." value="'+esc(state.commitmentsSearch||'')+'" oninput="commitmentsSetSearch(this.value)"></div>'
         +'<div class="cp-chips">'
           +[
@@ -752,6 +789,7 @@ function renderCommitmentsPage(){
           +(showFixedSection?renderFixedBlock():'')
           +(showSubsSection?renderSubsBlock():'')
           +(showQuotasSection?renderCuotasBlock():'')
+          +(showQuotasSection?renderExpiredCuotasBlock():'')
         +'</div>'
       +'</div>'
       +(state.commitmentsInsightsCollapsed?'':'<aside class="cp-right">'

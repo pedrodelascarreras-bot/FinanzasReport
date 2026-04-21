@@ -652,8 +652,9 @@ function renderCcConfigPanel(){
     // newest first
     dedupedItems.sort((a,b)=>b.cycle.closeDate.localeCompare(a.cycle.closeDate));
 
+    const historyOpen=window._ccRecordsExpanded?.[card.id]===true;
     const VISIBLE=2;
-    const visibleItems=dedupedItems.slice(0,VISIBLE);
+    const visibleItems=historyOpen?dedupedItems:dedupedItems.slice(0,VISIBLE);
     const oldCount=Math.max(dedupedItems.length-VISIBLE,0);
 
     const pendingCount=dedupedItems.filter(({cycle})=>{
@@ -668,8 +669,8 @@ function renderCcConfigPanel(){
       return d.toLocaleDateString('es-AR',{day:'numeric',month:'short'});
     };
 
-    const rowsHtml=visibleItems.length ? visibleItems.map(({cycle, idx},rowIdx)=>{
-      const open=getTcCycleOpen(cycles,idx);
+    const rowsHtml=visibleItems.length ? visibleItems.map(({cycle},rowIdx)=>{
+      const open=cycle.openDate||getTcCycleOpen(cycles,cycles.findIndex(c=>c.id===cycle.id));
       const totals=ccGetTotals(ccGetCycleExpenses(card.id, cycle.id));
       const statusEntry=state.ccCycles.find(x=>x.tcCycleId===cycle.id&&x.cardId===card.id);
       const isPaid=statusEntry?.status==='paid';
@@ -687,8 +688,12 @@ function renderCcConfigPanel(){
                 ${isPaid?'<b class="ccr-badge ccr-badge-paid">Pagado</b>':'<b class="ccr-badge ccr-badge-pending">Pendiente</b>'}
                 ${isManual?'<b class="ccr-badge ccr-badge-manual">Editado</b>':''}
               </div>
-              <div class="ccr-cycle-period">${esc(cycle.label)} · ${esc(shortD(open))} a ${esc(shortD(cycle.closeDate))}</div>
-              <div class="ccr-cycle-due">${cycle.dueDate?'Vence '+esc(shortD(cycle.dueDate)):'Sin vencimiento cargado'}</div>
+              <div class="ccr-cycle-period">${esc(cycle.label)}</div>
+              <div class="ccr-cycle-dates">
+                <span><b>Apertura</b>${esc(shortD(open))}</span>
+                <span><b>Cierre</b>${esc(shortD(cycle.closeDate))}</span>
+                <span><b>Vence</b>${cycle.dueDate?esc(shortD(cycle.dueDate)):'—'}</span>
+              </div>
             </div>
           </div>
           <div class="ccr-cycle-money">
@@ -708,6 +713,10 @@ function renderCcConfigPanel(){
       </div>
     `;
 
+    const historyBtn=oldCount>0?`
+      <button class="ccr-history-btn" onclick="ccToggleRecordsExpanded('${card.id}')">
+        ${historyOpen?'Ocultar historial':'Ver historial'}
+      </button>`:'';
     const bulkBtn=oldCount>0?`
       <button class="ccr-clean-btn" onclick="ccDeleteOldCycles('${card.id}')">
         Borrar ${oldCount} antiguo${oldCount===1?'':'s'}
@@ -719,9 +728,9 @@ function renderCcConfigPanel(){
           <div class="ccr-card-title">
             <span class="cc-config-accordion-dot" style="background:${card.color};"></span>
             <strong>${esc(card.name)}</strong>
-            <span class="ccr-card-meta">${pendingCount} pendiente${pendingCount===1?'':'s'}${oldCount>0?' · '+oldCount+' oculto'+(oldCount===1?'':'s'):''}</span>
+            <span class="ccr-card-meta">${pendingCount} pendiente${pendingCount===1?'':'s'}${oldCount>0?' · '+oldCount+' antiguo'+(oldCount===1?'':'s'):''}</span>
           </div>
-          ${bulkBtn}
+          <div class="ccr-card-actions">${historyBtn}${bulkBtn}</div>
         </div>
         <div class="ccr-rows">${rowsHtml}</div>
       </div>
@@ -734,7 +743,7 @@ function renderCcConfigPanel(){
         <div class="cc-config-overview-copy">
           <div class="cc-config-kicker">Tarjetas</div>
           <h3>Solo lo necesario para que el resumen cierre bien.</h3>
-          <p>Elegí una tarjeta, cargá cierre y vencimiento. La app calcula la apertura y mantiene el historial viejo fuera de la vista.</p>
+          <p>Elegí una tarjeta y cargá apertura, cierre y vencimiento para que cada período quede claro en Dashboard, Movimientos y Tarjetas.</p>
         </div>
         <div class="cc-config-quick-grid">${quickCardsHtml}</div>
       </section>
@@ -757,6 +766,10 @@ function renderCcConfigPanel(){
             <select class="cc-cfg-input" id="tc-cycle-card-cc">${cardOptions}</select>
           </label>
           <label class="cc-config-field">
+            <span>Fecha de apertura</span>
+            <input type="date" class="cc-cfg-input" id="tc-cycle-open-cc">
+          </label>
+          <label class="cc-config-field">
             <span>Cierre del resumen</span>
             <input type="date" class="cc-cfg-input" id="tc-cycle-close-cc">
           </label>
@@ -765,11 +778,10 @@ function renderCcConfigPanel(){
             <input type="date" class="cc-cfg-input" id="tc-cycle-due-cc">
           </label>
           <input type="hidden" id="tc-cycle-label-cc" value="${editingCycle?esc(editingCycle.label||''):''}">
-          <input type="hidden" id="tc-cycle-open-cc" value="${editingCycle?esc(getTcCycleOpen(cycles, cycles.findIndex(c=>c.id===editingCycle.id))||editingCycle.openDate||''):''}">
         </div>
         <div class="cc-config-form-actions">
-          <button class="btn btn-primary" onclick="addTcCycleFromCC()">${editingCycle?'Guardar cambios':'Guardar cierre'}</button>
-          <div class="cc-config-form-note">La apertura se calcula sola a partir del cierre anterior. Solo cargala manualmente si editás un caso especial.</div>
+          <button class="btn btn-primary" onclick="addTcCycleFromCC()">${editingCycle?'Guardar cambios':'Guardar período'}</button>
+          <div class="cc-config-form-note">Estas tres fechas definen el período exacto de la tarjeta. La apertura ya no queda escondida.</div>
         </div>
       </section>
 
@@ -779,7 +791,7 @@ function renderCcConfigPanel(){
             <div class="cc-config-kicker">Registros</div>
             <div class="cc-config-block-title">Últimos ciclos</div>
           </div>
-          <div class="cc-config-records-note">Mostramos el actual y el anterior. Lo antiguo queda oculto o se puede borrar.</div>
+          <div class="cc-config-records-note">Mostramos el actual y el anterior. Podés abrir el historial completo por tarjeta y borrar lo antiguo manualmente.</div>
         </div>
         <div class="ccr-stack">${recordsHtml}</div>
       </section>

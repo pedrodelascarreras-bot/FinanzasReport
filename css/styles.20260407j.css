@@ -10158,7 +10158,7 @@ body.light-mode .cc-tab-chip.active {
 }
 .cc-config-form-grid {
   display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) repeat(2, minmax(180px, 1fr));
+  grid-template-columns: minmax(210px, 1.15fr) repeat(3, minmax(160px, 1fr));
   gap: 12px;
 }
 .cc-config-field {
@@ -20346,6 +20346,13 @@ body.light-mode .tend-ins-hide-btn { color: var(--text3); }
   font-weight: 400;
   color: var(--text3);
 }
+.ccr-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
 
 /* Individual cycle cards */
 .ccr-rows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; padding: 14px; }
@@ -20394,6 +20401,33 @@ body.light-mode .tend-ins-hide-btn { color: var(--text3); }
 }
 .ccr-cycle-due {
   color: var(--text2);
+}
+.ccr-cycle-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 8px;
+}
+.ccr-cycle-dates span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--border) 76%, transparent);
+  background: color-mix(in srgb, var(--surface3) 58%, transparent);
+  color: var(--text2);
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1;
+}
+.ccr-cycle-dates b {
+  color: var(--text3);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .05em;
+  text-transform: uppercase;
 }
 .ccr-cycle-money {
   text-align: right;
@@ -20542,6 +20576,7 @@ body.light-mode .tend-ins-hide-btn { color: var(--text3); }
 .ccr-expand-btn:hover { background: rgba(255,255,255,0.03); }
 
 /* Bulk delete button in card header */
+.ccr-history-btn,
 .ccr-clean-btn {
   font-size: 11px;
   font-weight: 600;
@@ -20554,6 +20589,16 @@ body.light-mode .tend-ins-hide-btn { color: var(--text3); }
   font-family: var(--font);
   transition: all 0.14s;
   white-space: nowrap;
+}
+.ccr-history-btn {
+  color: var(--accent4);
+  border-color: color-mix(in srgb, var(--accent4) 28%, var(--border));
+  background: color-mix(in srgb, var(--accent4) 7%, transparent);
+}
+.ccr-history-btn:hover {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 .ccr-clean-btn:hover { color: #ef4444; border-color: rgba(239,68,68,0.35); background: rgba(239,68,68,0.06); }
 

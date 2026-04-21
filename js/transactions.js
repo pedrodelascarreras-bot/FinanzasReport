@@ -400,11 +400,13 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
               const gm=effectiveTab==='all'?GROUP_META[item.group]:null;
               const badge=gm?`<span style="font-size:9px;font-weight:700;letter-spacing:.04em;padding:1px 6px;border-radius:4px;background:${gm.bg};color:${gm.color};text-transform:uppercase;flex-shrink:0;">${gm.label}</span>`:'';
               return '<div class="txn-cycle-entry">'
-                +`<div class="txn-cycle-dot" style="--entry-tone:${item.tone};"></div>`
+                +`<div class="txn-cycle-avatar" style="--entry-tone:${item.tone};"><span></span></div>`
+                +`<div class="txn-cycle-date">${fmtDate(item.date)}</div>`
                 +'<div class="txn-cycle-copy">'
-                  +`<div class="txn-cycle-title" style="display:flex;align-items:center;gap:6px;">${esc(item.title)}${badge}</div>`
-                  +`<div class="txn-cycle-meta">${esc(item.kind)} · ${esc(item.meta)} · ${fmtDate(item.date)}${settled?' · Cobrado':' · Pendiente'}</div>`
+                  +`<div class="txn-cycle-title">${esc(item.title)}${badge}</div>`
+                  +`<div class="txn-cycle-meta">${esc(item.kind)} · ${esc(item.meta)} · ${settled?'Cobrado':'Pendiente'}</div>`
                 +'</div>'
+                +`<div class="txn-cycle-status ${settled?'is-settled':'is-pending'}">${settled?'Cobrado':'Pendiente'}</div>`
                 +`<div class="txn-cycle-amount" style="color:${item.tone};">${amount}</div>`
               +'</div>';
             }).join('')+'</div>';
@@ -1036,6 +1038,8 @@ function renderTransactions(){
         +'.mv-insights-top .label{font-size:12.5px;color:#615b79;font-weight:700;font-family:var(--font);}'
         +'.mv-toggle{width:44px;height:24px;border-radius:999px;border:none;background:#5732f3;position:relative;cursor:pointer;}'
         +'.mv-toggle::after{content:"";position:absolute;top:2px;right:2px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 2px 5px rgba(0,0,0,.18);}'
+        +'.mv-ins-show-bar{margin:0 0 12px;display:flex;justify-content:flex-end;}'
+        +'.mv-ins-show-btn{height:34px;border:none;border-radius:999px;background:#f0ecff;color:#5732f3;padding:0 14px;font:800 11.8px var(--font);letter-spacing:.02em;cursor:pointer;box-shadow:0 8px 18px rgba(87,50,243,.12);}'
         +'.mv-right-stack{display:flex;flex-direction:column;gap:12px;}'
         +'.mv-hero{border-radius:20px;padding:18px 18px 17px;min-height:214px;background:linear-gradient(145deg,#075985 0%,#0284c7 100%);color:#fff;position:relative;overflow:hidden;box-shadow:0 12px 30px rgba(2,132,199,0.22);}'
         +'.mv-hero .eyebrow{display:flex;align-items:center;gap:6px;margin-bottom:14px;font-size:10.1px;font-weight:800;letter-spacing:.045em;opacity:.82;font-family:var(--font);}'
@@ -1076,10 +1080,15 @@ function renderTransactions(){
         +'.txn-cycle-tab{height:31px;padding:0 13px;border:none;border-radius:999px;background:#f5f5fb;color:#615b79;font-size:11.2px;font-weight:700;cursor:pointer;font-family:var(--font);}'
         +'.txn-cycle-tab.active{background:#5732f3;color:#fff;box-shadow:0 8px 16px rgba(87,50,243,.18);}'
         +'.txn-cycle-list{display:flex;flex-direction:column;gap:8px;}'
-        +'.txn-cycle-entry{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 13px;border:1px solid rgba(97,89,139,.08);border-radius:15px;background:#fcfcfe;}'
-        +'.txn-cycle-dot{width:10px;height:10px;border-radius:50%;background:var(--entry-tone,#5732f3);box-shadow:0 0 0 5px color-mix(in srgb, var(--entry-tone,#5732f3) 12%, white);}'
-        +'.txn-cycle-title{font-size:13.2px;font-weight:700;color:#221c38;}'
+        +'.txn-cycle-entry{display:grid;grid-template-columns:42px 58px minmax(0,1fr) auto auto;gap:12px;align-items:center;padding:13px 14px;border:1px solid rgba(97,89,139,.08);border-radius:16px;background:#fff;box-shadow:0 4px 12px rgba(43,37,68,.025);transition:transform .16s ease,border-color .16s ease,box-shadow .16s ease;}'
+        +'.txn-cycle-entry:hover{transform:translateY(-1px);border-color:rgba(87,50,243,.14);box-shadow:0 10px 22px rgba(43,37,68,.055);}'
+        +'.txn-cycle-avatar{width:38px;height:38px;border-radius:13px;background:color-mix(in srgb, var(--entry-tone,#5732f3) 13%, white);display:flex;align-items:center;justify-content:center;}'
+        +'.txn-cycle-avatar span{width:10px;height:10px;border-radius:50%;background:var(--entry-tone,#5732f3);box-shadow:0 0 0 5px color-mix(in srgb, var(--entry-tone,#5732f3) 12%, white);}'
+        +'.txn-cycle-date{font-size:11.4px;font-weight:800;color:#7d7894;text-transform:uppercase;font-family:var(--font);}'
+        +'.txn-cycle-title{font-size:13.2px;font-weight:700;color:#221c38;display:flex;align-items:center;gap:6px;}'
         +'.txn-cycle-meta{font-size:11.4px;color:#7d7894;margin-top:4px;line-height:1.35;}'
+        +'.txn-cycle-status{height:25px;padding:0 10px;border-radius:999px;display:inline-flex;align-items:center;font-size:10.6px;font-weight:800;font-family:var(--font);}'
+        +'.txn-cycle-status.is-settled{background:#ebfff5;color:#16a34a;}.txn-cycle-status.is-pending{background:#fff7ed;color:#ea580c;}'
         +'.txn-cycle-amount{font-size:13.4px;font-weight:800;font-variant-numeric:tabular-nums;}'
         +'.txn-cycle-footer{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin-top:14px;padding-top:12px;border-top:1px solid rgba(97,89,139,.08);}'
         +'.txn-cycle-footer-label{display:block;font-size:11.4px;color:#7c7791;font-weight:700;margin-bottom:4px;}'
@@ -1125,12 +1134,12 @@ function renderTransactions(){
               +(activeMode==='mes'
                 ?'<select class="mv-period-select" onchange="txnSetMonthFilter(this.value)">'+monthOptions+'</select>'
                 :'<select class="mv-period-select" onchange="txnSetCycleFilter(this.value)">'+cycleOptions+'</select>')
-              +(state.txnInsightsCollapsed?'<button class="mv-btn mv-btn-soft" onclick="toggleTxnInsightsPanel()">Mostrar insights</button>':'')
               +'<button class="mv-btn" onclick="openRulesPanel()">Crear regla</button>'
               +'<button class="mv-btn" onclick="openNewExpenseModal()">Nuevo gasto</button>'
               +'<button class="mv-btn-primary" onclick="openCatReview()">Revisar categorías</button>'
             +'</div>'
           +'</div>'
+          +(state.txnInsightsCollapsed?'<div class="mv-ins-show-bar"><button class="mv-ins-show-btn" onclick="toggleTxnInsightsPanel()">✦ Mostrar insights</button></div>':'')
           +'<div class="mv-search-row">'
             +'<label class="mv-search"><span>🔍</span><input value="'+esc(activeSearch)+'" placeholder="Buscar descripción, monto o categoría..." oninput="txnSetSearch(this.value)"></label>'
           +'</div>'
@@ -1160,7 +1169,7 @@ function renderTransactions(){
                 +'<div class="delta '+deltaCls+'">'+(delta>=0?'+':'')+delta+'% vs. promedio</div>'
                 +'<div class="count">'+group.items.length+' movimientos</div>'
               +'</div>'
-              +'<div class="mv-day-bar"><div>Gasto del día: <strong>$'+fmtN(group.total)+'</strong></div><div>Promedio diario: <strong>$'+fmtN(avgDaily)+'</strong></div></div>'
+              +'<div class="mv-day-bar"><div>Gasto del día: <strong>$'+fmtN(group.total)+'</strong></div></div>'
               +'<div class="mv-list">'
                 +group.items.map(tx=>{
                   const cat=txnCategoryName(tx);
