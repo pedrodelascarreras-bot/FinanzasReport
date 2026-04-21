@@ -1,0 +1,80 @@
+/*
+ * ╔═══════════════════════════════════════════════════════════╗
+ * ║  DRIPFLOW — Brand Token Layer                             ║
+ * ║  Single source of truth for all brand-derived CSS values. ║
+ * ║                                                           ║
+ * ║  RULES:                                                   ║
+ * ║  • Never hardcode a hex value in a component stylesheet.  ║
+ * ║  • Always consume a --df-* variable.                      ║
+ * ║  • --df-* variables map 1-to-1 to colors.ts tokens.       ║
+ * ║  • Any UI that diverges from these values is a BUG.       ║
+ * ╚═══════════════════════════════════════════════════════════╝
+ */
+
+/* ── Load Plus Jakarta Sans (weight 500 / 600 / 700) ──────── */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&display=swap');
+
+/* ── DRIPFLOW brand custom properties ─────────────────────── */
+:root {
+  /* Colors — exact values from colors.ts */
+  --df-bg:               #0B0F1A;
+  --df-bg2:              #1A1F36;
+  --df-primary:          #2563EB;
+  --df-primary-end:      #7C3AED;    /* gradient endpoint */
+  --df-accent:           #00D4CB;
+  --df-text:             #F4F6FB;
+
+  /* Derived semantic aliases (keep in sync with colors.ts) */
+  --df-gradient:         linear-gradient(135deg, var(--df-primary) 0%, var(--df-primary-end) 100%);
+  --df-gradient-h:       linear-gradient(90deg,  var(--df-primary) 0%, var(--df-primary-end) 100%);
+  --df-primary-alpha12:  rgba(37, 99, 235, 0.12);
+  --df-primary-alpha22:  rgba(37, 99, 235, 0.22);
+  --df-primary-alpha32:  rgba(37, 99, 235, 0.32);
+  --df-purple-alpha12:   rgba(124, 58, 237, 0.12);
+  --df-purple-alpha22:   rgba(124, 58, 237, 0.22);
+  --df-accent-alpha12:   rgba(0, 212, 203, 0.12);
+  --df-accent-alpha22:   rgba(0, 212, 203, 0.22);
+
+  /* Typography — exact values from typography.ts */
+  --df-font:             'Plus Jakarta Sans', 'Inter', 'DM Sans', system-ui, -apple-system, sans-serif;
+  --df-weight-medium:    500;
+  --df-weight-semibold:  600;
+  --df-weight-bold:      700;
+
+  /* Type scale */
+  --df-text-xs:          0.625rem;
+  --df-text-sm:          0.6875rem;
+  --df-text-base:        0.8125rem;
+  --df-text-md:          0.9375rem;
+  --df-text-lg:          1.0625rem;
+  --df-text-xl:          1.375rem;
+  --df-text-2xl:         1.625rem;
+  --df-text-3xl:         2rem;
+
+  /* Tracking */
+  --df-tracking-kicker:  0.09em;
+  --df-tracking-tight:   -0.03em;
+
+  /*
+   * ── App-level overrides ─────────────────────────────────
+   * Map DRIPFLOW brand tokens onto the app's existing
+   * CSS custom-property names so all existing components
+   * automatically inherit the correct brand values.
+   *
+   * This is the ONLY place app-level variables should be
+   * re-assigned to brand token values.
+   */
+  --blue:         var(--df-primary);
+  --blue-light:   var(--df-primary-alpha12);
+  --blue-mid:     var(--df-primary-alpha22);
+  --purple:       var(--df-primary-end);
+  --purple-light: var(--df-purple-alpha12);
+  --bg:           var(--df-bg);
+  --bg2:          var(--df-bg2);
+  --text:         var(--df-text);
+  --font:         var(--df-font);
+
+  /* Accent4 (used heavily in Tendencias, etc.) → DRIPFLOW purple gradient end */
+  --accent4:       var(--df-primary-end);
+  --accent4-light: var(--df-purple-alpha12);
+}

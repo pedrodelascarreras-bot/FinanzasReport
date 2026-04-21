@@ -299,14 +299,33 @@ function addTcCycleFromCC(){
   const openEl=document.getElementById('tc-cycle-open-cc');
   const closeEl=document.getElementById('tc-cycle-close-cc');
   const dueEl=document.getElementById('tc-cycle-due-cc');
-  const label=(labelEl?labelEl.value:'').trim();
+  let label=(labelEl?labelEl.value:'').trim();
   const cardId=(cardEl?cardEl.value:'').trim();
-  const openDate=(openEl?openEl.value:'').trim();
+  let openDate=(openEl?openEl.value:'').trim();
   const closeDate=(closeEl?closeEl.value:'');
   const dueDate=(dueEl?dueEl.value:'');
   const editingId=window._tcCycleEditId||'';
-  if(!cardId||!openDate||!closeDate||!dueDate){showToast('⚠️ Completá tarjeta, apertura, cierre y vencimiento','error');return;}
-  if(!label){showToast('⚠️ Completá el nombre del ciclo','error');return;}
+  if(!cardId||!closeDate||!dueDate){showToast('⚠️ Completá tarjeta, cierre y vencimiento','error');return;}
+  if(!label){
+    const closeD=new Date(closeDate+'T12:00:00');
+    const cardName=(state.ccCards||[]).find(c=>c.id===cardId)?.name||'Tarjeta';
+    const monthLabel=closeD.toLocaleDateString('es-AR',{month:'short',year:'numeric'}).replace('.', '');
+    label=`${cardName.replace(/^Santander\s+/i,'')} · ${monthLabel}`;
+  }
+  if(!openDate){
+    const cyclesForCard=(getTcCycles()||[])
+      .filter(c=>(c.cardId||'')===cardId && c.closeDate<closeDate)
+      .sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
+    if(cyclesForCard[0]){
+      const prevClose=new Date(cyclesForCard[0].closeDate+'T12:00:00');
+      prevClose.setDate(prevClose.getDate()+1);
+      openDate=dateToYMD(prevClose);
+    }else{
+      const openD=new Date(closeDate+'T12:00:00');
+      openD.setDate(openD.getDate()-30);
+      openDate=dateToYMD(openD);
+    }
+  }
   if(openDate>closeDate){showToast('⚠️ La apertura no puede ser posterior al cierre','error');return;}
   if(dueDate<closeDate){showToast('⚠️ El vencimiento no puede ser anterior al cierre','error');return;}
   if(!state.tcCycles)state.tcCycles=[];
@@ -356,8 +375,9 @@ function editTcCycle(id){
   if(openEl) openEl.value=getTcCycleOpen(cycles, idx)||cycle.openDate||'';
   if(closeEl) closeEl.value=cycle.closeDate||'';
   if(dueEl) dueEl.value=cycle.dueDate||'';
-  labelEl?.focus();
-  labelEl?.scrollIntoView({behavior:'smooth',block:'center'});
+  const focusEl=closeEl||dueEl||labelEl;
+  focusEl?.focus();
+  focusEl?.scrollIntoView({behavior:'smooth',block:'center'});
 }
 
 function cancelTcCycleEdit(){

@@ -453,15 +453,20 @@ function toggleTendRankRow(id){
 
 // ─ Show/hide insights panel
 function setTendInsightsVisible(v){
-  state.tendInsightsOpen=v;
+  state.tendInsightsOpen=v!==false;
+  _tend_applyInsightsVisibility();
+  // Re-render insights so toggle button reflects state
+  if(state.tendInsightsOpen&&_tendInsightsArgs) _tend_drawInsights(..._tendInsightsArgs);
+}
+
+function _tend_applyInsightsVisibility(){
+  const open=state.tendInsightsOpen!==false;
   const panel=document.getElementById('tend-insights-panel');
   const showBar=document.getElementById('tend-ins-show-bar');
   const dualCol=document.querySelector('.tend-dual-col');
-  if(panel) panel.style.display=v?'flex':'none';
-  if(showBar) showBar.style.display=v?'none':'flex';
-  if(dualCol) dualCol.style.gridTemplateColumns=v?'1fr 260px':'1fr';
-  // Re-render insights so toggle button reflects state
-  if(v&&_tendInsightsArgs) _tend_drawInsights(..._tendInsightsArgs);
+  if(panel) panel.style.display=open?'flex':'none';
+  if(showBar) showBar.style.display=open?'none':'flex';
+  if(dualCol) dualCol.classList.toggle('tend-insights-hidden',!open);
 }
 
 let _tendInsightsArgs=null;
@@ -747,6 +752,7 @@ function _tend_drawInsights(currentTxns,prevTxns,sortedParents,parentDeltas,gran
   </div>`;
 
   el.innerHTML=html;
+  _tend_applyInsightsVisibility();
 }
 
 function renderTendencia(){
