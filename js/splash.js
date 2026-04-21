@@ -84,8 +84,9 @@
     content.innerHTML = `
       <div class="sp-private-shell">
         <div class="spw-topbar">
-          <div class="spw-brand df-logo">
-            <img class="df-logo-img app-header-logo" src="design-system/branding/logo.svg" alt="DRIPFLOW">
+          <div class="spw-brand df-logo" aria-label="DRIPFLOW">
+            <span class="df-logo-mark" aria-hidden="true"><span>D</span></span>
+            <span class="df-wordmark"><span class="df-drip">DRIP</span><span class="df-flow">FLOW</span></span>
           </div>
           <div class="spw-top-actions">
             <button class="spw-icon-btn" type="button" title="Buscar" onclick="handleSplashTopAction('search', event)">${iconSVG('search')}</button>

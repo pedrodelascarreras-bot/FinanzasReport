@@ -13,268 +13,203 @@ function applySavingsAccountDelta(accountId, currency, delta){
 }
 
 function renderSavingsPage(){
-  const accounts = state.savAccounts;
-  const goals    = state.savGoals;
-  const deps     = state.savDeposits || [];
-  const usdRate  = USD_TO_ARS || 1420;
+  const page = document.getElementById('page-savings');
+  if(!page) return;
+  const accounts = state.savAccounts || [];
+  const goals = state.savGoals || [];
+  const deps = state.savDeposits || [];
+  const usdRate = USD_TO_ARS || 0;
+  if(state.charts?.savHistory){ state.charts.savHistory.destroy(); state.charts.savHistory = null; }
+  if(state.charts?.savDonut){ state.charts.savDonut.destroy(); state.charts.savDonut = null; }
 
-  /* ─── Patrimonio: suma de TODAS las cuentas convertidas a ARS ─── */
-  const totalARS   = accounts.filter(a=>a.currency==='ARS').reduce((s,a)=>s+a.balance,0);
-  const totalUSD   = accounts.filter(a=>a.currency==='USD').reduce((s,a)=>s+a.balance,0);
-  const totalEquiv = totalARS + (totalUSD * usdRate); // total unificado en ARS
-
-  /* ─── Hero: mostrar el total acumulado en USD ─── */
-  const totalEquivUSD = (totalARS / usdRate) + totalUSD; // todo convertido a USD
-  const heroEl = document.getElementById('sav-hero-total');
-  if(heroEl) heroEl.textContent = 'U$D '+fmtN(totalEquivUSD, 0);
-
-  document.getElementById('sav-total-ars').textContent = '$'+fmtN(totalARS);
-  document.getElementById('sav-total-usd').textContent = 'U$D '+fmtN(totalUSD);
-
-  // Badge equivalente ARS (solo si hay USD)
-  const equivBadge = document.getElementById('sav-hero-equiv-badge');
-  // Badge: always show ARS equivalent (since hero is now USD)
-  if(usdRate > 0 && totalEquiv > 0){
-    equivBadge.style.display = 'inline-flex';
-    equivBadge.textContent   = '≈ $'+fmtN(Math.round(totalEquiv))+' ARS · TC $'+fmtN(usdRate);
-  } else {
-    equivBadge.style.display = 'none';
-  }
-
-  /* ─── Barra de distribución por cuenta ─── */
-  const barWrap = document.getElementById('sav-accounts-bar-wrap');
-  const barEl   = document.getElementById('sav-accounts-bar');
-  const barLeg  = document.getElementById('sav-accounts-bar-legend');
-  const accsWithBalance = accounts.filter(a=>a.balance>0);
-  if(accsWithBalance.length >= 2 && totalEquiv > 0){
-    barWrap.style.display = 'block';
-    barEl.innerHTML = accsWithBalance.map(a=>{
-      const val = a.currency==='USD' ? a.balance*usdRate : a.balance;
-      const pct = Math.round(val/totalEquiv*100);
-      const c   = a.color||'#888888';
-      return '<div style="width:'+pct+'%;background:'+c+';transition:width 0.6s ease;" title="'+esc(a.name)+' '+pct+'%"></div>';
-    }).join('');
-    barLeg.innerHTML = accsWithBalance.map(a=>{
-      const val = a.currency==='USD' ? a.balance*usdRate : a.balance;
-      const pct = Math.round(val/totalEquiv*100);
-      const c   = a.color||'#888888';
-      return '<div style="display:flex;align-items:center;gap:5px;font-size:11px;font-family:var(--font);">'
-        +'<div style="width:8px;height:8px;border-radius:2px;background:'+c+';flex-shrink:0;"></div>'
-        +'<span style="color:var(--text2);">'+esc(a.name)+'</span>'
-        +'<span style="color:var(--text3);">'+pct+'%</span>'
-        +'</div>';
-    }).join('');
-  } else {
-    barWrap.style.display = 'none';
-  }
-
-  /* ─── KPIs de depósitos ─── */
-  const thisYear    = new Date().getFullYear();
-  const depsARS     = deps.filter(d=>d.currency==='ARS');
-  const ytdDeps     = depsARS.filter(d=>d.month && d.month.startsWith(thisYear+''));
-  const ytdTotal    = ytdDeps.reduce((s,d)=>s+savSignedAmount(d),0);
-  const allMonths   = [...new Set(depsARS.map(d=>d.month))].sort();
-  const monthTotals = allMonths.map(m=>depsARS.filter(d=>d.month===m).reduce((s,d)=>s+savSignedAmount(d),0));
-  const avgDep      = monthTotals.length ? Math.round(monthTotals.reduce((s,v)=>s+v,0)/monthTotals.length) : 0;
-  const totalWithdrawals = depsARS.filter(d=>d.kind==='withdrawal').reduce((s,d)=>s+Math.abs(parseFloat(d.amount)||0),0);
-
-  /* ─── Promedio % de ingresos ─── */
-  // Para cada mes con depósito, buscamos el ingreso registrado en state.incomeMonths
+  const money = (amount,currency='USD',dec=2)=>{
+    if(!Number.isFinite(Number(amount))) return '—';
+    return currency === 'USD' ? 'USD '+fmtN(Number(amount),dec) : '$'+fmtN(Number(amount),dec);
+  };
+  const signedMoney = dep=>{
+    const signed = savSignedAmount(dep);
+    return (signed < 0 ? '-' : '+') + money(Math.abs(signed), dep.currency || 'ARS');
+  };
+  const toUsd = (amount,currency)=>currency === 'USD' ? Number(amount)||0 : (usdRate>0 ? (Number(amount)||0)/usdRate : 0);
+  const toArs = (amount,currency)=>currency === 'USD' ? (Number(amount)||0)*usdRate : Number(amount)||0;
+  const totalARS = accounts.filter(a=>a.currency==='ARS').reduce((s,a)=>s+(Number(a.balance)||0),0);
+  const totalUSD = accounts.filter(a=>a.currency==='USD').reduce((s,a)=>s+(Number(a.balance)||0),0);
+  const totalEquivUSD = totalUSD + (usdRate>0 ? totalARS/usdRate : 0);
+  const totalEquivARS = totalARS + (totalUSD*usdRate);
+  const allMonths = [...new Set(deps.map(d=>d.month).filter(Boolean))].sort();
+  const thisYear = new Date().getFullYear();
+  const ytdDeposits = deps.filter(d=>d.kind!=='withdrawal' && d.month && d.month.startsWith(String(thisYear)));
+  const ytdDepositUsd = ytdDeposits.reduce((s,d)=>s+toUsd(Math.abs(Number(d.amount)||0), d.currency||'ARS'),0);
+  const depositMonths = [...new Set(ytdDeposits.map(d=>d.month).filter(Boolean))];
+  const monthlyDepositUsd = depositMonths.map(month=>
+    ytdDeposits.filter(d=>d.month===month).reduce((s,d)=>s+toUsd(Math.abs(Number(d.amount)||0), d.currency||'ARS'),0)
+  );
+  const avgMonthlyUsd = monthlyDepositUsd.length ? monthlyDepositUsd.reduce((s,v)=>s+v,0)/monthlyDepositUsd.length : 0;
   const incMonths = {};
-  (state.incomeMonths||[]).forEach(m=>{ incMonths[m.month]={total:(m.sources?Object.values(m.sources).reduce((s,v)=>s+v,0):0)}; });
-  const rateValues = allMonths.map(m=>{
-    const dep = depsARS.filter(d=>d.month===m).reduce((s,d)=>s+savSignedAmount(d),0);
-    const inc = incMonths[m]?.total || 0;
-    return inc > 0 ? dep/inc*100 : null;
+  (state.incomeMonths||[]).forEach(m=>{
+    const total = typeof getMonthTotalARS === 'function' ? getMonthTotalARS(m) : (m.sources?Object.values(m.sources).reduce((s,v)=>s+(Number(v)||0),0):0);
+    incMonths[m.month] = total;
+  });
+  const rateValues = depositMonths.map(month=>{
+    const income = incMonths[month] || 0;
+    const savedArs = ytdDeposits.filter(d=>d.month===month).reduce((s,d)=>s+toArs(Math.abs(Number(d.amount)||0), d.currency||'ARS'),0);
+    return income > 0 ? (savedArs/income)*100 : null;
   }).filter(v=>v!==null);
   const avgRate = rateValues.length ? Math.round(rateValues.reduce((s,v)=>s+v,0)/rateValues.length) : null;
-
-  // Badge % ingreso en hero
-  const statIncPct = document.getElementById('sav-stat-inc-pct');
-  const incPctVal  = document.getElementById('sav-inc-pct-val');
-  if(avgRate !== null){
-    statIncPct.style.display = 'flex';
-    incPctVal.textContent    = avgRate+'%';
-    incPctVal.style.color    = avgRate>=20 ? 'var(--accent)' : avgRate>=10 ? 'var(--accent3)' : 'var(--danger)';
-  } else {
-    statIncPct.style.display = 'none';
-  }
-
-  /* ─── Racha ─── */
-  let streak = 0;
-  const sortedDesc = [...allMonths].sort().reverse();
-  let cur = getMonthKey(new Date());
-  for(const m of sortedDesc){
-    if(m===cur){ streak++;
-      const[y,mo]=cur.split('-').map(Number);
-      cur=getMonthKey(new Date(y,mo-2,1));
-    } else break;
-  }
-  const streakEl = document.getElementById('sav-streak');
-  if(streakEl){
-    if(streak>=2){ streakEl.style.display='inline-flex'; streakEl.textContent='🔥 '+streak+' meses seguidos ahorrando'; }
-    else { streakEl.style.display='none'; }
-  }
-
-  /* ─── Texto subtítulo ─── */
-  const subEl = document.getElementById('sav-page-sub');
-  if(subEl){
-    const flowCopy = totalWithdrawals>0 ? ' · uso de ahorros: $'+fmtN(totalWithdrawals) : '';
-    subEl.textContent = accounts.length+' cuenta'+(accounts.length!==1?'s':'')+' · '+allMonths.length+' mes'+(allMonths.length!==1?'es':'')+' con movimientos'+(avgRate!==null?' · '+avgRate+'% tasa neta promedio':'')+flowCopy;
-  }
-
-  /* ─── KPI cards ─── */
-  document.getElementById('sav-kpi-year').textContent     = (ytdTotal>=0 ? '$'+fmtN(ytdTotal) : '-$'+fmtN(Math.abs(ytdTotal)));
-  document.getElementById('sav-kpi-year-sub').textContent = ytdDeps.length+' movimiento'+(ytdDeps.length!==1?'s':'')+' en '+thisYear;
-  document.getElementById('sav-kpi-avg').textContent      = (avgDep>=0 ? '$'+fmtN(avgDep) : '-$'+fmtN(Math.abs(avgDep)));
-  document.getElementById('sav-kpi-avg-sub').textContent  = monthTotals.length+' mes'+(monthTotals.length!==1?'es':'')+' con registro'+(streak>=2?' · 🔥 '+streak+' racha':'');
-  const rateEl    = document.getElementById('sav-kpi-rate');
-  const rateSubEl = document.getElementById('sav-kpi-rate-sub');
-  if(avgRate!==null){
-    rateEl.textContent    = avgRate+'%';
-    rateEl.style.color    = avgRate>=20 ? 'var(--accent)' : avgRate>=10 ? 'var(--accent3)' : 'var(--danger)';
-    rateSubEl.textContent = rateValues.length+' mes'+(rateValues.length!==1?'es':'')+' con ingreso registrado · '+(avgRate>=20?'💪 Excelente':avgRate>=10?'👍 Bueno':'⚠️ Mejorable');
-  } else {
-    rateEl.textContent    = '—';
-    rateSubEl.textContent = 'Registrá ingresos en la sección Ingresos para ver este dato';
-  }
-
-  /* ─── Cuentas ─── */
-  const agEl = document.getElementById('sav-accounts-grid');
-  if(accounts.length){
-    if(accounts.length===1) agEl.style.gridTemplateColumns='minmax(280px, 360px)';
-    else if(accounts.length===2) agEl.style.gridTemplateColumns='repeat(2, minmax(260px, 1fr))';
-    else if(accounts.length===3) agEl.style.gridTemplateColumns='repeat(3, minmax(220px, 1fr))';
-    else agEl.style.gridTemplateColumns='repeat(auto-fill,minmax(210px,1fr))';
-    agEl.innerHTML = accounts.map(a=>{
-      const c = a.color||'#888888';
-      const typeEmoji = {banco:'🏦',billetera:'📱',efectivo:'💵',inversion:'📈',cripto:'🔷',otro:'💰'}[a.type]||'💰';
-      const yieldInfo = a.yieldPct ? '<div style="font-size:11px;font-family:var(--font);color:var(--accent3);margin-top:3px;">+'+a.yieldPct+'% anual</div>' : '';
-      // Equivalente en ARS si es USD
-      const equivInfo = (a.currency==='USD'&&a.balance>0)
-        ? '<div style="font-size:11px;font-family:var(--font);color:var(--text3);margin-top:2px;">≈ $'+fmtN(Math.round(a.balance*usdRate))+' ARS</div>' : '';
-      const accDeps  = deps.filter(d=>d.accountId===a.id&&d.currency===a.currency);
-      const depCount = accDeps.length;
-      const accNet   = accDeps.reduce((s,d)=>s+savSignedAmount(d),0);
-      const depInfo  = depCount ? '<div style="font-size:11px;font-family:var(--font);color:var(--text3);margin-top:3px;">'+depCount+' movimiento'+(depCount!==1?'s':'')+' · '+(accNet>=0?'+':'-')+(a.currency==='USD'?'U$D ':'$')+fmtN(Math.abs(accNet))+'</div>' : '';
-      return '<div class="sav-account-card" onclick="editSavAccount(\''+a.id+'\')">'
-        +'<div class="sav-account-accent" style="background:'+c+';"></div>'
-        +'<div class="sav-account-header"><div class="sav-account-icon" style="background:'+c+'22;">'+esc(a.emoji||typeEmoji)+'</div>'
-        +'<div><div class="sav-account-name">'+esc(a.name)+'</div><div class="sav-account-type">'+esc(a.type)+'</div></div>'
-        +'<button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="event.stopPropagation();editSavAccount(\''+a.id+'\')">✎</button></div>'
-        +'<div class="sav-account-balance" style="color:'+c+';">'+(a.currency==='USD'?'U$D ':'$')+fmtN(a.balance)+'</div>'
-        +'<div class="sav-account-currency">'+a.currency+equivInfo+yieldInfo+depInfo+'</div></div>';
-    }).join('');
-  } else {
-    agEl.style.gridTemplateColumns='1fr';
-    agEl.innerHTML = '<div class="empty-state" style="padding:40px;grid-column:1/-1;"><div class="empty-icon">🏦</div><div class="empty-title">Sin cuentas</div><div class="empty-sub">Agregá tus cuentas de ahorro</div></div>';
-  }
-
-  /* ─── Metas (current = suma de TODAS las cuentas) ─── */
-  const ggEl = document.getElementById('sav-goals-grid');
-  const _allAccARS = accounts.filter(a=>a.currency==='ARS').reduce((s,a)=>s+a.balance,0);
-  const _allAccUSD = accounts.filter(a=>a.currency==='USD').reduce((s,a)=>s+a.balance,0);
-  if(goals.length){
-    if(goals.length===1) ggEl.style.gridTemplateColumns='minmax(320px, 420px)';
-    else if(goals.length===2) ggEl.style.gridTemplateColumns='repeat(2, minmax(300px, 1fr))';
-    else if(goals.length===3) ggEl.style.gridTemplateColumns='repeat(3, minmax(240px, 1fr))';
-    else ggEl.style.gridTemplateColumns='repeat(auto-fill,minmax(250px,1fr))';
-    ggEl.innerHTML = goals.map(g=>{
-      const c   = g.color||'#34c759';
-      const gCurrent = g.currency==='USD'
-        ? _allAccUSD + (_allAccARS / usdRate)
-        : _allAccARS + (_allAccUSD * usdRate);
-      const pct = g.target>0 ? Math.min(100,Math.round(gCurrent/g.target*100)) : 0;
-      const rem = Math.max(0,g.target-gCurrent);
-      let etaText = '';
-      if(g.deadline){const dl=new Date(g.deadline+'-01');const mLeft=Math.round((dl-new Date())/(30*24*3600*1000));etaText=mLeft>0?'Faltan '+mLeft+' meses':'Vencida';}
-      if(rem>0&&avgDep>0){const mn=Math.ceil(rem/avgDep);etaText+=(etaText?' · ':'')+mn+' mes'+(mn!==1?'es':'')+' al ritmo actual';}
-      else if(rem<=0) etaText='¡Meta alcanzada! 🎉';
-      const motivMsg = pct>=100?'🎉 ¡Completada!':pct>=75?'🔥 ¡Casi llegás!':pct>=50?'💪 Vas a la mitad':pct>=25?'🚀 Buen inicio':'✨ Cada peso cuenta';
-      return '<div class="sav-goal-card" onclick="editSavGoal(\''+g.id+'\')" style="background:linear-gradient(180deg, '+c+'18, rgba(255,255,255,0.02)), var(--surface-solid);border-color:'+c+'33;">'
-        +'<div class="sav-goal-accent" style="background:'+c+';"></div>'
-        +'<div class="sav-goal-body"><div class="sav-goal-emoji" style="display:inline-flex;align-items:center;justify-content:center;width:42px;height:42px;border-radius:14px;background:'+c+'18;">'+esc(g.emoji||'🎯')+'</div>'
-        +'<div class="sav-goal-name">'+esc(g.name)+'</div>'
-        +'<div class="sav-goal-target">Meta: '+(g.currency==='USD'?'U$D ':'$')+fmtN(g.target)+'</div>'
-        +'<div class="sav-goal-amounts"><div class="sav-goal-current" style="color:'+c+';">'+(g.currency==='USD'?'U$D ':'$')+fmtN(Math.round(gCurrent))+'</div><div class="sav-goal-of">de '+(g.currency==='USD'?'U$D ':'$')+fmtN(g.target)+'</div></div>'
-        +'<div class="sav-goal-bar"><div class="sav-goal-fill" style="width:'+pct+'%;background:'+c+';"></div></div>'
-        +'<div style="display:flex;justify-content:space-between;align-items:center;"><div class="sav-goal-pct">'+pct+'% completado</div><div style="font-size:11px;color:'+c+';font-weight:700;">'+motivMsg+'</div></div></div>'
-        +'<div class="sav-goal-footer"><div class="sav-goal-eta">'+esc(etaText)+'</div>'
-        +'<button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="event.stopPropagation();editSavGoal(\''+g.id+'\')">✎</button></div></div>';
-    }).join('');
-  } else {
-    ggEl.style.gridTemplateColumns='1fr';
-    ggEl.innerHTML = '<div class="empty-state" style="padding:40px;grid-column:1/-1;"><div class="empty-icon">🎯</div><div class="empty-title">Sin metas</div><div class="empty-sub">Creá tu primera meta de ahorro</div></div>';
-  }
-
-  /* ─── Gráfico de barras: depósitos por mes ─── */
-  if(state.charts.savHistory) state.charts.savHistory.destroy();
-  const ctx = document.getElementById('chart-sav-history');
-  if(ctx){
-    if(allMonths.length){
-      const labels = allMonths.map(m=>{const[y,mo]=m.split('-');return new Date(parseInt(y),parseInt(mo)-1,1).toLocaleDateString('es-AR',{month:'short',year:'2-digit'});});
-      const maxV   = Math.max(...monthTotals.map(v=>Math.abs(v)),1);
-      const bgColors = monthTotals.map(v=>v<0?'rgba(255,107,107,0.38)':Math.abs(v)===maxV?'rgba(96,200,240,0.55)':'rgba(96,200,240,0.25)');
-      const bdColors = monthTotals.map(v=>v<0?'#ff6b6b':Math.abs(v)===maxV?'#34c759':'rgba(96,200,240,0.5)');
-      state.charts.savHistory = new Chart(ctx,{type:'bar',data:{labels,datasets:[
-        {label:'Ahorro ARS',data:monthTotals,backgroundColor:bgColors,borderColor:bdColors,borderWidth:2,borderRadius:8,maxBarThickness:42}
-      ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>(c.parsed.y>=0?' $':' -$')+fmtN(Math.abs(c.parsed.y))+' ARS'+(Math.abs(c.parsed.y)===maxV?' 🏆 pico':'')}}},scales:{x:{grid:{display:false},ticks:{color:_chartTickColor(),font:_chartTickFont()}},y:{grid:_chartGridY(),ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>(v>=0?'$':'-$')+fmtN(Math.abs(v))}}}}});
-    } else {
-      const c2d = ctx.getContext('2d');
-      ctx.height=80;
-      c2d.fillStyle='#1d1d1f';c2d.font="13px -apple-system,'SF Pro Display',sans-serif";c2d.textAlign='center';
-      c2d.fillText('Registrá depósitos para ver el historial',ctx.width/2,50);
+  const monthNow = getMonthKey(new Date());
+  const movementsThisMonth = deps.filter(d=>d.month===monthNow).length;
+  const sortedMoves = [...deps].sort((a,b)=>(b.month||'').localeCompare(a.month||'') || String(b.id||'').localeCompare(String(a.id||'')));
+  const recentMove = sortedMoves[0] || null;
+  const accountById = id => accounts.find(a=>a.id===id) || null;
+  const accountMovementSummary = account=>{
+    const accMoves = deps.filter(d=>d.accountId===account.id && (d.currency||account.currency)===account.currency);
+    if(!accMoves.length) return 'Sin movimientos';
+    const net = accMoves.reduce((s,d)=>s+savSignedAmount(d),0);
+    return accMoves.length+' movimiento'+(accMoves.length!==1?'s':'')+' - '+money(Math.abs(net), account.currency);
+  };
+  const goalCurrent = goal=>{
+    if(goal.accountId){
+      const acc = accountById(goal.accountId);
+      return acc ? (goal.currency==='USD' ? toUsd(acc.balance,acc.currency) : toArs(acc.balance,acc.currency)) : 0;
     }
-  }
+    return goal.currency==='USD' ? totalEquivUSD : totalEquivARS;
+  };
+  const goalModels = goals.map(g=>{
+    const current = goalCurrent(g);
+    const pct = g.target > 0 ? Math.min(100,Math.round((current/g.target)*100)) : 0;
+    return {...g,current,pct};
+  });
+  const bestGoal = goalModels.length ? [...goalModels].sort((a,b)=>b.pct-a.pct)[0] : null;
+  const savingsTargetUsd = Number(state.savMonthlyTargetUsd || state.savingsMonthlyTargetUsd || 500);
+  const annualProjectionUsd = avgMonthlyUsd > 0 ? avgMonthlyUsd * 12 : totalEquivUSD * 12;
 
-  /* ─── Donut por cuenta ─── */
-  if(state.charts.savDonut) state.charts.savDonut.destroy();
-  const ctxD = document.getElementById('chart-sav-donut');
-  const arsAccounts = accounts.filter(a=>a.currency==='ARS'&&a.balance>0);
-  if(ctxD&&arsAccounts.length){
-    const accLabels = arsAccounts.map(a=>a.name);
-    const accVals   = arsAccounts.map(a=>a.balance);
-    const accColors = arsAccounts.map(a=>a.color||'#888888');
-    state.charts.savDonut = new Chart(ctxD,{type:'doughnut',data:{labels:accLabels,datasets:[{data:accVals,backgroundColor:accColors.map(c=>c+'cc'),borderColor:accColors,borderWidth:2,hoverOffset:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>' $'+fmtN(c.parsed)+' ARS'}}},cutout:'62%'}});
-    const legEl = document.getElementById('sav-donut-legend');
-    if(legEl){
-      const total = accVals.reduce((s,v)=>s+v,0);
-      legEl.innerHTML = accLabels.map((name,i)=>{
-        const pct = total>0?Math.round(accVals[i]/total*100):0;
-        return '<div style="display:flex;align-items:center;gap:7px;">'
-          +'<div style="width:9px;height:9px;border-radius:3px;background:'+accColors[i]+';flex-shrink:0;"></div>'
-          +'<div style="flex:1;font-size:12px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(name)+'</div>'
-          +'<div style="font-size:11px;font-family:var(--font);color:var(--text3);">'+pct+'%</div>'
-          +'</div>';
-      }).join('');
-    }
-  }
+  const iconForAccount = account => esc(account.emoji || ({banco:'🏦',billetera:'📱',efectivo:'💵',inversion:'📈',cripto:'🔷',otro:'💰'}[account.type]||'🏦'));
+  const statCard = (tone,icon,title,value,sub)=>`
+    <article class="sav2-stat-card">
+      <div class="sav2-stat-icon ${tone}">${icon}</div>
+      <div>
+        <div class="sav2-stat-title">${title}</div>
+        <div class="sav2-stat-value">${value}</div>
+        <div class="sav2-stat-sub">${sub}</div>
+      </div>
+    </article>`;
+  const accountCard = (account,index)=>{
+    const color = account.color || (index===1?'#ff3b30':'#6d4aff');
+    return `<article class="sav2-list-card" onclick="editSavAccount('${account.id}')">
+      <div class="sav2-avatar" style="background:${color}16;color:${color};">${iconForAccount(account)}</div>
+      <div class="sav2-list-main">
+        <div class="sav2-list-name">${esc(account.name)}</div>
+        <div class="sav2-list-sub">${esc(account.type||'Banco')}</div>
+        <div class="sav2-account-value" style="color:${color};">${money(Number(account.balance)||0, account.currency)}</div>
+        <div class="sav2-list-foot">${accountMovementSummary(account)}</div>
+      </div>
+      <button class="sav2-menu-btn" onclick="event.stopPropagation();editSavAccount('${account.id}')">⋯</button>
+    </article>`;
+  };
+  const goalCard = (goal,index)=>{
+    const color = goal.color || (index===1?'#1497e8':'#f5a623');
+    return `<article class="sav2-list-card sav2-goal-card" onclick="editSavGoal('${goal.id}')">
+      <div class="sav2-avatar" style="background:${color}16;color:${color};">${esc(goal.emoji||'🎯')}</div>
+      <div class="sav2-list-main">
+        <div class="sav2-goal-head">
+          <div>
+            <div class="sav2-list-name">${esc(goal.name)}</div>
+            <div class="sav2-list-sub">Meta: ${money(Number(goal.target)||0, goal.currency)}</div>
+          </div>
+          <button class="sav2-menu-btn" onclick="event.stopPropagation();editSavGoal('${goal.id}')">⋯</button>
+        </div>
+        <div class="sav2-goal-row">
+          <div class="sav2-goal-value" style="color:${color};">${money(goal.current||0, goal.currency)}</div>
+          <div class="sav2-goal-pct">${goal.pct}%</div>
+        </div>
+        <div class="sav2-progress"><span style="width:${goal.pct}%;background:${color};"></span></div>
+        <div class="sav2-list-foot">${goal.pct}% completado</div>
+      </div>
+    </article>`;
+  };
+  const recentHtml = recentMove ? (()=>{
+    const account = accountById(recentMove.accountId);
+    const isOut = savSignedAmount(recentMove) < 0;
+    const monthLabel = recentMove.month ? new Date(recentMove.month+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'}) : 'Sin fecha';
+    return `<article class="sav2-activity-card" onclick="editSavDeposit('${recentMove.id}')">
+      <div class="sav2-activity-icon">${isOut?'↘':'↗'}</div>
+      <div class="sav2-activity-copy">
+        <div class="sav2-activity-title">${isOut?'Uso de ahorros':'Aporte a ahorros'} <span>${monthLabel}</span></div>
+        <div class="sav2-activity-sub">${esc(recentMove.note || (isOut?'Pago de TC':'Movimiento'))}${account?' · '+esc(account.name):''}</div>
+      </div>
+      <div class="sav2-activity-amount ${isOut?'out':'in'}">${signedMoney(recentMove)}</div>
+    </article>`;
+  })() : '<div class="sav2-empty">Sin actividad reciente</div>';
 
-  const movesEl = document.getElementById('sav-movements-list');
-  if(movesEl){
-    const sortedMoves = [...deps].sort((a,b)=>(b.month||'').localeCompare(a.month||'') || String(b.id).localeCompare(String(a.id)));
-    if(!sortedMoves.length){
-      movesEl.innerHTML = '<div class="premium-empty-state" style="padding:32px 24px;"><div class="premium-empty-icon">💸</div><div class="empty-title">Sin movimientos registrados</div><div class="empty-sub">Acá vas a ver aportes y usos de ahorros en orden.</div></div>';
-    } else {
-      movesEl.innerHTML = sortedMoves.slice(0,18).map(d=>{
-        const signed = savSignedAmount(d);
-        const isOut = signed < 0;
-        const tone = isOut ? '#ff6b6b' : '#34c759';
-        const kindLabel = isOut ? 'Uso de ahorros' : 'Aporte';
-        const monthLabel = d.month ? new Date(d.month+'-01T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'}) : 'Sin mes';
-        const account = d.accountId ? state.savAccounts.find(a=>a.id===d.accountId) : null;
-        return '<button type="button" onclick="editSavDeposit(\''+d.id+'\')" style="width:100%;display:flex;align-items:flex-start;gap:14px;padding:16px 18px;border:none;border-bottom:1px solid var(--border);background:transparent;text-align:left;cursor:pointer;">'
-          +'<div style="width:40px;height:40px;border-radius:12px;background:'+tone+'18;color:'+tone+';display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0;">'+(isOut?'↘':'↗')+'</div>'
-          +'<div style="flex:1;min-width:0;">'
-            +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;"><div style="font-size:14px;font-weight:700;color:var(--text);">'+kindLabel+'</div><div style="font-size:11px;color:'+tone+';font-weight:700;">'+monthLabel+'</div></div>'
-            +'<div style="font-size:12px;color:var(--text2);margin-top:3px;">'+(d.note?esc(d.note):'Sin nota')+(account?' · '+esc(account.name):'')+'</div>'
-          +'</div>'
-          +'<div style="font-size:18px;font-weight:800;color:'+tone+';font-family:var(--font);flex-shrink:0;">'+(signed>=0?'+':'-')+(d.currency==='USD'?'U$D ':'$')+fmtN(Math.abs(signed))+'</div>'
-        +'</button>';
-      }).join('');
-    }
-  }
+  page.innerHTML = `
+    <div class="sav2-shell">
+      <header class="sav2-header">
+        <div>
+          <h1>Ahorros</h1>
+          <p>${accounts.length} cuenta${accounts.length!==1?'s':''} · ${allMonths.length} mes${allMonths.length!==1?'es':''} con movimientos</p>
+        </div>
+        <div class="sav2-actions">
+          <button class="sav2-btn" onclick="openSavAccountModal()">🏦 Nueva cuenta</button>
+          <button class="sav2-btn" onclick="openSavGoalModal()">🎯 Nueva meta</button>
+          <button class="sav2-btn-primary" onclick="openSavDepositModal()">+ Registrar movimiento</button>
+        </div>
+      </header>
 
+      <section class="sav2-top-grid">
+        <article class="sav2-feature-card">
+          <div class="sav2-feature-label">Total acumulado</div>
+          <div class="sav2-feature-currency">USD</div>
+          <div class="sav2-feature-amount">${fmtN(totalEquivUSD,2)}</div>
+          <div class="sav2-feature-pill">= $${fmtN(Math.round(totalEquivARS),2)} ARS - TC $${fmtN(usdRate,2)}</div>
+          <div class="sav2-split-card">
+            <div><span>ARS</span><strong>$${fmtN(totalARS,2)}</strong></div>
+            <div><span>USD</span><strong class="usd">USD ${fmtN(totalUSD,2)}</strong></div>
+          </div>
+          <div class="sav2-vault-art" aria-hidden="true">
+            <span class="leaf l1"></span><span class="leaf l2"></span>
+            <span class="coin c1"></span><span class="coin c2"></span><span class="coin c3"></span><span class="coin c4"></span>
+            <span class="safe"><i></i><b></b></span>
+          </div>
+        </article>
+
+        <div class="sav2-summary-block">
+          <div class="sav2-section-head"><h2>Resumen rápido</h2><button>Ver detalle</button></div>
+          <div class="sav2-stat-grid">
+            ${statCard('green','🏛','Depositado este año',money(ytdDepositUsd,'USD'),ytdDeposits.length+' movimiento'+(ytdDeposits.length!==1?'s':''))}
+            ${statCard('orange','⚙','Promedio mensual ahorrado',money(avgMonthlyUsd,'USD'),depositMonths.length+' mes'+(depositMonths.length!==1?'es':'')+' con registro')}
+            ${statCard('purple','▟','Tasa de ahorro promedio',avgRate!==null?avgRate+'%':'—',avgRate!==null?rateValues.length+' mes'+(rateValues.length!==1?'es':'')+' con ingreso registrado':'Registrá ingresos para ver este dato')}
+          </div>
+
+          <div class="sav2-duo-grid">
+            <section>
+              <div class="sav2-section-head compact"><h2>Mis cuentas</h2><button>Ver todas</button></div>
+              <div class="sav2-list-stack">
+                ${accounts.slice(0,2).map(accountCard).join('') || '<div class="sav2-empty">Sin cuentas registradas</div>'}
+              </div>
+            </section>
+            <section>
+              <div class="sav2-section-head compact"><h2>Metas de ahorro</h2><button>Ver todas</button></div>
+              <div class="sav2-list-stack">
+                ${goalModels.slice(0,2).map(goalCard).join('') || '<div class="sav2-empty">Sin metas de ahorro</div>'}
+              </div>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="sav2-activity-section">
+        <div class="sav2-section-head compact"><h2>Actividad reciente</h2><button>Ver todo</button></div>
+        ${recentHtml}
+      </section>
+
+      <section class="sav2-bottom-strip">
+        <div><span>Liquidez total</span><strong>${money(totalEquivUSD,'USD')}</strong><small>Disponible para usar</small></div>
+        <div><span>Movimientos este mes</span><strong>${movementsThisMonth}</strong><small>Últimos 30 días</small></div>
+        <div class="with-icon"><i>⚙</i><span>Mejor meta</span><strong>${bestGoal?esc(bestGoal.name):'—'}</strong><small>${bestGoal?bestGoal.pct+'% completado':'Sin metas'}</small></div>
+        <div><span>Ahorro mensual objetivo</span><strong>${money(savingsTargetUsd,'USD')}</strong><small>Sugerido personalizable</small></div>
+        <div><span>Proyección anual</span><strong>${money(annualProjectionUsd,'USD')}</strong><small>Si mantenés el hábito</small></div>
+      </section>
+    </div>`;
 }
 
 // ── Depósitos CRUD ──

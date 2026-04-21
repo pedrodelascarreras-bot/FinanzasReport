@@ -214,6 +214,12 @@ function animateNumberText(el,value,opts={}){
   };
   _animFrameMap.set(el,requestAnimationFrame(tick));
 }
+function cancelNumberTextAnimation(el){
+  if(!el)return;
+  const prev=_animFrameMap.get(el);
+  if(prev)cancelAnimationFrame(prev);
+  _animFrameMap.delete(el);
+}
 function animateProgressBar(el,targetPct){
   if(!el)return;
   const pct=Math.max(0,Math.min(100,Number(targetPct)||0));

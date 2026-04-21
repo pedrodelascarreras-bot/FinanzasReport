@@ -19,7 +19,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260421f">
+<link rel="stylesheet" href="css/styles.css?v=20260421k">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -355,7 +355,7 @@
             <div class="db2-hero-main-amt" id="kpi-ars">—</div>
             <div class="db2-hero-usd-sub" id="dhc-usd-line">—</div>
             <div id="dhc-pct-inline" class="db2-hero-pct"></div>
-            <div id="dhc-third-party-note" style="display:none;font-size:11px;color:var(--text3);margin-top:2px;"></div>
+            <div id="dhc-third-party-note" style="display:none;font-size:13px;font-weight:700;line-height:1.35;color:var(--text3);margin-top:4px;"></div>
 
             <div class="db2-hero-dots" aria-hidden="true">
               <span></span><span></span><span></span><span></span><span></span><span></span>
@@ -413,32 +413,44 @@
             <!-- VISA -->
             <div class="db2-cc-item" id="db2-cc-visa-item">
               <div class="db2-cc-name db2-cc-name-visa">
-                VISA <span class="db2-cc-dots">····</span>
+                VISA
               </div>
-              <div class="db2-cc-dates-row">
-                <div class="db2-cc-date-cell"><span class="db2-cc-date-label">Abre</span><span class="db2-cc-date-val" id="db2-visa-open">—</span></div>
-                <div class="db2-cc-date-cell"><span class="db2-cc-date-label">Cierra</span><span class="db2-cc-date-val" id="db2-visa-close">—</span></div>
-                <div class="db2-cc-date-cell"><span class="db2-cc-date-label">Vence</span><span class="db2-cc-date-val" id="db2-visa-due">—</span></div>
+              <div class="db2-cc-cycle-main">
+                <div class="db2-cc-dates-and-bar">
+                  <div class="db2-cc-dates-row">
+                    <div class="db2-cc-date-cell"><span class="db2-cc-date-label"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Abre</span><span class="db2-cc-date-val" id="db2-visa-open">—</span></div>
+                    <div class="db2-cc-date-cell"><span class="db2-cc-date-label"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Cierra</span><span class="db2-cc-date-val" id="db2-visa-close">—</span></div>
+                    <div class="db2-cc-date-cell"><span class="db2-cc-date-label"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Vence</span><span class="db2-cc-date-val" id="db2-visa-due">—</span></div>
+                  </div>
+                  <div class="db2-cc-bar-track"><div class="db2-cc-bar-fill" id="db2-visa-bar" style="width:0%"></div></div>
+                </div>
+                <div class="db2-cc-amount-side">
+                  <div class="db2-cc-amt" id="kpi-visa-ars">—</div>
+                  <div class="db2-cc-amt-usd" id="kpi-visa-usd"></div>
+                  <div class="db2-cc-days" id="db2-visa-days">—</div>
+                </div>
               </div>
-              <div class="db2-cc-amt" id="kpi-visa-ars">—</div>
-              <div class="db2-cc-amt-usd" id="kpi-visa-usd"></div>
-              <div class="db2-cc-bar-track"><div class="db2-cc-bar-fill" id="db2-visa-bar" style="width:0%"></div></div>
-              <div class="db2-cc-days" id="db2-visa-days">—</div>
             </div>
             <!-- AMEX -->
             <div class="db2-cc-item db2-cc-item-amex" id="db2-cc-amex-item">
               <div class="db2-cc-name db2-cc-name-amex">
-                AMEX <span class="db2-cc-dots">····</span>
+                AMEX
               </div>
-              <div class="db2-cc-dates-row">
-                <div class="db2-cc-date-cell"><span class="db2-cc-date-label">Abre</span><span class="db2-cc-date-val" id="db2-amex-open">—</span></div>
-                <div class="db2-cc-date-cell"><span class="db2-cc-date-label">Cierra</span><span class="db2-cc-date-val" id="db2-amex-close">—</span></div>
-                <div class="db2-cc-date-cell"><span class="db2-cc-date-label">Vence</span><span class="db2-cc-date-val" id="db2-amex-due">—</span></div>
+              <div class="db2-cc-cycle-main">
+                <div class="db2-cc-dates-and-bar">
+                  <div class="db2-cc-dates-row">
+                    <div class="db2-cc-date-cell"><span class="db2-cc-date-label"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Abre</span><span class="db2-cc-date-val" id="db2-amex-open">—</span></div>
+                    <div class="db2-cc-date-cell"><span class="db2-cc-date-label"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Cierra</span><span class="db2-cc-date-val" id="db2-amex-close">—</span></div>
+                    <div class="db2-cc-date-cell"><span class="db2-cc-date-label"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Vence</span><span class="db2-cc-date-val" id="db2-amex-due">—</span></div>
+                  </div>
+                  <div class="db2-cc-bar-track"><div class="db2-cc-bar-fill" id="db2-amex-bar" style="width:0%;background:#0066b2"></div></div>
+                </div>
+                <div class="db2-cc-amount-side">
+                  <div class="db2-cc-amt" id="kpi-amex-ars">—</div>
+                  <div class="db2-cc-amt-usd" id="kpi-amex-usd"></div>
+                  <div class="db2-cc-days" id="db2-amex-days">—</div>
+                </div>
               </div>
-              <div class="db2-cc-amt" id="kpi-amex-ars">—</div>
-              <div class="db2-cc-amt-usd" id="kpi-amex-usd"></div>
-              <div class="db2-cc-bar-track"><div class="db2-cc-bar-fill" id="db2-amex-bar" style="width:0%;background:#0066b2"></div></div>
-              <div class="db2-cc-days" id="db2-amex-days">—</div>
             </div>
           </div>
           <div id="kpi-cycle-caption" style="display:none"></div>
@@ -601,7 +613,7 @@
               </div>
               <span class="db2-title">Agenda Viva</span>
             </div>
-            <button class="db2-link" id="timeline-card-pill" onclick="nav('calendar')">3 eventos →</button>
+            <button class="db2-link" id="timeline-card-pill" onclick="nav('calendar')">4 eventos →</button>
           </div>
           <div class="db2-agenda-list" id="db2-agenda-list">
             <!-- populated by JS -->
@@ -3395,22 +3407,22 @@
 <script src="js/config.js"></script>
 <script src="js/state.js"></script>
 <script src="js/i18n.js"></script>
-<script src="js/utils.js?v=20260420a"></script>
+<script src="js/utils.js?v=20260421i"></script>
 <script src="js/import.js"></script>
-<script src="js/dashboard.js?v=20260421d"></script>
+<script src="js/dashboard.js?v=20260421m"></script>
 <script src="js/transactions.js?v=20260421e"></script>
 <script src="js/analytics.js"></script>
-<script src="js/expenses.js?v=20260421e"></script>
+<script src="js/expenses.js?v=20260421f"></script>
 <script src="js/income.js?v=20260421d"></script>
-<script src="js/savings.js"></script>
+<script src="js/savings.js?v=20260421a"></script>
 <script src="js/categories.js"></script>
 <script src="js/reports.js"></script>
 <script src="js/balance.20260407j.js"></script>
 <script src="js/ui.20260407j.js"></script>
-<script src="js/splash.js?v=20260421d"></script>
+<script src="js/splash.js?v=20260421g"></script>
 <script src="js/shell.js?v=1.1"></script>
 <script src="js/init.js?v=20260421e"></script>
-<script src="js/credit-cards.20260407j.js?v=20260421e"></script>
+<script src="js/credit-cards.js?v=20260421f"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="js/cc-compare.js"></script>

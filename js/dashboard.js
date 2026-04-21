@@ -103,8 +103,14 @@ function updateUsdRateUI(){
   // Card en dashboard
   const buyDisp=document.getElementById('usd-rate-buy-display');
   const sellDisp=document.getElementById('usd-rate-sell-display');
-  if(buyDisp)animateNumberText(buyDisp,buyRate,{prefix:'$',decimals:2,duration:620});
-  if(sellDisp)animateNumberText(sellDisp,sellRate,{prefix:'$',decimals:2,duration:700});
+  if(buyDisp){
+    if(isMasked()) buyDisp.textContent='$••••••';
+    else animateNumberText(buyDisp,buyRate,{prefix:'$',decimals:2,duration:620});
+  }
+  if(sellDisp){
+    if(isMasked()) sellDisp.textContent='$••••••';
+    else animateNumberText(sellDisp,sellRate,{prefix:'$',decimals:2,duration:700});
+  }
   const src=document.getElementById('usd-rate-source-badge');
   if(src)src.textContent=state.usdRateSource||'manual';
   const upd=document.getElementById('usd-rate-updated');
@@ -118,7 +124,7 @@ function updateUsdRateUI(){
   const status=document.getElementById('usd-rate-status');
   if(status)status.textContent='Tocá para ver compra y venta';
   // Legacy badge selector (otros lugares que puedan tener el badge)
-  document.querySelectorAll('.usd-rate-badge').forEach(el=>{el.textContent='U$D 1 = $'+fmtN(rate)+' ('+( state.usdRateSource||'manual')+')'});
+  document.querySelectorAll('.usd-rate-badge').forEach(el=>{el.textContent='U$D 1 = '+(isMasked()?'$••••••':'$'+fmtN(rate))+' ('+( state.usdRateSource||'manual')+')'});
   renderDb2DollarSparkline();
   // Si el dashboard ya tiene datos, recalcular
   if(state.transactions.length)renderDashboard();
@@ -213,6 +219,11 @@ function stripHtml(text){
 }
 function expandPeriodYearLabel(label=''){
   return String(label||'').replace(/\b(Enero|Febrero|Marzo|Abril|Mayo|Junio|Julio|Agosto|Septiembre|Octubre|Noviembre|Diciembre)\s+(\d{2})\b/gi,(_,month,yy)=>`${month} 20${yy}`);
+}
+function cleanHeroCycleLabel(label=''){
+  return String(label||'')
+    .replace(/^\s*(VISA|AMEX|Mastercard|TC)\s*[·\-–—]\s*/i,'')
+    .trim();
 }
 function getIncomeSnapshot(monthKey){
   let ars=(state.income?.ars||0)+(state.income?.varArs||0);
@@ -1098,6 +1109,17 @@ function renderDashboard(){
     usdMonth+=projectedMonthTotals.usd;
     cntMonth+=projectedMonthTotals.count;
   }
+  const futureCommitmentTotals=sumProjectedCommitmentTotals(
+    getProjectedCommitmentEntriesForRange({
+      ...projectedMonthRange,
+      todayRef:today,
+      txns:state.transactions||[]
+    }).filter(entry=>
+      !entry.includeInTotal &&
+      (entry.group==='cuotas'||entry.group==='suscripciones') &&
+      (entry.synthetic || entry.kind==='Cuota proyectada' || entry.kind==='Suscripción proyectada' || entry.kind==='Cuota del ciclo' || entry.kind==='Cuota manual' || entry.kind==='Suscripción')
+    ).map(entry=>({...entry,includeInTotal:true}))
+  );
   // Disclaimer only for pending third party
   const tpPendingSumArs=thirdPartyTxns.filter(t=>t.thirdPartyStatus!=='settled' && t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   let syntheticARS=0;
@@ -1406,7 +1428,7 @@ function renderDashboard(){
   const totalGastoARS=arsMonth+(usdMonth*USD_TO_ARS);
   const pct=incTotalARS>0?Math.round((totalGastoARS/incTotalARS)*100):null;
   const spendBudget=incTotalARS>0?incTotalARS*(state.spendPct||100)/100:0;
-  const margen=incTotalARS>0?Math.max(0,spendBudget-totalGastoARS):null;
+  const margen=incTotalARS>0?spendBudget-totalGastoARS:null;
 
   // ── Proyección ──
   const[pY,pM]=activeMk.split('-').map(Number);
@@ -1423,14 +1445,16 @@ function renderDashboard(){
     const _daysElapsed = Math.max(1, Math.min(_totalDays, Math.round((today - _tcOpenD) / 86400000) + 1));
     daysLeft = Math.max(0, _totalDays - _daysElapsed);
     dailyRate = totalGastoARS / _daysElapsed;
-    projected = Math.round(dailyRate * _totalDays);
+    projected = Math.round(totalGastoARS + (dailyRate * daysLeft) + futureCommitmentTotals.ars + (futureCommitmentTotals.usd * USD_TO_ARS));
     projPeriodClose = _tcCloseD;
   } else {
     // Modo Mes: proyectar hasta fin del mes calendario
     const dayOfMonth = isCurrentMonth ? today.getDate() : daysInMonth;
     daysLeft = isCurrentMonth ? daysInMonth - today.getDate() : 0;
     dailyRate = dayOfMonth > 0 ? totalGastoARS / dayOfMonth : 0;
-    projected = isCurrentMonth ? Math.round(dailyRate * daysInMonth) : totalGastoARS;
+    projected = isCurrentMonth
+      ? Math.round(totalGastoARS + (dailyRate * daysLeft) + futureCommitmentTotals.ars + (futureCommitmentTotals.usd * USD_TO_ARS))
+      : totalGastoARS;
     // Keep close date aligned to selected month, not necessarily current month.
     projPeriodClose = new Date(pY, pM, 0, 12, 0, 0);
   }
@@ -1592,7 +1616,7 @@ function renderDashboard(){
     value:document.getElementById(`timeline-slot-${i}-value`),
     meta:document.getElementById(`timeline-slot-${i}-meta`)
   }));
-  // Agenda viva: simplemente tomamos los próximos 3 eventos por fecha
+  // Agenda viva: simplemente tomamos los próximos 4 eventos por fecha
   // (cuotas, suscripciones, gastos fijos, cierre de TC y vencimiento de TC)
   const rawEvents=getCalendarAgendaItems(today,{includePast:false,includeDoneTasks:false});
   const seenTimeline=new Set();
@@ -1670,7 +1694,7 @@ function renderDashboard(){
   // ── Hero ──
   const dhcML=document.getElementById('dhc-month-label');
   if(dhcML){
-    let label = isTcView&&activeTcCycle?expandPeriodYearLabel(activeTcCycle.label||''):((MNAMES[pM-1]||'')+ ' ' + pY);
+    let label = isTcView&&activeTcCycle?expandPeriodYearLabel(cleanHeroCycleLabel(activeTcCycle.label||'')):((MNAMES[pM-1]||'')+ ' ' + pY);
     if(isTcView) label = 'VISA + AMEX · ' + label;
     dhcML.textContent = label.toUpperCase();
   }
@@ -1699,7 +1723,7 @@ function renderDashboard(){
   if(tpNoteEl){
     if(tpPendingSumArs>0){
       tpNoteEl.style.display='block';
-      tpNoteEl.innerHTML=`<span style="color:var(--accent);font-weight:700;">+ $${fmtN(Math.round(tpPendingSumArs))}</span> a recuperar de terceros`;
+      tpNoteEl.innerHTML=`<span style="color:#ff9f0a;font-weight:800;">$${fmtN(Math.round(tpPendingSumArs))}</span> a recuperar de terceros`;
     } else {
       tpNoteEl.style.display='none';
     }
@@ -1989,7 +2013,7 @@ function renderDashboard(){
   renderDb2Dashboard({
     arsMonth, usdMonth, margen, pct, incTotalARS, spendBudget,
     projected, totalGastoARS, daysLeft, dailyRate, projPeriodClose,
-    timelineData, monthTxns,
+    timelineData, monthTxns, thirdPartyTxns,
     ccWidgetData:{
       cycleByKey:dashboardCardCycleByKey,
       totalsByKey:dashboardCardDisplayTotals,
@@ -2880,7 +2904,7 @@ function renderDb2CcCycles(data){
         if(amtUsdEl){
           if(usdTotal > 0){
             if(isMasked()) amtUsdEl.textContent = '••••';
-            else animateNumberText(amtUsdEl, usdTotal, {prefix: 'U$D ', decimals: 2, duration: 760});
+            else animateNumberText(amtUsdEl, usdTotal, {prefix: 'USD ', decimals: 2, duration: 760});
             amtUsdEl.style.display = '';
           } else {
             amtUsdEl.textContent = '';
@@ -2897,7 +2921,7 @@ function renderDb2CcCycles(data){
         const daysLeft  = Math.max(0, Math.round((closeD - today) / 86400000));
         const pct = Math.min(100, Math.round(elapsed / totalDays * 100));
         animateProgressBar(barEl, pct);
-        daysEl.textContent = daysLeft === 0 ? 'Fin de mes' : `${daysLeft} día${daysLeft!==1?'s':''}`;
+        daysEl.textContent = daysLeft === 0 ? 'Fin de mes' : `Cierran en ${daysLeft} día${daysLeft!==1?'s':''}`;
       }
       return;
     }
@@ -2934,7 +2958,7 @@ function renderDb2CcCycles(data){
         animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
         if(amtUsdEl){
           if(usdTotal > 0){
-            animateNumberText(amtUsdEl, usdTotal, {prefix: 'U$D ', decimals: 2, duration: 760});
+            animateNumberText(amtUsdEl, usdTotal, {prefix: 'USD ', decimals: 2, duration: 760});
             amtUsdEl.style.display = '';
           } else {
             amtUsdEl.textContent = '';
@@ -3102,7 +3126,7 @@ function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, spendBudget,
 }
 
 // ── Hero sub-cards ──
-function renderDb2HeroExtras(arsMonth, usdMonth, margen, pct, incTotalARS, spendBudget){
+function renderDb2HeroExtras(arsMonth, usdMonth, margen, pct, incTotalARS, spendBudget, thirdPartyTxns=[]){
   const heroMasked = state.hideHero || state.globalHide;
 
   // ARS card
@@ -3183,14 +3207,22 @@ function renderDb2HeroExtras(arsMonth, usdMonth, margen, pct, incTotalARS, spend
   // Dynamic Third Party Note
   const tpNote = document.getElementById('dhc-third-party-note');
   if(tpNote){
-    const billable = getCurrentMonthTxns().filter(t => !t.isPendingCuota && !t.isPendingSubscription);
-    const tpItems = billable.filter(t => !!t.isThirdParty);
+    const toArs = (amount, currency) => ((currency || 'ARS') === 'USD'
+      ? (Number(amount) || 0) * (USD_TO_ARS || 0)
+      : (Number(amount) || 0));
+    const tpItems = (thirdPartyTxns || []).filter(t => !!t && !!t.isThirdParty);
     const pendingSum = tpItems.reduce((s,t) => {
        const base = Number(t.thirdPartyAmount) || Number(t.amount) || 0;
-       const settled = Number(t.thirdPartySettledAmount) || 0;
-       return s + Math.max(0, base - settled);
+       const status = t.thirdPartyStatus || 'pending';
+       const settled = status === 'partial' ? Math.min(base, Number(t.thirdPartySettledAmount) || 0) : 0;
+       return status === 'settled' ? s : s + toArs(Math.max(0, base - settled), t.currency);
     }, 0);
-    const recoveredSum = tpItems.reduce((s,t) => s + (Number(t.thirdPartySettledAmount) || 0), 0);
+    const recoveredSum = tpItems.reduce((s,t) => {
+      if((t.thirdPartyStatus || 'pending') !== 'settled') return s;
+      const base = Number(t.thirdPartyAmount) || Number(t.amount) || 0;
+      const settled = Number(t.thirdPartySettledAmount) || base;
+      return s + toArs(Math.min(base, settled), t.currency);
+    }, 0);
 
     if(pendingSum > 0 || recoveredSum > 0){
       tpNote.style.display = 'block';
@@ -3199,11 +3231,11 @@ function renderDb2HeroExtras(arsMonth, usdMonth, margen, pct, incTotalARS, spend
         html = '<span style="color:var(--accent);font-weight:700;">+ $••••••</span> de terceros';
       } else {
         if(pendingSum > 0 && recoveredSum > 0) {
-          html = `<span style="color:#32d74b;font-weight:700;">+$${fmtN(Math.round(recoveredSum))} recuperados</span> · <span style="color:var(--text3)">$${fmtN(Math.round(pendingSum))} pendientes</span>`;
+          html = `<span style="color:#32d74b;font-weight:800;">+$${fmtN(Math.round(recoveredSum))} recuperados</span> · <span style="color:#ff9f0a;font-weight:800;">$${fmtN(Math.round(pendingSum))} a recuperar</span>`;
         } else if(pendingSum > 0) {
-          html = `<span style="color:var(--accent);font-weight:700;">+$${fmtN(Math.round(pendingSum))}</span> a recuperar de terceros`;
+          html = `<span style="color:#ff9f0a;font-weight:800;">$${fmtN(Math.round(pendingSum))}</span> a recuperar de terceros`;
         } else {
-          html = `<span style="color:#32d74b;font-weight:700;">+$${fmtN(Math.round(recoveredSum))}</span> recuperado totalmente`;
+          html = `<span style="color:#32d74b;font-weight:800;">+$${fmtN(Math.round(recoveredSum))}</span> recuperado totalmente`;
         }
       }
       tpNote.innerHTML = html;
@@ -3226,6 +3258,57 @@ function isMasked() {
   return !!state.globalHide;
 }
 
+function enforceDashboardPrivacyMask(){
+  if(!isMasked()) return;
+  [
+    'kpi-ars',
+    'dhc-ars-line',
+    'dhc-usd-line',
+    'kpi-ars-d',
+    'kpi-total-ars',
+    'kpi-total-usd',
+    'kpi-inc-total',
+    'dhc-bal-income',
+    'dhc-bal-gasto',
+    'dhc-bal-result',
+    'dhc-margin-val',
+    'dhc-margin-sub',
+    'dhc-margin-ingreso',
+    'dhc-margen',
+    'kpi-usd',
+    'kpi-visa-ars',
+    'kpi-visa-usd',
+    'kpi-amex-ars',
+    'kpi-amex-usd',
+    'kpi-tc',
+    'kpi-proj',
+    'kpi-proj-daily',
+    'db2-proj-r1',
+    'db2-proj-r2',
+    'db2-proj-r3',
+    'db2-proj-remaining',
+    'db2-proj-pct-limit',
+    'db2-ars-val',
+    'db2-usd-val',
+    'db2-margen-val',
+    'db2-evo-ingresos',
+    'db2-evo-gastos',
+    'db2-cat-total',
+    'usd-rate-buy-display',
+    'usd-rate-sell-display'
+  ].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){
+      if(typeof cancelNumberTextAnimation==='function') cancelNumberTextAnimation(el);
+      el.textContent='••••••••';
+    }
+  });
+  const thirdPartyNote=document.getElementById('dhc-third-party-note');
+  if(thirdPartyNote && thirdPartyNote.style.display!=='none'){
+    thirdPartyNote.innerHTML='<span style="color:var(--accent);font-weight:700;">+ $••••••</span> de terceros';
+  }
+}
+
 function toggleHeroPrivacy() {
   state.hideHero = !state.hideHero;
   saveState();
@@ -3236,6 +3319,7 @@ function toggleGlobalPrivacy() {
   state.globalHide = !state.globalHide;
   saveState();
   renderDashboard();
+  updateUsdRateUI();
 }
 
 // ── Evolution line chart ──
@@ -3546,7 +3630,7 @@ function renderDb2Agenda(timelineData){
   const pillEl = document.getElementById('timeline-card-pill');
   if(!listEl) return;
 
-  const events = getCalendarAgendaItems(new Date(),{includePast:false,includeDoneTasks:false}).slice(0, 3);
+  const events = getCalendarAgendaItems(new Date(),{includePast:false,includeDoneTasks:false}).slice(0, 4);
 
   // Update pill count
   if(pillEl) pillEl.textContent = events.length + ' evento' + (events.length!==1?'s':'') + ' →';
@@ -3755,13 +3839,19 @@ function renderDb2DollarSparkline(){
   const emptyEl = document.getElementById('db2-dollar-empty');
   const changeEl = document.getElementById('db2-dollar-change');
   const history = (state.usdRateHistory || []).filter(item => item && Number(item.sell) > 0);
-  const points = history.slice(-15).map(item => Number(item.sell));
+  let points = history.slice(-15).map(item => Number(item.sell));
+  const hasRealHistory = points.length >= 2;
 
   if(points.length < 2){
-    ctx.style.display = 'none';
-    if(emptyEl) emptyEl.style.display = 'grid';
-    if(changeEl) changeEl.textContent = '—';
-    return;
+    const currentSell = Number(state.usdRateSell || state.usdRate || USD_TO_ARS || 0);
+    if(currentSell > 0){
+      points = [currentSell, currentSell];
+    }else{
+      ctx.style.display = 'none';
+      if(emptyEl) emptyEl.style.display = 'grid';
+      if(changeEl) changeEl.textContent = '—';
+      return;
+    }
   }
 
   ctx.style.display = '';
@@ -3770,11 +3860,15 @@ function renderDb2DollarSparkline(){
   const last = points[points.length - 1];
   const variation = first > 0 ? ((last - first) / first) * 100 : 0;
   
-  if(changeEl){
+  if(changeEl && hasRealHistory){
     const sign = variation >= 0 ? '+' : '';
     changeEl.textContent = sign + variation.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%';
     changeEl.classList.toggle('down', variation < 0);
     changeEl.style.color = variation < 0 ? '#ff453a' : '#30d158'; // iOS style colors
+  }else if(changeEl){
+    changeEl.textContent = '—';
+    changeEl.classList.remove('down');
+    changeEl.style.color = '';
   }
 
   // Create gradient
@@ -3839,8 +3933,8 @@ function renderDb2DollarSparkline(){
 function renderDb2Dashboard(data){
   // data: { arsMonth, usdMonth, margen, pct, incTotalARS, spendBudget,
   //         projected, totalGastoARS, daysLeft, dailyRate, projPeriodClose,
-  //         timelineData, monthTxns }
-  renderDb2HeroExtras(data.arsMonth, data.usdMonth, data.margen, data.pct, data.incTotalARS, data.spendBudget);
+  //         timelineData, monthTxns, thirdPartyTxns }
+  renderDb2HeroExtras(data.arsMonth, data.usdMonth, data.margen, data.pct, data.incTotalARS, data.spendBudget, data.thirdPartyTxns);
   renderDb2CcCycles(data.ccWidgetData);
   renderDb2ProjExtras(data.projected, data.totalGastoARS, data.incTotalARS, data.spendBudget, data.daysLeft, data.dailyRate, data.projPeriodClose);
   renderDb2Agenda(data.timelineData);
@@ -3848,4 +3942,5 @@ function renderDb2Dashboard(data){
   renderDb2CatDonut(data.monthTxns);
   renderDb2DueStrip(data.timelineData);
   renderDb2DollarSparkline();
+  enforceDashboardPrivacyMask();
 }
