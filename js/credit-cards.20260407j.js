@@ -195,15 +195,17 @@ function renderCcCardTabs(){
     const cycle=cycles.find(c=>((c.cardId||state.ccCards[0]?.id)===card.id));
     const totals=cycle?ccGetTotals(ccGetCycleExpenses(card.id,cycle.id)):{ars:0,usd:0,count:0};
     const status=cycle?state.ccCycles.find(s=>s.cardId===card.id&&s.tcCycleId===cycle.id):null;
+    const statusText=status?.status==='paid'?'pago':status?.status==='minimum'?'mínimo':'pendiente';
+    const last=card.last4||card.digits||card.lastDigits||'••••';
     return `<button class="cc-card-switch ${isActive?'is-active':''}" onclick="ccSelectCard('${card.id}')" style="--cc-card-color:${card.color};">
       <span class="cc-card-switch-dot"></span>
       <span class="cc-card-switch-main">
         <strong>${esc(card.name)}</strong>
-        <small>${cycle?esc(cycle.label):'Sin ciclo'} · ${status?.status==='paid'?'pagado':'pendiente'}</small>
+        <small>${esc(last)} · ${cycle?esc(cycle.label):'Sin ciclo'} · ${statusText}</small>
       </span>
       <span class="cc-card-switch-total">${totals.ars>0?'$'+fmtN(Math.round(totals.ars)):'—'}</span>
     </button>`;
-  }).join('')+((state.ccPageTab||'resumen')==='config'?`
+  }).join('')+`
     <button class="cc-card-switch cc-card-switch-add" onclick="ccCreateCardPrompt()">
       <span class="cc-card-switch-add-icon">+</span>
       <span class="cc-card-switch-main">
@@ -211,7 +213,7 @@ function renderCcCardTabs(){
         <small>Crear tarjeta para futuros ciclos</small>
       </span>
     </button>
-  `:'');
+  `;
 }
 
 function ccSelectCard(cardId){
@@ -312,27 +314,39 @@ function renderCcActiveCycle(){
     `;
   }
 
-  const catRows=catSummary.slice(0,6).map(r=>`
-    <div class="cc-cat-line">
-      <span>${esc(r.cat)}</span>
-      <strong>${r.ars>0?'$'+fmtN(Math.round(r.ars)):'—'}${r.usd>0?' · U$D '+fmtN(r.usd):''}</strong>
-    </div>
-  `).join('');
+  const totalForPct=totals.ars+(totals.usd*(USD_TO_ARS||0));
+  const limitRaw=Number(card?.limitARS||card?.limit||card?.creditLimit||0);
+  const available=limitRaw>0?limitRaw-totals.ars:null;
+  const minPayment=Number(card?.minimumPaymentARS||card?.minPaymentARS||0);
+  const cycleStatus=ccState.status==='paid'?'pago total':ccState.status==='minimum'?'pago mínimo':'pendiente';
+  const cycleTone=ccState.status==='paid'?'is-paid':ccState.status==='minimum'?'is-minimum':'is-pending';
+  const ringDeg=Math.round(progressPct*3.6);
+  const categories=['Supermercado','Regalos','Restaurante','Delivery','Transporte','Entretenimiento'];
+  const catRows=catSummary.slice(0,6).map((r,idx)=>{
+    const amountArs=r.ars+(r.usd*(USD_TO_ARS||0));
+    const pct=totalForPct>0?Math.round((amountArs/totalForPct)*100):0;
+    return `<div class="ccs-cat-chip">
+      <span class="ccs-cat-icon">${esc((r.cat||'').trim().charAt(0).toUpperCase()||'•')}</span>
+      <strong>${esc(r.cat)}</strong>
+      <small>${pct}%</small>
+      <b>${r.ars>0?'$'+fmtN(Math.round(r.ars)):r.usd>0?'U$D '+fmtN(r.usd):'—'}</b>
+    </div>`;
+  }).join('') || categories.slice(0,3).map(cat=>`<div class="ccs-cat-chip is-empty"><span class="ccs-cat-icon">•</span><strong>${cat}</strong><small>—</small><b>—</b></div>`).join('');
 
-  const expRows=expenses.map(e=>{
+  const expRows=expenses.slice(0,10).map(e=>{
     const removeBtn=e.source==='txn'
-      ?`<button class="cc-row-clean-btn" onclick="ccExcludeTxn('${activeTcCycle.id}','${e.id}')" title="Excluir de este ciclo">Excluir</button>`
-      :`<button class="cc-row-clean-btn" onclick="ccDeleteManualExpense('${activeTcCycle.id}','${e.id}')" title="Eliminar gasto manual">Borrar</button>`;
+      ?`<button class="ccs-row-menu" onclick="ccExcludeTxn('${activeTcCycle.id}','${e.id}')" title="Excluir de este ciclo">—</button>`
+      :`<button class="ccs-row-menu" onclick="ccDeleteManualExpense('${activeTcCycle.id}','${e.id}')" title="Eliminar gasto manual">—</button>`;
     const sourceLabel=e.source==='projected'?'Proyectado':e.source==='manual'?'Manual':'Movimiento';
-    return `<div class="cc-expense-row">
-      <div class="cc-expense-date">${ccFmtDate(e.date)}</div>
-      <div class="cc-expense-main">
+    return `<div class="ccs-txn-row">
+      <div class="ccs-txn-date">${ccFmtDate(e.date)}</div>
+      <div class="ccs-txn-main">
         <strong>${esc(e.description)}</strong>
-        <small>${esc(e.category)} · ${sourceLabel}</small>
+        <small>${sourceLabel}</small>
       </div>
-      <div class="cc-expense-amount">
-        <strong>${e.amountARS>0?'$'+fmtN(Math.round(e.amountARS)):'—'}</strong>
-        <small>${e.amountUSD>0?'U$D '+fmtN(e.amountUSD):''}</small>
+      <div class="ccs-txn-cat">${esc(e.category)}</div>
+      <div class="ccs-txn-amount">
+        <strong>${e.amountARS>0?'$'+fmtN(Math.round(e.amountARS)):e.amountUSD>0?'U$D '+fmtN(e.amountUSD):'—'}</strong>
       </div>
       ${removeBtn}
     </div>`;
@@ -342,67 +356,70 @@ function renderCcActiveCycle(){
   const paidCycles = (state.ccCycles||[]).filter(c => c.cardId === cardId && c.status === 'paid');
 
   activeEl.innerHTML=`
-    <div class="cc-workspace">
-      <section class="cc-focus-panel fade-up d1">
-        <div class="cc-focus-main">
-          <div class="cc-focus-topline">
-            <span class="cc-focus-chip ${isPaid?'is-paid':'is-pending'}">${isPaid?'Pagado':'Pendiente'}</span>
-            ${card?`<span class="cc-focus-card" style="--cc-card-color:${card.color};">${esc(card.name)}</span>`:''}
-            <span class="cc-focus-muted">${esc(activeTcCycle.label)}</span>
+    <div class="ccs-workspace">
+      <section class="ccs-top-grid fade-up d1">
+        <article class="ccs-hero">
+          <div class="ccs-hero-copy">
+            <div class="ccs-hero-tags">
+              <span class="ccs-status ${cycleTone}">${cycleStatus}</span>
+              ${card?`<span class="ccs-card-pill" style="--cc-card-color:${card.color};">${esc(card.name)}</span>`:''}
+              <span>${esc(activeTcCycle.label)}</span>
+            </div>
+            <div class="ccs-kicker">Total a pagar</div>
+            <div class="ccs-total">$${fmtN(Math.round(totals.ars))}</div>
+            <div class="ccs-sub">${totals.usd>0?'USD '+fmtN(totals.usd)+' · ':''}${expenses.length} item${expenses.length===1?'':'s'} en el ciclo</div>
+            <div class="ccs-due-line">
+              <strong>Vencimiento</strong>
+              <span>${ccFmtDate(dueDate)} · ${dueMeta.text}</span>
+            </div>
+            <div class="ccs-progress-head"><span>${ccFmtDate(openDate)}</span><strong>${progressPct}% del ciclo</strong><span>${ccFmtDate(activeTcCycle.closeDate)}</span></div>
+            <div class="ccs-progress"><span style="width:${progressPct}%;"></span></div>
           </div>
-          <div class="cc-focus-total">$${fmtN(Math.round(totals.ars))}</div>
-          <div class="cc-focus-sub">${totals.usd>0?'U$D '+fmtN(totals.usd)+' · ':''}${expenses.length} item${expenses.length===1?'':'s'} en el ciclo</div>
-          <div class="cc-cycle-progress">
-            <div class="cc-cycle-progress-head"><span>${ccFmtDate(openDate)}</span><strong>${progressPct}% del ciclo</strong><span>${ccFmtDate(activeTcCycle.closeDate)}</span></div>
-            <div class="cc-cycle-progress-track"><span style="width:${progressPct}%;"></span></div>
+          <div class="ccs-ring" style="--ccs-ring:${ringDeg}deg;">
+            <div><strong>${progressPct}%</strong><span>del ciclo</span></div>
           </div>
-        </div>
-        <aside class="cc-focus-side">
-          <div class="cc-due-block ${dueMeta.overdue?'is-overdue':dueMeta.urgent?'is-urgent':''}">
-            <span>Vencimiento</span>
-            <strong>${ccFmtDate(dueDate)}</strong>
-            <small>${dueMeta.text}</small>
-          </div>
-          <div class="cc-action-grid">
-            <button class="btn btn-primary btn-sm" onclick="ccOpenManualExpenseModal('${activeTcCycle.id}')">Agregar gasto</button>
-            <button class="btn btn-ghost btn-sm" onclick="ccEditCycleFromSummary('${activeTcCycle.id}')">Editar ciclo</button>
-            <button class="btn btn-ghost btn-sm" onclick="nav('cc-compare')">Comparar PDF</button>
-            ${isPaid?'<button class="btn btn-ghost btn-sm" disabled>Pagado</button>':`<button class="btn btn-ghost btn-sm" onclick="ccMarkPaid('${activeTcCycle.id}')">Marcar pagado</button>`}
-          </div>
+        </article>
+
+        <aside class="ccs-side-stack">
+          <article class="ccs-actions-panel">
+            <h3>Acciones rápidas</h3>
+            <button class="ccs-pay-action is-success" onclick="ccMarkPaid('${activeTcCycle.id}')"><span>✓</span><strong>Marcar como pago</strong><small>Confirmá que ya pagaste el total.</small></button>
+            <button class="ccs-pay-action is-warn" onclick="ccMarkMinimumPaid('${activeTcCycle.id}')"><span>□</span><strong>Pagar mínimo</strong><small>Registrá que abonaste el pago mínimo.</small></button>
+            <button class="ccs-pay-action is-danger" onclick="ccMarkPending('${activeTcCycle.id}')"><span>!</span><strong>Marcar como pendiente</strong><small>Dejá registrado que aún no pagaste.</small></button>
+          </article>
+          <article class="ccs-quick-metrics">
+            <h3>Resumen rápido</h3>
+            <div><span>Disponible</span><strong>${available===null?'—':'$'+fmtN(Math.round(available))}</strong></div>
+            <div><span>Consumos del ciclo</span><strong>${expenses.length}</strong></div>
+            <div><span>Pago mínimo</span><strong>${minPayment>0?'$'+fmtN(Math.round(minPayment)):'—'}</strong></div>
+            <div><span>Límite total</span><strong>${limitRaw>0?'$'+fmtN(Math.round(limitRaw)):'—'}</strong></div>
+          </article>
         </aside>
       </section>
 
-      <section class="cc-ops-grid fade-up d2">
-        <div class="table-card cc-insight-panel">
-          <div class="cc-panel-head">
-            <div><span class="cc-panel-kicker">Composición</span><strong>Qué pesa en este resumen</strong></div>
-            <small>${catSummary.length} categoría${catSummary.length===1?'':'s'}</small>
-          </div>
-          <div class="cc-cat-list">${catRows || '<div class="cc-empty-inline">Sin categorías todavía</div>'}</div>
+      <section class="ccs-category-card fade-up d2">
+        <div class="ccs-section-head"><div><h3>Composición del resumen</h3><span>${catSummary.length} categoría${catSummary.length===1?'':'s'}</span></div><small>% categorías</small></div>
+        <div class="ccs-cat-grid">${catRows}</div>
+      </section>
+
+      <section class="ccs-banner fade-up d2">
+        <div><span>ⓘ</span><strong>Vas por buen camino</strong><small>Llevás ${progressPct}% del ciclo. Revisá tus gastos antes del vencimiento.</small></div>
+        <button onclick="ccOpenManualExpenseModal('${activeTcCycle.id}')">Agregar gasto</button>
+      </section>
+
+      <section class="ccs-table-card fade-up d3">
+        <div class="ccs-table-head">
+          <div><h3>Desglose de gastos</h3><span>Mostrando ${Math.min(expenses.length,10)} de ${expenses.length} item${expenses.length===1?'':'s'}</span></div>
+          <div class="ccs-table-tools"><button>Todos</button><button>☷</button><button>⊙</button></div>
         </div>
-        <div class="table-card cc-insight-panel">
-          <div class="cc-panel-head">
-            <div><span class="cc-panel-kicker">Origen</span><strong>Lectura del total</strong></div>
-          </div>
-          <div class="cc-origin-grid">
-            <div><span>Reales</span><strong>${realCount}</strong></div>
-            <div><span>Proyectados</span><strong>${projectedCount}</strong></div>
-            <div><span>Manuales</span><strong>${manualCount}</strong></div>
-          </div>
-          <p class="cc-panel-note">Los proyectados incluyen cuotas y compromisos ya maduros dentro del período.</p>
+        <div class="ccs-txn-list">
+          <div class="ccs-txn-header"><span>Fecha</span><span>Descripción</span><span>Categoría</span><span>Monto</span><span></span></div>
+          ${expenses.length?expRows:'<div class="cc-empty-inline">Sin gastos en este ciclo</div>'}
         </div>
       </section>
 
-      <details class="table-card cc-record-panel fade-up d3" open>
-        <summary>
-          <div><span class="cc-panel-kicker">Movimientos</span><strong>Gastos del ciclo (${expenses.length})</strong></div>
-          <span>Desplegar</span>
-        </summary>
-        <div class="cc-expense-list">${expenses.length?expRows:'<div class="cc-empty-inline">Sin gastos en este ciclo</div>'}</div>
-      </details>
-
       ${paidCycles.length?`
-        <details class="table-card cc-record-panel fade-up d3">
+        <details class="ccs-table-card cc-record-panel fade-up d3">
           <summary>
             <div><span class="cc-panel-kicker">Historial</span><strong>Ciclos pagados (${paidCycles.length})</strong></div>
             <span>Desplegar</span>
@@ -516,6 +533,34 @@ function ccMarkPaid(tcCycleId){
   saveState();
   renderCreditCards();
   showToast('✓ ¡Ciclo marcado como pagado!','success');
+}
+
+function ccMarkMinimumPaid(tcCycleId){
+  const cardId=state.ccActiveCard||state.ccCards[0]?.id;
+  let ccState=state.ccCycles.find(c=>c.cardId===cardId && c.tcCycleId===tcCycleId);
+  if(!ccState){
+    ccState={id:tcCycleId+'_'+cardId, cardId, tcCycleId, status:'minimum', manualExpenses:[], excludedIds:[]};
+    state.ccCycles.push(ccState);
+  } else {
+    ccState.status='minimum';
+  }
+  saveState();
+  renderCreditCards();
+  showToast('✓ Pago mínimo registrado','success');
+}
+
+function ccMarkPending(tcCycleId){
+  const cardId=state.ccActiveCard||state.ccCards[0]?.id;
+  let ccState=state.ccCycles.find(c=>c.cardId===cardId && c.tcCycleId===tcCycleId);
+  if(!ccState){
+    ccState={id:tcCycleId+'_'+cardId, cardId, tcCycleId, status:'pending', manualExpenses:[], excludedIds:[]};
+    state.ccCycles.push(ccState);
+  } else {
+    ccState.status='pending';
+  }
+  saveState();
+  renderCreditCards();
+  showToast('Resumen marcado como pendiente','info');
 }
 
 // ── Excluir transacción de movimientos ──
@@ -808,10 +853,6 @@ function renderCcConfigPanel(){
 
   el.innerHTML=`
     <div class="cc-config-shell cc-config-modern-shell">
-      <section class="cc-config-card-selector fade-up d1">
-        ${quickCardsHtml}
-      </section>
-
       <section class="cc-config-modern-grid fade-up d2">
         <div class="cc-config-left-stack">
           <article class="cc-config-modern-card cc-config-dates-card">

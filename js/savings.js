@@ -184,22 +184,17 @@ function renderSavingsPage(){
             <section>
               <div class="sav2-section-head compact"><h2>Mis cuentas</h2><button>Ver todas</button></div>
               <div class="sav2-list-stack">
-                ${accounts.slice(0,2).map(accountCard).join('') || '<div class="sav2-empty">Sin cuentas registradas</div>'}
+                ${accounts.map(accountCard).join('') || '<div class="sav2-empty">Sin cuentas registradas</div>'}
               </div>
             </section>
             <section>
               <div class="sav2-section-head compact"><h2>Metas de ahorro</h2><button>Ver todas</button></div>
               <div class="sav2-list-stack">
-                ${goalModels.slice(0,2).map(goalCard).join('') || '<div class="sav2-empty">Sin metas de ahorro</div>'}
+                ${goalModels.map(goalCard).join('') || '<div class="sav2-empty">Sin metas de ahorro</div>'}
               </div>
             </section>
           </div>
         </div>
-      </section>
-
-      <section class="sav2-activity-section">
-        <div class="sav2-section-head compact"><h2>Actividad reciente</h2><button>Ver todo</button></div>
-        ${recentHtml}
       </section>
 
       <section class="sav2-bottom-strip">
@@ -208,6 +203,11 @@ function renderSavingsPage(){
         <div class="with-icon"><i>⚙</i><span>Mejor meta</span><strong>${bestGoal?esc(bestGoal.name):'—'}</strong><small>${bestGoal?bestGoal.pct+'% completado':'Sin metas'}</small></div>
         <div><span>Ahorro mensual objetivo</span><strong>${money(savingsTargetUsd,'USD')}</strong><small>Sugerido personalizable</small></div>
         <div><span>Proyección anual</span><strong>${money(annualProjectionUsd,'USD')}</strong><small>Si mantenés el hábito</small></div>
+      </section>
+
+      <section class="sav2-activity-section">
+        <div class="sav2-section-head compact"><h2>Actividad reciente</h2><button>Ver todo</button></div>
+        ${recentHtml}
       </section>
     </div>`;
 }

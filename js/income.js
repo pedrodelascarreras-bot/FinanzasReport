@@ -195,13 +195,11 @@ function renderIncomePage() {
   root.innerHTML = `
     <style>
       #income-native-root {
-        padding: 32px 40px;
+        padding: 0;
         font-family: var(--font);
         color: var(--text);
         box-sizing: border-box;
-        background:
-          radial-gradient(circle at 12% 0%, rgba(16,185,129,0.10), transparent 34%),
-          radial-gradient(circle at 88% 8%, rgba(93,53,243,0.10), transparent 30%);
+        background: transparent;
       }
       .inc-hdr { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 24px; }
       .inc-hdr-title { font-size: 38px; font-weight: 850; letter-spacing: -0.045em; color: #1a1a24; line-height: 1; margin-bottom: 6px; }
