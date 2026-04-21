@@ -5,6 +5,7 @@ let state={
   savingsGoal:20,alertThreshold:80,spendPct:100,insightsBufferMonths:3,tendChartMode:'bar',
   imports:[],compareMode:'month',balanceView:'summary',repDesign:'executive',tendMode:'visa',
   activeTendCats:null,
+  usdRateHistory:[],
   _selectedTxns:new Set(),
   cuotas:[],autoCuotaConfig:{},subscriptions:[],fixedExpenses:[],
   // NEW
@@ -77,7 +78,7 @@ function getStateSnapshot(){
     cuotas:state.cuotas,autoCuotaConfig:state.autoCuotaConfig,subscriptions:state.subscriptions,fixedExpenses:state.fixedExpenses||[],
     incomeSources:state.incomeSources,incomeMonths:state.incomeMonths,
     savAccounts:state.savAccounts,savGoals:state.savGoals,savDeposits:state.savDeposits||[],tcConfig:state.tcConfig,viewCycleConfig:state.viewCycleConfig||{},
-    usdRate:state.usdRate||1420,usdRateBuy:state.usdRateBuy||state.usdRate||1420,usdRateSell:state.usdRateSell||state.usdRate||1420,usdRateSource:state.usdRateSource||'blue',usdRateUpdated:state.usdRateUpdated||null,
+    usdRate:state.usdRate||1420,usdRateBuy:state.usdRateBuy||state.usdRate||1420,usdRateSell:state.usdRateSell||state.usdRate||1420,usdRateSource:state.usdRateSource||'blue',usdRateUpdated:state.usdRateUpdated||null,usdRateHistory:state.usdRateHistory||[],
     catRules:state.catRules||[],nameRules:state.nameRules||[],logoRules:state.logoRules||[],catHistory:state.catHistory||{},
     ccCards:state.ccCards||[],ccCycles:state.ccCycles||[],ccActiveCard:state.ccActiveCard||null,
     gmailImportRules:state.gmailImportRules||[],
@@ -331,6 +332,7 @@ async function loadFromDrive(){
     state.usdRateSell=s.usdRateSell||s.usdRate||1420;
     state.usdRateSource=s.usdRateSource||'blue';
     state.usdRateUpdated=s.usdRateUpdated||null;
+    state.usdRateHistory=Array.isArray(s.usdRateHistory)?s.usdRateHistory:[];
     USD_TO_ARS=state.usdRate;
     state.catRules=s.catRules||[];
     state.nameRules=s.nameRules||[];
@@ -416,6 +418,7 @@ function loadState(){
     state.usdRateSell=s.usdRateSell||s.usdRate||1420;
     state.usdRateSource=s.usdRateSource||'blue';
     state.usdRateUpdated=s.usdRateUpdated||null;
+    state.usdRateHistory=Array.isArray(s.usdRateHistory)?s.usdRateHistory:[];
     USD_TO_ARS=state.usdRate;
     state.catRules=s.catRules||[];
     state.nameRules=s.nameRules||[];

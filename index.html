@@ -19,7 +19,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260421b">
+<link rel="stylesheet" href="css/styles.css?v=20260421d">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -543,26 +543,46 @@
 
         <!-- DÓLAR OFICIAL -->
         <div class="db2-w db2-dollar-card" onclick="openUsdRateModal()" title="Editar tipo de cambio">
-          <div class="db2-dollar-top">
-            <span class="db2-dollar-flag">🇺🇸</span>
-            <span class="db2-title">Dólar Oficial</span>
-          </div>
-          <div class="db2-dollar-badge" id="usd-rate-source-badge">OFICIAL BNA</div>
-          <div class="db2-dollar-prices">
-            <div class="db2-dollar-price-block">
-              <div class="db2-dollar-lbl">Compra</div>
-              <div class="db2-dollar-buy" id="usd-rate-buy-display">—</div>
+          <div class="db2-dollar-head">
+            <div class="db2-dollar-title-wrap">
+              <span class="db2-dollar-flag">🇺🇸</span>
+              <span class="db2-title">DÓLAR OFICIAL</span>
             </div>
-            <div class="db2-dollar-price-block">
-              <div class="db2-dollar-lbl">Venta</div>
-              <div class="db2-dollar-sell" id="usd-rate-sell-display">—</div>
+            <div class="db2-dollar-badge" id="usd-rate-source-badge">oficial BNA</div>
+          </div>
+
+          <div class="db2-dollar-panel">
+            <div class="db2-dollar-panel-main">
+              <div class="db2-dollar-prices">
+                <div class="db2-dollar-price-block">
+                  <div class="db2-dollar-lbl">COMPRA</div>
+                  <div class="db2-dollar-buy" id="usd-rate-buy-display">—</div>
+                </div>
+                <div class="db2-dollar-divider"></div>
+                <div class="db2-dollar-price-block">
+                  <div class="db2-dollar-lbl">VENTA</div>
+                  <div class="db2-dollar-sell" id="usd-rate-sell-display">—</div>
+                </div>
+              </div>
+              <div class="db2-dollar-chart-col">
+                <div class="db2-dollar-change" id="db2-dollar-change">—</div>
+                <div class="db2-dollar-chart-wrap">
+                  <canvas id="db2-dollar-spark" height="118" style="width:100%;height:118px;"></canvas>
+                  <div class="db2-dollar-empty" id="db2-dollar-empty">Sin histórico</div>
+                </div>
+              </div>
+            </div>
+            <div class="db2-dollar-footer">
+              <div class="db2-dollar-updated" id="usd-rate-updated">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+                <span>—</span>
+              </div>
+              <button class="db2-dollar-refresh" id="btn-refresh-usd" onclick="event.stopPropagation();fetchUsdRate(true)">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12a8 8 0 1 1-2.34-5.66"/><path d="M20 4v6h-6"/></svg>
+                <span>Actualizar</span>
+              </button>
             </div>
           </div>
-          <div class="db2-dollar-chart-wrap">
-            <canvas id="db2-dollar-spark" height="36" style="width:100%;height:36px;"></canvas>
-          </div>
-          <div class="db2-dollar-updated" id="usd-rate-updated">—</div>
-          <button class="db2-dollar-refresh" id="btn-refresh-usd" onclick="event.stopPropagation();fetchUsdRate(true)">↻ Actualizar</button>
           <div id="usd-rate-status" style="display:none"></div>
         </div>
 
@@ -3371,17 +3391,17 @@
 <script src="js/i18n.js"></script>
 <script src="js/utils.js?v=20260420a"></script>
 <script src="js/import.js"></script>
-<script src="js/dashboard.js?v=20260421b"></script>
+<script src="js/dashboard.js?v=20260421d"></script>
 <script src="js/transactions.js"></script>
 <script src="js/analytics.js"></script>
 <script src="js/expenses.js"></script>
-<script src="js/income.js?v=20260421b"></script>
+<script src="js/income.js?v=20260421d"></script>
 <script src="js/savings.js"></script>
 <script src="js/categories.js"></script>
 <script src="js/reports.js"></script>
 <script src="js/balance.20260407j.js"></script>
 <script src="js/ui.20260407j.js"></script>
-<script src="js/splash.js?v=20260421b"></script>
+<script src="js/splash.js?v=20260421d"></script>
 <script src="js/shell.js?v=1.1"></script>
 <script src="js/init.js?v=20260420a"></script>
 <script src="js/credit-cards.20260407j.js"></script>

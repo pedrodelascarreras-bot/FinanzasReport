@@ -20,10 +20,36 @@ function _chartTickColor(){return _isL()?'#748096':'#566172';}
 function _chartTickFont(){return {size:10,weight:'500',family:'-apple-system,SF Pro Display,sans-serif'};}
 function _chartGridY(){return {color:_isL()?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.03)',drawBorder:false};}
 let USD_TO_ARS = state.usdRate || 1420;
+function recordUsdRateSnapshot(buy, sell, source){
+  const venta = Number(sell || 0);
+  if(!(venta > 0)) return;
+  const now = new Date();
+  const history = Array.isArray(state.usdRateHistory) ? state.usdRateHistory.slice() : [];
+  const snapshot = {
+    ts: now.toISOString(),
+    buy: Number(buy || venta),
+    sell: venta,
+    source: source || state.usdRateSource || 'oficial BNA'
+  };
+  const last = history[history.length - 1];
+  if(last){
+    const lastDate = new Date(last.ts);
+    if(!Number.isNaN(lastDate.getTime()) && (now - lastDate) < 60 * 60 * 1000){
+      history[history.length - 1] = snapshot;
+    }else{
+      history.push(snapshot);
+    }
+  }else{
+    history.push(snapshot);
+  }
+  state.usdRateHistory = history
+    .filter(item => item && Number(item.sell) > 0 && item.ts)
+    .slice(-30);
+}
 async function fetchUsdRate(manual=false){
   const btn=document.getElementById('btn-refresh-usd');
   const statusEl=document.getElementById('usd-rate-status');
-  if(btn){btn.disabled=true;btn.textContent='↻ ...';}
+  if(btn){btn.disabled=true;btn.querySelector('span') ? btn.querySelector('span').textContent='...' : btn.textContent='↻ ...';}
   if(statusEl)statusEl.textContent='Actualizando...';
 
   // Múltiples fuentes con fallback — todas tienen CORS abierto
@@ -56,9 +82,10 @@ async function fetchUsdRate(manual=false){
         state.usdRateSell=venta;
         state.usdRateSource='oficial BNA';
         state.usdRateUpdated=new Date().toISOString();
+        recordUsdRateSnapshot(state.usdRateBuy, state.usdRateSell, state.usdRateSource);
         saveState();updateUsdRateUI();
         if(manual)showToast('✓ Oficial BNA: $'+fmtN(venta)+'/USD');
-        if(btn){btn.disabled=false;btn.textContent='↻ Actualizar';}
+        if(btn){btn.disabled=false;btn.querySelector('span') ? btn.querySelector('span').textContent='Actualizar' : btn.textContent='↻ Actualizar';}
         if(statusEl)statusEl.textContent='';
         return;
       }
@@ -66,7 +93,7 @@ async function fetchUsdRate(manual=false){
   }
 
   if(manual)showToast('⚠️ No se pudo conectar. Editá el valor manualmente.');
-  if(btn){btn.disabled=false;btn.textContent='↻ Actualizar';}
+  if(btn){btn.disabled=false;btn.querySelector('span') ? btn.querySelector('span').textContent='Actualizar' : btn.textContent='↻ Actualizar';}
   if(statusEl)statusEl.textContent='';
 }
 function updateUsdRateUI(){
@@ -81,11 +108,18 @@ function updateUsdRateUI(){
   const src=document.getElementById('usd-rate-source-badge');
   if(src)src.textContent=state.usdRateSource||'manual';
   const upd=document.getElementById('usd-rate-updated');
-  if(upd&&state.usdRateUpdated){const d=new Date(state.usdRateUpdated);upd.textContent='Actualizado '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});}
+  if(upd&&state.usdRateUpdated){
+    const d=new Date(state.usdRateUpdated);
+    const label='Actualizado '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+    const span=upd.querySelector('span');
+    if(span) span.textContent=label;
+    else upd.textContent=label;
+  }
   const status=document.getElementById('usd-rate-status');
   if(status)status.textContent='Tocá para ver compra y venta';
   // Legacy badge selector (otros lugares que puedan tener el badge)
   document.querySelectorAll('.usd-rate-badge').forEach(el=>{el.textContent='U$D 1 = $'+fmtN(rate)+' ('+( state.usdRateSource||'manual')+')'});
+  renderDb2DollarSparkline();
   // Si el dashboard ya tiene datos, recalcular
   if(state.transactions.length)renderDashboard();
 }
@@ -3439,18 +3473,26 @@ function renderDb2Agenda(timelineData){
                       e.type === 'fixed'        ? 'Gasto fijo'  :
                       e.type === 'task'         ? 'Task'        : 'Cuota';
     const descLine = [typeLabel, amtStr].filter(Boolean).join(' · ');
-    const timeStr = e.date instanceof Date
-      ? e.date.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}).replace('.','')
+    const dayStr = e.date instanceof Date
+      ? e.date.toLocaleDateString('es-AR',{day:'2-digit'})
       : '—';
-    return `<div class="db2-agenda-item">
-      <div class="db2-agenda-time">${timeStr}</div>
-      <div class="db2-agenda-logo" style="background:${logo.bg}">${logo.letter}</div>
-      <div class="db2-agenda-body">
-        <div class="db2-agenda-name">${esc(name)}</div>
-        <div class="db2-agenda-desc">${descLine}</div>
+    const monthStr = e.date instanceof Date
+      ? e.date.toLocaleDateString('es-AR',{month:'short'}).replace('.','')
+      : '';
+    return `<button class="db2-agenda-item" type="button" onclick="nav('calendar')">
+      <div class="db2-agenda-date">
+        <span class="db2-agenda-day">${dayStr}</span>
+        <span class="db2-agenda-month">${esc(monthStr)}</span>
+      </div>
+      <div class="db2-agenda-main">
+        <div class="db2-agenda-logo" style="background:${logo.bg}">${logo.letter}</div>
+        <div class="db2-agenda-body">
+          <div class="db2-agenda-name">${esc(name)}</div>
+          <div class="db2-agenda-desc">${descLine}</div>
+        </div>
       </div>
       <div class="db2-agenda-chip ${chipCls}">${when}</div>
-    </div>`;
+    </button>`;
   }).join('');
 }
 
@@ -3591,26 +3633,56 @@ function renderDb2DollarSparkline(){
   const ctx = document.getElementById('db2-dollar-spark');
   if(!ctx) return;
   if(state.charts && state.charts.dollarSpark){ state.charts.dollarSpark.destroy(); state.charts.dollarSpark = null; }
-  // Draw a simple flat sparkline with slight variation using stored rate
-  const rate = USD_TO_ARS || 1420;
-  const points = [rate*0.98, rate*0.985, rate*0.99, rate*0.992, rate*0.995, rate*0.998, rate*0.999, rate];
+  const emptyEl = document.getElementById('db2-dollar-empty');
+  const changeEl = document.getElementById('db2-dollar-change');
+  const points = (state.usdRateHistory || [])
+    .filter(item => item && Number(item.sell) > 0)
+    .slice(-14)
+    .map(item => Number(item.sell));
+
+  if(points.length < 2){
+    ctx.style.display = 'none';
+    if(emptyEl) emptyEl.style.display = 'grid';
+    if(changeEl) changeEl.textContent = '—';
+    return;
+  }
+
+  ctx.style.display = '';
+  if(emptyEl) emptyEl.style.display = 'none';
+  const first = points[0];
+  const last = points[points.length - 1];
+  const variation = first > 0 ? ((last - first) / first) * 100 : 0;
+  if(changeEl){
+    const sign = variation > 0 ? '+' : '';
+    changeEl.textContent = sign + variation.toLocaleString('es-AR',{minimumFractionDigits:2,maximumFractionDigits:2}) + '%';
+    changeEl.classList.toggle('down', variation < 0);
+  }
+
   const c = new Chart(ctx, {
     type:'line',
     data:{
       labels: points.map((_,i)=>i),
       datasets:[{
         data: points,
-        borderColor: '#30d158',
-        borderWidth: 2,
-        pointRadius: 0,
-        fill: {target:'origin', above:'rgba(52,199,89,0.06)'},
-        tension: 0.4
+        borderColor: '#179346',
+        borderWidth: 3,
+        pointRadius: ctx => ctx.dataIndex === points.length - 1 ? 5 : 0,
+        pointBackgroundColor: '#179346',
+        pointBorderColor: '#179346',
+        pointHoverRadius: 5,
+        fill: {target:'origin', above:'rgba(23,147,70,0.10)'},
+        tension: 0.34
       }]
     },
     options:{
       responsive:true, maintainAspectRatio:false,
+      animation:false,
       plugins:{legend:{display:false}, tooltip:{enabled:false}},
-      scales:{ x:{display:false}, y:{display:false} }
+      elements:{line:{capBezierPoints:true}},
+      scales:{
+        x:{display:false},
+        y:{display:false, min: Math.min(...points) * 0.995, max: Math.max(...points) * 1.005}
+      }
     }
   });
   if(state.charts) state.charts.dollarSpark = c;
