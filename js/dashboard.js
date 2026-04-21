@@ -1846,9 +1846,9 @@ function renderDashboard(){
         const _dailyEl=document.getElementById('kpi-proj-daily');
         if(_dailyEl)animateNumberText(_dailyEl,Math.round(dailyRate),{prefix:'$',decimals:2,duration:720});
         const _daysEl=document.getElementById('kpi-proj-days');
-        if(_daysEl)animateNumberText(_daysEl,daysLeft,{decimals:0,duration:620,formatter:(n)=>String(Math.round(n))});
+        if(_daysEl)animateNumberText(_daysEl,daysLeft,{decimals:0,duration:620,formatter:(n)=>`${Math.round(n)} día${Math.round(n) !== 1 ? 's' : ''}`});
         const _daysLabel=document.getElementById('kpi-proj-days-label');
-        if(_daysLabel)_daysLabel.textContent='CIERRE TC'+(projPeriodClose?' · '+projPeriodClose.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}):'');
+        if(_daysLabel)_daysLabel.textContent='DÍAS RESTANTES';
       }
       if(projTitle)projTitle.textContent='PROYECCIÓN AL CIERRE TC';
     } else {
@@ -1861,9 +1861,9 @@ function renderDashboard(){
         const _dailyEl2=document.getElementById('kpi-proj-daily');
         if(_dailyEl2)animateNumberText(_dailyEl2,Math.round(dailyRate),{prefix:'$',decimals:2,duration:720});
         const _daysEl2=document.getElementById('kpi-proj-days');
-        if(_daysEl2)animateNumberText(_daysEl2,daysLeft,{decimals:0,duration:620,formatter:(n)=>String(Math.round(n))});
+        if(_daysEl2)animateNumberText(_daysEl2,daysLeft,{decimals:0,duration:620,formatter:(n)=>`${Math.round(n)} día${Math.round(n) !== 1 ? 's' : ''}`});
         const _daysLabel2=document.getElementById('kpi-proj-days-label');
-        if(_daysLabel2)_daysLabel2.textContent='DÍAS AL CIERRE';
+        if(_daysLabel2)_daysLabel2.textContent='DÍAS RESTANTES';
       } else {
         projEl.textContent='—'; projEl.style.color='var(--text3)';
         if(projD)projD.textContent='Mes cerrado';
@@ -2895,22 +2895,67 @@ function renderDb2CcCycles(data){
   });
 }
 
+function isBusinessDay(date){
+  const day = date.getDay();
+  return day !== 0 && day !== 6;
+}
+
+function getSecondBusinessDay(year, month){
+  let count = 0;
+  for(let day = 1; day <= 31; day += 1){
+    const date = new Date(year, month, day);
+    if(date.getMonth() !== month) break;
+    if(isBusinessDay(date)) count += 1;
+    if(count === 2) return date;
+  }
+  return null;
+}
+
+function getNextConfiguredIncomePayment(salaryLimit){
+  if(!(salaryLimit > 0)) return null;
+  const today = new Date();
+  today.setHours(0,0,0,0);
+
+  let next = getSecondBusinessDay(today.getFullYear(), today.getMonth());
+  if(!next || next < today){
+    next = getSecondBusinessDay(today.getFullYear(), today.getMonth() + 1);
+  }
+  if(!next) return null;
+  next.setHours(0,0,0,0);
+  return {
+    date: next,
+    days: Math.max(0, Math.round((next - today) / 86400000))
+  };
+}
+
 // ── Projection widget extras ──
 function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, spendBudget, daysLeft, dailyRate, projPeriodClose){
   const remainingEl = document.getElementById('db2-proj-remaining');
   const closeDateEl = document.getElementById('db2-proj-closedate');
+  const nextIncomeEl = document.getElementById('db2-proj-next-income');
+  const nextIncomeSubEl = document.getElementById('db2-proj-next-income-sub');
+  const pctEl = document.getElementById('db2-proj-pct');
+  const pctLimitEl = document.getElementById('db2-proj-pct-limit');
+  const pctRingEl = document.getElementById('db2-proj-pct-ring');
   const r1El = document.getElementById('db2-proj-r1');
   const r2El = document.getElementById('db2-proj-r2');
   const l2El = document.getElementById('db2-proj-l2');
   const r3El = document.getElementById('db2-proj-r3');
   const barEl = document.getElementById('db2-proj-bar');
-  const referenceBudget = (spendBudget && spendBudget > 0) ? spendBudget : (incTotalARS || 0);
+  const barAccumEl = document.getElementById('db2-proj-bar-accum');
+  const limitMarkerEl = document.getElementById('db2-proj-limit-marker');
+  void spendBudget;
+  const salaryLimit = incTotalARS || 0;
 
   if(remainingEl){
-    if(referenceBudget > 0){
-      const rem = referenceBudget - totalGastoARS;
+    if(salaryLimit > 0){
+      const rem = salaryLimit - totalGastoARS;
       remainingEl.textContent = (rem >= 0 ? '$' : '-$') + fmtN(Math.abs(Math.round(rem)));
-    } else remainingEl.textContent = '—';
+      remainingEl.style.color = rem < 0 ? '#F3382E' : '#070B1D';
+    } else {
+      remainingEl.textContent = '—';
+      remainingEl.style.color = '#070B1D';
+    }
   }
 
   if(closeDateEl){
@@ -2925,32 +2970,68 @@ function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, spendBudget,
   }
 
   if(r1El){
-    r1El.textContent = projected > 0 ? '$' + fmtN(Math.round(projected)) : '$0';
+    r1El.textContent = Number.isFinite(projected) ? '$' + fmtN(Math.round(projected || 0)) : '—';
   }
   if(r2El){
-    if(totalGastoARS > 0){
-      if(l2El){
-        l2El.textContent = 'Gasto acumulado';
-      }
-      r2El.textContent = '$' + fmtN(Math.round(totalGastoARS));
-    } else if(referenceBudget > 0){
-      if(l2El) l2El.textContent = 'Presupuesto disponible';
-      r2El.textContent = '$' + fmtN(Math.round(referenceBudget));
-    } else {
-      r2El.textContent = '—';
-    }
+    if(l2El) l2El.textContent = 'Gasto acumulado';
+    r2El.textContent = Number.isFinite(totalGastoARS) ? '$' + fmtN(Math.round(totalGastoARS || 0)) : '—';
   }
   if(r3El){
-    const limit = (state.tcConfig||{}).limit || 0;
-    r3El.textContent = limit > 0 ? '$' + fmtN(Math.round(limit)) : '—';
+    r3El.textContent = salaryLimit > 0 ? '$' + fmtN(Math.round(salaryLimit)) : '—';
   }
 
-  // progress bar: what % of income/limit has been spent
-  if(barEl && referenceBudget > 0 && projected > 0){
-    const pct = Math.min(100, Math.round(projected / referenceBudget * 100));
-    animateProgressBar(barEl, pct);
-    if(pct >= 100) barEl.classList.add('over');
-    else barEl.classList.remove('over');
+  if(pctEl && pctLimitEl && pctRingEl){
+    if(salaryLimit > 0){
+      const pct = Math.max(0, Math.round((totalGastoARS || 0) / salaryLimit * 100));
+      pctEl.textContent = pct + '%';
+      pctLimitEl.textContent = 'de $' + fmtN(Math.round(salaryLimit), 0);
+      pctRingEl.style.setProperty('--db2-proj-pct', Math.min(360, pct * 3.6) + 'deg');
+      pctRingEl.classList.toggle('over', pct >= 100);
+    } else {
+      pctEl.textContent = '—';
+      pctLimitEl.textContent = 'Sin datos';
+      pctRingEl.style.setProperty('--db2-proj-pct', '0deg');
+      pctRingEl.classList.remove('over');
+    }
+  }
+
+  if(nextIncomeEl){
+    const nextIncome = getNextConfiguredIncomePayment(salaryLimit);
+    if(nextIncome){
+      nextIncomeEl.textContent = nextIncome.date.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'}).replace('.', '');
+      if(nextIncomeSubEl){
+        nextIncomeSubEl.textContent = nextIncome.days === 0 ? 'hoy' : `en ${nextIncome.days} día${nextIncome.days !== 1 ? 's' : ''}`;
+      }
+    } else {
+      nextIncomeEl.textContent = '—';
+      if(nextIncomeSubEl) nextIncomeSubEl.textContent = 'Sin datos';
+    }
+  }
+
+  if(barEl && barAccumEl){
+    const maxRef = Math.max(totalGastoARS || 0, projected || 0, salaryLimit || 0);
+    if(maxRef > 0){
+      const accumPct = Math.min(100, Math.max(0, (totalGastoARS || 0) / maxRef * 100));
+      const projectedPct = Math.min(100, Math.max(accumPct, (projected || 0) / maxRef * 100));
+      barAccumEl.style.width = accumPct + '%';
+      barEl.style.left = accumPct + '%';
+      barEl.style.width = Math.max(0, projectedPct - accumPct) + '%';
+      barEl.classList.toggle('over', salaryLimit > 0 && projected > salaryLimit);
+      if(limitMarkerEl){
+        if(salaryLimit > 0){
+          limitMarkerEl.style.display = '';
+          limitMarkerEl.style.left = Math.min(100, Math.max(0, salaryLimit / maxRef * 100)) + '%';
+        } else {
+          limitMarkerEl.style.display = 'none';
+        }
+      }
+    } else {
+      barAccumEl.style.width = '0%';
+      barEl.style.left = '0%';
+      barEl.style.width = '0%';
+      barEl.classList.remove('over');
+      if(limitMarkerEl) limitMarkerEl.style.display = 'none';
+    }
   }
 }
 

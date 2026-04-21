@@ -54,16 +54,10 @@ function renderIncomePage() {
     }
   }
 
-  // 2. Próximo Ingreso (find next from state.incomeSources)
+  // 2. Próximo Ingreso. No se infiere una fecha si el usuario no la configuró.
   let nextIncomeDate = null;
   let nextIncomeDays = 0;
-  let nextIncomeLabel = '—';
-  // simple mock for now based on closest day to today + 5
-  if(state.incomeSources.length) {
-    const d=new Date(); d.setDate(d.getDate()+5);
-    nextIncomeDate=d.toLocaleDateString('es-AR',{day:'numeric',month:'short'});
-    nextIncomeDays=5;
-  }
+  void nextIncomeDays;
 
   // 3. Comparativa Inteligente (Promedio 3 meses)
   const last3 = months.slice(0,3);
@@ -121,13 +115,35 @@ function renderIncomePage() {
   }).join('');
 
   // 6. Insights Right Panel calcs
-  const nextIncomes = state.incomeSources.slice(0,3).map((s,i)=>`
+  const incomeScheduleDate = src => {
+    const dateFields = ['nextPaymentDate','nextIncomeDate','payDate','salaryDate','cobroDate','fechaCobro'];
+    const dayFields = ['payDay','paymentDay','salaryDay','cobroDay','diaCobro','diaDeCobro'];
+    const today = new Date(); today.setHours(0,0,0,0);
+    for(const field of dateFields){
+      if(!src[field]) continue;
+      const date = new Date(String(src[field]) + (String(src[field]).includes('T') ? '' : 'T12:00:00'));
+      if(Number.isNaN(date.getTime())) continue;
+      date.setHours(0,0,0,0);
+      if(date >= today) return date;
+    }
+    for(const field of dayFields){
+      const day = Number(src[field]);
+      if(!Number.isFinite(day) || day < 1 || day > 31) continue;
+      const buildDate = (year, month) => new Date(year, month, Math.min(day, new Date(year, month + 1, 0).getDate()));
+      let date = buildDate(today.getFullYear(), today.getMonth());
+      if(date < today) date = buildDate(today.getFullYear(), today.getMonth() + 1);
+      return date;
+    }
+    return null;
+  };
+  const nextIncomesRows = state.incomeSources.map(s => ({source:s, date:incomeScheduleDate(s)})).filter(item => item.date).sort((a,b)=>a.date-b.date).slice(0,3);
+  const nextIncomes = nextIncomesRows.length ? nextIncomesRows.map(({source:s, date})=>`
     <div class="i-next-row">
-      <div class="i-next-date"><span>${10+(i*5)}</span><small>ABR</small></div>
+      <div class="i-next-date"><span>${date.toLocaleDateString('es-AR',{day:'numeric'})}</span><small>${date.toLocaleDateString('es-AR',{month:'short'}).replace('.','').toUpperCase()}</small></div>
       <div class="i-next-name">${esc(s.name)} (${s.currency})</div>
       <div class="i-next-val">${s.currency==='USD'?'USD':'$'}${fmtN(s.base||0)}</div>
     </div>
-  `).join('');
+  `).join('') : '<div class="i-next-row"><div class="i-next-name">Sin fechas configuradas</div><div class="i-next-val">—</div></div>';
 
   const arsPct = curCombined>0? Math.round((curARS/curCombined)*100) : 0;
   const usdPct = curCombined>0? Math.round(((curUSD*TC)/curCombined)*100) : 0;
@@ -339,7 +355,7 @@ function renderIncomePage() {
           <div class="ikpi ikpi-c4">
             <div class="ikpi-h"><div class="ikpi-icon">📅</div> PRÓXIMO INGRESO</div>
             <div class="ikpi-v">${nextIncomeDate||'—'}</div>
-            <div class="ikpi-sub" style="background:#fef3c7;padding:2px 8px;border-radius:12px;color:#d97706;width:fit-content;font-weight:700;">Faltan ${nextIncomeDays} días</div>
+            <div class="ikpi-sub" style="background:#fef3c7;padding:2px 8px;border-radius:12px;color:#d97706;width:fit-content;font-weight:700;">Sin datos</div>
           </div>
         </div>
 
