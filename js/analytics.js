@@ -183,292 +183,609 @@ function toggleTendCat(cat){
   else state.activeTendCats.add(cat);
   renderTendencia();
 }
-function setTendChartMode(mode){
-  state.tendChartMode=mode;
+// ─ In-memory UI state (not persisted)
+if(!state.tendChartToggle) state.tendChartToggle='acumulado';
+if(!state.tendRankingTab)  state.tendRankingTab='monto';
+
+function _normTendChartMode(m){
+  if(m==='evo'||m==='ranking'||m==='compare') return m;
+  if(m==='line') return 'evo';
+  if(m==='bar'||m==='treemap') return 'ranking';
+  return 'evo';
+}
+
+// Stored refs for partial re-renders
+let _tendChartState=null;
+let _tendRankingState=null;
+
+// ─ Toggle daily/cumulative
+function setTendChartToggle(t){
+  state.tendChartToggle=t;
+  document.getElementById('tend-tog-dia')?.classList.toggle('active',t==='dia');
+  document.getElementById('tend-tog-acum')?.classList.toggle('active',t==='acumulado');
+  if(_tendChartState) _tend_drawChart();
+}
+
+// ─ Ranking tab
+function setTendRankingTab(t){
+  state.tendRankingTab=t;
+  ['monto','anterior','participacion'].forEach(x=>{
+    const id=x==='participacion'?'rank-tab-pct':'rank-tab-'+x;
+    document.getElementById(id)?.classList.toggle('active',x===t);
+  });
+  _tend_drawRanking();
+}
+
+// ─ Chart view (evo / ranking / compare)
+function setTendChartMode(m){
+  state.tendChartMode=_normTendChartMode(m);
   saveState();
-  renderTendencia();
+  _tend_drawChart();
+  ['evo','ranking','compare'].forEach(x=>{
+    document.getElementById('tv2-'+x)?.classList.toggle('active',x===state.tendChartMode);
+  });
+  const evoToggle=document.getElementById('tend-evo-toggle');
+  if(evoToggle) evoToggle.style.display=state.tendChartMode==='evo'?'flex':'none';
+  const ci=document.getElementById('tend-context-insight');
+  if(ci) ci.style.display=state.tendChartMode==='evo'?'flex':'none';
+}
+
+// ─ Build daily array for a cycle (by relative day)
+function _tend_cycleDailyData(txns,openStr,closeStr){
+  const openD=new Date(openStr+'T00:00:00');
+  const closeD=new Date(closeStr+'T23:59:59');
+  const days=Math.max(Math.round((closeD-openD)/(864e5))+1,1);
+  const byDay={};
+  txns.forEach(t=>{
+    const td=t.date instanceof Date?t.date:new Date(t.date);
+    const rel=Math.round((td-openD)/864e5);
+    if(rel>=0&&rel<days) byDay[rel]=(byDay[rel]||0)+t.amount;
+  });
+  return Array.from({length:days},(_,i)=>byDay[i]||0);
+}
+
+// ─ Build daily array for a month (by calendar day)
+function _tend_monthDailyData(txns,monthKey){
+  const[y,m]=monthKey.split('-').map(Number);
+  const days=new Date(y,m,0).getDate();
+  const byDay={};
+  txns.forEach(t=>{
+    const td=t.date instanceof Date?t.date:new Date(t.date);
+    byDay[td.getDate()]=(byDay[td.getDate()]||0)+t.amount;
+  });
+  return Array.from({length:days},(_,i)=>byDay[i+1]||0);
+}
+
+function _tend_cumulative(arr){let s=0;return arr.map(v=>s+=v);}
+
+// ─ Draw the chart (reads _tendChartState)
+function _tend_drawChart(){
+  if(!_tendChartState) return;
+  const{currentTxns,prevTxns,lastKey,prevKey,mode,currentLabel,prevLabel,grandTotal,sortedParents,parentDeltas}=_tendChartState;
+
+  if(state.charts.tendMain){state.charts.tendMain.destroy();state.charts.tendMain=null;}
+  const ctx=document.getElementById('chart-tend-main');
+  const customEl=document.getElementById('tend-chart-custom');
+  const chartMode=_normTendChartMode(state.tendChartMode||'evo');
+  const toggle=state.tendChartToggle||'acumulado';
+  const titleEl=document.getElementById('tend-chart-title');
+  const subEl=document.getElementById('tend-chart-sub');
+  const legendEl=document.getElementById('tend-chart-legend');
+  const evoToggle=document.getElementById('tend-evo-toggle');
+  const ctxBar=document.getElementById('tend-context-insight');
+
+  // Sync toggle buttons
+  document.getElementById('tend-tog-dia')?.classList.toggle('active',toggle==='dia');
+  document.getElementById('tend-tog-acum')?.classList.toggle('active',toggle==='acumulado');
+  if(evoToggle) evoToggle.style.display=chartMode==='evo'?'flex':'none';
+  if(ctxBar)    ctxBar.style.display=chartMode==='evo'?'flex':'none';
+  if(ctx)       ctx.closest('.chart-wrap').style.display=chartMode==='treemap_off'?'none':'block';
+  if(customEl)  customEl.style.display='none';
+  ['evo','ranking','compare'].forEach(x=>document.getElementById('tv2-'+x)?.classList.toggle('active',x===chartMode));
+
+  // ── VISTA 1: Evolución (línea diaria actual vs anterior) ──
+  if(chartMode==='evo'&&ctx){
+    if(titleEl) titleEl.textContent='Evolución del gasto';
+    if(subEl)   subEl.textContent=(toggle==='acumulado'?'Acumulado día a día':'Gasto diario')+' · '+currentLabel+' vs '+prevLabel;
+
+    let curDaily,prevDaily,labels;
+    if(mode!=='mes'){
+      const cycles=getTcCycles(mode).slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
+      const curCycle=cycles.find(c=>c.id===lastKey);
+      const prevCycle=prevKey?cycles.find(c=>c.id===prevKey):null;
+      if(curCycle){
+        const ci=cycles.findIndex(c=>c.id===lastKey);
+        const curOpen=getTcCycleOpen(cycles,ci)||curCycle.closeDate;
+        curDaily=_tend_cycleDailyData(currentTxns,curOpen,curCycle.closeDate);
+        labels=curDaily.map((_,i)=>'Día '+(i+1));
+        if(prevCycle){
+          const pi=cycles.findIndex(c=>c.id===prevKey);
+          const prevOpen=getTcCycleOpen(cycles,pi)||prevCycle.closeDate;
+          prevDaily=_tend_cycleDailyData(prevTxns,prevOpen,prevCycle.closeDate);
+        } else prevDaily=[];
+      } else { curDaily=[];prevDaily=[];labels=[]; }
+    } else {
+      curDaily=_tend_monthDailyData(currentTxns,lastKey);
+      prevDaily=prevKey?_tend_monthDailyData(prevTxns,prevKey):[];
+      labels=curDaily.map((_,i)=>String(i+1));
+    }
+
+    // Pad arrays to same length
+    const maxLen=Math.max(curDaily.length,prevDaily.length,1);
+    while(curDaily.length<maxLen)  curDaily.push(curDaily[curDaily.length-1]||0);
+    while(prevDaily.length<maxLen) prevDaily.push(prevDaily[prevDaily.length-1]||0);
+    while(labels.length<maxLen)    labels.push(labels[labels.length-1]||'');
+
+    const curData=toggle==='acumulado'?_tend_cumulative(curDaily):curDaily;
+    const prevData=toggle==='acumulado'?_tend_cumulative(prevDaily):prevDaily;
+
+    // Context insight: pace vs previous period at same relative day
+    const today=new Date();
+    let todayRelDay=0;
+    if(mode!=='mes'){
+      const cycles=getTcCycles(mode).slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
+      const curCycle=cycles.find(c=>c.id===lastKey);
+      if(curCycle){
+        const ci=cycles.findIndex(c=>c.id===lastKey);
+        const curOpen=getTcCycleOpen(cycles,ci)||curCycle.closeDate;
+        todayRelDay=Math.min(Math.max(Math.round((today-new Date(curOpen+'T00:00:00'))/864e5),0),curDaily.length-1);
+      }
+    } else {
+      todayRelDay=Math.min(today.getDate()-1,curDaily.length-1);
+    }
+    if(ctxBar){
+      const curAcc=curData[todayRelDay]||0,prevAcc=prevData[todayRelDay]||0;
+      const pace=curAcc-prevAcc;
+      const pColor=pace>0?'#ef4444':'#10b981';
+      const pSign=pace>0?'+':'';
+      ctxBar.innerHTML=`<span style="font-size:14px;">📍</span><span style="font-size:12px;color:var(--text2);">Vas <strong style="color:${pColor};">${pSign}$${fmtN(Math.abs(pace))}</strong> ${pace>0?'por encima':'por debajo'} del ritmo de ${prevLabel}</span><button onclick="setTendChartMode('compare')" style="font-size:12px;color:var(--accent4);font-weight:700;margin-left:auto;white-space:nowrap;background:none;border:none;cursor:pointer;padding:0;">Ver análisis →</button>`;
+      ctxBar.style.display='flex';
+    }
+
+    // Legend
+    if(legendEl) legendEl.innerHTML=`
+      <div class="tend-legend-item"><span class="tend-legend-line" style="background:#7c3aed;"></span>${currentLabel}</div>
+      <div class="tend-legend-item"><span class="tend-legend-line tend-legend-dashed"></span>${prevLabel}</div>`;
+
+    // Gradient fill
+    const purple='#7c3aed';
+    state.charts.tendMain=new Chart(ctx,{
+      type:'line',
+      data:{labels,datasets:[
+        {label:currentLabel,data:curData,
+          borderColor:purple,
+          backgroundColor:(context)=>{const g=context.chart.ctx.createLinearGradient(0,0,0,280);g.addColorStop(0,'rgba(124,58,237,0.32)');g.addColorStop(1,'rgba(124,58,237,0.01)');return g;},
+          borderWidth:2.5,fill:true,tension:0.4,pointRadius:0,pointHoverRadius:5,
+          pointHoverBackgroundColor:purple,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,order:1},
+        {label:prevLabel,data:prevData,
+          borderColor:'#9ca3af',backgroundColor:'transparent',
+          borderWidth:1.5,borderDash:[6,4],fill:false,tension:0.4,
+          pointRadius:0,pointHoverRadius:4,order:2}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),
+        interaction:{mode:'index',intersect:false},
+        plugins:{legend:{display:false},
+          tooltip:{..._chartTooltip(),callbacks:{
+            title:ctx2=>labels[ctx2[0].dataIndex],
+            label:ctx2=>' '+ctx2.dataset.label+': $'+fmtN(ctx2.parsed.y)
+          }}},
+        scales:{
+          x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxTicksLimit:10,maxRotation:0},grid:{display:false}},
+          y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}
+        }}
+    });
+    animateTendCanvas(ctx);
+
+  // ── VISTA 2: Ranking por categoría (barras horizontales) ──
+  } else if(chartMode==='ranking'&&ctx){
+    if(titleEl) titleEl.textContent='Ranking de categorías';
+    if(subEl)   subEl.textContent=sortedParents.length+' categorías con gasto · '+currentLabel;
+    if(legendEl) legendEl.innerHTML='';
+    const names=sortedParents.map(([p])=>p);
+    const totals=sortedParents.map(([,v])=>v);
+    const colors=names.map(p=>{const g=CATEGORY_GROUPS.find(x=>x.group===p);return g?g.color:'#888';});
+    const emojis=names.map(p=>{const g=CATEGORY_GROUPS.find(x=>x.group===p);return g?g.emoji:'';});
+    const avg=totals.reduce((s,v)=>s+v,0)/Math.max(totals.length,1);
+    state.charts.tendMain=new Chart(ctx,{
+      type:'bar',
+      data:{labels:names.map((p,i)=>emojis[i]+' '+p),datasets:[
+        {label:'Gasto',data:totals,
+          backgroundColor:colors.map(c=>c+'cc'),borderColor:colors,
+          borderWidth:1.5,borderRadius:9,maxBarThickness:44,borderSkipped:false,order:2},
+        {label:'Promedio',data:names.map(()=>avg),type:'line',
+          borderColor:'rgba(160,154,148,0.55)',borderWidth:1.5,borderDash:[5,4],
+          pointRadius:0,fill:false,order:1}
+      ]},
+      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),
+        plugins:{legend:{display:false},
+          tooltip:{..._chartTooltip(),callbacks:{label:ctx2=>ctx2.datasetIndex===1?' Promedio: $'+fmtN(ctx2.parsed.x):' $'+fmtN(ctx2.parsed.x)}}},
+        scales:{
+          x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.03)',drawBorder:false}},
+          y:{ticks:{color:_chartTickColor(),font:{..._chartTickFont(),size:11,weight:'600'}},grid:{display:false}}
+        }}
+    });
+    animateTendCanvas(ctx);
+
+  // ── VISTA 3: Comparación vs período anterior ──
+  } else if(chartMode==='compare'&&ctx){
+    if(titleEl) titleEl.textContent='Comparación vs período anterior';
+    if(subEl)   subEl.textContent=(prevKey?prevLabel:'—')+' vs '+currentLabel;
+    if(legendEl) legendEl.innerHTML='';
+    const compCats=Object.entries(parentDeltas)
+      .filter(([,d])=>d.last>0||d.prev>0)
+      .sort((a,b)=>(b[1].last+b[1].prev)-(a[1].last+a[1].prev))
+      .slice(0,10);
+    const compColors=compCats.map(([p])=>{const g=CATEGORY_GROUPS.find(x=>x.group===p);return g?g.color:'#888';});
+    const compEmojis=compCats.map(([p])=>{const g=CATEGORY_GROUPS.find(x=>x.group===p);return g?g.emoji:'';});
+    state.charts.tendMain=new Chart(ctx,{
+      type:'bar',
+      data:{labels:compCats.map(([p],i)=>compEmojis[i]+' '+p),datasets:[
+        {label:prevLabel,data:compCats.map(([p])=>parentDeltas[p].prev),
+          backgroundColor:'rgba(160,154,148,0.22)',borderColor:'rgba(160,154,148,0.45)',
+          borderWidth:1,borderRadius:7,maxBarThickness:38},
+        {label:currentLabel,data:compCats.map(([p])=>parentDeltas[p].last),
+          backgroundColor:compColors.map(c=>c+'cc'),borderColor:compColors,
+          borderWidth:1.5,borderRadius:7,maxBarThickness:38}
+      ]},
+      options:{responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),
+        plugins:{
+          legend:{display:true,position:'bottom',labels:{color:_isL()?'#748096':'#9ca3af',font:{size:10},boxWidth:10,padding:12,usePointStyle:true}},
+          tooltip:{..._chartTooltip(),callbacks:{label:ctx2=>' '+ctx2.dataset.label+': $'+fmtN(ctx2.parsed.y)}}},
+        scales:{
+          x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxRotation:40},grid:{display:false}},
+          y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}
+        }}
+    });
+    animateTendCanvas(ctx);
+  }
+}
+
+// ─ Draw ranking list (reads _tendRankingState)
+function _tend_drawRanking(){
+  if(!_tendRankingState) return;
+  const{sortedParents,parentDeltas,grandTotal,prevLabel}=_tendRankingState;
+  const tab=state.tendRankingTab||'monto';
+  const el=document.getElementById('tend-ranking-list');
+  const subEl=document.getElementById('tend-ranking-sub');
+  if(!el) return;
+
+  // Sort rows per tab
+  let rows=[...sortedParents];
+  if(tab==='anterior'){
+    rows=Object.entries(parentDeltas)
+      .filter(([,d])=>d.last>0||d.prev>0)
+      .sort((a,b)=>Math.abs(b[1].diff)-Math.abs(a[1].diff));
+    if(subEl) subEl.textContent='Por cambio absoluto vs. período anterior';
+  } else if(tab==='participacion'){
+    rows=[...sortedParents];
+    if(subEl) subEl.textContent='Porcentaje del total del período';
+  } else {
+    if(subEl) subEl.textContent='Por monto total';
+  }
+
+  const maxAmt=sortedParents.length?sortedParents[0][1]:1;
+
+  el.innerHTML=rows.map(([parent])=>{
+    const grp=CATEGORY_GROUPS.find(g=>g.group===parent);
+    const c=grp?grp.color:'#888';
+    const emoji=grp?grp.emoji:'';
+    const d=parentDeltas[parent]||{last:0,prev:0,diff:0,pct:0};
+    const amount=d.last;
+    const pct=grandTotal>0?Math.round(amount/grandTotal*100):0;
+    const barW=maxAmt>0?Math.max(Math.round(amount/maxAmt*100),2):0;
+
+    let right='';
+    if(tab==='anterior'){
+      const dColor=d.diff>0?'#ef4444':d.diff<0?'#10b981':'var(--text3)';
+      const dSign=d.diff>0?'+':'';
+      const dPct=Math.round(d.pct);
+      right=`<div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:13px;font-weight:700;color:${c};font-family:var(--font);">$${fmtN(amount)}</div>
+        <div style="font-size:11px;font-weight:700;color:${dColor};margin-top:2px;">${dSign}${dPct}%</div>
+      </div>`;
+    } else if(tab==='participacion'){
+      right=`<div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:13px;font-weight:700;color:${c};font-family:var(--font);">$${fmtN(amount)}</div>
+        <div style="font-size:20px;font-weight:800;color:${c};opacity:0.65;line-height:1;margin-top:1px;">${pct}%</div>
+      </div>`;
+    } else {
+      right=`<div style="text-align:right;flex-shrink:0;">
+        <div style="font-size:13px;font-weight:700;color:${c};font-family:var(--font);">$${fmtN(amount)}</div>
+        <div style="display:inline-block;font-size:10px;font-weight:600;color:${c};background:${c}22;padding:2px 8px;border-radius:99px;margin-top:3px;">${pct}%</div>
+      </div>`;
+    }
+    return `<div class="tend-rank-row">
+      <span class="tend-rank-emoji">${emoji}</span>
+      <div class="tend-rank-info">
+        <div class="tend-rank-name">${parent}</div>
+        <div class="tend-rank-bar-wrap"><div class="tend-rank-bar" style="width:${barW}%;background:${c};"></div></div>
+      </div>
+      ${right}
+    </div>`;
+  }).join('');
+}
+
+// ─ Draw top 3 summary cards
+function _tend_drawTopCards(currentTotal,totalDeltaPct,prevLabel,topUp,topDown,closeDateStr,daysRemaining){
+  const el=document.getElementById('tend-top-cards');
+  if(!el) return;
+  const dColor=totalDeltaPct===null?'var(--text3)':totalDeltaPct>5?'#ef4444':totalDeltaPct<-5?'#10b981':'var(--text3)';
+  const dIcon=totalDeltaPct===null?'':totalDeltaPct>0?'↑ ':'↓ ';
+  const dStr=totalDeltaPct!==null?(totalDeltaPct>0?'+':'')+Math.round(totalDeltaPct)+'%':'—';
+
+  let closeHtml='';
+  if(closeDateStr){
+    const cd=new Date(closeDateStr+'T00:00:00');
+    const cdStr=cd.toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+    closeHtml=`<div style="display:flex;gap:18px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.07);">
+      <div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,0.4);">Cierre</div>
+           <div style="font-size:14px;font-weight:700;color:var(--text);margin-top:3px;">${cdStr}</div></div>
+      ${daysRemaining!==null?`<div><div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:rgba(255,255,255,0.4);">Días restantes</div>
+           <div style="font-size:14px;font-weight:700;color:${daysRemaining<=3?'#ef4444':'var(--text)'};margin-top:3px;">${daysRemaining} días</div></div>`:''}
+    </div>`;
+  }
+
+  const card1=`<div class="tend-top-card" style="background:linear-gradient(135deg,rgba(124,58,237,0.14) 0%,rgba(124,58,237,0.04) 100%);border-color:rgba(124,58,237,0.25);">
+    <div class="tend-top-card-label" style="color:rgba(167,139,250,0.9);">💳 GASTO DEL CICLO</div>
+    <div class="tend-top-card-value">$${fmtN(currentTotal)}</div>
+    <div class="tend-top-card-delta" style="color:${dColor};">${dIcon}${dStr}${prevLabel!=='—'?' vs. '+prevLabel:''}</div>
+    ${closeHtml}
+  </div>`;
+
+  const card2=topUp?`<div class="tend-top-card" style="background:linear-gradient(135deg,rgba(239,68,68,0.12) 0%,rgba(239,68,68,0.03) 100%);border-color:rgba(239,68,68,0.22);">
+    <div class="tend-top-card-label" style="color:rgba(252,165,165,0.9);">📈 SUBIÓ MÁS</div>
+    <div class="tend-top-card-cat">${catGroupEmoji(topUp[0])} ${topUp[0]}</div>
+    <div class="tend-top-card-value" style="font-size:22px;color:#ef4444;">+$${fmtN(Math.abs(topUp[1].diff))}</div>
+    <div class="tend-top-card-delta" style="color:#ef4444;">+${Math.round(topUp[1].pct)}% vs. ${prevLabel}</div>
+  </div>`:`<div class="tend-top-card" style="opacity:0.5;"><div class="tend-top-card-label">📈 SUBIÓ MÁS</div><div style="color:var(--text3);font-size:13px;margin-top:8px;">Sin cambios</div></div>`;
+
+  const card3=topDown?`<div class="tend-top-card" style="background:linear-gradient(135deg,rgba(16,185,129,0.12) 0%,rgba(16,185,129,0.03) 100%);border-color:rgba(16,185,129,0.22);">
+    <div class="tend-top-card-label" style="color:rgba(110,231,183,0.9);">📉 BAJÓ MÁS</div>
+    <div class="tend-top-card-cat">${catGroupEmoji(topDown[0])} ${topDown[0]}</div>
+    <div class="tend-top-card-value" style="font-size:22px;color:#10b981;">-$${fmtN(Math.abs(topDown[1].diff))}</div>
+    <div class="tend-top-card-delta" style="color:#10b981;">${Math.round(topDown[1].pct)}% vs. ${prevLabel}</div>
+  </div>`:`<div class="tend-top-card" style="opacity:0.5;"><div class="tend-top-card-label">📉 BAJÓ MÁS</div><div style="color:var(--text3);font-size:13px;margin-top:8px;">Sin cambios</div></div>`;
+
+  el.innerHTML=card1+card2+card3;
+}
+
+// ─ Draw insights panel
+function _tend_drawInsights(currentTxns,prevTxns,sortedParents,parentDeltas,grandTotal,totalDeltaPct,currentLabel,prevLabel,lastKey,mode){
+  const el=document.getElementById('tend-insights-panel');
+  if(!el) return;
+  const curTotal=currentTxns.reduce((s,t)=>s+t.amount,0);
+  const prevTotal=prevTxns.reduce((s,t)=>s+t.amount,0);
+
+  // Days elapsed in current period
+  let daysElapsed=1;
+  if(mode!=='mes'){
+    const cycles=getTcCycles(mode).slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
+    const cycle=cycles.find(c=>c.id===lastKey);
+    if(cycle){
+      const ci=cycles.findIndex(c=>c.id===lastKey);
+      const openStr=getTcCycleOpen(cycles,ci)||cycle.closeDate;
+      const openD=new Date(openStr+'T00:00:00');
+      const today=new Date();today.setHours(0,0,0,0);
+      const close=new Date(cycle.closeDate+'T00:00:00');
+      const end=today<close?today:close;
+      daysElapsed=Math.max(Math.round((end-openD)/864e5)+1,1);
+    }
+  } else {
+    const today=new Date();
+    const[y,m2]=lastKey.split('-').map(Number);
+    const curMK=getMonthKey(today);
+    daysElapsed=lastKey===curMK?today.getDate():new Date(y,m2,0).getDate();
+  }
+
+  const dailyAvg=curTotal/daysElapsed;
+  const prevDaysApprox=prevTotal>0?30:1;
+  const prevDailyAvg=prevTotal/prevDaysApprox;
+  const dailyDeltaPct=prevDailyAvg>0?((dailyAvg-prevDailyAvg)/prevDailyAvg*100):null;
+
+  // Peak day
+  const dayMap={};
+  currentTxns.forEach(t=>{
+    const td=t.date instanceof Date?t.date:new Date(t.date);
+    const k=td.toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+    dayMap[k]=(dayMap[k]||0)+t.amount;
+  });
+  const[peakDay,peakAmt]=Object.entries(dayMap).sort((a,b)=>b[1]-a[1])[0]||['—',0];
+
+  const topCat=sortedParents[0];
+  const topCatPct=topCat&&grandTotal>0?Math.round(topCat[1]/grandTotal*100):0;
+  const top3Total=sortedParents.slice(0,3).reduce((s,[,v])=>s+v,0);
+  const top3Pct=grandTotal>0?Math.round(top3Total/grandTotal*100):0;
+  const top3Names=sortedParents.slice(0,3).map(([p])=>p);
+
+  // Status card
+  const sDelta=totalDeltaPct;
+  const sColor=sDelta===null?'#7c3aed':sDelta>20?'#ef4444':sDelta>5?'#f97316':'#10b981';
+  const sBg=sDelta===null?'rgba(124,58,237,0.12)':sDelta>20?'rgba(239,68,68,0.10)':sDelta>5?'rgba(249,115,22,0.10)':'rgba(16,185,129,0.10)';
+  const sEmoji=sDelta===null?'📊':sDelta>20?'🚨':sDelta>5?'⚠️':'✅';
+  const sLabel=sDelta===null?'Sin referencia':sDelta>20?'¡Atención!':sDelta>5?'Algo elevado':'Bajo control';
+  const sPct=sDelta!==null?(sDelta>0?'+':'')+Math.round(sDelta)+'%':'—';
+  const sProgress=prevTotal>0?Math.min(Math.round(curTotal/prevTotal*100),200):100;
+  const sSub=sDelta!==null?(sDelta>0?`Llevás $${fmtN(Math.abs(curTotal-prevTotal))} más que ${prevLabel}.`:`Ahorrás $${fmtN(Math.abs(curTotal-prevTotal))} vs. ${prevLabel}.`):`Primer período sin comparación.`;
+
+  let html=`<div class="tend-ins-kicker">INSIGHTS</div>
+  <div class="tend-ins-status-card" style="background:${sBg};border-color:${sColor}44;">
+    <div class="tend-ins-status-row">
+      <span style="font-size:24px;">${sEmoji}</span>
+      <div class="tend-ins-status-info">
+        <div class="tend-ins-status-label">${sLabel}</div>
+        <div class="tend-ins-status-pct" style="color:${sColor};">${sPct}</div>
+      </div>
+    </div>
+    <div class="tend-ins-progress-track">
+      <div class="tend-ins-progress-fill" style="width:${Math.min(sProgress,100)}%;background:${sColor};"></div>
+    </div>
+    <div class="tend-ins-status-sub">${sSub}</div>
+  </div>`;
+
+  // Dynamic insight cards
+  const cards=[];
+
+  if(sDelta!==null){
+    const up=sDelta>0;
+    cards.push({icon:up?'📈':'📉',color:up?'#ef4444':'#10b981',bg:up?'rgba(239,68,68,0.08)':'rgba(16,185,129,0.08)',
+      title:`Tu gasto está <strong style="color:${up?'#ef4444':'#10b981'};">${Math.abs(Math.round(sDelta))}%</strong> ${up?'por encima':'por debajo'} del ritmo anterior`,
+      sub:`vs. ${prevLabel}`});
+  }
+  if(dailyAvg>0){
+    const dSign=dailyDeltaPct!==null?(dailyDeltaPct>0?' ↑ +':' ↓ ')+Math.abs(Math.round(dailyDeltaPct||0))+'%':'';
+    cards.push({icon:'📅',color:'#6366f1',bg:'rgba(99,102,241,0.08)',
+      title:`Promedio diario: <strong style="color:#6366f1;">$${fmtN(Math.round(dailyAvg))}</strong>${dSign}`,
+      sub:`En ${daysElapsed} días transcurridos`});
+  }
+  if(peakDay&&peakAmt>0){
+    cards.push({icon:'🔥',color:'#f97316',bg:'rgba(249,115,22,0.08)',
+      title:`Pico el <strong style="color:#f97316;">${peakDay}</strong>: $${fmtN(peakAmt)}`,
+      sub:'El día de mayor gasto del período.'});
+  }
+  if(topCat&&topCatPct>=20){
+    const grp=CATEGORY_GROUPS.find(g=>g.group===topCat[0]);
+    cards.push({icon:grp?.emoji||'📌',color:grp?.color||'#888',bg:(grp?.color||'#888')+'18',
+      title:`<strong style="color:${grp?.color||'#888'};">${topCat[0]}</strong> representa el ${topCatPct}% del total`,
+      sub:`$${fmtN(topCat[1])} este período.`});
+  }
+  if(sortedParents.length>=3){
+    cards.push({icon:'🎯',color:'#8b5cf6',bg:'rgba(139,92,246,0.08)',
+      title:`Concentrás el <strong style="color:#8b5cf6;">${top3Pct}%</strong> del gasto en ${Math.min(3,sortedParents.length)} categorías`,
+      sub:top3Names.slice(0,3).join(', ')});
+  }
+  // Biggest spike
+  const spike=Object.entries(parentDeltas).filter(([,d])=>d.pct>50&&d.prev>1000).sort((a,b)=>b[1].pct-a[1].pct)[0];
+  if(spike){
+    const grp=CATEGORY_GROUPS.find(g=>g.group===spike[0]);
+    cards.push({icon:'⚡',color:'#ef4444',bg:'rgba(239,68,68,0.08)',
+      title:`<strong style="color:${grp?.color||'#ef4444'};">${spike[0]}</strong> subió <strong style="color:#ef4444;">${Math.round(spike[1].pct)}%</strong>`,
+      sub:`$${fmtN(spike[1].prev)} → $${fmtN(spike[1].last)}`});
+  }
+  // Biggest drop
+  const drop=Object.entries(parentDeltas).filter(([,d])=>d.pct<-30&&d.prev>1000).sort((a,b)=>a[1].pct-b[1].pct)[0];
+  if(drop){
+    const grp=CATEGORY_GROUPS.find(g=>g.group===drop[0]);
+    cards.push({icon:'💚',color:'#10b981',bg:'rgba(16,185,129,0.08)',
+      title:`<strong style="color:${grp?.color||'#10b981'};">${drop[0]}</strong> bajó <strong style="color:#10b981;">${Math.abs(Math.round(drop[1].pct))}%</strong>`,
+      sub:`Ahorrás $${fmtN(Math.abs(drop[1].diff))} vs. ${prevLabel}.`});
+  }
+
+  cards.slice(0,6).forEach(ins=>{
+    html+=`<div class="tend-ins-card" style="background:${ins.bg};border-left:3px solid ${ins.color};">
+      <div class="tend-ins-card-icon" style="background:${ins.color}22;color:${ins.color};">${ins.icon}</div>
+      <div class="tend-ins-card-body">
+        <div class="tend-ins-card-title">${ins.title}</div>
+        <div class="tend-ins-card-sub">${ins.sub}</div>
+      </div>
+    </div>`;
+  });
+
+  html+=`<div class="tend-ins-tip">
+    <div class="tend-ins-tip-icon">✨</div>
+    <div>
+      <div class="tend-ins-tip-label">TIP</div>
+      <div class="tend-ins-tip-text">Probá cambiar a <strong>"Meses"</strong> para ver tendencias de más largo plazo.</div>
+    </div>
+  </div>`;
+
+  el.innerHTML=html;
 }
 
 function renderTendencia(){
-  state.tendMode = normalizeViewMode(state.tendMode || 'visa');
+  state.tendMode=normalizeViewMode(state.tendMode||'visa');
+  // Migrate legacy chart modes
+  const legacyMap={bar:'ranking',treemap:'ranking',line:'evo'};
+  if(legacyMap[state.tendChartMode]) state.tendChartMode=legacyMap[state.tendChartMode];
 
   document.getElementById('tend-tog-mes')?.classList.toggle('active',state.tendMode==='mes');
   document.getElementById('tend-tog-visa')?.classList.toggle('active',state.tendMode==='visa');
 
-  const keys=getTendPeriodKeys();
-  if(keys.length<1){document.getElementById('tendencia-empty').style.display='block';document.getElementById('tendencia-content').style.display='none';return;}
-  document.getElementById('tendencia-empty').style.display='none';document.getElementById('tendencia-content').style.display='flex';
+  const allKeys=getTendPeriodKeys();
+  if(allKeys.length<1){
+    document.getElementById('tendencia-empty').style.display='block';
+    document.getElementById('tendencia-content').style.display='none';
+    return;
+  }
+  document.getElementById('tendencia-empty').style.display='none';
+  document.getElementById('tendencia-content').style.display='flex';
 
-  // ─ Populate period selector
+  // Period selector
   const pSel=document.getElementById('tend-period-select');
   if(pSel){
     const cv=pSel.value;
     let opts='<option value="">Todos los períodos</option>';
-    keys.slice().reverse().forEach(k=>{opts+='<option value="'+k+'" '+(k===cv?'selected':'')+'>'+getTendPeriodLabel(k)+'</option>';});
+    allKeys.slice().reverse().forEach(k=>{opts+='<option value="'+k+'" '+(k===cv?'selected':'')+'>'+getTendPeriodLabel(k)+'</option>';});
     pSel.innerHTML=opts;
   }
+  let selPeriod=pSel?.value||'';
+  if(!selPeriod&&allKeys.length){selPeriod=allKeys[allKeys.length-1];if(pSel)pSel.value=selPeriod;}
 
-  let selectedPeriod=pSel?.value||'';
-  // Default to latest key if nothing is selected or if we just switched mode
-  if(!selectedPeriod && keys.length) {
-    selectedPeriod = keys[keys.length-1];
-    if(pSel) pSel.value = selectedPeriod;
-  }
-  
-  const activeKeys=selectedPeriod?[selectedPeriod]:keys;
-  const labels=activeKeys.map(k=>getTendPeriodLabel(k));
+  const mode=normalizeViewMode(state.tendMode||'visa');
+  const lastKey=selPeriod||allKeys[allKeys.length-1];
+  const lastIdx=allKeys.indexOf(lastKey);
+  const prevKey=lastIdx>0?allKeys[lastIdx-1]:null;
 
-  // ─ Aggregate by parent category
-  const parentTotals={};const parentSubTotals={};
-  CATEGORY_GROUPS.forEach(g=>{parentTotals[g.group]=0;parentSubTotals[g.group]={};g.subs.forEach(s=>{parentSubTotals[g.group][s]=0;});});
-  activeKeys.forEach(k=>{
-    getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized').forEach(t=>{
-      const parent=catGroup(t.category);
-      parentTotals[parent]=(parentTotals[parent]||0)+t.amount;
-      if(!parentSubTotals[parent])parentSubTotals[parent]={};
-      parentSubTotals[parent][t.category]=(parentSubTotals[parent][t.category]||0)+t.amount;
-    });
-  });
-  const grandTotal=Object.values(parentTotals).reduce((s,v)=>s+v,0);
-  const sortedParents=Object.entries(parentTotals).sort((a,b)=>b[1]-a[1]);
-  const activeParents=sortedParents.filter(([,v])=>v>0);
-
-  // Previous period data for comparisons
-  const lastKey=keys[keys.length-1],prevKey=keys.length>=2?keys[keys.length-2]:null;
-  const lastTxns=getTxnsForTendPeriod(lastKey).filter(t=>t.currency==='ARS');
-  const prevTxns=prevKey?getTxnsForTendPeriod(prevKey).filter(t=>t.currency==='ARS'):[];
-  const lastTotal=lastTxns.reduce((s,t)=>s+t.amount,0);
+  const currentTxns=getTxnsForTendPeriod(lastKey).filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized');
+  const prevTxns=prevKey?getTxnsForTendPeriod(prevKey).filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized'):[];
+  const currentLabel=getTendPeriodLabel(lastKey);
+  const prevLabel=prevKey?getTendPeriodLabel(prevKey):'—';
+  const curTotal=currentTxns.reduce((s,t)=>s+t.amount,0);
   const prevTotal=prevTxns.reduce((s,t)=>s+t.amount,0);
-  const totalDelta=prevTotal>0?((lastTotal-prevTotal)/prevTotal*100):null;
+  const totalDeltaPct=prevTotal>0?((curTotal-prevTotal)/prevTotal*100):null;
 
-  // Per-parent deltas (last vs prev)
+  // Category aggregations
+  const parentTotals={},parentPrevTotals={};
+  CATEGORY_GROUPS.forEach(g=>{parentTotals[g.group]=0;parentPrevTotals[g.group]=0;});
+  currentTxns.forEach(t=>{const p=catGroup(t.category);parentTotals[p]=(parentTotals[p]||0)+t.amount;});
+  prevTxns.forEach(t=>{const p=catGroup(t.category);parentPrevTotals[p]=(parentPrevTotals[p]||0)+t.amount;});
+  const grandTotal=Object.values(parentTotals).reduce((s,v)=>s+v,0);
+  const sortedParents=Object.entries(parentTotals).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
+
   const parentDeltas={};
   CATEGORY_GROUPS.forEach(g=>{
-    const lastV=lastTxns.filter(t=>g.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0);
-    const prevV=prevTxns.filter(t=>g.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0);
-    parentDeltas[g.group]={last:lastV,prev:prevV,diff:lastV-prevV,pct:prevV>0?((lastV-prevV)/prevV*100):lastV>0?100:0};
+    const last=parentTotals[g.group]||0,prev=parentPrevTotals[g.group]||0;
+    parentDeltas[g.group]={last,prev,diff:last-prev,pct:prev>0?(last-prev)/prev*100:last>0?100:0};
   });
 
-  // ════════════════════════════════════════════
-  // 1. RESUMEN EJECUTIVO
-  // ════════════════════════════════════════════
-  const execEl=document.getElementById('tend-exec-summary');
-  if(execEl){
-    const lastLabel=getTendPeriodLabel(lastKey);
-    const prevLabel=prevKey?getTendPeriodLabel(prevKey):'—';
-    const deltaColor=totalDelta===null?'var(--text3)':totalDelta>5?'var(--danger)':totalDelta<-5?'var(--accent)':'var(--text3)';
-    const deltaIcon=totalDelta===null?'':'<span style="font-size:18px;">'+(totalDelta>0?'📈':'📉')+'</span> ';
-    const deltaStr=totalDelta!==null?((totalDelta>0?'+':'')+Math.round(totalDelta)+'%'):'—';
+  const movers=Object.entries(parentDeltas).filter(([,d])=>d.prev>0||d.last>0).sort((a,b)=>Math.abs(b[1].diff)-Math.abs(a[1].diff));
+  const topUp=movers.find(([,d])=>d.diff>0);
+  const topDown=movers.find(([,d])=>d.diff<0);
 
-    // Top movers
-    const movers=Object.entries(parentDeltas).filter(([,d])=>d.prev>0||d.last>0).sort((a,b)=>Math.abs(b[1].diff)-Math.abs(a[1].diff));
-    const topUp=movers.find(([,d])=>d.diff>0);
-    const topDown=movers.find(([,d])=>d.diff<0);
-
-    execEl.innerHTML=`
-      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
-        <div style="flex:1;min-width:200px;">
-          <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px;">RESUMEN · ${lastLabel}</div>
-          <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;">
-            <span style="font-size:24px;font-weight:800;letter-spacing:-.03em;font-family:var(--font);color:var(--text);">$${fmtN(lastTotal)}</span>
-            <span style="font-size:14px;font-weight:700;color:${deltaColor};">${deltaIcon}${deltaStr} vs ${prevLabel}</span>
-          </div>
-        </div>
-        <div style="display:flex;gap:16px;flex-wrap:wrap;">
-          ${topUp?`<div style="text-align:center;"><div style="font-size:9px;font-weight:700;color:var(--danger);letter-spacing:.05em;">▲ SUBIÓ MÁS</div><div style="font-size:13px;font-weight:700;color:var(--text);margin-top:2px;">${catGroupEmoji(topUp[0])} ${topUp[0]}</div><div style="font-size:11px;color:var(--danger);font-family:var(--font);">+$${fmtN(Math.abs(topUp[1].diff))} (+${Math.round(topUp[1].pct)}%)</div></div>`:''}
-          ${topDown?`<div style="text-align:center;"><div style="font-size:9px;font-weight:700;color:var(--accent);letter-spacing:.05em;">▼ BAJÓ MÁS</div><div style="font-size:13px;font-weight:700;color:var(--text);margin-top:2px;">${catGroupEmoji(topDown[0])} ${topDown[0]}</div><div style="font-size:11px;color:var(--accent);font-family:var(--font);">-$${fmtN(Math.abs(topDown[1].diff))} (${Math.round(topDown[1].pct)}%)</div></div>`:''}
-        </div>
-      </div>`;
+  // Cycle close date
+  let closeDateStr=null,daysRemaining=null;
+  if(mode!=='mes'){
+    const cycles=getTcCycles(mode).slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
+    const cycle=cycles.find(c=>c.id===lastKey);
+    if(cycle){
+      closeDateStr=cycle.closeDate;
+      const today=new Date();today.setHours(0,0,0,0);
+      const close=new Date(cycle.closeDate+'T00:00:00');
+      daysRemaining=Math.max(Math.round((close-today)/864e5),0);
+    }
   }
 
-  // ════════════════════════════════════════════
-  // 2. GRÁFICO PRINCIPAL — 4 vistas
-  // ════════════════════════════════════════════
-  if(state.charts.tendMain)state.charts.tendMain.destroy();
-  const ctx1=document.getElementById('chart-tend-main');
-  const customEl=document.getElementById('tend-chart-custom');
-  const tendMode=state.tendChartMode||'bar';
-
-  // Sync buttons
-  ['bar','line','compare','treemap'].forEach(m=>{
-    const btn=document.getElementById('tv-'+m);
-    if(btn){btn.classList.toggle('active',tendMode===m);}
-  });
-
-  const chartTitle=document.getElementById('tend-chart-title');
-  const chartSub=document.getElementById('tend-chart-sub');
-
-  // Only categories WITH spending for charts
-  const activeCatNames=activeParents.map(([p])=>p);
-  const activeCatTotals=activeParents.map(([,v])=>v);
-  const activeCatColors=activeCatNames.map(p=>{const g=CATEGORY_GROUPS.find(x=>x.group===p);return g?g.color:'#888';});
-  const activeCatEmojis=activeCatNames.map(p=>{const g=CATEGORY_GROUPS.find(x=>x.group===p);return g?g.emoji:'';});
-
-  if(ctx1)ctx1.parentElement.style.display=tendMode==='treemap'?'none':'block';
-  if(customEl)customEl.style.display=tendMode==='treemap'?'block':'none';
-
-  if(tendMode==='bar'&&ctx1){
-    // VISTA 1: Ranking (barras horizontales, solo cats con gasto)
-    chartTitle.textContent='Ranking de gasto';
-    chartSub.textContent=activeParents.length+' categorías · '+activeKeys.length+' '+(normalizeViewMode(state.tendMode||'visa')==='mes'?'meses':'ciclos');
-    const overallAvg=activeCatTotals.reduce((s,v)=>s+v,0)/Math.max(activeCatTotals.length,1);
-    state.charts.tendMain=new Chart(ctx1,{
-      type:'bar',
-      data:{
-        labels:activeCatNames.map((p,i)=>activeCatEmojis[i]+' '+p),
-        datasets:[
-          {label:'Gasto',data:activeCatTotals,backgroundColor:activeCatColors.map(c=>c+'bb'),borderColor:activeCatColors,borderWidth:1.5,borderRadius:8,maxBarThickness:42,borderSkipped:false,order:2},
-          {label:'Promedio',data:activeCatNames.map(()=>overallAvg),type:'line',borderColor:'rgba(160,154,148,0.6)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:1}
-        ]
-      },
-      options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:ctx=>ctx.datasetIndex===1?' Promedio: $'+fmtN(ctx.parsed.x):' $'+fmtN(ctx.parsed.x)}}},scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.03)',drawBorder:false}},y:{ticks:{color:_chartTickColor(),font:{..._chartTickFont(),size:11,weight:'600'}},grid:{display:false}}}}
-    });
-    animateTendCanvas(ctx1);
-  } else if(tendMode==='line'&&ctx1){
-    // VISTA 2: Evolución temporal por categoría
-    chartTitle.textContent='Evolución por categoría';
-    chartSub.textContent='Top '+Math.min(activeParents.length,8)+' categorías · '+keys.length+' '+(normalizeViewMode(state.tendMode||'visa')==='mes'?'meses':'ciclos');
-    const lineLabels=keys.map(k=>getTendPeriodLabel(k));
-    const lineCats=activeParents.slice(0,8);
-    const datasets=lineCats.map(([parent])=>{
-      const grp=CATEGORY_GROUPS.find(g=>g.group===parent);
-      const c=grp?grp.color:'#888';
-      return{label:grp?grp.emoji+' '+parent:parent,data:keys.map(k=>getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&grp?.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0)),borderColor:c,backgroundColor:c+'18',borderWidth:2,fill:false,tension:0.35,pointRadius:3,pointBackgroundColor:c,pointBorderColor:'#fff',pointBorderWidth:1.5};
-    });
-    state.charts.tendMain=new Chart(ctx1,{
-      type:'line',data:{labels:lineLabels,datasets},
-      options:{responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),plugins:{legend:{display:true,position:'bottom',labels:{color:'#a09a94',font:{size:10},boxWidth:10,padding:10,usePointStyle:true}},tooltip:{..._chartTooltip(),callbacks:{label:ctx=>' '+ctx.dataset.label+': $'+fmtN(ctx.parsed.y)}}},scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont()},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}}
-    });
-    animateTendCanvas(ctx1);
-  } else if(tendMode==='compare'&&ctx1){
-    // VISTA 3: Comparación vs período anterior (barras agrupadas)
-    chartTitle.textContent='Comparación vs período anterior';
-    const lLabel=getTendPeriodLabel(lastKey),pLabel=prevKey?getTendPeriodLabel(prevKey):'—';
-    chartSub.textContent=pLabel+' vs '+lLabel;
-    const compCats=activeParents.filter(([p])=>parentDeltas[p].last>0||parentDeltas[p].prev>0).slice(0,10);
-    state.charts.tendMain=new Chart(ctx1,{
-      type:'bar',data:{
-        labels:compCats.map(([p])=>{const g=CATEGORY_GROUPS.find(x=>x.group===p);return(g?g.emoji+' ':'')+p;}),
-        datasets:[
-          {label:pLabel,data:compCats.map(([p])=>parentDeltas[p].prev),backgroundColor:'rgba(160,154,148,0.3)',borderColor:'rgba(160,154,148,0.5)',borderWidth:1,borderRadius:8,maxBarThickness:42},
-          {label:lLabel,data:compCats.map(([p])=>parentDeltas[p].last),backgroundColor:compCats.map(([p])=>{const g=CATEGORY_GROUPS.find(x=>x.group===p);return(g?g.color:'#888')+'bb';}),borderColor:compCats.map(([p])=>{const g=CATEGORY_GROUPS.find(x=>x.group===p);return g?g.color:'#888';}),borderWidth:1.5,borderRadius:8,maxBarThickness:42}
-        ]
-      },
-      options:{responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),plugins:{legend:{display:true,position:'bottom',labels:{color:'#a09a94',font:{size:10},boxWidth:10,padding:12,usePointStyle:true}},tooltip:{..._chartTooltip(),callbacks:{label:ctx=>' '+ctx.dataset.label+': $'+fmtN(ctx.parsed.y)}}},scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxRotation:45},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}}
-    });
-    animateTendCanvas(ctx1);
-  } else if(tendMode==='treemap'&&customEl){
-    // VISTA 4: Composición (treemap visual con divs)
-    chartTitle.textContent='Composición del gasto';
-    chartSub.textContent='Proporción visual por categoría';
-    let tmHtml='<div style="display:flex;flex-wrap:wrap;gap:4px;height:260px;align-content:flex-start;">';
-    activeParents.forEach(([parent,total])=>{
-      const grp=CATEGORY_GROUPS.find(g=>g.group===parent);
-      const c=grp?grp.color:'#888';
-      const emoji=grp?grp.emoji:'';
-      const pct=grandTotal>0?Math.round(total/grandTotal*100):0;
-      if(pct<1)return;
-      const h=Math.max(Math.round(pct*2.4),30);
-      const w=pct>20?'100%':pct>10?'48%':'30%';
-      tmHtml+='<div style="background:'+c+'22;border:1px solid '+c+'44;border-radius:10px;padding:10px 14px;flex:0 0 calc('+w+' - 4px);height:'+h+'px;display:flex;flex-direction:column;justify-content:center;overflow:hidden;transition:all .3s;">';
-      tmHtml+='<div style="font-size:14px;font-weight:700;color:'+c+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+emoji+' '+parent+'</div>';
-      tmHtml+='<div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;">$'+fmtN(total)+' · '+pct+'%</div>';
-      tmHtml+='</div>';
-    });
-    tmHtml+='</div>';
-    customEl.innerHTML=tmHtml;
+  // Render chart view tabs
+  const tabsEl=document.getElementById('tend-view-tabs');
+  if(tabsEl){
+    const cm=_normTendChartMode(state.tendChartMode||'evo');
+    tabsEl.innerHTML=[
+      {id:'evo',label:'∿ Evolución'},
+      {id:'ranking',label:'▊ Ranking'},
+      {id:'compare',label:'⇄ Vs. Anterior'}
+    ].map(t=>`<button class="tend-view-btn${t.id===cm?' active':''}" id="tv2-${t.id}" onclick="setTendChartMode('${t.id}')">${t.label}</button>`).join('');
   }
 
-  // ════════════════════════════════════════════
-  // 3. SPARKLINES (solo categorías con gasto)
-  // ════════════════════════════════════════════
-  const sparksEl=document.getElementById('tend-sparklines');
-  if(!state.charts._sparklines)state.charts._sparklines=[];
-  state.charts._sparklines.forEach(c=>{try{c.destroy();}catch(e){}});
-  state.charts._sparklines=[];
-  sparksEl.innerHTML=activeParents.map(([parent])=>{
-    const grp=CATEGORY_GROUPS.find(g=>g.group===parent);
-    const c=grp?grp.color:'#888';const emoji=grp?grp.emoji:'';
-    // Use full 'keys' array so the sparkline always shows history, but get stats for selected period
-    const allVals=keys.map(k=>getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&grp?.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0));
-    const activeVals=activeKeys.map(k=>getTxnsForTendPeriod(k).filter(t=>t.currency==='ARS'&&grp?.subs.includes(t.category)).reduce((s,t)=>s+t.amount,0));
-    
-    // Total for the selected period(s)
-    const totalVal=activeVals.reduce((s,v)=>s+v,0);
-    
-    // Delta should always compare the most recent selected period to the one immediately before it in the FULL history
-    const lastActiveKey = activeKeys[activeKeys.length-1];
-    const lastKeyIdx = keys.indexOf(lastActiveKey);
-    const lastVal = allVals[lastKeyIdx] || 0;
-    const prevVal = lastKeyIdx > 0 ? allVals[lastKeyIdx-1] : 0;
-    
-    const delta=prevVal>0?((lastVal-prevVal)/prevVal*100).toFixed(0):null;
-    const deltaClass=delta===null?'neutral':+delta>0?'up':'down';
-    const deltaText=delta===null?'\u2014':(+delta>0?'+':'')+delta+'%';
-    const sparkId='spark-'+parent.replace(/[^a-zA-Z0-9]/g,'_');
-    const singlePeriod=activeKeys.length===1;
-    setTimeout(()=>{
-      const ctx=document.getElementById(sparkId);if(!ctx)return;
-      const ch=new Chart(ctx,{type:'line',data:{labels:keys.map(k=>getTendPeriodLabel(k)),datasets:[{data:allVals,borderColor:c,backgroundColor:c+'18',borderWidth:1.5,fill:true,tension:0.4,pointRadius:0}]},options:{responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),plugins:{legend:{display:false},tooltip:{..._chartTooltip(),enabled:false}},scales:{x:{display:false},y:{display:false}}}});
-      state.charts._sparklines.push(ch);
-      animateTendCanvas(ctx);
-    },50);
-    const subText=singlePeriod?'período seleccionado':'total \u00b7 prom $'+fmtN(totalVal/Math.max(activeVals.length,1))+'/per\u00edodo';
-    return '<div class="tend-sparkline-card"><div class="tend-spark-header"><div class="tend-spark-cat" style="color:'+c+';">'+emoji+' '+parent+'</div><div class="tend-spark-delta '+deltaClass+'">'+deltaText+'</div></div><div class="tend-spark-amount" style="color:'+c+';">$'+fmtN(totalVal)+'</div><div class="tend-spark-sub">'+subText+'</div><div class="sparkline-wrap"><canvas id="'+sparkId+'"></canvas></div></div>';
-  }).join('');
+  // Store state refs
+  _tendChartState={currentTxns,prevTxns,lastKey,prevKey,mode,currentLabel,prevLabel,grandTotal,sortedParents,parentDeltas};
+  _tendRankingState={sortedParents,parentDeltas,grandTotal,prevLabel};
 
-  // ════════════════════════════════════════════
-  // 5. BREAKDOWN ACCORDION
-  // ════════════════════════════════════════════
-  const breakdownEl=document.getElementById('tend-breakdown');
-  const breakdownSub=document.getElementById('tend-breakdown-sub');
-  if(breakdownSub)breakdownSub.textContent=activeParents.length+' categorías con gasto · '+activeKeys.length+' '+(normalizeViewMode(state.tendMode||'visa')==='mes'?'meses':'ciclos');
-  if(breakdownEl){
-    const maxParentVal=sortedParents.length?sortedParents[0][1]:1;
-    let bHtml='';
-    sortedParents.forEach(([parentName,total])=>{
-      const grp=CATEGORY_GROUPS.find(g=>g.group===parentName);
-      const c=grp?grp.color:'#888';const emoji=grp?grp.emoji:'';
-      const pct=grandTotal>0?Math.round(total/grandTotal*100):0;
-      const subsObj=parentSubTotals[parentName]||{};
-      const subsArr=Object.entries(subsObj).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
-      const barW=maxParentVal>0?Math.max(Math.round(total/maxParentVal*100),2):0;
-      const safeId='bd-'+parentName.replace(/[^a-zA-Z0-9]/g,'_');
-      bHtml+='<div style="margin-bottom:2px;border-radius:10px;overflow:hidden;'+(total===0?'opacity:0.3;pointer-events:none;':'')+'">';
-      bHtml+='<div onclick="toggleBreakdown(\''+safeId+'\')" style="display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;border-radius:10px;transition:background .15s;" onmouseover="this.style.background=\'var(--surface2)\'" onmouseout="this.style.background=\'transparent\'">';
-      bHtml+='<span style="font-size:16px;flex-shrink:0;width:22px;text-align:center;">'+emoji+'</span>';
-      bHtml+='<div style="flex:1;min-width:0;">';
-      bHtml+='<div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:3px;">';
-      bHtml+='<span style="font-size:13px;font-weight:700;color:var(--text);">'+parentName+'</span>';
-      bHtml+='<div style="display:flex;align-items:baseline;gap:6px;">';
-      bHtml+='<span style="font-size:13px;font-family:var(--font);font-weight:700;color:'+c+';">$'+fmtN(total)+'</span>';
-      bHtml+='<span style="font-size:10px;font-family:var(--font);color:var(--text3);">'+pct+'%</span>';
-      bHtml+='</div></div>';
-      bHtml+='<div style="height:3px;background:var(--surface3);border-radius:2px;overflow:hidden;">';
-      bHtml+='<div style="height:100%;width:'+barW+'%;background:'+c+';border-radius:2px;transition:width .5s;"></div></div>';
-      bHtml+='</div>';
-      bHtml+='<span id="'+safeId+'-chevron" style="font-size:10px;color:var(--text3);flex-shrink:0;transition:transform .2s;transform:rotate(0deg);">▶</span>';
-      bHtml+='</div>';
-      if(subsArr.length){
-        const maxSubVal=subsArr[0][1];
-        bHtml+='<div id="'+safeId+'" style="display:none;padding:4px 12px 12px 44px;">';
-        subsArr.forEach(([sub,amt])=>{
-          const subPct=total>0?Math.round(amt/total*100):0;
-          const subBarW=maxSubVal>0?Math.round(amt/maxSubVal*100):0;
-          bHtml+='<div style="padding:5px 0;"><div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:3px;">';
-          bHtml+='<div style="display:flex;align-items:center;gap:6px;"><span style="width:6px;height:6px;border-radius:50%;background:'+c+';opacity:.6;flex-shrink:0;"></span><span style="font-size:12px;font-weight:600;color:var(--text);">'+sub+'</span></div>';
-          bHtml+='<div style="display:flex;align-items:baseline;gap:6px;"><span style="font-size:12px;font-family:var(--font);font-weight:600;color:var(--text2);">$'+fmtN(amt)+'</span><span style="font-size:10px;font-family:var(--font);color:var(--text3);min-width:28px;text-align:right;">'+subPct+'%</span></div></div>';
-          bHtml+='<div style="height:2px;background:var(--surface3);border-radius:2px;overflow:hidden;"><div style="height:100%;width:'+subBarW+'%;background:'+c+';opacity:.5;border-radius:2px;"></div></div></div>';
-        });
-        bHtml+='</div>';
-      }
-      bHtml+='</div>';
-    });
-    breakdownEl.innerHTML=bHtml;
-  }
+  // Render all sections
+  _tend_drawTopCards(curTotal,totalDeltaPct,prevLabel,topUp,topDown,closeDateStr,daysRemaining);
+  _tend_drawChart();
+  _tend_drawRanking();
+  _tend_drawInsights(currentTxns,prevTxns,sortedParents,parentDeltas,grandTotal,totalDeltaPct,currentLabel,prevLabel,lastKey,mode);
 
-  const _tMode=normalizeViewMode(state.tendMode||'visa');
-  document.getElementById('tend-sub-title').textContent=(_tMode==='mes'?'Vista mes':'Vista VISA')+' · '+activeParents.length+' categorías activas';
+  document.getElementById('tend-sub-title').textContent=(mode==='mes'?'Vista mes':'Vista VISA')+' · '+sortedParents.length+' categorías activas';
 }
 
 // ══ COMPARE ══

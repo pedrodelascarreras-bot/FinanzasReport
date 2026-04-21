@@ -106,11 +106,11 @@
     <div class="sidebar-theme-switch" role="group" aria-label="Tema visual">
       <button class="theme-mode-btn" id="theme-mode-light" onclick="setThemeMode('light')">
         <span class="theme-mode-icon">☀️</span>
-        <span>Modo claro</span>
+        <span>Claro</span>
       </button>
       <button class="theme-mode-btn" id="theme-mode-dark" onclick="setThemeMode('dark')">
         <span class="theme-mode-icon">🌙</span>
-        <span>Modo oscuro</span>
+        <span>Oscuro</span>
       </button>
     </div>
   </div>
@@ -1566,17 +1566,20 @@
 
 </div><!-- /page-transactions -->
 
-<!-- CATEGORÍAS -->
+<!-- TENDENCIAS -->
 <div id="page-tendencia" class="page">
   <div class="page-header fade-up">
-    <div><div class="page-title" data-i18n="page_trends">Tendencias</div><div class="page-subtitle" id="tend-sub-title">Cambios, señales y evolución por categoría</div></div>
+    <div>
+      <div class="page-title" data-i18n="page_trends">Tendencias</div>
+      <div class="page-subtitle" id="tend-sub-title">Entendé tus hábitos y tomá mejores decisiones.</div>
+    </div>
     <div class="header-actions header-actions-premium">
       <select id="tend-period-select" class="txn-select" onchange="renderTendencia()">
         <option value="">Todos los períodos</option>
       </select>
       <div class="view-toggle">
-        <button class="toggle-btn active" id="tend-tog-mes" onclick="setTendMode('mes')">Vista mes</button>
-        <button class="toggle-btn" id="tend-tog-visa" onclick="setTendMode('visa')">Vista VISA</button>
+        <button class="toggle-btn active" id="tend-tog-visa" onclick="setTendMode('visa')">Ciclo TC</button>
+        <button class="toggle-btn" id="tend-tog-mes" onclick="setTendMode('mes')">Meses</button>
       </div>
     </div>
   </div>
@@ -1590,42 +1593,58 @@
   </div>
   <div id="tendencia-content" style="display:none;flex-direction:column;gap:20px;">
 
-    <!-- 1. RESUMEN EJECUTIVO -->
-    <div id="tend-exec-summary" class="fade-up d1 tend-summary-banner"></div>
+    <!-- Top 3 Summary Cards -->
+    <div id="tend-top-cards" class="tend-top-cards-grid fade-up d1"></div>
 
-    <!-- 2. GRÁFICO PRINCIPAL con 4 vistas -->
-    <div class="tend-main-chart-card fade-up d1">
-      <div class="table-header-inline">
-        <div><div class="tend-main-title" id="tend-chart-title">Gasto por categoría</div><div class="tend-main-sub" id="tend-chart-sub"></div></div>
-        <div class="rep-design-grid">
-          <button class="tend-view-btn active" id="tv-bar" onclick="setTendChartMode('bar')">▊ Ranking</button>
-          <button class="tend-view-btn" id="tv-line" onclick="setTendChartMode('line')">∿ Evolución</button>
-          <button class="tend-view-btn" id="tv-compare" onclick="setTendChartMode('compare')">⇄ vs Anterior</button>
-          <button class="tend-view-btn" id="tv-treemap" onclick="setTendChartMode('treemap')">◫ Composición</button>
+    <!-- Two-column layout: main + insights -->
+    <div class="tend-dual-col">
+
+      <!-- Left: main content -->
+      <div class="tend-col-main">
+
+        <!-- Evolution Chart Card -->
+        <div class="tend-evo-card fade-up d1">
+          <div class="tend-evo-header">
+            <div>
+              <div class="tend-evo-title" id="tend-chart-title">Evolución del gasto</div>
+              <div class="tend-evo-sub" id="tend-chart-sub">Compará tu ritmo de gasto y detectá patrones.</div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+              <div id="tend-view-tabs" class="tend-view-tabs-wrap"></div>
+              <div id="tend-evo-toggle" class="tend-toggle-pair" style="display:flex;">
+                <button class="tend-pair-btn" id="tend-tog-dia" onclick="setTendChartToggle('dia')">Por día</button>
+                <button class="tend-pair-btn active" id="tend-tog-acum" onclick="setTendChartToggle('acumulado')">Acumulado</button>
+              </div>
+            </div>
+          </div>
+          <div id="tend-chart-legend" class="tend-chart-legend"></div>
+          <div class="chart-wrap chart-wrap-lg"><canvas id="chart-tend-main"></canvas></div>
+          <div id="tend-chart-custom" style="display:none;margin-top:14px;"></div>
+          <div class="tend-context-insight" id="tend-context-insight" style="display:none;"></div>
         </div>
+
+        <!-- Ranking de gasto -->
+        <div class="table-card tend-ranking-wrap fade-up d2">
+          <div class="table-header-inline" style="padding:16px 20px 12px;">
+            <div>
+              <div class="table-title">Ranking de gasto</div>
+              <div class="table-sub table-subtle" id="tend-ranking-sub">Por monto total</div>
+            </div>
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="tend-rank-tab active" id="rank-tab-monto" onclick="setTendRankingTab('monto')">Por monto</button>
+              <button class="tend-rank-tab" id="rank-tab-anterior" onclick="setTendRankingTab('anterior')">vs. Anterior</button>
+              <button class="tend-rank-tab" id="rank-tab-pct" onclick="setTendRankingTab('participacion')">Participación</button>
+            </div>
+          </div>
+          <div id="tend-ranking-list" style="padding:0 20px 16px;"></div>
+        </div>
+
       </div>
-      <div class="chart-wrap chart-wrap-lg"><canvas id="chart-tend-main"></canvas></div>
-      <!-- Fallback for non-chart views -->
-      <div id="tend-chart-custom" style="display:none;margin-top:14px;"></div>
+
+      <!-- Right: Insights panel -->
+      <div class="tend-insights-shell fade-up d2" id="tend-insights-panel"></div>
+
     </div>
-
-    <!-- 3. SPARKLINES (solo categorías con gasto) -->
-    <div id="tend-spark-section" class="fade-up d2">
-      <div class="section-kicker">EVOLUCIÓN POR CATEGORÍA</div>
-      <div id="tend-sparklines" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;"></div>
-    </div>
-
-
-
-    <!-- 5. DESGLOSE ACCORDION -->
-    <div class="table-card fade-up d3">
-      <div class="table-header" style="padding:16px 20px 8px;">
-        <div class="table-title">Desglose por categoría y subcategoría</div>
-        <div class="table-sub table-subtle" id="tend-breakdown-sub"></div>
-      </div>
-      <div id="tend-breakdown" style="padding:0 20px 16px;"></div>
-    </div>
-
   </div>
 </div>
 
@@ -2068,11 +2087,10 @@
 <div id="page-cc-compare" class="page">
   <div class="page-header fade-up">
     <div>
-      <div class="page-title" data-i18n="page_reconciliation">Conciliación de resumen</div>
-      <div class="page-subtitle" data-i18n="page_reconciliation_sub">Compara tus gastos registrados con un resumen oficial en PDF.</div>
+      <div class="page-title" data-i18n="page_reconciliation">Comparar resúmenes</div>
+      <div class="page-subtitle" data-i18n="page_reconciliation_sub">Cruzá el PDF del banco contra tus movimientos y cerrá diferencias sin perder tiempo.</div>
     </div>
     <div class="header-actions">
-      <!-- Ciclo filter -->
       <select id="ccc-cycle-filter" class="txn-select"></select>
     </div>
   </div>
@@ -2083,34 +2101,42 @@
       <button class="cc-stab" onclick="nav('credit-cards');ccSelectPageTab('config')">Configuración</button>
       <button class="cc-stab active">Comparar resúmenes</button>
     </div>
-    <div class="ccc-intro-band">
-      <div class="ccc-intro-copy">
-        <div class="ccc-intro-kicker">Cruce automático</div>
-        <div class="ccc-intro-title">Conciliá el resumen con una lectura más clara del gap, los pendientes y el estado general.</div>
-      </div>
-      <div class="ccc-intro-chips">
-        <span class="ccc-intro-chip">📄 PDF oficial</span>
-        <span class="ccc-intro-chip">✅ Match</span>
-        <span class="ccc-intro-chip">⚠️ Diferencias</span>
-      </div>
-    </div>
-    <div class="cc-compare-card">
-      <!-- Uploader Area -->
-      <div id="ccc-upload-area" class="upload-dropzone">
-        <div class="upload-dropzone-icon">◫</div>
-        <div class="upload-dropzone-title">Subir resumen PDF</div>
-        <div class="upload-dropzone-sub">Arrastrá o seleccioná el extracto bancario para contrastarlo con tus registros.</div>
-        <input type="file" id="ccc-file-input" accept="application/pdf" style="display:none;">
-      </div>
+    <div class="ccc-workspace">
+      <section class="txn-filter-bar ccc-command-center">
+        <div class="ccc-command-copy">
+          <div class="ccc-intro-kicker">Conciliación guiada</div>
+          <div class="ccc-intro-title">Subí el PDF, elegí el ciclo y resolvé sólo lo que no matchea.</div>
+          <div class="ccc-command-sub">Ideal para detectar cuotas, cargos bancarios, movimientos faltantes y diferencias contra el saldo real del resumen.</div>
+        </div>
+        <div class="ccc-step-list">
+          <div><strong>1</strong><span>Seleccioná ciclo</span></div>
+          <div><strong>2</strong><span>Subí PDF</span></div>
+          <div><strong>3</strong><span>Cerrá pendientes</span></div>
+        </div>
+      </section>
 
-      <!-- State: Loading -->
+      <section class="ccc-upload-layout">
+        <div class="cc-compare-card ccc-upload-card">
+          <div id="ccc-upload-area" class="upload-dropzone ccc-upload-dropzone">
+            <div class="upload-dropzone-icon">◫</div>
+            <div class="upload-dropzone-title">Subir resumen PDF</div>
+            <div class="upload-dropzone-sub">Arrastrá el extracto bancario o tocá para seleccionarlo.</div>
+            <input type="file" id="ccc-file-input" accept="application/pdf" style="display:none;">
+          </div>
+        </div>
+        <div class="table-card ccc-help-card">
+          <div class="cc-panel-kicker">Qué vas a ver</div>
+          <div class="ccc-help-title">Una lista accionable, no una auditoría eterna.</div>
+          <p>Los pendientes aparecen primero. Desde ahí podés agregar a la app, vincular, confirmar, separar o descartar cada diferencia.</p>
+        </div>
+      </section>
+
       <div id="ccc-loading" class="loading-card">
         <div class="spinner"></div>
         <div class="loader-copy">Analizando el extracto y conciliando consumos...</div>
       </div>
 
-      <!-- Results Area (Injected by JS) -->
-      <div id="ccc-results-area" style="display:none;margin-top:24px;"></div>
+      <div id="ccc-results-area" style="display:none;"></div>
     </div>
   </div>
   </div>
