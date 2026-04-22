@@ -307,10 +307,9 @@ window.addEventListener('load',()=>{
   if(active)animatePageEnter(active);
 });
 function loadSidebar(){
-  const saved=localStorage.getItem('fin_sidebar');
-  if(saved==='collapsed'){
-    document.querySelector('.app').classList.add('sidebar-collapsed');
-  }
+  const app=document.querySelector('.app');
+  if(app)app.classList.remove('sidebar-collapsed');
+  localStorage.setItem('fin_sidebar','open');
   syncSidebarControls();
 }
 

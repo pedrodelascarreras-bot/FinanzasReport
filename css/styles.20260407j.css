@@ -24282,3 +24282,139 @@ body:not(.light-mode) #page-dashboard #dash-month-select option {
     grid-template-columns: 1fr;
   }
 }
+
+/* Final app-wide typography and Reports width normalization */
+.page .page-title,
+#page-dashboard .page-title,
+#page-credit-cards .page-title,
+#page-cc-compare .page-title,
+#page-profile .page-title,
+#page-security .page-title,
+#page-settings .page-title,
+#transactions-native-root .mv-title h1,
+#commitments-native-root .cp-title h1,
+#income-native-root .inc-hdr-title {
+  font-family: var(--font) !important;
+  font-size: clamp(32px, 3.4vw, 42px) !important;
+  line-height: .98 !important;
+  font-weight: 850 !important;
+  letter-spacing: -0.045em !important;
+}
+
+.page .page-subtitle,
+#page-dashboard .page-subtitle,
+#page-credit-cards .page-subtitle,
+#page-cc-compare .page-subtitle,
+#page-profile .page-subtitle,
+#page-security .page-subtitle,
+#page-settings .page-subtitle,
+#transactions-native-root .mv-title p,
+#commitments-native-root .cp-title p,
+#income-native-root .inc-hdr-sub {
+  margin-top: 8px !important;
+  max-width: 760px !important;
+  color: var(--text3) !important;
+  font-family: var(--font) !important;
+  font-size: 13px !important;
+  line-height: 1.5 !important;
+  font-weight: 650 !important;
+  letter-spacing: -0.01em !important;
+}
+
+#page-reportes {
+  width: 100% !important;
+  max-width: none !important;
+}
+
+#page-reportes .rep-layout,
+#page-reportes .rep-config,
+#page-reportes .rep-preview,
+#page-reportes .rep-filter-card {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+
+#page-reportes .rep-filter-card {
+  box-sizing: border-box;
+}
+
+#page-reportes .rep-filter-card-head {
+  display: grid !important;
+  grid-template-columns: minmax(220px, 1fr) auto;
+  align-items: start !important;
+}
+
+#page-reportes .rep-filter-actions {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(112px, auto));
+  justify-content: end !important;
+  width: auto !important;
+}
+
+#page-reportes .rep-filter-actions .btn {
+  white-space: nowrap;
+}
+
+#page-reportes .rep-filter-card .rep-stack {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, .7fr) minmax(0, 1fr) !important;
+  width: 100%;
+}
+
+#page-reportes .rep-config.rep-filters-open {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+#page-reportes .rep-callout-card {
+  grid-column: span 2;
+}
+
+#page-reportes .rep-export-card {
+  grid-column: span 2;
+}
+
+#page-reportes .rep-content-card {
+  grid-column: 1 / -1;
+}
+
+#page-reportes .rep-content-card .rep-check-list {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+@media (max-width: 1180px) {
+  #page-reportes .rep-filter-card-head,
+  #page-reportes .rep-filter-card .rep-stack {
+    grid-template-columns: 1fr !important;
+  }
+
+  #page-reportes .rep-filter-actions {
+    grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+    width: 100% !important;
+  }
+
+  #page-reportes .rep-config.rep-filters-open,
+  #page-reportes .rep-content-card .rep-check-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .page .page-title,
+  #transactions-native-root .mv-title h1,
+  #commitments-native-root .cp-title h1,
+  #income-native-root .inc-hdr-title {
+    font-size: 26px !important;
+    line-height: 1.05 !important;
+  }
+
+  #page-reportes .rep-filter-actions,
+  #page-reportes .rep-config.rep-filters-open,
+  #page-reportes .rep-content-card .rep-check-list {
+    grid-template-columns: 1fr !important;
+  }
+
+  #page-reportes .rep-callout-card,
+  #page-reportes .rep-export-card {
+    grid-column: 1 / -1;
+  }
+}

@@ -224,8 +224,9 @@
       if(textNode) textNode.textContent = label;
     }
 
-    // Keep the private welcome visible even after an automatic Google reconnect.
-    // The user should explicitly choose to continue from this screen.
+    if(autoDismiss && connected){
+      setTimeout(() => dismissSplash(), 260);
+    }
   }
 
   function handleSplashPrimaryAction(event){
