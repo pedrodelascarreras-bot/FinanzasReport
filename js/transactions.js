@@ -167,6 +167,10 @@ function txnEquivalentLabel(tx){
   return '($'+fmtN(Math.round(txnAmountArs(tx)))+')';
 }
 function txnMerchantName(tx){
+  const isGmailTxn = (typeof isGmailSourceTransaction === 'function')
+    ? isGmailSourceTransaction(tx)
+    : (tx.source === 'gmail' || tx.origen_del_movimiento === 'importado_desde_gmail' || !!tx.gmailId);
+  if(isGmailTxn) return tx.description || tx.gmailMerchantRaw || tx._baseDesc || tx.comercio_detectado || 'Movimiento';
   return tx.comercio_detectado || tx._baseDesc || tx.description || 'Movimiento';
 }
 function txnCategoryName(tx){
@@ -1022,7 +1026,7 @@ function renderTransactions(){
         +'.mv-time{font-size:11.8px;font-weight:600;color:#7e7997;font-variant-numeric:tabular-nums;font-family:var(--font);}'
         +'.mv-merchant{font-size:14px;font-weight:700;color:#1f1a33;line-height:1.18;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:4px;font-family:var(--font);}'
         +'.mv-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}'
-        +'.mv-cat{display:inline-flex;align-items:center;gap:4px;height:23px;padding:0 9px;border-radius:999px;font-size:10.9px;font-weight:800;font-family:var(--font);}'
+        +'.mv-cat{display:inline-flex;align-items:center;gap:4px;height:23px;padding:0 9px;border-radius:999px;border:0;font-size:10.9px;font-weight:800;font-family:var(--font);cursor:pointer;}'
         +'.mv-note{font-size:11.4px;color:#7c7791;font-weight:600;font-family:var(--font);}'
         +'.mv-amount{text-align:right;min-width:102px;}'
         +'.mv-amount-main{font-size:14.2px;font-weight:800;letter-spacing:-.01em;font-variant-numeric:tabular-nums;color:#221c38;font-family:var(--font);}'
@@ -1177,7 +1181,7 @@ function renderTransactions(){
                   return '<div class="mv-row" onclick="openTxnDetail(\''+tx.id+'\')">'
                     +txnMerchantAvatar(tx)
                     +'<div class="mv-time">'+txnTimeLabel(tx)+'</div>'
-                    +'<div><div class="mv-merchant">'+esc(txnMerchantName(tx))+'</div><div class="mv-meta"><span class="mv-cat" style="background:'+catColor(cat)+'18;color:'+catColor(cat)+';"><span style="font-size:7px;">◆</span>'+esc(cat)+'</span>'+(txnNoteText(tx)?'<span class="mv-note">↪ '+esc(txnNoteText(tx))+'</span>':'')+'</div></div>'
+                    +'<div><div class="mv-merchant">'+esc(txnMerchantName(tx))+'</div><div class="mv-meta"><button class="mv-cat" style="background:'+catColor(cat)+'18;color:'+catColor(cat)+';" onclick="event.stopPropagation();openAssignModal(\''+tx.id+'\',this)" title="Cambiar categoría"><span style="font-size:7px;">◆</span>'+esc(cat)+'</button>'+(txnNoteText(tx)?'<span class="mv-note">↪ '+esc(txnNoteText(tx))+'</span>':'')+'</div></div>'
                     +'<div class="mv-amount"><div class="mv-amount-main'+amountClass+'">'+txnAmountLabel(tx)+'</div>'+(((tx.currency||'ARS')==='USD')?'<div class="mv-amount-sub">'+txnEquivalentLabel(tx)+'</div>':'')+'</div>'
                     +'<div style="position:relative;"><button class="mv-menu-btn" onclick="event.stopPropagation();toggleTxnActionMenu(\''+tx.id+'\')">⋮</button>'+menuForTxn(tx.id)+'</div>'
                   +'</div>';
@@ -1263,7 +1267,7 @@ function renderTransactions(){
             +'<div style="font-size:10px;color:var(--text3);margin-top:3px;display:flex;align-items:center;gap:5px;flex-wrap:wrap;">'
               +'<span>'+d+'</span>'
               +'<span style="color:var(--border2);">·</span>'
-              +'<span style="display:inline-flex;align-items:center;">'+catDot+esc(t.category||'—')+'</span>'
+              +'<button style="display:inline-flex;align-items:center;border:none;background:transparent;color:inherit;padding:0;cursor:pointer;font:inherit;" onclick="event.stopPropagation();openAssignModal(\''+t.id+'\',this)">'+catDot+esc(t.category||'—')+'</button>'
               +(t.isPendingCuota?'<span style="color:var(--accent3);font-weight:700;">📋 '+t.cuotaNum+'/'+t.cuotaTotal+'</span>':'')
               +(t.isThirdParty?'<span class="tp-badge'+(t.thirdPartyStatus==='settled'?' settled':'')+'">3ro'+(t.thirdPartyStatus==='settled'?' ✓':t.thirdPartyStatus==='partial'?' ~':'')+'</span>':'')
             +'</div>'

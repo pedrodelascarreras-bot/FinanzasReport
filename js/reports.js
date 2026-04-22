@@ -185,7 +185,21 @@ async function sendReportNow() {
 }
 
 function renderReportesPage(){
+  syncRepMoreFiltersState();
   setRepMode(normalizeRepMode(state.repMode||'visa'));
+}
+
+function syncRepMoreFiltersState(){
+  const config=document.querySelector('#page-reportes .rep-config');
+  const btn=document.getElementById('rep-more-filters-btn');
+  const open=!!state.repMoreFiltersOpen;
+  if(config) config.classList.toggle('rep-filters-open', open);
+  if(btn) btn.textContent=open?'Ocultar filtros':'Más filtros';
+}
+
+function toggleRepMoreFilters(){
+  state.repMoreFiltersOpen=!state.repMoreFiltersOpen;
+  syncRepMoreFiltersState();
 }
 
 function setRepMode(mode){

@@ -1353,8 +1353,17 @@
     <div class="rep-config">
 
       <!-- Período -->
-      <div class="rep-config-card">
-        <div class="rep-section-title">Período</div>
+      <div class="rep-config-card rep-filter-card">
+        <div class="rep-filter-card-head">
+          <div>
+            <div class="rep-section-title">Filtros del reporte</div>
+            <div class="rep-filter-sub">Elegí el período y generá la vista previa sin salir del informe.</div>
+          </div>
+          <div class="rep-filter-actions">
+            <button class="btn btn-ghost rep-more-btn" id="rep-more-filters-btn" onclick="toggleRepMoreFilters()">Más filtros</button>
+            <button class="btn btn-primary rep-top-action" onclick="exportRepPDF()">Exportar PDF</button>
+          </div>
+        </div>
         <div class="rep-stack">
           <div class="rep-mode-grid">
             <button class="tft-btn rep-mode-btn active" id="rep-mode-mes" onclick="setRepMode('mes')">Mes</button>
@@ -1382,6 +1391,8 @@
           </div>
         </div>
       </div>
+
+      <div class="rep-more-panel-label">Filtros avanzados</div>
 
       <!-- ✉️ Enviar reporte por email -->
       <div class="rep-config-card rep-callout-card">

@@ -477,7 +477,8 @@ function autoCreateGmailCuotas(txns){
 }
 
 function finishImport(txns,source,origen){
-  const origenVal = origen || (source==='gmail'?'importado_desde_gmail': source==='paste'?'pegado_manualmente':'importado_desde_resumen');
+  const sourceIsGmail = source==='gmail' || /^gmail\b/i.test(String(source||'')) || txns.some(t=>isGmailSourceTransaction(t));
+  const origenVal = origen || (sourceIsGmail?'importado_desde_gmail': source==='paste'?'pegado_manualmente':'importado_desde_resumen');
   const isGmail = origenVal === 'importado_desde_gmail';
   const config = ensureImportConfig();
   const bankProfile = (state.bankProfiles || []).find(profile => profile.id === config.bankProfileId) || null;
@@ -711,6 +712,25 @@ function txnRuleHaystack(t){
   ].filter(Boolean).join(' | '));
 }
 
+function isGmailSourceTransaction(t){
+  return !!(t && (t.source==='gmail' || t.origen_del_movimiento==='importado_desde_gmail' || t.gmailId || t.payMethod==='visa' || t.payMethod==='amex'));
+}
+
+function getGmailOriginalMerchantName(t){
+  return String(t?.gmailMerchantRaw || t?.originalGmailMerchantName || '').trim();
+}
+
+function restoreGmailOriginalMerchantName(t){
+  if(!isGmailSourceTransaction(t)) return false;
+  const original = getGmailOriginalMerchantName(t);
+  if(!original) return false;
+  let changed = false;
+  t.originalGmailMerchantName = original;
+  if(t.description !== original){ t.description = original; changed = true; }
+  if(t._baseDesc !== original){ t._baseDesc = original; changed = true; }
+  return changed;
+}
+
 function getNameRulesSorted(){
   const rules = Array.isArray(state.nameRules) ? state.nameRules : [];
   return [...rules]
@@ -884,7 +904,7 @@ function ruleBasedCategory(desc){
 // Enriquecer transacción con campos nuevos si no los tiene
 function enrichTransaction(t, origen){
   // Gmail-sourced transactions: detect via source field OR payMethod (visa/amex = came from Gmail email)
-  const _isGmailSource=t.source==='gmail'||t.payMethod==='visa'||t.payMethod==='amex';
+  const _isGmailSource=isGmailSourceTransaction(t);
   const _VALID_ORIGINS=['importado_desde_gmail','importado_desde_resumen','pegado_manualmente'];
   if(!t.origen_del_movimiento || !_VALID_ORIGINS.includes(t.origen_del_movimiento)){
     // Set for new txns OR migrate invalid values ('paste', etc.)
@@ -895,8 +915,13 @@ function enrichTransaction(t, origen){
   }
   if(!t.description) t.description = t._baseDesc || t.gmailMerchantRaw || 'Movimiento';
   if(!t._baseDesc) t._baseDesc = t.gmailMerchantRaw || t.description;
-  applyNameRulesToTransaction(t);
-  t.comercio_detectado = detectComercio(t.description) || t.comercio_detectado || null;
+  if(_isGmailSource) restoreGmailOriginalMerchantName(t);
+  const nameRuleApplied = applyNameRulesToTransaction(t);
+  if(_isGmailSource && !nameRuleApplied){
+    t.appliedNameRuleId = null;
+    restoreGmailOriginalMerchantName(t);
+  }
+  t.comercio_detectado = detectComercio(t.gmailMerchantRaw || t.description) || t.comercio_detectado || null;
   applyLogoRulesToTransaction(t);
   if(!t.cat_sugerida || !t.cat_motivo){
     const sug = suggestCategory(t.description);

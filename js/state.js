@@ -376,6 +376,10 @@ async function loadFromDrive(){
     // Migración retroactiva de payMethod con valores legacy del formulario manual
     const _pmMig={'Efectivo':'ef','Débito':'deb','Tarjeta de Crédito':'tc','USD':'ef'};
     state.transactions.forEach(t=>{if(t.payMethod&&_pmMig[t.payMethod])t.payMethod=_pmMig[t.payMethod];});
+    // Migración retroactiva: los gastos importados desde Gmail conservan el comercio original del correo.
+    if(typeof enrichTransaction === 'function'){
+      state.transactions.forEach(t=>enrichTransaction(t, t.origen_del_movimiento||'importado_desde_resumen'));
+    }
     // Also persist to localStorage
     try{
       localStorage.setItem('fin_state',JSON.stringify(getStateSnapshot()));
@@ -463,8 +467,10 @@ function loadState(){
     // Migración retroactiva de payMethod con valores legacy del formulario manual
     const _pmMigMap={'Efectivo':'ef','Débito':'deb','Tarjeta de Crédito':'tc','USD':'ef'};
     state.transactions.forEach(t=>{if(t.payMethod&&_pmMigMap[t.payMethod])t.payMethod=_pmMigMap[t.payMethod];});
-    // Enrichment retroactivo (sin sobreescribir confirmados)
-    state.transactions.forEach(t=>enrichTransaction(t, t.origen_del_movimiento||'importado_desde_resumen'));
+    // Enrichment retroactivo: origen, nombre original Gmail, reglas y logos.
+    if(typeof enrichTransaction === 'function'){
+      state.transactions.forEach(t=>enrichTransaction(t, t.origen_del_movimiento||'importado_desde_resumen'));
+    }
     // populate legacy hidden fields for dashboard compat
     const latestInc=getLatestIncomeARS();if(latestInc)state.income.ars=latestInc;
     const incSave=document.getElementById('inc-save');const incAlert=document.getElementById('inc-alert');
