@@ -24293,7 +24293,8 @@ body:not(.light-mode) #page-dashboard #dash-month-select option {
 #page-settings .page-title,
 #transactions-native-root .mv-title h1,
 #commitments-native-root .cp-title h1,
-#income-native-root .inc-hdr-title {
+#income-native-root .inc-hdr-title,
+#page-savings .sav2-header h1 {
   font-family: var(--font) !important;
   font-size: clamp(32px, 3.4vw, 42px) !important;
   line-height: .98 !important;
@@ -24310,7 +24311,8 @@ body:not(.light-mode) #page-dashboard #dash-month-select option {
 #page-settings .page-subtitle,
 #transactions-native-root .mv-title p,
 #commitments-native-root .cp-title p,
-#income-native-root .inc-hdr-sub {
+#income-native-root .inc-hdr-sub,
+#page-savings .sav2-header p {
   margin-top: 8px !important;
   max-width: 760px !important;
   color: var(--text3) !important;
@@ -24402,7 +24404,8 @@ body:not(.light-mode) #page-dashboard #dash-month-select option {
   .page .page-title,
   #transactions-native-root .mv-title h1,
   #commitments-native-root .cp-title h1,
-  #income-native-root .inc-hdr-title {
+  #income-native-root .inc-hdr-title,
+  #page-savings .sav2-header h1 {
     font-size: 26px !important;
     line-height: 1.05 !important;
   }
