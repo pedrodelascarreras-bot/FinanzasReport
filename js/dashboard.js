@@ -3630,7 +3630,16 @@ function renderDb2Agenda(timelineData){
   const pillEl = document.getElementById('timeline-card-pill');
   if(!listEl) return;
 
-  const events = getCalendarAgendaItems(new Date(),{includePast:false,includeDoneTasks:false}).slice(0, 4);
+  const cardEl = listEl.closest('.db2-agenda-card');
+  const titleEl = cardEl?.querySelector('.db2-title');
+  if(titleEl) titleEl.textContent = 'CALENDARIO';
+  const headerEl = cardEl?.querySelector('.db2-hd');
+  const cardHeight = cardEl?.getBoundingClientRect?.().height || 0;
+  const availableHeight = cardHeight
+    ? cardHeight - (headerEl?.offsetHeight || 42) - (pillEl?.offsetHeight || 42) - 54
+    : 250;
+  const maxVisible = Math.max(3, Math.min(7, Math.floor((availableHeight + 8) / 62) || 4));
+  const events = getCalendarAgendaItems(new Date(),{includePast:false,includeDoneTasks:false}).slice(0, maxVisible);
 
   // Update pill count
   if(pillEl) pillEl.textContent = events.length + ' evento' + (events.length!==1?'s':'') + ' →';

@@ -162,7 +162,9 @@ function renderCreditCards(){
   const tab=state.ccPageTab||'resumen';
   const sub=document.getElementById('cc-page-subtitle');
   if(sub){
-    sub.textContent=tab==='config'
+    sub.textContent=tab==='history'
+      ? 'Historial simple de ciclos por tarjeta, separado de la configuración.'
+      : tab==='config'
       ? 'Ajustá aperturas, cierres y vencimientos sin perder consistencia en la app.'
       : 'Centro operativo para revisar resumen, vencimiento, consumos y conciliación.';
   }
@@ -172,6 +174,7 @@ function renderCreditCards(){
   document.getElementById('cpt-compare')?.classList.remove('active');
   const pr=document.getElementById('cc-panel-resumen');
   const pc=document.getElementById('cc-panel-config');
+  const ph=document.getElementById('cc-panel-history');
   if(pr){
     pr.hidden=tab!=='resumen';
     pr.style.display=tab==='resumen'?'flex':'none';
@@ -180,10 +183,16 @@ function renderCreditCards(){
     pc.hidden=tab!=='config';
     pc.style.display=tab==='config'?'flex':'none';
   }
+  if(ph){
+    ph.hidden=tab!=='history';
+    ph.style.display=tab==='history'?'flex':'none';
+  }
   if(tab==='resumen'){
     renderCcActiveCycle();
-  } else {
+  } else if(tab==='config') {
     renderCcConfigPanel();
+  } else if(tab==='history') {
+    renderCcHistoryPanel();
   }
 }
 
@@ -220,6 +229,7 @@ function ccSelectCard(cardId){
   ccInit();
   state.ccActiveCard=cardId;
   window._ccViewCycle[cardId]=null; // reset viewed cycle for this card
+  if((state.ccPageTab||'resumen')==='history') window._ccHistoryCardId=cardId;
   renderCreditCards();
 }
 
@@ -321,8 +331,7 @@ function renderCcActiveCycle(){
   const cycleStatus=ccState.status==='paid'?'pago total':ccState.status==='minimum'?'pago mínimo':'pendiente';
   const cycleTone=ccState.status==='paid'?'is-paid':ccState.status==='minimum'?'is-minimum':'is-pending';
   const ringDeg=Math.round(progressPct*3.6);
-  const categories=['Supermercado','Regalos','Restaurante','Delivery','Transporte','Entretenimiento'];
-  const catRows=catSummary.slice(0,6).map((r,idx)=>{
+  const catRows=catSummary.slice(0,6).map((r)=>{
     const amountArs=r.ars+(r.usd*(USD_TO_ARS||0));
     const pct=totalForPct>0?Math.round((amountArs/totalForPct)*100):0;
     return `<div class="ccs-cat-chip">
@@ -331,7 +340,7 @@ function renderCcActiveCycle(){
       <small>${pct}%</small>
       <b>${r.ars>0?'$'+fmtN(Math.round(r.ars)):r.usd>0?'U$D '+fmtN(r.usd):'—'}</b>
     </div>`;
-  }).join('') || categories.slice(0,3).map(cat=>`<div class="ccs-cat-chip is-empty"><span class="ccs-cat-icon">•</span><strong>${cat}</strong><small>—</small><b>—</b></div>`).join('');
+  }).join('');
 
   const expRows=expenses.slice(0,10).map(e=>{
     const removeBtn=e.source==='txn'
@@ -351,9 +360,6 @@ function renderCcActiveCycle(){
       ${removeBtn}
     </div>`;
   }).join('');
-
-  // Paid history
-  const paidCycles = (state.ccCycles||[]).filter(c => c.cardId === cardId && c.status === 'paid');
 
   activeEl.innerHTML=`
     <div class="ccs-workspace">
@@ -399,7 +405,7 @@ function renderCcActiveCycle(){
 
       <section class="ccs-category-card fade-up d2">
         <div class="ccs-section-head"><div><h3>Composición del resumen</h3><span>${catSummary.length} categoría${catSummary.length===1?'':'s'}</span></div><small>% categorías</small></div>
-        <div class="ccs-cat-grid">${catRows}</div>
+        ${catRows?`<div class="ccs-cat-grid">${catRows}</div>`:'<div class="cc-empty-inline">Sin categorías en este ciclo</div>'}
       </section>
 
       <section class="ccs-banner fade-up d2">
@@ -417,16 +423,6 @@ function renderCcActiveCycle(){
           ${expenses.length?expRows:'<div class="cc-empty-inline">Sin gastos en este ciclo</div>'}
         </div>
       </section>
-
-      ${paidCycles.length?`
-        <details class="ccs-table-card cc-record-panel fade-up d3">
-          <summary>
-            <div><span class="cc-panel-kicker">Historial</span><strong>Ciclos pagados (${paidCycles.length})</strong></div>
-            <span>Desplegar</span>
-          </summary>
-          <div class="cc-paid-list">${_ccBuildPaidHistoryHtml(cardId, paidCycles, tcCycles)}</div>
-        </details>
-      `:''}
     </div>
   `;
 
@@ -650,6 +646,27 @@ function ccOpenCycleComposer(cardId){
   ccFocusCycleComposer();
 }
 
+function ccApplyCloseDayFromConfig(dayValue){
+  const day=Math.max(1,Math.min(31,parseInt(dayValue,10)||1));
+  const closeEl=document.getElementById('tc-cycle-close-cc');
+  const openEl=document.getElementById('tc-cycle-open-cc');
+  if(!closeEl)return;
+  const baseValue=closeEl.value||openEl?.value||dateToYMD(new Date());
+  const base=new Date(baseValue+'T12:00:00');
+  const year=base.getFullYear();
+  const month=base.getMonth();
+  const maxDay=new Date(year,month+1,0).getDate();
+  closeEl.value=dateToYMD(new Date(year,month,Math.min(day,maxDay),12));
+}
+
+function ccSyncCloseDayFromDate(){
+  const closeEl=document.getElementById('tc-cycle-close-cc');
+  const dayEl=document.getElementById('tc-cycle-day-cc');
+  if(closeEl?.value&&dayEl){
+    dayEl.value=String(new Date(closeEl.value+'T12:00:00').getDate());
+  }
+}
+
 // ── Render Apple-style Configuración panel ──
 function renderCcConfigPanel(){
   const el=document.getElementById('cc-config-panel-body');if(!el)return;
@@ -687,6 +704,12 @@ function renderCcConfigPanel(){
   const currentClose=currentCycle?.cycle?.closeDate||'';
   const currentDue=currentCycle?.cycle?.dueDate||'';
   const currentDay=currentClose?String(new Date(currentClose+'T12:00:00').getDate()):'—';
+  const selectedCloseDay=editingCycle?.closeDate
+    ? String(new Date(editingCycle.closeDate+'T12:00:00').getDate())
+    : (currentClose?String(new Date(currentClose+'T12:00:00').getDate()):'1');
+  const closeDayOptions=Array.from({length:31},(_,i)=>String(i+1))
+    .map(day=>`<option value="${day}" ${day===selectedCloseDay?'selected':''}>${day}</option>`)
+    .join('');
   const currentTotals=currentCycle&&activeCard?ccGetTotals(ccGetCycleExpenses(activeCard.id,currentCycle.cycle.id)):{ars:0,usd:0};
   const currentStatus=currentCycle&&activeCard?state.ccCycles.find(x=>x.tcCycleId===currentCycle.cycle.id&&x.cardId===activeCard.id):null;
   const statusText=currentStatus?.status==='paid'?'pagado':'pendiente';
@@ -868,20 +891,13 @@ function renderCcConfigPanel(){
             <div class="cc-config-card-head"><h3>Acciones rápidas</h3></div>
             <div class="cc-config-actions-grid">
               <button onclick="ccOpenHistoryPanel('${draftCardId}')"><span>□</span><strong>Ver historial de ciclos</strong><small>Consultá todos los ciclos anteriores y actuales.</small><b>›</b></button>
-              <button onclick="nav('cc-compare')"><span>▤</span><strong>Comparar resúmenes</strong><small>Compará resúmenes entre distintos períodos.</small><b>›</b></button>
               <button onclick="ccDownloadConfig('${draftCardId}')"><span>↓</span><strong>Descargar configuración</strong><small>Descargá la configuración actual de tu ciclo.</small><b>›</b></button>
             </div>
           </article>
 
-          <article class="cc-config-how-card">
-            <div class="cc-config-how-copy">
-              <span>ⓘ</span>
-              <div>
-                <h3>¿Cómo funciona el ciclo?</h3>
-                <p>Tu tarjeta cierra el resumen el día ${esc(currentDay)}. Los consumos realizados después del cierre se incluirán en el próximo resumen.</p>
-              </div>
-            </div>
-            <div class="cc-config-calendar-art" aria-hidden="true"><i></i><b></b><em></em></div>
+          <article class="cc-config-modern-card cc-config-helper-card">
+            <div class="cc-config-card-head"><h3>Información del ciclo</h3></div>
+            <p>La apertura define desde cuándo entran consumos, el cierre arma el resumen y el vencimiento marca la fecha límite de pago.</p>
           </article>
         </div>
 
@@ -899,27 +915,22 @@ function renderCcConfigPanel(){
           </label>
           <label class="cc-config-field">
             <span>Cierre del resumen</span>
-            <input type="date" class="cc-cfg-input" id="tc-cycle-close-cc">
+            <input type="date" class="cc-cfg-input" id="tc-cycle-close-cc" onchange="ccSyncCloseDayFromDate()">
           </label>
           <label class="cc-config-field">
             <span>Vencimiento</span>
             <input type="date" class="cc-cfg-input" id="tc-cycle-due-cc">
           </label>
+          <label class="cc-config-field">
+            <span>Día de cierre</span>
+            <select class="cc-cfg-input" id="tc-cycle-day-cc" onchange="ccApplyCloseDayFromConfig(this.value)">
+              ${closeDayOptions}
+            </select>
+          </label>
           <input type="hidden" id="tc-cycle-label-cc" value="${editingCycle?esc(editingCycle.label||''):''}">
           <button class="cc-config-save-btn" onclick="addTcCycleFromCC()">⊕ ${editingCycle?'Guardar cambios':'Guardar nuevo ciclo'}</button>
           ${editingCycle?'<button class="cc-config-cancel-btn" onclick="cancelTcCycleEdit()">Cancelar edición</button>':''}
         </aside>
-      </section>
-
-      <section class="cc-config-history-panel table-card fade-up d3" id="cc-config-history-panel">
-        <div class="cc-config-block-head">
-          <div>
-            <div class="cc-config-kicker">Historial</div>
-            <div class="cc-config-block-title">Historial de ciclos</div>
-          </div>
-          <div class="cc-config-records-note">Actuales y anteriores por tarjeta. Podés editar o borrar manualmente.</div>
-        </div>
-        <div class="ccr-stack">${recordsHtml}</div>
       </section>
     </div>
   `;
@@ -933,10 +944,73 @@ function ccSelectConfigCard(cardId){
 }
 
 function ccOpenHistoryPanel(cardId){
-  window._ccRecordsExpanded=window._ccRecordsExpanded||{};
-  window._ccRecordsExpanded[cardId]=true;
-  renderCcConfigPanel();
-  setTimeout(()=>document.getElementById('cc-config-history-panel')?.scrollIntoView({behavior:'smooth',block:'start'}),0);
+  window._ccHistoryCardId=cardId||state.ccActiveCard||state.ccCards?.[0]?.id||'';
+  state.ccActiveCard=window._ccHistoryCardId;
+  state.ccPageTab='history';
+  renderCreditCards();
+}
+
+function renderCcHistoryPanel(){
+  const el=document.getElementById('cc-history-panel-body');if(!el)return;
+  const cycles=getTcCycles();
+  const cards=state.ccCards||[];
+  const activeCardId=window._ccHistoryCardId||state.ccActiveCard||cards[0]?.id||'';
+  const activeCard=cards.find(c=>c.id===activeCardId)||cards[0];
+  const shortD=s=>{
+    if(!s)return'—';
+    const d=new Date(s+'T12:00:00');
+    return d.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'}).replace('.','');
+  };
+  const cardCycles=cycles
+    .map((cycle,idx)=>({cycle,idx}))
+    .filter(({cycle})=>((cycle.cardId||cards[0]?.id)===activeCard?.id))
+    .sort((a,b)=>(b.cycle.closeDate||'').localeCompare(a.cycle.closeDate||''));
+
+  const rows=cardCycles.map(({cycle,idx},rowIdx)=>{
+    const open=cycle.openDate||getTcCycleOpen(cycles,idx);
+    const totals=ccGetTotals(ccGetCycleExpenses(activeCard.id,cycle.id));
+    const status=state.ccCycles.find(x=>x.tcCycleId===cycle.id&&x.cardId===activeCard.id);
+    const isPaid=status?.status==='paid';
+    return `<details class="cch-row" ${rowIdx<2?'open':''}>
+      <summary>
+        <div class="cch-row-main">
+          <span class="cch-dot ${isPaid?'is-paid':'is-pending'}"></span>
+          <div>
+            <strong>${esc(cycle.label||'Ciclo')}</strong>
+            <small>${esc(shortD(open))} → ${esc(shortD(cycle.closeDate))}${cycle.dueDate?' · vence '+esc(shortD(cycle.dueDate)):''}</small>
+          </div>
+        </div>
+        <div class="cch-row-money">
+          <strong>${totals.ars>0?'$'+fmtN(Math.round(totals.ars)):'Sin gastos'}</strong>
+          ${totals.usd>0?`<small>USD ${fmtN(totals.usd)}</small>`:''}
+        </div>
+      </summary>
+      <div class="cch-row-body">
+        <div><span>Apertura</span><strong>${esc(shortD(open))}</strong></div>
+        <div><span>Cierre</span><strong>${esc(shortD(cycle.closeDate))}</strong></div>
+        <div><span>Vencimiento</span><strong>${cycle.dueDate?esc(shortD(cycle.dueDate)):'—'}</strong></div>
+        <div><span>Estado</span><strong>${isPaid?'Pagado':'Pendiente'}</strong></div>
+        <div class="cch-row-actions">
+          <button onclick="editTcCycle('${cycle.id}')">Editar</button>
+          <button onclick="deleteTcCycle('${cycle.id}')">Borrar</button>
+        </div>
+      </div>
+    </details>`;
+  }).join('');
+
+  el.innerHTML=`
+    <section class="cc-history-clean fade-up d1">
+      <div class="cc-history-clean-head">
+        <div>
+          <div class="cc-config-kicker">Historial</div>
+          <h3>Historial de ciclos</h3>
+          <p>Elegí una tarjeta arriba y abrí cada ciclo para ver sus fechas o editarlo.</p>
+        </div>
+        <button onclick="ccSelectPageTab('config')">Volver a configuración</button>
+      </div>
+      <div class="cch-list">${rows||'<div class="cc-config-empty-card"><div class="cc-config-empty-title">Sin ciclos para esta tarjeta</div></div>'}</div>
+    </section>
+  `;
 }
 
 function ccCreateCardPrompt(){

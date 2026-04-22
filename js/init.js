@@ -356,11 +356,13 @@ function editTcCycle(id){
   const openEl=document.getElementById('tc-cycle-open-cc');
   const closeEl=document.getElementById('tc-cycle-close-cc');
   const dueEl=document.getElementById('tc-cycle-due-cc');
+  const dayEl=document.getElementById('tc-cycle-day-cc');
   if(labelEl) labelEl.value=cycle.label||'';
   if(cardEl) cardEl.value=cycle.cardId||state.ccActiveCard||state.ccCards?.[0]?.id||'';
   if(openEl) openEl.value=getTcCycleOpen(cycles, idx)||cycle.openDate||'';
   if(closeEl) closeEl.value=cycle.closeDate||'';
   if(dueEl) dueEl.value=cycle.dueDate||'';
+  if(dayEl&&cycle.closeDate) dayEl.value=String(new Date(cycle.closeDate+'T12:00:00').getDate());
   const focusEl=closeEl||dueEl||labelEl;
   focusEl?.focus();
   focusEl?.scrollIntoView({behavior:'smooth',block:'center'});
@@ -1056,34 +1058,34 @@ function updateGmailBtn(status) {
   const mobBtn = document.getElementById('mn-google-sync');
   const setSidebarLabel = (title, meta='') => {
     if(!label) return;
-    label.innerHTML = `<span class="gmail-sync-title">${title}</span>${meta?`<span class="gmail-sync-meta">${meta}</span>`:''}`;
+    label.innerHTML = `<span class="gmail-sync-title">Gmail</span>`;
   };
   if (btn) btn.className = 'gmail-sync-btn';
   if (status === 'syncing') {
     if (btn) btn.classList.add('syncing');
-    setSidebarLabel('<span class="spinning">↻</span> Gmail · Sincronizando', 'Buscando movimientos nuevos');
+    setSidebarLabel('Gmail');
     if (dot) dot.style.background = 'var(--accent3)';
     if (mobBtn) mobBtn.innerHTML = '<span class="mn-icon">↻</span>Google';
   } else if (status === 'connected') {
     if (btn) btn.classList.add('connected');
-    const lastSyncTag = _getLastSyncTag();
-    setSidebarLabel('Gmail · Conectado', lastSyncTag || 'Google listo para sincronizar');
+    setSidebarLabel('Gmail');
     if (dot) dot.style.background = 'var(--accent2)';
     if (mobBtn) mobBtn.innerHTML = '<span class="mn-icon">☁</span>Google ✓';
   } else if (status === 'done') {
     if (btn) btn.classList.add('connected');
-    const lastSyncTag = _getLastSyncTag();
-    setSidebarLabel('Gmail · Conectado', lastSyncTag || 'Sincronización completada');
+    setSidebarLabel('Gmail');
     if (dot) dot.style.background = 'var(--accent)';
     if (mobBtn) mobBtn.innerHTML = '<span class="mn-icon">☁</span>Google ✓';
   } else {
     const lastSyncTag = _getLastSyncTag();
     if (lastSyncTag) {
-      setSidebarLabel('Gmail · Conectado', lastSyncTag);
+      if (btn) btn.classList.add('connected');
+      setSidebarLabel('Gmail');
+      if (dot) dot.style.background = 'var(--accent2)';
     } else {
-      setSidebarLabel('Gmail · Sincronizar', 'Conectá Google para importar');
+      setSidebarLabel('Gmail');
+      if (dot) dot.style.background = 'var(--text3)';
     }
-    if (dot) dot.style.background = 'var(--text3)';
     if (mobBtn) mobBtn.innerHTML = '<span class="mn-icon">☁</span>Conectar';
   }
   if (typeof syncRailSidebarState === 'function') syncRailSidebarState({ gmailStatus: status });

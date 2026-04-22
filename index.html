@@ -19,7 +19,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260421n">
+<link rel="stylesheet" href="css/styles.css?v=20260421q">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -98,7 +98,7 @@
     <button class="gmail-sync-btn" id="gmail-sync-btn" onclick="gmailSync()" title="Sincronizar con Gmail">
       <span class="gmail-sync-glyph">M</span>
       <span class="gmail-sync-copy">
-        <span id="gmail-sync-label" data-i18n="gmail_sync">Gmail · Sincronizar</span>
+        <span id="gmail-sync-label" data-i18n="gmail_sync">Gmail</span>
       </span>
       <span id="gmail-sync-dot" style="width:6px;height:6px;border-radius:50%;background:var(--text3);flex-shrink:0;"></span>
     </button>
@@ -611,9 +611,9 @@
               <div class="db2-hd-icon" style="background:var(--blue-light);color:var(--accent);">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M16 3v4M8 3v4M3 11h18"/></svg>
               </div>
-              <span class="db2-title">Agenda Viva</span>
+              <span class="db2-title">CALENDARIO</span>
             </div>
-            <button class="db2-link" id="timeline-card-pill" onclick="nav('calendar')">4 eventos →</button>
+            <button class="db2-link" id="timeline-card-pill" onclick="nav('calendar')">Eventos →</button>
           </div>
           <div class="db2-agenda-list" id="db2-agenda-list">
             <!-- populated by JS -->
@@ -1265,7 +1265,7 @@
   <div class="cc-section-tabs">
     <button class="cc-stab active" id="cpt-resumen" onclick="ccSelectPageTab('resumen')">Resumen</button>
     <button class="cc-stab" id="cpt-config" onclick="ccSelectPageTab('config')">Configuración</button>
-    <button class="cc-stab" id="cpt-compare" onclick="ccSelectPageTab('compare')">Comparar resúmenes</button>
+    <button class="cc-stab" id="cpt-compare" onclick="ccSelectPageTab('compare')">Comparar ciclos</button>
   </div>
 
   <!-- Panel: Resumen -->
@@ -1290,6 +1290,10 @@
   <!-- Panel: Configuración (Apple-style) -->
   <div id="cc-panel-config" class="cc-page-section-stack" style="display:none;">
     <div id="cc-config-panel-body"></div>
+  </div>
+
+  <div id="cc-panel-history" class="cc-page-section-stack" style="display:none;">
+    <div id="cc-history-panel-body"></div>
   </div>
 
   <!-- Legacy hidden element — renderCcTcConfig() populates this list; JS reads it for cycle management -->
@@ -3409,7 +3413,7 @@
 <script src="js/i18n.js"></script>
 <script src="js/utils.js?v=20260421i"></script>
 <script src="js/import.js"></script>
-<script src="js/dashboard.js?v=20260421m"></script>
+<script src="js/dashboard.js?v=20260421n"></script>
 <script src="js/transactions.js?v=20260421e"></script>
 <script src="js/analytics.js"></script>
 <script src="js/expenses.js?v=20260421f"></script>
@@ -3421,8 +3425,8 @@
 <script src="js/ui.20260407j.js"></script>
 <script src="js/splash.js?v=20260421g"></script>
 <script src="js/shell.js?v=1.1"></script>
-<script src="js/init.js?v=20260421e"></script>
-<script src="js/credit-cards.js?v=20260421g"></script>
+<script src="js/init.js?v=20260421f"></script>
+<script src="js/credit-cards.js?v=20260421j"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="js/cc-compare.js"></script>
