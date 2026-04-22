@@ -1361,6 +1361,8 @@
           </div>
           <div class="rep-filter-actions">
             <button class="btn btn-ghost rep-more-btn" id="rep-more-filters-btn" onclick="toggleRepMoreFilters()">Más filtros</button>
+            <button class="btn btn-ghost rep-top-action" onclick="openSendReportModal()">Enviar email</button>
+            <button class="btn btn-ghost rep-top-action" onclick="printReport()">Imprimir</button>
             <button class="btn btn-primary rep-top-action" onclick="exportRepPDF()">Exportar PDF</button>
           </div>
         </div>
@@ -1427,7 +1429,7 @@
       </div>
 
       <!-- Secciones -->
-      <div class="rep-config-card">
+      <div class="rep-config-card rep-content-card">
         <div class="rep-section-title">Contenido del informe</div>
         <div class="rep-content-toolbar">
           <button class="dashboard-widget-mini" onclick="toggleReportSectionGroup('core', true)">Esenciales</button>
@@ -2177,11 +2179,14 @@
 <div id="page-cc-compare" class="page">
   <div class="page-header fade-up">
     <div>
-      <div class="page-title" data-i18n="page_reconciliation">Comparar resúmenes</div>
-      <div class="page-subtitle" data-i18n="page_reconciliation_sub">Cruzá el PDF del banco contra tus movimientos y cerrá diferencias sin perder tiempo.</div>
+      <div class="page-title" data-i18n="page_reconciliation">Tarjeta de Crédito</div>
+      <div class="page-subtitle" data-i18n="page_reconciliation_sub">Compará ciclos, resumen bancario y movimientos de la app con el mismo diseño del módulo.</div>
     </div>
     <div class="header-actions">
-      <select id="ccc-cycle-filter" class="txn-select"></select>
+      <div class="cc-period-picker ccc-cycle-picker">
+        <span class="cc-period-picker-label">Período</span>
+        <select id="ccc-cycle-filter" class="cc-period-picker-select"></select>
+      </div>
     </div>
   </div>
 
@@ -2192,17 +2197,14 @@
       <button class="cc-stab active">Comparar resúmenes</button>
     </div>
     <div class="ccc-workspace">
-      <section class="txn-filter-bar ccc-command-center">
-        <div class="ccc-command-copy">
-          <div class="ccc-intro-kicker">Conciliación guiada</div>
-          <div class="ccc-intro-title">Subí el PDF, elegí el ciclo y resolvé sólo lo que no matchea.</div>
-          <div class="ccc-command-sub">Ideal para detectar cuotas, cargos bancarios, movimientos faltantes y diferencias contra el saldo real del resumen.</div>
+      <section class="cc-active-card-banner ccc-compare-banner" style="--cc-card-color:#6d4aff;">
+        <div class="cc-active-card-mark">PDF</div>
+        <div class="cc-active-card-copy">
+          <span>Comparación de ciclos</span>
+          <strong>Resumen bancario vs App</strong>
+          <small>Seleccioná un período, subí el PDF y revisá sólo las diferencias relevantes.</small>
         </div>
-        <div class="ccc-step-list">
-          <div><strong>1</strong><span>Seleccioná ciclo</span></div>
-          <div><strong>2</strong><span>Subí PDF</span></div>
-          <div><strong>3</strong><span>Cerrá pendientes</span></div>
-        </div>
+        <button onclick="nav('credit-cards');ccSelectPageTab('resumen')">Volver al resumen</button>
       </section>
 
       <section class="ccc-upload-layout">
@@ -2214,11 +2216,16 @@
             <input type="file" id="ccc-file-input" accept="application/pdf" style="display:none;">
           </div>
         </div>
-        <div class="table-card ccc-help-card">
-          <div class="cc-panel-kicker">Qué vas a ver</div>
-          <div class="ccc-help-title">Una lista accionable, no una auditoría eterna.</div>
-          <p>Los pendientes aparecen primero. Desde ahí podés agregar a la app, vincular, confirmar, separar o descartar cada diferencia.</p>
-        </div>
+        <aside class="ccc-example-card">
+          <div class="ccs-section-head">
+            <div><h3>Ejemplo de comparación</h3><span>Así se ordenan los resultados después de subir el PDF</span></div>
+          </div>
+          <div class="ccc-example-list">
+            <div class="ccc-example-row is-match"><span></span><div><strong>Supermercado</strong><small>PDF y app coinciden</small></div><b>$88.279</b></div>
+            <div class="ccc-example-row is-diff"><span></span><div><strong>Mercado Pago</strong><small>Diferencia para revisar</small></div><b>+$2.100</b></div>
+            <div class="ccc-example-row is-missing"><span></span><div><strong>Cargo bancario</strong><small>Falta agregar a la app</small></div><b>$4.850</b></div>
+          </div>
+        </aside>
       </section>
 
       <div id="ccc-loading" class="loading-card">

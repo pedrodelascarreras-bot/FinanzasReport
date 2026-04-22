@@ -604,7 +604,7 @@ function renderCccResults() {
       ${periodHtml}
       <div class="ccc-reconcile-hero" id="ccc-hero-widget">
         <div class="ccc-hero-copy">
-          <span class="cc-panel-kicker">Estado de conciliación</span>
+          <span class="cc-panel-kicker">Estado de comparación</span>
           <strong>${isBalanced?'Todo cuadra':'Hay diferencias para resolver'}</strong>
           <small>${concCount} conciliados · ${pendCount} pendientes · ${bankFees.length} cargos bancarios</small>
         </div>
@@ -656,7 +656,7 @@ function cccUpdateHero() {
   const bankFees = cccState.matches.filter(m => m.status === 'bank_fee' || m.pdfTxn?.isBankFee).length;
   el.innerHTML = `
     <div class="ccc-hero-copy">
-      <span class="cc-panel-kicker">Estado de conciliación</span>
+      <span class="cc-panel-kicker">Estado de comparación</span>
       <strong>${Math.abs(diffARS) < 1 && Math.abs(diffUSD) < 0.01?'Todo cuadra':'Hay diferencias para resolver'}</strong>
       <small>${regularOk} conciliados · ${regularPending} pendientes · ${bankFees} cargos bancarios</small>
     </div>

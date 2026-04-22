@@ -372,9 +372,10 @@ function renderCcActiveCycle(){
   const cycleStatus=ccState.status==='paid'?'pago total':ccState.status==='minimum'?'pago mínimo':'pendiente';
   const cycleTone=ccState.status==='paid'?'is-paid':ccState.status==='minimum'?'is-minimum':'is-pending';
   const ringDeg=Math.round(progressPct*3.6);
-  const catRows=catSummary.slice(0,8).map((r,idx)=>{
+  const catRows=catSummary.slice(0,10).map((r,idx)=>{
     const amountArs=r.ars+(r.usd*(USD_TO_ARS||0));
     const pct=totalForPct>0?Math.round((amountArs/totalForPct)*100):0;
+    const pctWidth=Math.max(3,Math.min(100,pct));
     const txns=expenses
       .filter(e=>(e.category||'Sin categoría')===r.cat)
       .slice(0,4)
@@ -383,8 +384,15 @@ function renderCcActiveCycle(){
     return `<details class="ccs-cat-accordion" ${idx<3?'open':''}>
       <summary>
         <span class="ccs-cat-icon">${ccCategoryIcon(r.cat)}</span>
-        <span class="ccs-cat-copy"><strong>${esc(r.cat)}</strong><small>${pct}% del resumen</small></span>
-        <b>${r.ars>0?'$'+fmtN(Math.round(r.ars)):r.usd>0?'U$D '+fmtN(r.usd):'—'}</b>
+        <span class="ccs-cat-copy">
+          <strong>${esc(r.cat)}</strong>
+          <small>${pct}% del resumen</small>
+          <i><span style="width:${pctWidth}%;"></span></i>
+        </span>
+        <span class="ccs-cat-amount">
+          <b>${r.ars>0?'$'+fmtN(Math.round(r.ars)):r.usd>0?'U$D '+fmtN(r.usd):'—'}</b>
+          <small>${expenses.filter(e=>(e.category||'Sin categoría')===r.cat).length} mov.</small>
+        </span>
       </summary>
       <ul>${txns||'<li><span>Sin movimientos visibles</span><b>—</b></li>'}</ul>
     </details>`;
@@ -421,8 +429,8 @@ function renderCcActiveCycle(){
         <button onclick="document.getElementById('cc-card-tabs')?.scrollIntoView({behavior:'smooth',block:'center'});">Cambiar tarjeta</button>
       </section>
       <section class="ccs-top-grid fade-up d1">
-        <article class="ccs-hero">
-          <div class="ccs-hero-main">
+        <div class="ccs-main-stack">
+          <article class="ccs-hero">
             <div class="ccs-hero-copy">
               <div class="ccs-hero-tags">
                 <span class="ccs-status ${cycleTone}">${cycleStatus}</span>
@@ -442,12 +450,16 @@ function renderCcActiveCycle(){
             <div class="ccs-ring" style="--ccs-ring:${ringDeg}deg;">
               <div><strong>${progressPct}%</strong><span>del ciclo</span></div>
             </div>
-          </div>
-          <div class="ccs-hero-categories">
-            <div class="ccs-section-head"><div><h3>Categorías</h3><span>${catSummary.length} categoría${catSummary.length===1?'':'s'} en este ciclo</span></div></div>
+          </article>
+
+          <section class="ccs-category-board">
+            <div class="ccs-section-head">
+              <div><h3>Categorías del resumen</h3><span>${catSummary.length} categoría${catSummary.length===1?'':'s'} en este ciclo</span></div>
+              <small>% del total</small>
+            </div>
             <div class="ccs-cat-accordion-list">${catRows||'<div class="cc-empty-inline">Sin categorías en este ciclo</div>'}</div>
-          </div>
-        </article>
+          </section>
+        </div>
 
         <aside class="ccs-side-stack">
           <article class="ccs-actions-panel">
@@ -1024,6 +1036,7 @@ function renderCcHistoryPanel(){
     const d=new Date(s+'T12:00:00');
     return d.toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'}).replace('.','');
   };
+  const today=dateToYMD(new Date());
   const cardCycles=cycles
     .map((cycle,idx)=>({cycle,idx}))
     .filter(({cycle})=>((cycle.cardId||cards[0]?.id)===activeCard?.id))
@@ -1034,12 +1047,13 @@ function renderCcHistoryPanel(){
     const totals=ccGetTotals(ccGetCycleExpenses(activeCard.id,cycle.id));
     const status=state.ccCycles.find(x=>x.tcCycleId===cycle.id&&x.cardId===activeCard.id);
     const isPaid=status?.status==='paid';
-    return `<details class="cch-row" ${rowIdx<2?'open':''}>
+    const isActive=!!open&&!!cycle.closeDate&&open<=today&&today<=cycle.closeDate;
+    return `<details class="cch-row ${isActive?'is-active-now':''}" ${isActive||rowIdx<2?'open':''}>
       <summary>
         <div class="cch-row-main">
-          <span class="cch-dot ${isPaid?'is-paid':'is-pending'}"></span>
+          <span class="cch-dot ${isActive?'is-active':isPaid?'is-paid':'is-pending'}"></span>
           <div>
-            <strong>${esc(cycle.label||'Ciclo')}</strong>
+            <strong>${esc(cycle.label||'Ciclo')}${isActive?'<em>Activo ahora</em>':''}</strong>
             <small>${esc(shortD(open))} → ${esc(shortD(cycle.closeDate))}${cycle.dueDate?' · vence '+esc(shortD(cycle.dueDate)):''}</small>
           </div>
         </div>
