@@ -127,6 +127,23 @@ function ccGetCatSummary(expenses){
     .map(([cat,v])=>({cat,...v}));
 }
 
+function ccCategoryIcon(cat=''){
+  const name=String(cat||'').toLowerCase();
+  if(name.includes('super')||name.includes('mercado')||name.includes('aliment')) return '🛒';
+  if(name.includes('restaurant')||name.includes('delivery')||name.includes('comida')||name.includes('cafe')) return '🍽';
+  if(name.includes('transporte')||name.includes('viaje')||name.includes('uber')||name.includes('cabify')) return '🚕';
+  if(name.includes('nafta')||name.includes('combustible')) return '⛽';
+  if(name.includes('salud')||name.includes('farmacia')||name.includes('medic')) return '✚';
+  if(name.includes('entreten')||name.includes('stream')||name.includes('cine')) return '▶';
+  if(name.includes('regalo')) return '🎁';
+  if(name.includes('cuota')) return '◫';
+  if(name.includes('suscrip')) return '↻';
+  if(name.includes('servicio')||name.includes('luz')||name.includes('gas')||name.includes('internet')) return '⚡';
+  if(name.includes('educ')) return '⌁';
+  if(name.includes('compra')) return '▣';
+  return '◆';
+}
+
 // ── Alertas al cargar la app ──
 function checkCreditCardAlerts(){
   if(!state.ccCycles||!state.ccCards)return;
@@ -206,16 +223,19 @@ function renderCcCardTabs(){
     const status=cycle?state.ccCycles.find(s=>s.cardId===card.id&&s.tcCycleId===cycle.id):null;
     const statusText=status?.status==='paid'?'pago':status?.status==='minimum'?'mínimo':'pendiente';
     const last=card.last4||card.digits||card.lastDigits||'••••';
-    return `<button class="cc-card-switch ${isActive?'is-active':''}" onclick="ccSelectCard('${card.id}')" style="--cc-card-color:${card.color};">
+    const brandClass=(card.payMethodKey||card.name||'').toLowerCase().includes('amex')?'is-amex':'is-visa';
+    const brandText=brandClass==='is-amex'?'AMEX':'VISA';
+    return `<button class="cc-card-switch ${isActive?'is-active':''} ${brandClass}" onclick="ccSelectCard('${card.id}')" style="--cc-card-color:${card.color};">
       <span class="cc-card-switch-dot"></span>
       <span class="cc-card-switch-main">
         <strong>${esc(card.name)}</strong>
         <small>${esc(last)} · ${cycle?esc(cycle.label):'Sin ciclo'} · ${statusText}</small>
       </span>
       <span class="cc-card-switch-total">${totals.ars>0?'$'+fmtN(Math.round(totals.ars)):'—'}</span>
+      <span class="cc-card-switch-brand">${brandText}</span>
     </button>`;
   }).join('')+`
-    <button class="cc-card-switch cc-card-switch-add" onclick="ccCreateCardPrompt()">
+    <button class="cc-card-switch cc-card-switch-add is-new-card" onclick="ccCreateCardPrompt()">
       <span class="cc-card-switch-add-icon">+</span>
       <span class="cc-card-switch-main">
         <strong>Nueva tarjeta</strong>
@@ -335,7 +355,7 @@ function renderCcActiveCycle(){
     const amountArs=r.ars+(r.usd*(USD_TO_ARS||0));
     const pct=totalForPct>0?Math.round((amountArs/totalForPct)*100):0;
     return `<div class="ccs-cat-chip">
-      <span class="ccs-cat-icon">${esc((r.cat||'').trim().charAt(0).toUpperCase()||'•')}</span>
+      <span class="ccs-cat-icon">${ccCategoryIcon(r.cat)}</span>
       <strong>${esc(r.cat)}</strong>
       <small>${pct}%</small>
       <b>${r.ars>0?'$'+fmtN(Math.round(r.ars)):r.usd>0?'U$D '+fmtN(r.usd):'—'}</b>
@@ -389,9 +409,9 @@ function renderCcActiveCycle(){
         <aside class="ccs-side-stack">
           <article class="ccs-actions-panel">
             <h3>Acciones rápidas</h3>
-            <button class="ccs-pay-action is-success" onclick="ccMarkPaid('${activeTcCycle.id}')"><span>✓</span><strong>Marcar como pago</strong><small>Confirmá que ya pagaste el total.</small></button>
-            <button class="ccs-pay-action is-warn" onclick="ccMarkMinimumPaid('${activeTcCycle.id}')"><span>□</span><strong>Pagar mínimo</strong><small>Registrá que abonaste el pago mínimo.</small></button>
-            <button class="ccs-pay-action is-danger" onclick="ccMarkPending('${activeTcCycle.id}')"><span>!</span><strong>Marcar como pendiente</strong><small>Dejá registrado que aún no pagaste.</small></button>
+            <button class="ccs-pay-action is-success" onclick="ccMarkPaid('${activeTcCycle.id}')"><span>✓</span><strong>Marcar como pago</strong><small>Confirmá el pago total del resumen.</small></button>
+            <button class="ccs-pay-action is-warn" onclick="ccMarkMinimumPaid('${activeTcCycle.id}')"><span>$</span><strong>Pagar mínimo</strong><small>Registrá el mínimo y dejá saldo pendiente.</small></button>
+            <button class="ccs-pay-action is-danger" onclick="ccMarkPending('${activeTcCycle.id}')"><span>!</span><strong>Marcar como pendiente</strong><small>Volvé este ciclo a estado pendiente.</small></button>
           </article>
           <article class="ccs-quick-metrics">
             <h3>Resumen rápido</h3>
@@ -408,15 +428,10 @@ function renderCcActiveCycle(){
         ${catRows?`<div class="ccs-cat-grid">${catRows}</div>`:'<div class="cc-empty-inline">Sin categorías en este ciclo</div>'}
       </section>
 
-      <section class="ccs-banner fade-up d2">
-        <div><span>ⓘ</span><strong>Vas por buen camino</strong><small>Llevás ${progressPct}% del ciclo. Revisá tus gastos antes del vencimiento.</small></div>
-        <button onclick="ccOpenManualExpenseModal('${activeTcCycle.id}')">Agregar gasto</button>
-      </section>
-
       <section class="ccs-table-card fade-up d3">
         <div class="ccs-table-head">
           <div><h3>Desglose de gastos</h3><span>Mostrando ${Math.min(expenses.length,10)} de ${expenses.length} item${expenses.length===1?'':'s'}</span></div>
-          <div class="ccs-table-tools"><button>Todos</button><button>☷</button><button>⊙</button></div>
+          <div class="ccs-table-tools"><button class="ccs-table-primary" onclick="ccOpenManualExpenseModal('${activeTcCycle.id}')">+ Agregar gasto</button><button>Todos</button><button>☷</button><button>⊙</button></div>
         </div>
         <div class="ccs-txn-list">
           <div class="ccs-txn-header"><span>Fecha</span><span>Descripción</span><span>Categoría</span><span>Monto</span><span></span></div>

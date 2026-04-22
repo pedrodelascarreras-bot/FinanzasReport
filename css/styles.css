@@ -16152,7 +16152,15 @@ body.light-mode .tdp-tp-input {
 /* ── Grid skeleton ── */
 .db2-grid { display: flex; flex-direction: column; gap: 20px; }
 .db2-row-1 { display: grid; grid-template-columns: 1.08fr 0.92fr; gap: 18px; align-items: stretch; flex: 1; min-height: 0; }
-.db2-row-2 { display: grid; grid-template-columns: 1.2fr 0.5fr 0.82fr; gap: 20px; align-items: stretch; flex: 1; min-height: 0; }
+.db2-row-2 {
+  display: grid;
+  grid-template-columns: 1.2fr 0.5fr 0.82fr;
+  gap: 20px;
+  align-items: stretch;
+  flex: 0 0 388px;
+  height: 388px;
+  min-height: 0;
+}
 .db2-row-3 { display: grid; grid-template-columns: 1.42fr 0.78fr; gap: 18px; align-items: stretch; flex: 1; min-height: 0; }
 
 /* ── Base card (DRIPI system) ── */
@@ -16700,12 +16708,14 @@ body.light-mode .tdp-tp-input {
 }
 .db2-cc-amount-side {
   border-left: 1px solid rgba(107,114,128,0.15);
-  padding-left: 18px;
+  padding: 0 18px;
   min-width: 0;
   align-self: stretch;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
+  text-align: center;
 }
 .db2-cc-amt {
   font-size: clamp(20px, 1.55vw, 25px);
@@ -16744,15 +16754,15 @@ body.light-mode .tdp-tp-input {
   font-size: clamp(11px, 0.92vw, 14px);
   font-weight: 650;
   color: #7b7f98;
-  margin-top: auto;
-  padding-top: 8px;
+  margin-top: 8px;
+  padding-top: 0;
   white-space: nowrap;
 }
 
 /* ═══ PROYECCIÓN AL CIERRE ═══ */
 .db2-proj-card {
   min-height: 0;
-  padding: 22px 22px 20px;
+  padding: 20px 22px 18px;
   border-radius: 28px;
   background: #FFF1E9;
   border: 1px solid rgba(241, 196, 177, 0.72);
@@ -16789,7 +16799,7 @@ body.light-mode .tdp-tp-input {
   grid-template-columns: minmax(0, 1.08fr) minmax(160px, 0.62fr);
   gap: 18px;
   align-items: start;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 .db2-proj-left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0; }
 .db2-proj-right {
@@ -16798,8 +16808,8 @@ body.light-mode .tdp-tp-input {
   min-width: 0; flex-shrink: 0;
   justify-content: center;
   align-items: center;
-  height: 178px;
-  padding: 44px 14px 14px;
+  height: 170px;
+  padding: 42px 14px 14px;
   border-radius: 16px;
   background: rgba(255, 247, 242, 0.32);
   border: 1px solid rgba(241, 196, 177, 0.86);
@@ -16808,11 +16818,11 @@ body.light-mode .tdp-tp-input {
 .db2-proj-amt {
   font-size: clamp(32px, 3.2vw, 44px); font-weight: 900;
   letter-spacing: -0.055em; color: #F2392F !important;
-  line-height: 0.98; margin: 20px 0 10px;
+  line-height: 0.98; margin: 16px 0 8px;
 }
 .db2-proj-explain {
   font-size: 13px; color: #3F4B59;
-  line-height: 1.35; margin-bottom: 28px;
+  line-height: 1.35; margin-bottom: 24px;
   max-width: 480px; font-weight: 500;
 }
 .db2-proj-bar-track {
@@ -16865,7 +16875,7 @@ body.light-mode .tdp-tp-input {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
-  margin-top: 18px;
+  margin-top: 15px;
 }
 .db2-proj-legend-item {
   display: block;
@@ -16890,7 +16900,7 @@ body.light-mode .tdp-tp-input {
 .db2-proj-legend-item:nth-child(2) .db2-proj-legend-val { color: #F3382E; }
 .db2-proj-legend-item:nth-child(3) .db2-proj-legend-val { color: #8B3CF6; }
 .db2-proj-ring {
-  width: 138px;
+  width: 132px;
   aspect-ratio: 1;
   border-radius: 50%;
   display: grid;
@@ -16944,13 +16954,13 @@ body.light-mode .tdp-tp-input {
   margin-top: 6px;
 }
 .db2-proj-summary-title {
-  padding-top: 16px;
+  padding-top: 13px;
   border-top: 1px solid rgba(225, 183, 166, 0.76);
   color: #3F4B59;
   font-size: 11px;
   font-weight: 900;
   letter-spacing: 0.16em;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .db2-proj-metrics {
   display: grid; grid-template-columns: repeat(4,1fr);
@@ -16959,7 +16969,7 @@ body.light-mode .tdp-tp-input {
 }
 .db2-proj-metric {
   display: flex; flex-direction: row; align-items: center; gap: 10px;
-  padding: 4px 12px;
+  padding: 2px 12px;
   border-radius: 0;
   background: transparent;
   border-left: 1px solid rgba(225, 183, 166, 0.76);
@@ -17004,7 +17014,7 @@ body.light-mode .tdp-tp-input {
   gap: 0;
   min-height: 0;
   flex: 1;
-  padding: 22px 20px 18px;
+  padding: 20px 20px 18px;
 }
 .db2-dollar-card:hover { transform: translateY(-1px); }
 .db2-dollar-head {
@@ -17128,7 +17138,7 @@ body.light-mode .tdp-tp-input {
   background: linear-gradient(180deg, #EFEBFF 0%, #E8E4FF 100%);
   min-height: 0;
   flex: 1;
-  padding: 22px 22px 20px;
+  padding: 20px 22px 18px;
 }
 .db2-agenda-list {
   display: flex; flex-direction: column; gap: 8px;
@@ -18892,7 +18902,7 @@ body:not(.light-mode) #page-dashboard .header-actions .txn-select option{
 /* ── Responsive ── */
 @media(max-width:1100px) {
   .db2-row-1 { grid-template-columns: 1fr; }
-  .db2-row-2 { grid-template-columns: 1fr 1fr; }
+  .db2-row-2 { grid-template-columns: 1fr 1fr; height: auto; flex-basis: auto; }
   .db2-row-2 .db2-agenda-card { grid-column: 1 / -1; }
   .db2-row-3 { grid-template-columns: 1fr; }
   .db2-third-grid { grid-template-columns: 1fr 1fr; }
@@ -22661,6 +22671,223 @@ body:not(.light-mode) .ccs-txn-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
+
+/* Final dark-mode polish for native Movimientos / Compromisos / Ingresos surfaces */
+body:not(.light-mode) #page-transactions,
+body:not(.light-mode) #page-cuotas,
+body:not(.light-mode) #page-income {
+  color: #eef2ff !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-title h1,
+body:not(.light-mode) #page-cuotas .cp-title h1,
+body:not(.light-mode) #page-income .inc-hdr-title {
+  color: #f8fbff !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-title p,
+body:not(.light-mode) #page-transactions .mv-insights-top .label,
+body:not(.light-mode) #page-cuotas .cp-title p,
+body:not(.light-mode) #page-cuotas .cp-panel-head,
+body:not(.light-mode) #page-income .inc-hdr-sub {
+  color: #a9b4d0 !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-card,
+body:not(.light-mode) #page-transactions .mv-list,
+body:not(.light-mode) #page-transactions .mv-filter-surface,
+body:not(.light-mode) #page-transactions .txn-cycle-panel,
+body:not(.light-mode) #page-transactions .txn-cycle-entry,
+body:not(.light-mode) #page-transactions .mv-menu,
+body:not(.light-mode) #page-cuotas .cp-card,
+body:not(.light-mode) #page-cuotas .cp-row,
+body:not(.light-mode) #page-cuotas .cp-quota-row,
+body:not(.light-mode) #page-cuotas .cp-expired-row,
+body:not(.light-mode) #page-cuotas .cp-menu,
+body:not(.light-mode) #page-income .ikpi,
+body:not(.light-mode) #page-income .iblock,
+body:not(.light-mode) #page-income .ipan-box,
+body:not(.light-mode) #page-income .ip-mini,
+body:not(.light-mode) #page-income .icard.bg-white {
+  background: linear-gradient(180deg, rgba(18, 24, 41, 0.96), rgba(13, 18, 32, 0.94)) !important;
+  border-color: rgba(150, 164, 220, 0.13) !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.16) !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-summary-card,
+body:not(.light-mode) #page-cuotas .cp-section,
+body:not(.light-mode) #page-income .iblock {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(93, 53, 243, 0.1), transparent 32%),
+    linear-gradient(180deg, rgba(18, 24, 41, 0.98), rgba(13, 18, 32, 0.95)) !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-search,
+body:not(.light-mode) #page-transactions .mv-day-bar,
+body:not(.light-mode) #page-transactions .mv-period-select,
+body:not(.light-mode) #page-transactions .mv-btn,
+body:not(.light-mode) #page-transactions .mv-chip,
+body:not(.light-mode) #page-transactions .mv-status-pill,
+body:not(.light-mode) #page-transactions .mv-filter-surface .txn-select,
+body:not(.light-mode) #page-transactions .mv-ghost-btn,
+body:not(.light-mode) #page-cuotas .cp-btn,
+body:not(.light-mode) #page-cuotas .cp-status-pill,
+body:not(.light-mode) #page-cuotas .cp-search,
+body:not(.light-mode) #page-cuotas .cp-chip,
+body:not(.light-mode) #page-cuotas .cp-due,
+body:not(.light-mode) #page-cuotas .cp-menu-btn,
+body:not(.light-mode) #page-income .ichip,
+body:not(.light-mode) #page-income .iconf-inp-wrap,
+body:not(.light-mode) #page-income .btn.btn-ghost {
+  background: rgba(255, 255, 255, 0.055) !important;
+  border-color: rgba(150, 164, 220, 0.14) !important;
+  color: #e6ebff !important;
+  box-shadow: none !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-search input,
+body:not(.light-mode) #page-cuotas .cp-search input,
+body:not(.light-mode) #page-income .iconf-inp-wrap input {
+  color: #f8fbff !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-search input::placeholder,
+body:not(.light-mode) #page-cuotas .cp-search input::placeholder {
+  color: #7f8bad !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-chip.active,
+body:not(.light-mode) #page-transactions .mv-status-pill.active,
+body:not(.light-mode) #page-transactions .txn-cycle-tab.active,
+body:not(.light-mode) #page-cuotas .cp-chip.active,
+body:not(.light-mode) #page-cuotas .cp-btn-primary,
+body:not(.light-mode) #page-income .btn.btn-primary {
+  background: linear-gradient(135deg, #5d35f3, #8c5cff) !important;
+  border-color: transparent !important;
+  color: #fff !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-summary-card .k,
+body:not(.light-mode) #page-transactions .mv-summary-card .s,
+body:not(.light-mode) #page-transactions .mv-time,
+body:not(.light-mode) #page-transactions .mv-note,
+body:not(.light-mode) #page-transactions .mv-day-head .count,
+body:not(.light-mode) #page-transactions .mv-mini .k,
+body:not(.light-mode) #page-transactions .mv-sync-item-label,
+body:not(.light-mode) #page-transactions .mv-sync-item-meta,
+body:not(.light-mode) #page-transactions .txn-cycle-panel-sub,
+body:not(.light-mode) #page-transactions .txn-cycle-date,
+body:not(.light-mode) #page-transactions .txn-cycle-meta,
+body:not(.light-mode) #page-cuotas .cp-row-sub,
+body:not(.light-mode) #page-cuotas .cp-head-meta,
+body:not(.light-mode) #page-cuotas .cp-metric-label,
+body:not(.light-mode) #page-cuotas .cp-progress-meta,
+body:not(.light-mode) #page-cuotas .cp-empty-copy span,
+body:not(.light-mode) #page-cuotas .cp-empty-inline,
+body:not(.light-mode) #page-cuotas .cp-mini-card .t,
+body:not(.light-mode) #page-cuotas .cp-mini-card .s,
+body:not(.light-mode) #page-income .ikpi-h,
+body:not(.light-mode) #page-income .ikpi-sub,
+body:not(.light-mode) #page-income .iblock-sub,
+body:not(.light-mode) #page-income .icard-sub,
+body:not(.light-mode) #page-income .ihist-header,
+body:not(.light-mode) #page-income .iconf-label,
+body:not(.light-mode) #page-income .ipan-hdr,
+body:not(.light-mode) #page-income .ip-title,
+body:not(.light-mode) #page-income .ip-mini-lbl {
+  color: #9da8c8 !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-summary-card .v,
+body:not(.light-mode) #page-transactions .mv-day-head .title,
+body:not(.light-mode) #page-transactions .mv-merchant,
+body:not(.light-mode) #page-transactions .mv-amount-main,
+body:not(.light-mode) #page-transactions .mv-mini .v,
+body:not(.light-mode) #page-transactions .mv-breakdown-head .t,
+body:not(.light-mode) #page-transactions .mv-breakdown-row span,
+body:not(.light-mode) #page-transactions .txn-cycle-panel-kicker,
+body:not(.light-mode) #page-transactions .txn-cycle-title,
+body:not(.light-mode) #page-transactions .txn-cycle-amount,
+body:not(.light-mode) #page-transactions .txn-cycle-footer-total,
+body:not(.light-mode) #page-cuotas .cp-section-title,
+body:not(.light-mode) #page-cuotas .cp-row-title,
+body:not(.light-mode) #page-cuotas .cp-row-amount,
+body:not(.light-mode) #page-cuotas .cp-quota-metric strong,
+body:not(.light-mode) #page-cuotas .cp-quota-end strong,
+body:not(.light-mode) #page-cuotas .cp-empty-copy strong,
+body:not(.light-mode) #page-cuotas .cp-mini-card .v,
+body:not(.light-mode) #page-cuotas .cp-upcoming-name,
+body:not(.light-mode) #page-cuotas .cp-breakdown-row,
+body:not(.light-mode) #page-income .ikpi-v,
+body:not(.light-mode) #page-income .iblock-title,
+body:not(.light-mode) #page-income .icomp-text,
+body:not(.light-mode) #page-income .icomp-bar-val,
+body:not(.light-mode) #page-income .icard-name,
+body:not(.light-mode) #page-income .icard-amount,
+body:not(.light-mode) #page-income .ihist-tot,
+body:not(.light-mode) #page-income .ip-mini-val,
+body:not(.light-mode) #page-income .i-next-name,
+body:not(.light-mode) #page-income .i-next-val {
+  color: #f8fbff !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-row,
+body:not(.light-mode) #page-cuotas .cp-row,
+body:not(.light-mode) #page-cuotas .cp-quota-row,
+body:not(.light-mode) #page-income .ihist-row {
+  border-color: rgba(150, 164, 220, 0.09) !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-row:hover,
+body:not(.light-mode) #page-cuotas .cp-row:hover,
+body:not(.light-mode) #page-cuotas .cp-quota-row:hover {
+  background: rgba(255, 255, 255, 0.045) !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-breakdown-bars > div:last-child,
+body:not(.light-mode) #page-income .ip-bar-track,
+body:not(.light-mode) #page-income .icomp-bar-avg {
+  background: rgba(150, 164, 220, 0.16) !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-menu button,
+body:not(.light-mode) #page-cuotas .cp-menu button {
+  color: #e6ebff !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-menu button:hover,
+body:not(.light-mode) #page-cuotas .cp-menu button:hover {
+  background: rgba(255, 255, 255, 0.07) !important;
+}
+
+body:not(.light-mode) #page-transactions .mv-sync-icon,
+body:not(.light-mode) #page-transactions .mv-dominant-icon,
+body:not(.light-mode) #page-cuotas .cp-empty-icon,
+body:not(.light-mode) #page-cuotas .cp-avatar,
+body:not(.light-mode) #page-income .ikpi-icon,
+body:not(.light-mode) #page-income .i-next-date,
+body:not(.light-mode) #page-income .iconf-label-icon {
+  background: rgba(93, 53, 243, 0.18) !important;
+  border-color: rgba(150, 164, 220, 0.14) !important;
+  box-shadow: none !important;
+}
+
+body:not(.light-mode) #page-cuotas .cp-tip {
+  background: rgba(249, 115, 22, 0.12) !important;
+  border-color: rgba(249, 115, 22, 0.24) !important;
+}
+
+body:not(.light-mode) #page-cuotas .cp-expired-section {
+  background:
+    linear-gradient(180deg, rgba(63, 24, 31, 0.54), rgba(18, 24, 41, 0.94)) !important;
+  border-color: rgba(255, 107, 87, 0.22) !important;
+}
+
+body:not(.light-mode) #page-income .icomp-tip {
+  background: rgba(16, 185, 129, 0.1) !important;
+  border-color: rgba(16, 185, 129, 0.18) !important;
+  color: #b8c4df !important;
+}
 @media (max-width: 1180px) {
   .cc-config-modern-grid,
   .cc-config-card-selector,
@@ -22674,4 +22901,434 @@ body:not(.light-mode) .ccs-txn-row {
   .cc-config-new-cycle {
     position: static;
   }
+}
+
+/* Credit Card module final polish: card selector, summary density and actions */
+#page-credit-cards .cc-tabs-row {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+#page-credit-cards .cc-card-switch {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-height: 118px;
+  border: 0;
+  border-radius: 22px;
+  padding: 18px 20px;
+  grid-template-columns: 13px minmax(0, 1fr) auto;
+  align-items: flex-start;
+  box-shadow: 0 18px 38px rgba(29, 33, 58, .12);
+  color: #fff;
+}
+
+#page-credit-cards .cc-card-switch::before,
+#page-credit-cards .cc-card-switch::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+#page-credit-cards .cc-card-switch::before {
+  width: 190px;
+  height: 190px;
+  right: -72px;
+  bottom: -98px;
+  background: rgba(255,255,255,.16);
+}
+
+#page-credit-cards .cc-card-switch::after {
+  width: 94px;
+  height: 94px;
+  left: 46px;
+  top: -58px;
+  background: rgba(255,255,255,.1);
+}
+
+#page-credit-cards .cc-card-switch.is-visa {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.13), transparent 34%),
+    linear-gradient(135deg, #201846 0%, #5d35f3 58%, #f04438 130%);
+}
+
+#page-credit-cards .cc-card-switch.is-amex {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.14), transparent 34%),
+    linear-gradient(135deg, #0f2c4f 0%, #1261d6 58%, #42c4ff 130%);
+}
+
+#page-credit-cards .cc-card-switch.is-active {
+  border: 1px solid rgba(255,255,255,.44);
+  box-shadow: 0 20px 45px rgba(93, 53, 243, .18);
+  transform: translateY(-1px);
+}
+
+#page-credit-cards .cc-card-switch:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 22px 48px rgba(29, 33, 58, .18);
+}
+
+#page-credit-cards .cc-card-switch-dot {
+  width: 9px;
+  height: 9px;
+  margin-top: 5px;
+  background: rgba(255,255,255,.86);
+  box-shadow: 0 0 0 5px rgba(255,255,255,.13);
+}
+
+#page-credit-cards .cc-card-switch-main strong,
+#page-credit-cards .cc-card-switch-total {
+  color: #fff;
+  text-shadow: 0 1px 8px rgba(0,0,0,.16);
+}
+
+#page-credit-cards .cc-card-switch-main strong {
+  font-size: 15px;
+  letter-spacing: .01em;
+}
+
+#page-credit-cards .cc-card-switch-main small {
+  max-width: 260px;
+  margin-top: 8px;
+  color: rgba(255,255,255,.72);
+  font-size: 11px;
+}
+
+#page-credit-cards .cc-card-switch-total {
+  font-size: 16px;
+  white-space: nowrap;
+}
+
+#page-credit-cards .cc-card-switch-brand {
+  position: absolute;
+  right: 20px;
+  bottom: 16px;
+  color: rgba(255,255,255,.88);
+  font: 950 18px/1 var(--font);
+  letter-spacing: .18em;
+}
+
+#page-credit-cards .cc-card-switch-add.is-new-card {
+  color: #4f46e5;
+  background:
+    radial-gradient(circle at 88% 12%, rgba(109,74,255,.12), transparent 32%),
+    linear-gradient(180deg,#ffffff,#faf8ff);
+  border: 1px dashed rgba(109,74,255,.34);
+  grid-template-columns: 44px minmax(0, 1fr);
+  box-shadow: 0 14px 30px rgba(59, 65, 101, .06);
+}
+
+#page-credit-cards .cc-card-switch-add.is-new-card::before,
+#page-credit-cards .cc-card-switch-add.is-new-card::after {
+  background: rgba(109,74,255,.08);
+}
+
+#page-credit-cards .cc-card-switch-add.is-new-card .cc-card-switch-main strong {
+  color: #4f46e5;
+  text-shadow: none;
+}
+
+#page-credit-cards .cc-card-switch-add.is-new-card .cc-card-switch-main small {
+  color: #7d83a0;
+}
+
+#page-credit-cards .cc-card-switch-add-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+  background: #efeaff;
+  color: #6d4aff;
+}
+
+.ccs-top-grid {
+  grid-template-columns: minmax(0, 1fr) 330px;
+  align-items: start;
+}
+
+.ccs-hero {
+  min-height: 0;
+  grid-template-columns: minmax(0, 1fr) 150px;
+  align-items: center;
+  padding: 24px 26px;
+  gap: 18px;
+}
+
+.ccs-hero-tags {
+  margin-bottom: 16px;
+}
+
+.ccs-total {
+  font-size: clamp(42px, 4.1vw, 58px);
+  letter-spacing: -.045em;
+}
+
+.ccs-due-line {
+  margin-top: 18px;
+}
+
+.ccs-progress-head {
+  margin-top: 20px;
+}
+
+.ccs-ring {
+  width: 128px;
+  height: 128px;
+}
+
+.ccs-ring > div {
+  width: 92px;
+  height: 92px;
+}
+
+.ccs-ring strong {
+  font-size: 25px;
+}
+
+.ccs-actions-panel {
+  padding: 18px;
+}
+
+.ccs-pay-action {
+  min-height: 72px;
+  grid-template-columns: 42px minmax(0, 1fr);
+  border-radius: 16px;
+  padding: 14px;
+  gap: 13px;
+  transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+}
+
+.ccs-pay-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 28px rgba(31, 36, 61, .08);
+}
+
+.ccs-pay-action span {
+  width: 38px;
+  height: 38px;
+  border-radius: 14px;
+}
+
+.ccs-pay-action strong {
+  font-size: 13px;
+}
+
+.ccs-pay-action small {
+  max-width: 210px;
+  color: #757c91;
+  font-size: 11px;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.ccs-pay-action.is-success {
+  background: linear-gradient(135deg,#f0fff6,#ffffff);
+  border-color: rgba(22,163,74,.18);
+}
+
+.ccs-pay-action.is-warn {
+  background: linear-gradient(135deg,#fff8ea,#ffffff);
+  border-color: rgba(217,119,6,.18);
+}
+
+.ccs-pay-action.is-danger {
+  background: linear-gradient(135deg,#fff1f1,#ffffff);
+  border-color: rgba(240,68,56,.18);
+}
+
+.ccs-cat-grid {
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+}
+
+.ccs-cat-chip {
+  min-height: 86px;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  column-gap: 12px;
+  align-items: center;
+  text-align: left;
+  padding: 13px;
+}
+
+.ccs-cat-icon {
+  grid-row: 1 / 4;
+  width: 40px;
+  height: 40px;
+  margin: 0;
+  border-radius: 14px;
+  background: linear-gradient(135deg,#f0ecff,#f7f5ff);
+  font-size: 17px;
+}
+
+.ccs-cat-chip strong {
+  font-size: 11px;
+  color: #33384d;
+}
+
+.ccs-cat-chip small {
+  margin-top: 2px;
+}
+
+.ccs-cat-chip b {
+  margin-top: 2px;
+  font-size: 11.5px;
+}
+
+.ccs-table-tools {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.ccs-table-tools button {
+  padding: 0 11px;
+}
+
+.ccs-table-tools .ccs-table-primary {
+  border-color: rgba(109,74,255,.18);
+  background: #6d4aff;
+  color: #fff;
+  box-shadow: 0 10px 18px rgba(109,74,255,.16);
+}
+
+.cc-config-actions-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cc-config-actions-grid button {
+  min-height: 96px;
+  border-radius: 16px;
+  padding: 18px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(109,74,255,.08), transparent 35%),
+    linear-gradient(180deg,#fff,#fbfaff);
+  border-color: rgba(109,74,255,.13);
+  box-shadow: 0 12px 26px rgba(40, 45, 70, .045);
+}
+
+.cc-config-actions-grid button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 32px rgba(40, 45, 70, .08);
+}
+
+.cc-config-actions-grid small {
+  display: block;
+  max-width: 260px;
+  line-height: 1.45;
+}
+
+body:not(.light-mode) #page-credit-cards .cc-card-switch.is-visa,
+body:not(.light-mode) #page-credit-cards .cc-card-switch.is-amex {
+  border-color: rgba(255,255,255,.12);
+}
+
+body:not(.light-mode) #page-credit-cards .cc-card-switch.is-visa {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.13), transparent 34%),
+    linear-gradient(135deg, #201846 0%, #5d35f3 58%, #f04438 130%);
+}
+
+body:not(.light-mode) #page-credit-cards .cc-card-switch.is-amex {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.14), transparent 34%),
+    linear-gradient(135deg, #0f2c4f 0%, #1261d6 58%, #42c4ff 130%);
+}
+
+body:not(.light-mode) #page-credit-cards .cc-card-switch-add.is-new-card {
+  background:
+    radial-gradient(circle at 88% 12%, rgba(109,74,255,.18), transparent 32%),
+    linear-gradient(180deg,#151a2d,#101426);
+  border-color: rgba(146,126,255,.26);
+}
+
+body:not(.light-mode) #page-credit-cards .cc-card-switch-add.is-new-card .cc-card-switch-main strong {
+  color: #d9d2ff;
+}
+
+body:not(.light-mode) .ccs-pay-action.is-success {
+  background: linear-gradient(135deg,rgba(22,163,74,.16),rgba(16,20,38,.96));
+}
+
+body:not(.light-mode) .ccs-pay-action.is-warn {
+  background: linear-gradient(135deg,rgba(217,119,6,.16),rgba(16,20,38,.96));
+}
+
+body:not(.light-mode) .ccs-pay-action.is-danger {
+  background: linear-gradient(135deg,rgba(240,68,56,.16),rgba(16,20,38,.96));
+}
+
+body:not(.light-mode) .cc-config-actions-grid button {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(109,74,255,.14), transparent 35%),
+    linear-gradient(180deg,#171b31,#111528);
+}
+
+@media (max-width: 1180px) {
+  #page-credit-cards .cc-tabs-row,
+  .ccs-top-grid,
+  .ccs-hero {
+    grid-template-columns: 1fr;
+  }
+
+  #page-credit-cards .cc-card-switch {
+    min-height: 104px;
+  }
+}
+
+@media (max-width: 760px) {
+  .cc-config-actions-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .ccs-table-tools {
+    justify-content: flex-start;
+  }
+}
+
+/* Dashboard dark mode: keep the dynamic TC period selector from falling back to white */
+body:not(.light-mode) #page-dashboard #dash-month-select,
+body:not(.light-mode) #page-dashboard .dash-view-toolbar #dash-month-select.txn-select {
+  background:
+    linear-gradient(180deg, rgba(33, 41, 66, 0.96), rgba(20, 27, 46, 0.96)) !important;
+  border-color: rgba(106, 125, 188, 0.42) !important;
+  color: #eef3ff !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 10px 24px rgba(0,0,0,0.18) !important;
+}
+
+body:not(.light-mode) #page-dashboard #dash-month-select:hover,
+body:not(.light-mode) #page-dashboard #dash-month-select:focus {
+  border-color: rgba(116, 139, 216, 0.68) !important;
+  background:
+    linear-gradient(180deg, rgba(40, 49, 80, 0.98), rgba(23, 31, 52, 0.98)) !important;
+}
+
+body:not(.light-mode) #page-dashboard #dash-month-select option {
+  background: #151b2d;
+  color: #eef3ff;
+}
+
+/* Sidebar collapsed rail: slightly wider so the compact mode feels less cramped */
+:root {
+  --sidebar-rail-w: 68px;
+}
+
+.app.sidebar-collapsed .sidebar {
+  padding-left: 10px !important;
+  padding-right: 10px !important;
+}
+
+.app.sidebar-collapsed .sidebar .nav-item {
+  width: 42px !important;
+  min-width: 42px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+}
+
+.app.sidebar-collapsed .rail-gmail-btn,
+.app.sidebar-collapsed .rail-theme-btn {
+  width: 38px !important;
+  height: 38px !important;
 }

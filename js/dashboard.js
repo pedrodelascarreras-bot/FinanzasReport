@@ -104,12 +104,10 @@ function updateUsdRateUI(){
   const buyDisp=document.getElementById('usd-rate-buy-display');
   const sellDisp=document.getElementById('usd-rate-sell-display');
   if(buyDisp){
-    if(isMasked()) buyDisp.textContent='$••••••';
-    else animateNumberText(buyDisp,buyRate,{prefix:'$',decimals:2,duration:620});
+    animateNumberText(buyDisp,buyRate,{prefix:'$',decimals:2,duration:620});
   }
   if(sellDisp){
-    if(isMasked()) sellDisp.textContent='$••••••';
-    else animateNumberText(sellDisp,sellRate,{prefix:'$',decimals:2,duration:700});
+    animateNumberText(sellDisp,sellRate,{prefix:'$',decimals:2,duration:700});
   }
   const src=document.getElementById('usd-rate-source-badge');
   if(src)src.textContent=state.usdRateSource||'manual';
@@ -124,7 +122,7 @@ function updateUsdRateUI(){
   const status=document.getElementById('usd-rate-status');
   if(status)status.textContent='Tocá para ver compra y venta';
   // Legacy badge selector (otros lugares que puedan tener el badge)
-  document.querySelectorAll('.usd-rate-badge').forEach(el=>{el.textContent='U$D 1 = '+(isMasked()?'$••••••':'$'+fmtN(rate))+' ('+( state.usdRateSource||'manual')+')'});
+  document.querySelectorAll('.usd-rate-badge').forEach(el=>{el.textContent='U$D 1 = $'+fmtN(rate)+' ('+( state.usdRateSource||'manual')+')'});
   renderDb2DollarSparkline();
   // Si el dashboard ya tiene datos, recalcular
   if(state.transactions.length)renderDashboard();
@@ -1916,13 +1914,17 @@ function renderDashboard(){
         projEl.textContent='—'; projEl.style.color='var(--text3)';
         if(projD)projD.textContent='Sin datos cargados en este ciclo';
       } else {
-        animateNumberText(projEl,projected,{prefix:'$',decimals:2,duration:860});
+        if(isMasked()) projEl.textContent='••••••••';
+        else animateNumberText(projEl,projected,{prefix:'$',decimals:2,duration:860});
         const overBudget=incTotalARS>0&&projected>incTotalARS;
         projEl.style.color=getProjectionColor(projected);
         const closeLabel=projPeriodClose?projPeriodClose.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}):'cierre';
         if(projD)projD.textContent=overBudget?'Exige ajuste antes del '+closeLabel:'Estimación activa hasta '+closeLabel;
         const _dailyEl=document.getElementById('kpi-proj-daily');
-        if(_dailyEl)animateNumberText(_dailyEl,Math.round(dailyRate),{prefix:'$',decimals:2,duration:720});
+        if(_dailyEl){
+          if(isMasked()) _dailyEl.textContent='••••••••';
+          else animateNumberText(_dailyEl,Math.round(dailyRate),{prefix:'$',decimals:2,duration:720});
+        }
         const _daysEl=document.getElementById('kpi-proj-days');
         if(_daysEl)animateNumberText(_daysEl,daysLeft,{decimals:0,duration:620,formatter:(n)=>`${Math.round(n)} día${Math.round(n) !== 1 ? 's' : ''}`});
         const _daysLabel=document.getElementById('kpi-proj-days-label');
@@ -1932,12 +1934,16 @@ function renderDashboard(){
     } else {
       // Mes mode
       if(isCurrentMonth){
-        animateNumberText(projEl,projected,{prefix:'$',decimals:2,duration:860});
+        if(isMasked()) projEl.textContent='••••••••';
+        else animateNumberText(projEl,projected,{prefix:'$',decimals:2,duration:860});
         const overBudget=incTotalARS>0&&projected>incTotalARS;
         projEl.style.color=getProjectionColor(projected);
         if(projD)projD.textContent=overBudget?'Ritmo alto para este mes':'Ritmo estimado al cierre mensual';
         const _dailyEl2=document.getElementById('kpi-proj-daily');
-        if(_dailyEl2)animateNumberText(_dailyEl2,Math.round(dailyRate),{prefix:'$',decimals:2,duration:720});
+        if(_dailyEl2){
+          if(isMasked()) _dailyEl2.textContent='••••••••';
+          else animateNumberText(_dailyEl2,Math.round(dailyRate),{prefix:'$',decimals:2,duration:720});
+        }
         const _daysEl2=document.getElementById('kpi-proj-days');
         if(_daysEl2)animateNumberText(_daysEl2,daysLeft,{decimals:0,duration:620,formatter:(n)=>`${Math.round(n)} día${Math.round(n) !== 1 ? 's' : ''}`});
         const _daysLabel2=document.getElementById('kpi-proj-days-label');
@@ -3127,7 +3133,7 @@ function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, spendBudget,
 
 // ── Hero sub-cards ──
 function renderDb2HeroExtras(arsMonth, usdMonth, margen, pct, incTotalARS, spendBudget, thirdPartyTxns=[]){
-  const heroMasked = state.hideHero || state.globalHide;
+  const heroMasked = state.globalHide;
 
   // ARS card
   const arsEl = document.getElementById('db2-ars-val');
@@ -3246,7 +3252,7 @@ function renderDb2HeroExtras(arsMonth, usdMonth, margen, pct, incTotalARS, spend
 
   // Update Eye Icons based on state
   const heroEye = document.getElementById('db2-hero-privacy-btn');
-  if(heroEye) heroEye.classList.toggle('is-hidden', state.hideHero);
+  if(heroEye) heroEye.classList.toggle('is-hidden', state.globalHide);
   
   const globalEye = document.getElementById('db2-global-privacy-btn');
   const globalLabel = document.getElementById('db2-global-privacy-label');
@@ -3293,9 +3299,7 @@ function enforceDashboardPrivacyMask(){
     'db2-margen-val',
     'db2-evo-ingresos',
     'db2-evo-gastos',
-    'db2-cat-total',
-    'usd-rate-buy-display',
-    'usd-rate-sell-display'
+    'db2-cat-total'
   ].forEach(id=>{
     const el=document.getElementById(id);
     if(el){
@@ -3310,13 +3314,16 @@ function enforceDashboardPrivacyMask(){
 }
 
 function toggleHeroPrivacy() {
-  state.hideHero = !state.hideHero;
+  state.globalHide = !state.globalHide;
+  state.hideHero = state.globalHide;
   saveState();
   renderDashboard();
+  updateUsdRateUI();
 }
 
 function toggleGlobalPrivacy() {
   state.globalHide = !state.globalHide;
+  state.hideHero = state.globalHide;
   saveState();
   renderDashboard();
   updateUsdRateUI();
