@@ -3675,8 +3675,9 @@ function renderDb2CatDonut(monthTxns){
     grouped[parent].total += amt;
   });
 
-  const sorted = Object.entries(grouped).filter(([,d]) => d.total > 0).sort((a,b) => b[1].total - a[1].total).slice(0,8);
-  const total = sorted.reduce((s,[,d]) => s + d.total, 0);
+  const allSorted = Object.entries(grouped).filter(([,d]) => d.total > 0).sort((a,b) => b[1].total - a[1].total);
+  const sorted = allSorted.slice(0,8);
+  const total = allSorted.reduce((s,[,d]) => s + d.total, 0);
   const activeMonthKey=typeof getActiveDashMonth==='function'?getActiveDashMonth():getMonthKey(new Date());
   const [catYear,catMonth]=String(activeMonthKey||'').split('-').map(Number);
   const catMonthEl=document.getElementById('db2-cat-month');
