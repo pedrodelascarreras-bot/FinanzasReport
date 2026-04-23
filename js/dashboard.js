@@ -2020,6 +2020,14 @@ function renderDashboard(){
     arsMonth, usdMonth, margen, pct, incTotalARS, spendBudget,
     projected, totalGastoARS, daysLeft, dailyRate, projPeriodClose,
     timelineData, monthTxns, thirdPartyTxns,
+    evolutionData:{
+      mode:isTcView?'tc':'mes',
+      monthKey:activeMk,
+      cycleMode:activeCycleMode,
+      cycleId:activeTcCycle?.id || null,
+      totalExpenseArs:totalGastoARS,
+      totalIncomeArs:incTotalARS
+    },
     ccWidgetData:{
       cycleByKey:dashboardCardCycleByKey,
       totalsByKey:dashboardCardDisplayTotals,
@@ -2828,13 +2836,27 @@ function getDashMonthIncome() {
 ═══════════════════════════════════════════════════════════ */
 
 // ── Evolution chart state ──
-let db2EvoMode = 'daily'; // 'daily' | 'accum'
+let db2EvoMode = 'daily'; // 'daily' | 'month'
+let _db2EvolutionState = null;
+function _applyDb2CcPrivacy(prefix, hasUsdValue=false){
+  const arsEl=document.getElementById(`kpi-${prefix}-ars`);
+  const usdEl=document.getElementById(`kpi-${prefix}-usd`);
+  if(arsEl){
+    if(typeof cancelNumberTextAnimation==='function') cancelNumberTextAnimation(arsEl);
+    arsEl.textContent='••••••••';
+  }
+  if(usdEl){
+    if(typeof cancelNumberTextAnimation==='function') cancelNumberTextAnimation(usdEl);
+    usdEl.textContent=hasUsdValue?'••••':'';
+    usdEl.style.display=hasUsdValue?'':'none';
+  }
+}
 function setDb2EvoMode(mode){
-  db2EvoMode = mode;
+  db2EvoMode = mode === 'month' ? 'month' : 'daily';
   const d = document.getElementById('db2-evo-daily-btn');
   const a = document.getElementById('db2-evo-accum-btn');
-  if(d) d.classList.toggle('active', mode==='daily');
-  if(a) a.classList.toggle('active', mode==='accum');
+  if(d) d.classList.toggle('active', db2EvoMode==='daily');
+  if(a) a.classList.toggle('active', db2EvoMode==='month');
   renderDb2EvolutionChart();
 }
 
@@ -2904,16 +2926,19 @@ function renderDb2CcCycles(data){
       if(amtArsEl){
         const arsTotal = scopedTotals ? (scopedTotals.ars||0) : 0;
         const usdTotal = scopedTotals ? (scopedTotals.usd||0) : 0;
-        if(isMasked()) amtArsEl.textContent = '••••••••';
-        else animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
-        
-        if(amtUsdEl){
-          if(usdTotal > 0){
-            if(isMasked()) amtUsdEl.textContent = '••••';
-            else animateNumberText(amtUsdEl, usdTotal, {prefix: 'USD ', decimals: 2, duration: 760});
-            amtUsdEl.style.display = '';
-          } else {
-            amtUsdEl.textContent = '';
+        if(isMasked()){
+          _applyDb2CcPrivacy(prefix, usdTotal > 0);
+        } else {
+          animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
+          if(amtUsdEl){
+            if(usdTotal > 0){
+              animateNumberText(amtUsdEl, usdTotal, {prefix: 'U$D ', decimals: 2, duration: 760});
+              amtUsdEl.style.display = '';
+            } else {
+              if(typeof cancelNumberTextAnimation==='function') cancelNumberTextAnimation(amtUsdEl);
+              amtUsdEl.textContent = '';
+              amtUsdEl.style.display = 'none';
+            }
           }
         }
       }
@@ -2958,16 +2983,17 @@ function renderDb2CcCycles(data){
       const arsTotal = scopedTotals ? (scopedTotals.ars||0) : cycleTxns.filter(t => t.currency === 'ARS' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
       const usdTotal = scopedTotals ? (scopedTotals.usd||0) : cycleTxns.filter(t => t.currency === 'USD' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
       if(isMasked()){
-        amtArsEl.textContent = '••••••••';
-        if(amtUsdEl) amtUsdEl.textContent = (usdTotal > 0 ? '••••' : '');
+        _applyDb2CcPrivacy(prefix, usdTotal > 0);
       } else {
         animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
         if(amtUsdEl){
           if(usdTotal > 0){
-            animateNumberText(amtUsdEl, usdTotal, {prefix: 'USD ', decimals: 2, duration: 760});
+            animateNumberText(amtUsdEl, usdTotal, {prefix: 'U$D ', decimals: 2, duration: 760});
             amtUsdEl.style.display = '';
           } else {
+            if(typeof cancelNumberTextAnimation==='function') cancelNumberTextAnimation(amtUsdEl);
             amtUsdEl.textContent = '';
+            amtUsdEl.style.display = 'none';
           }
         }
       }
@@ -3266,6 +3292,8 @@ function isMasked() {
 
 function enforceDashboardPrivacyMask(){
   if(!isMasked()) return;
+  _applyDb2CcPrivacy('visa', !!document.getElementById('kpi-visa-usd')?.textContent.trim());
+  _applyDb2CcPrivacy('amex', !!document.getElementById('kpi-amex-usd')?.textContent.trim());
   [
     'kpi-ars',
     'dhc-ars-line',
@@ -3282,10 +3310,6 @@ function enforceDashboardPrivacyMask(){
     'dhc-margin-ingreso',
     'dhc-margen',
     'kpi-usd',
-    'kpi-visa-ars',
-    'kpi-visa-usd',
-    'kpi-amex-ars',
-    'kpi-amex-usd',
     'kpi-tc',
     'kpi-proj',
     'kpi-proj-daily',
@@ -3329,71 +3353,184 @@ function toggleGlobalPrivacy() {
   updateUsdRateUI();
 }
 
+function _db2ToArsAmount(item){
+  return ((item?.currency || 'ARS') === 'USD'
+    ? (Number(item?.amount) || 0) * (USD_TO_ARS || 1420)
+    : (Number(item?.amount) || 0));
+}
+
+function _db2ShortMonthLabel(monthKey){
+  const [year,month]=String(monthKey||'').split('-').map(Number);
+  if(!year || !month) return '—';
+  return new Date(year,month-1,1).toLocaleDateString('es-AR',{month:'short'}).replace('.','');
+}
+
+function _db2CycleIncomeMonth(cycle, cycles){
+  if(!cycle) return '';
+  const idx=Array.isArray(cycles)?cycles.findIndex(item=>item.id===cycle.id):-1;
+  return getTcCycleOpen(cycles||[], idx)?.slice(0,7) || cycle.closeDate?.slice(0,7) || '';
+}
+
+function _db2BuildMonthExpenseEntries(monthKey){
+  const base=(state.transactions||[]).filter(t=>
+    (t.month||getMonthKey(t.date))===monthKey &&
+    !t.isPendingCuota &&
+    !t.isPendingSubscription
+  );
+  const [year,month]=String(monthKey||'').split('-').map(Number);
+  if(!year || !month) return base;
+  const lastDay=new Date(year,month,0).getDate();
+  const projected=getProjectedCommitmentEntriesForRange({
+    startStr:`${year}-${String(month).padStart(2,'0')}-01`,
+    endStr:`${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,
+    todayRef:new Date(),
+    txns:state.transactions||[]
+  }).filter(entry=>entry.synthetic || entry.kind==='Cuota proyectada' || entry.kind==='Suscripción proyectada');
+  return [...base, ...projected];
+}
+
+function _db2BuildCycleExpenseEntries(cycleMode, cycleId){
+  const cycles=(typeof getTcCycles==='function'?getTcCycles(cycleMode):[]).slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
+  const cycle=cycles.find(item=>item.id===cycleId) || cycles[cycles.length-1] || null;
+  if(!cycle) return {cycle:null, cycles, entries:[]};
+  if(typeof getTcCycleTrendTxns==='function'){
+    return {cycle, cycles, entries:getTcCycleTrendTxns(cycle, cycles)};
+  }
+  return {cycle, cycles, entries:typeof getTcCycleTxns==='function'?getTcCycleTxns(cycle, cycles):[]};
+}
+
+function _db2BuildEvolutionDaySeries(scope){
+  const isTc=scope?.mode==='tc';
+  const labels=[];
+  const expenseDaily=[];
+  let incomeTotal=Number(scope?.totalIncomeArs)||0;
+  let expenseEntries=[];
+  let maxDay=0;
+  let monthKey=scope?.monthKey || getMonthKey(new Date());
+
+  if(isTc){
+    const cycleScope=_db2BuildCycleExpenseEntries(scope?.cycleMode, scope?.cycleId);
+    expenseEntries=cycleScope.entries || [];
+    const cycle=cycleScope.cycle;
+    if(cycle){
+      const incomeMonth=_db2CycleIncomeMonth(cycle, cycleScope.cycles);
+      incomeTotal=(getIncomeSnapshot(incomeMonth).total || incomeTotal);
+      const openStr=_db2CycleIncomeMonth(cycle, cycleScope.cycles) ? getTcCycleOpen(cycleScope.cycles, cycleScope.cycles.findIndex(item=>item.id===cycle.id)) : null;
+      const openDate=new Date((openStr || cycle.closeDate)+'T12:00:00');
+      const closeDate=new Date(cycle.closeDate+'T12:00:00');
+      maxDay=Math.max(1, Math.round((closeDate-openDate)/86400000)+1);
+      const byDay=Array.from({length:maxDay},()=>0);
+      expenseEntries.forEach(item=>{
+        const dt=new Date(String(item.date).includes('T')?item.date:`${item.date}T12:00:00`);
+        const idx=Math.round((dt-openDate)/86400000);
+        if(idx>=0 && idx<maxDay) byDay[idx]+=_db2ToArsAmount(item);
+      });
+      let expenseAccum=0;
+      for(let i=0;i<maxDay;i++){
+        expenseAccum+=byDay[i]||0;
+        expenseDaily.push(expenseAccum);
+        labels.push(i===0 || i===maxDay-1 || i%3===0 ? `Día ${i+1}` : '');
+      }
+    }
+  } else {
+    expenseEntries=_db2BuildMonthExpenseEntries(monthKey);
+    incomeTotal=(getIncomeSnapshot(monthKey).total || incomeTotal);
+    const [year,month]=String(monthKey||'').split('-').map(Number);
+    maxDay=year && month ? new Date(year,month,0).getDate() : 0;
+    const byDay=Array.from({length:maxDay},()=>0);
+    expenseEntries.forEach(item=>{
+      const dt=new Date(String(item.date).includes('T')?item.date:`${item.date}T12:00:00`);
+      if(dt.getFullYear()!==year || dt.getMonth()!==month-1) return;
+      const idx=dt.getDate()-1;
+      if(idx>=0 && idx<maxDay) byDay[idx]+=_db2ToArsAmount(item);
+    });
+    let expenseAccum=0;
+    for(let i=0;i<maxDay;i++){
+      expenseAccum+=byDay[i]||0;
+      expenseDaily.push(expenseAccum);
+      labels.push(i===0 || i===maxDay-1 || (i+1)%3===0 ? `${i+1} ${['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][month-1]}` : '');
+    }
+  }
+
+  const finalExpense=expenseDaily[expenseDaily.length-1] || 0;
+  const totalExpense=Number(scope?.totalExpenseArs);
+  if(Number.isFinite(totalExpense) && Math.abs(totalExpense-finalExpense) > 0.5 && expenseDaily.length){
+    expenseDaily[expenseDaily.length-1]=totalExpense;
+  }
+  const remainingIncome=expenseDaily.map(value=>Math.max(incomeTotal - value, 0));
+  return {
+    labels,
+    expenseData:expenseDaily,
+    incomeData:remainingIncome,
+    totalIncome:incomeTotal,
+    totalExpense:Number.isFinite(totalExpense)?totalExpense:(expenseDaily[expenseDaily.length-1]||0)
+  };
+}
+
+function _db2BuildEvolutionPeriodSeries(scope){
+  if(scope?.mode==='tc'){
+    const cycles=(typeof getTcCycles==='function'?getTcCycles(scope.cycleMode):[]).slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
+    const selectedIdx=cycles.findIndex(item=>item.id===scope.cycleId);
+    const endIdx=selectedIdx>=0?selectedIdx:Math.max(cycles.length-1,0);
+    const slice=(endIdx>=0?cycles.slice(Math.max(0,endIdx-5), endIdx+1):cycles.slice(-6));
+    return {
+      labels:slice.map(cycle=>cleanHeroCycleLabel(cycle.label||cycle.closeDate)),
+      expenseData:slice.map(cycle=>{
+        const cycleScope=_db2BuildCycleExpenseEntries(scope.cycleMode, cycle.id);
+        return (cycleScope.entries||[]).reduce((sum,item)=>sum+_db2ToArsAmount(item),0);
+      }),
+      incomeData:slice.map(cycle=>getIncomeSnapshot(_db2CycleIncomeMonth(cycle, cycles)).total || 0),
+      subtitle:'Últimos ciclos · gasto vs ingreso'
+    };
+  }
+
+  const currentMonth=scope?.monthKey || getMonthKey(new Date());
+  const txMonths=(state.transactions||[]).map(t=>t.month||getMonthKey(t.date));
+  const incomeMonths=(state.incomeMonths||[]).map(item=>item.month);
+  const monthKeys=[...new Set([...txMonths, ...incomeMonths, currentMonth])].filter(Boolean).sort().slice(-6);
+  return {
+    labels:monthKeys.map(_db2ShortMonthLabel),
+    expenseData:monthKeys.map(monthKey=>_db2BuildMonthExpenseEntries(monthKey).reduce((sum,item)=>sum+_db2ToArsAmount(item),0)),
+    incomeData:monthKeys.map(monthKey=>getIncomeSnapshot(monthKey).total || 0),
+    subtitle:'Últimos meses · gasto vs ingreso'
+  };
+}
+
 // ── Evolution line chart ──
 function renderDb2EvolutionChart(){
   const ctx = document.getElementById('chart-evolution');
   if(!ctx) return;
 
   if(state.charts && state.charts.evolution){ state.charts.evolution.destroy(); state.charts.evolution = null; }
-
-  const isLight = _isL();
-  const mk = getActiveDashMonth();
-  const [y, m] = mk.split('-').map(Number);
-  const daysInMonth = new Date(y, m, 0).getDate();
-  const isCurrentMonth = mk === getMonthKey(new Date());
-
-  // Build daily income and expense arrays
-  const monthTxns = getCurrentMonthTxns().filter(t => !t.isPendingCuota && !t.isPendingSubscription);
-  const byDay = {};
-  for(let d = 1; d <= daysInMonth; d++) byDay[d] = {gastos: 0};
-  monthTxns.forEach(t => {
-    const dt = new Date(String(t.date).includes('T') ? t.date : t.date + 'T12:00:00');
-    if(dt.getMonth()+1 !== m || dt.getFullYear() !== y) return;
-    const day = dt.getDate();
-    const amt = t.currency === 'USD' ? t.amount * (USD_TO_ARS||1420) : t.amount;
-    byDay[day].gastos += amt;
-  });
-
-  // Daily income (spread evenly or from income sources)
-  const incSnap = getIncomeSnapshot(mk);
-  const dailyIncome = incSnap.total > 0 ? incSnap.total / daysInMonth : 0;
-
-  // Build label list (only days up to today if current month)
-  const today = new Date();
-  const maxDay = isCurrentMonth ? Math.min(today.getDate(), daysInMonth) : daysInMonth;
-  const labels = [];
-  const gastosDailyData = [];
-  const ingresosDailyData = [];
-  const gastosAccumData = [];
-  const ingresosAccumData = [];
-  let accumGastos = 0, accumIngresos = 0;
-
-  for(let d = 1; d <= maxDay; d++){
-    const dayLabel = d + ' ' + ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'][m-1];
-    if(d === 1 || d % 3 === 0 || d === maxDay) labels.push(dayLabel);
-    else labels.push('');
-
-    const g = byDay[d]?.gastos || 0;
-    const inc = dailyIncome;
-    accumGastos += g;
-    accumIngresos += inc;
-    gastosDailyData.push(g);
-    ingresosDailyData.push(inc);
-    gastosAccumData.push(accumGastos);
-    ingresosAccumData.push(accumIngresos);
-  }
+  const scope=_db2EvolutionState || {
+    mode: normalizeViewMode(state.dashView||'visa')!=='mes' ? 'tc' : 'mes',
+    monthKey:getActiveDashMonth(),
+    cycleMode:normalizeViewMode(state.dashView||'visa'),
+    cycleId:state.dashTcCycle||null,
+    totalExpenseArs:0,
+    totalIncomeArs:0
+  };
+  const titleEl=document.querySelector('.db2-evo-heading .db2-title');
+  const subTitleEl=document.querySelector('.db2-evo-heading .db2-evo-sub');
 
   // Update legend totals
   const evoIng = document.getElementById('db2-evo-ingresos');
   const evoGas = document.getElementById('db2-evo-gastos');
-  const totalGastos = gastosAccumData[gastosAccumData.length-1] || 0;
-  const totalIngresos = ingresosAccumData[ingresosAccumData.length-1] || 0;
+  const useMonthMode = db2EvoMode === 'month';
+  const series = useMonthMode ? _db2BuildEvolutionPeriodSeries(scope) : _db2BuildEvolutionDaySeries(scope);
+  const labels = series.labels || [];
+  const gasData = series.expenseData || [];
+  const incData = series.incomeData || [];
+  const totalGastos = Number(scope?.totalExpenseArs) || (gasData[gasData.length-1] || 0);
+  const totalIngresos = Number(scope?.totalIncomeArs) || (useMonthMode ? Math.max(...incData,0) : (series.totalIncome || 0));
   if(evoIng) evoIng.textContent = isMasked() ? '••••••••' : '$' + fmtN(Math.round(totalIngresos));
   if(evoGas) evoGas.textContent = isMasked() ? '••••••••' : '$' + fmtN(Math.round(totalGastos));
-
-  const useAccum = db2EvoMode === 'accum';
-  const gasData   = useAccum ? gastosAccumData   : gastosDailyData;
-  const incData   = useAccum ? ingresosAccumData  : ingresosDailyData;
+  if(titleEl) titleEl.textContent = useMonthMode ? 'Evolución por período' : 'Evolución del período';
+  if(subTitleEl){
+    subTitleEl.textContent = useMonthMode
+      ? (series.subtitle || 'Gasto vs ingreso')
+      : (scope.mode==='tc' ? 'Ingreso restante vs gasto acumulado del ciclo' : 'Ingreso restante vs gasto acumulado del período');
+  }
 
   const maxValue = Math.max(...incData, ...gasData, 0);
   const yMax = Math.max(200000, Math.ceil(maxValue / 50000) * 50000);
@@ -3485,11 +3622,11 @@ function renderDb2EvolutionChart(){
   const insightEl = document.getElementById('db2-evo-insight');
   if(insightEl){
     if(totalGastos > 0 && totalIngresos > 0){
-      const pct = Math.round(totalGastos / totalIngresos * 100);
-      const diff = Math.abs(pct - 100);
-      const copy = pct > 100
-        ? `Vas <b>${diff}%</b> por encima del ingreso estimado del período.`
-        : `Vas <b>${diff}%</b> por debajo del ingreso estimado del período.`;
+      const remaining = totalIngresos - totalGastos;
+      const remainingPct = totalIngresos > 0 ? Math.round(Math.abs(remaining) / totalIngresos * 100) : 0;
+      const copy = remaining < 0
+        ? `El gasto va <b>${remainingPct}%</b> por encima del ingreso del período.`
+        : `Te queda <b>${remainingPct}%</b> del ingreso del período antes de agotarlo.`;
       insightEl.innerHTML = `<span class="db2-evo-insight-icon"><svg viewBox="0 0 24 24"><path d="M9 18h6"/><path d="M10 22h4"/><path d="M12 2a7 7 0 0 0-4 12.7c.6.44 1 1.08 1 1.8V17h6v-.5c0-.72.4-1.36 1-1.8A7 7 0 0 0 12 2Z"/></svg></span><span>${copy}</span>`;
       insightEl.style.display = 'flex';
     } else {
@@ -3950,6 +4087,7 @@ function renderDb2Dashboard(data){
   // data: { arsMonth, usdMonth, margen, pct, incTotalARS, spendBudget,
   //         projected, totalGastoARS, daysLeft, dailyRate, projPeriodClose,
   //         timelineData, monthTxns, thirdPartyTxns }
+  _db2EvolutionState = data.evolutionData || null;
   renderDb2HeroExtras(data.arsMonth, data.usdMonth, data.margen, data.pct, data.incTotalARS, data.spendBudget, data.thirdPartyTxns);
   renderDb2CcCycles(data.ccWidgetData);
   renderDb2ProjExtras(data.projected, data.totalGastoARS, data.incTotalARS, data.spendBudget, data.daysLeft, data.dailyRate, data.projPeriodClose);

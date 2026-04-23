@@ -218,16 +218,12 @@ function setTendRankingTab(t){
 
 // ─ Chart view (evo / ranking / compare)
 function setTendChartMode(m){
+  if(m==='evo'&&normalizeViewMode(state.tendMode||'visa')!=='mes'){
+    state.tendMode='mes';
+  }
   state.tendChartMode=_normTendChartMode(m);
   saveState();
-  _tend_drawChart();
-  ['evo','ranking','compare'].forEach(x=>{
-    document.getElementById('tv2-'+x)?.classList.toggle('active',x===state.tendChartMode);
-  });
-  const evoToggle=document.getElementById('tend-evo-toggle');
-  if(evoToggle) evoToggle.style.display=state.tendChartMode==='evo'?'flex':'none';
-  const ci=document.getElementById('tend-context-insight');
-  if(ci) ci.style.display=state.tendChartMode==='evo'?'flex':'none';
+  renderTendencia();
 }
 
 // ─ Build daily array for a cycle (by relative day)
@@ -258,10 +254,159 @@ function _tend_monthDailyData(txns,monthKey){
 
 function _tend_cumulative(arr){let s=0;return arr.map(v=>s+=v);}
 
+function _tend_pctLabel(value){
+  const pct=Number(value)||0;
+  if(pct>=10) return Math.round(pct)+'%';
+  if(pct>=1) return pct.toFixed(1)+'%';
+  return pct>0?pct.toFixed(2)+'%':'0%';
+}
+
+function _tend_pctWidth(value){
+  const pct=Number(value)||0;
+  if(pct<=0) return 0;
+  return Math.max(Math.min(pct,100),2);
+}
+
+function _tend_shareGradient(items){
+  if(!items.length) return 'rgba(148,163,184,0.18)';
+  let cursor=0;
+  const stops=items.map(item=>{
+    const start=cursor;
+    cursor=Math.min(cursor+item.pct,100);
+    return `${item.color} ${start.toFixed(2)}% ${cursor.toFixed(2)}%`;
+  });
+  if(cursor<100) stops.push(`rgba(148,163,184,0.18) ${cursor.toFixed(2)}% 100%`);
+  return `conic-gradient(${stops.join(', ')})`;
+}
+
+function _tend_renderMonthlyShare(customEl,currentLabel,grandTotal,sortedParents,parentSubTotals){
+  if(!customEl) return;
+  const categories=sortedParents.map(([parent,amount])=>{
+    const grp=CATEGORY_GROUPS.find(g=>g.group===parent);
+    const subEntries=Object.entries(parentSubTotals?.[parent]||{})
+      .filter(([,value])=>value>0)
+      .sort((a,b)=>b[1]-a[1])
+      .map(([name,value])=>({
+        name,
+        amount:value,
+        pctOfCategory:amount>0?(value/amount)*100:0,
+        pctOfTotal:grandTotal>0?(value/grandTotal)*100:0
+      }));
+    return {
+      parent,
+      amount,
+      pct:grandTotal>0?(amount/grandTotal)*100:0,
+      color:grp?.color||'#888888',
+      emoji:grp?.emoji||'•',
+      subEntries
+    };
+  }).filter(item=>item.amount>0);
+
+  if(!categories.length){
+    customEl.innerHTML='<div class="tend-share-empty">No hay gasto suficiente para mostrar participaciones este mes.</div>';
+    return;
+  }
+
+  const topCategory=categories[0];
+  const topSub=topCategory.subEntries[0]||null;
+  const topThreePct=categories.slice(0,3).reduce((sum,item)=>sum+item.pct,0);
+  const gradient=_tend_shareGradient(categories);
+  const pills=categories.slice(0,6).map(item=>`
+    <div class="tend-share-pill">
+      <span class="tend-share-pill-dot" style="background:${item.color};"></span>
+      <span class="tend-share-pill-name">${item.emoji} ${esc(item.parent)}</span>
+      <strong>${_tend_pctLabel(item.pct)}</strong>
+    </div>
+  `).join('');
+
+  const cards=categories.map(item=>{
+    const subRows=item.subEntries.map(sub=>`
+      <div class="tend-share-subrow">
+        <div class="tend-share-subcopy">
+          <span class="tend-share-subbullet" style="background:${item.color};"></span>
+          <span class="tend-share-subname">${esc(sub.name)}</span>
+        </div>
+        <div class="tend-share-subtrack">
+          <div class="tend-share-subfill" style="width:${_tend_pctWidth(sub.pctOfTotal)}%;background:${item.color};"></div>
+        </div>
+        <div class="tend-share-substats">
+          <strong>${_tend_pctLabel(sub.pctOfTotal)}</strong>
+          <span>${_tend_pctLabel(sub.pctOfCategory)} de ${esc(item.parent)}</span>
+        </div>
+      </div>
+    `).join('');
+
+    return `
+      <article class="tend-share-cat-card">
+        <div class="tend-share-cat-head">
+          <div class="tend-share-cat-main">
+            <span class="tend-share-cat-emoji">${item.emoji}</span>
+            <div class="tend-share-cat-copy">
+              <div class="tend-share-cat-name">${esc(item.parent)}</div>
+              <div class="tend-share-cat-meta">${item.subEntries.length} subcategoría${item.subEntries.length!==1?'s':''} · $${fmtN(item.amount)}</div>
+            </div>
+          </div>
+          <div class="tend-share-cat-side">
+            <strong style="color:${item.color};">${_tend_pctLabel(item.pct)}</strong>
+            <span>del mes</span>
+          </div>
+        </div>
+        <div class="tend-share-cat-track">
+          <div class="tend-share-cat-fill" style="width:${_tend_pctWidth(item.pct)}%;background:${item.color};"></div>
+        </div>
+        <div class="tend-share-sublist">${subRows}</div>
+      </article>
+    `;
+  }).join('');
+
+  customEl.innerHTML=`
+    <div class="tend-share-shell">
+      <div class="tend-share-hero">
+        <div class="tend-share-donut-panel">
+          <div class="tend-share-donut" style="background:${gradient};">
+            <div class="tend-share-donut-hole">
+              <span class="tend-share-donut-label">${esc(currentLabel)}</span>
+              <strong>$${fmtN(grandTotal)}</strong>
+              <span>${categories.length} categorías activas</span>
+            </div>
+          </div>
+          <div class="tend-share-stat-grid">
+            <div class="tend-share-stat-card">
+              <span class="tend-share-stat-kicker">Mayor peso</span>
+              <strong style="color:${topCategory.color};">${topCategory.emoji} ${esc(topCategory.parent)}</strong>
+              <span>${_tend_pctLabel(topCategory.pct)} del gasto mensual</span>
+            </div>
+            <div class="tend-share-stat-card">
+              <span class="tend-share-stat-kicker">Top 3</span>
+              <strong>${_tend_pctLabel(topThreePct)}</strong>
+              <span>concentran el gasto del mes</span>
+            </div>
+          </div>
+        </div>
+        <div class="tend-share-focus">
+          <div class="tend-share-focus-card">
+            <span class="tend-share-focus-kicker">Lectura rápida</span>
+            <div class="tend-share-focus-title">${topCategory.emoji} ${esc(topCategory.parent)} lidera el mes</div>
+            <div class="tend-share-focus-sub">$${fmtN(topCategory.amount)} · ${_tend_pctLabel(topCategory.pct)} del total</div>
+            ${topSub?`<div class="tend-share-focus-chip" style="--share-chip:${topCategory.color};">Subcategoría dominante: <strong>${esc(topSub.name)}</strong> · ${_tend_pctLabel(topSub.pctOfTotal)}</div>`:''}
+          </div>
+          <div class="tend-share-pill-grid">${pills}</div>
+        </div>
+      </div>
+      <div class="tend-share-cards">${cards}</div>
+    </div>
+  `;
+
+  if(typeof gsap!=='undefined'){
+    gsap.killTweensOf(customEl);
+    gsap.fromTo(customEl,{ opacity:0.7, y:10 },{ opacity:1, y:0, duration:0.42, ease:'power3.out', clearProps:'opacity,transform' });
+  }
+}
+
 // ─ Draw the chart (reads _tendChartState)
 function _tend_drawChart(){
   if(!_tendChartState) return;
-  const{currentTxns,prevTxns,lastKey,prevKey,mode,currentLabel,prevLabel,grandTotal,sortedParents,parentDeltas}=_tendChartState;
+  const{currentTxns,prevTxns,lastKey,prevKey,mode,currentLabel,prevLabel,grandTotal,sortedParents,parentDeltas,parentSubTotals}=_tendChartState;
 
   if(state.charts.tendMain){state.charts.tendMain.destroy();state.charts.tendMain=null;}
   const ctx=document.getElementById('chart-tend-main');
@@ -277,107 +422,22 @@ function _tend_drawChart(){
   // Sync toggle buttons
   document.getElementById('tend-tog-dia')?.classList.toggle('active',toggle==='dia');
   document.getElementById('tend-tog-acum')?.classList.toggle('active',toggle==='acumulado');
-  if(evoToggle) evoToggle.style.display=chartMode==='evo'?'flex':'none';
-  if(ctxBar)    ctxBar.style.display=chartMode==='evo'?'flex':'none';
-  if(ctx)       ctx.closest('.chart-wrap').style.display=chartMode==='treemap_off'?'none':'block';
-  if(customEl)  customEl.style.display='none';
+  if(evoToggle) evoToggle.style.display=chartMode==='evo'?'none':'flex';
+  if(ctxBar)    ctxBar.style.display='none';
+  if(ctx)       ctx.closest('.chart-wrap').style.display=chartMode==='evo'||chartMode==='treemap_off'?'none':'block';
+  if(customEl)  customEl.style.display=chartMode==='evo'?'block':'none';
   ['evo','ranking','compare'].forEach(x=>document.getElementById('tv2-'+x)?.classList.toggle('active',x===chartMode));
 
-  // ── VISTA 1: Evolución (línea diaria actual vs anterior) ──
-  if(chartMode==='evo'&&ctx){
-    if(titleEl) titleEl.textContent='Evolución del gasto';
-    if(subEl)   subEl.textContent=(toggle==='acumulado'?'Acumulado día a día':'Gasto diario')+' · '+currentLabel+' vs '+prevLabel;
-
-    let curDaily,prevDaily,labels;
-    if(mode!=='mes'){
-      const cycles=getTcCycles(mode).slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
-      const curCycle=cycles.find(c=>c.id===lastKey);
-      const prevCycle=prevKey?cycles.find(c=>c.id===prevKey):null;
-      if(curCycle){
-        const ci=cycles.findIndex(c=>c.id===lastKey);
-        const curOpen=getTcCycleOpen(cycles,ci)||curCycle.closeDate;
-        curDaily=_tend_cycleDailyData(currentTxns,curOpen,curCycle.closeDate);
-        labels=curDaily.map((_,i)=>'Día '+(i+1));
-        if(prevCycle){
-          const pi=cycles.findIndex(c=>c.id===prevKey);
-          const prevOpen=getTcCycleOpen(cycles,pi)||prevCycle.closeDate;
-          prevDaily=_tend_cycleDailyData(prevTxns,prevOpen,prevCycle.closeDate);
-        } else prevDaily=[];
-      } else { curDaily=[];prevDaily=[];labels=[]; }
-    } else {
-      curDaily=_tend_monthDailyData(currentTxns,lastKey);
-      prevDaily=prevKey?_tend_monthDailyData(prevTxns,prevKey):[];
-      labels=curDaily.map((_,i)=>String(i+1));
-    }
-
-    // Pad arrays to same length
-    const maxLen=Math.max(curDaily.length,prevDaily.length,1);
-    while(curDaily.length<maxLen)  curDaily.push(curDaily[curDaily.length-1]||0);
-    while(prevDaily.length<maxLen) prevDaily.push(prevDaily[prevDaily.length-1]||0);
-    while(labels.length<maxLen)    labels.push(labels[labels.length-1]||'');
-
-    const curData=toggle==='acumulado'?_tend_cumulative(curDaily):curDaily;
-    const prevData=toggle==='acumulado'?_tend_cumulative(prevDaily):prevDaily;
-
-    // Context insight: pace vs previous period at same relative day
-    const today=new Date();
-    let todayRelDay=0;
-    if(mode!=='mes'){
-      const cycles=getTcCycles(mode).slice().sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
-      const curCycle=cycles.find(c=>c.id===lastKey);
-      if(curCycle){
-        const ci=cycles.findIndex(c=>c.id===lastKey);
-        const curOpen=getTcCycleOpen(cycles,ci)||curCycle.closeDate;
-        todayRelDay=Math.min(Math.max(Math.round((today-new Date(curOpen+'T00:00:00'))/864e5),0),curDaily.length-1);
-      }
-    } else {
-      todayRelDay=Math.min(today.getDate()-1,curDaily.length-1);
-    }
-    if(ctxBar){
-      const curAcc=curData[todayRelDay]||0,prevAcc=prevData[todayRelDay]||0;
-      const pace=curAcc-prevAcc;
-      const pColor=pace>0?'#ef4444':'#10b981';
-      const pSign=pace>0?'+':'';
-      ctxBar.innerHTML=`<span style="font-size:14px;">📍</span><span style="font-size:12px;color:var(--text2);">Vas <strong style="color:${pColor};">${pSign}$${fmtN(Math.abs(pace))}</strong> ${pace>0?'por encima':'por debajo'} del ritmo de ${prevLabel}</span><button onclick="setTendChartMode('compare')" style="font-size:12px;color:var(--accent4);font-weight:700;margin-left:auto;white-space:nowrap;background:none;border:none;cursor:pointer;padding:0;">Ver análisis →</button>`;
-      ctxBar.style.display='flex';
-    }
-
-    // Legend
-    if(legendEl) legendEl.innerHTML=`
-      <div class="tend-legend-item"><span class="tend-legend-line" style="background:#7c3aed;"></span>${currentLabel}</div>
-      <div class="tend-legend-item"><span class="tend-legend-line tend-legend-dashed"></span>${prevLabel}</div>`;
-
-    // Gradient fill
-    const purple='#7c3aed';
-    state.charts.tendMain=new Chart(ctx,{
-      type:'line',
-      data:{labels,datasets:[
-        {label:currentLabel,data:curData,
-          borderColor:purple,
-          backgroundColor:(context)=>{const g=context.chart.ctx.createLinearGradient(0,0,0,280);g.addColorStop(0,'rgba(124,58,237,0.32)');g.addColorStop(1,'rgba(124,58,237,0.01)');return g;},
-          borderWidth:2.5,fill:true,tension:0.4,pointRadius:0,pointHoverRadius:5,
-          pointHoverBackgroundColor:purple,pointHoverBorderColor:'#fff',pointHoverBorderWidth:2,order:1},
-        {label:prevLabel,data:prevData,
-          borderColor:'#9ca3af',backgroundColor:'transparent',
-          borderWidth:1.5,borderDash:[6,4],fill:false,tension:0.4,
-          pointRadius:0,pointHoverRadius:4,order:2}
-      ]},
-      options:{responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),
-        interaction:{mode:'index',intersect:false},
-        plugins:{legend:{display:false},
-          tooltip:{..._chartTooltip(),callbacks:{
-            title:ctx2=>labels[ctx2[0].dataIndex],
-            label:ctx2=>' '+ctx2.dataset.label+': $'+fmtN(ctx2.parsed.y)
-          }}},
-        scales:{
-          x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxTicksLimit:10,maxRotation:0},grid:{display:false}},
-          y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}
-        }}
-    });
-    animateTendCanvas(ctx);
+  // ── VISTA 1: Participación mensual por categoría y subcategoría ──
+  if(chartMode==='evo'&&customEl){
+    if(titleEl) titleEl.textContent='Distribución mensual del gasto';
+    if(subEl)   subEl.textContent=currentLabel+' · porcentajes por categoría y subcategoría';
+    if(legendEl) legendEl.innerHTML='';
+    _tend_renderMonthlyShare(customEl,currentLabel,grandTotal,sortedParents,parentSubTotals);
 
   // ── VISTA 2: Ranking por categoría (barras horizontales) ──
   } else if(chartMode==='ranking'&&ctx){
+    if(customEl) customEl.innerHTML='';
     if(titleEl) titleEl.textContent='Ranking de categorías';
     if(subEl)   subEl.textContent=sortedParents.length+' categorías con gasto · '+currentLabel;
     if(legendEl) legendEl.innerHTML='';
@@ -408,6 +468,7 @@ function _tend_drawChart(){
 
   // ── VISTA 3: Comparación vs período anterior ──
   } else if(chartMode==='compare'&&ctx){
+    if(customEl) customEl.innerHTML='';
     if(titleEl) titleEl.textContent='Comparación vs período anterior';
     if(subEl)   subEl.textContent=(prevKey?prevLabel:'—')+' vs '+currentLabel;
     if(legendEl) legendEl.innerHTML='';
@@ -833,7 +894,7 @@ function renderTendencia(){
   if(tabsEl){
     const cm=_normTendChartMode(state.tendChartMode||'evo');
     tabsEl.innerHTML=[
-      {id:'evo',label:'∿ Evolución'},
+      {id:'evo',label:'◔ Distribución'},
       {id:'ranking',label:'▊ Ranking'},
       {id:'compare',label:'⇄ Vs. Anterior'}
     ].map(t=>`<button class="tend-view-btn${t.id===cm?' active':''}" id="tv2-${t.id}" onclick="setTendChartMode('${t.id}')">${t.label}</button>`).join('');
@@ -848,7 +909,7 @@ function renderTendencia(){
   });
 
   // Store state refs
-  _tendChartState={currentTxns,prevTxns,lastKey,prevKey,mode,currentLabel,prevLabel,grandTotal,sortedParents,parentDeltas};
+  _tendChartState={currentTxns,prevTxns,lastKey,prevKey,mode,currentLabel,prevLabel,grandTotal,sortedParents,parentDeltas,parentSubTotals};
   _tendRankingState={sortedParents,parentDeltas,grandTotal,prevLabel,parentSubTotals};
 
   // Render all sections
