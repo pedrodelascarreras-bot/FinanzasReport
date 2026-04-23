@@ -315,7 +315,7 @@ function _tend_renderMonthlyShare(customEl,currentLabel,grandTotal,sortedParents
     <div class="tend-share-pill">
       <span class="tend-share-pill-dot" style="background:${item.color};"></span>
       <span class="tend-share-pill-name">${item.emoji} ${esc(item.parent)}</span>
-      <strong>${_tend_pctLabel(item.pct)}</strong>
+      <strong>${_tend_pctLabel(item.pct)} · $${fmtN(item.amount)}</strong>
     </div>
   `).join('');
 
@@ -330,8 +330,8 @@ function _tend_renderMonthlyShare(customEl,currentLabel,grandTotal,sortedParents
           <div class="tend-share-subfill" style="width:${_tend_pctWidth(sub.pctOfTotal)}%;background:${item.color};"></div>
         </div>
         <div class="tend-share-substats">
-          <strong>${_tend_pctLabel(sub.pctOfTotal)}</strong>
-          <span>${_tend_pctLabel(sub.pctOfCategory)} de ${esc(item.parent)}</span>
+          <strong>$${fmtN(sub.amount)}</strong>
+          <span>${_tend_pctLabel(sub.pctOfTotal)} del total · ${_tend_pctLabel(sub.pctOfCategory)} de ${esc(item.parent)}</span>
         </div>
       </div>
     `).join('');
@@ -348,7 +348,7 @@ function _tend_renderMonthlyShare(customEl,currentLabel,grandTotal,sortedParents
           </div>
           <div class="tend-share-cat-side">
             <strong style="color:${item.color};">${_tend_pctLabel(item.pct)}</strong>
-            <span>del mes</span>
+            <span>$${fmtN(item.amount)} · del mes</span>
           </div>
         </div>
         <div class="tend-share-cat-track">
@@ -388,7 +388,7 @@ function _tend_renderMonthlyShare(customEl,currentLabel,grandTotal,sortedParents
             <span class="tend-share-focus-kicker">Lectura rápida</span>
             <div class="tend-share-focus-title">${topCategory.emoji} ${esc(topCategory.parent)} lidera el mes</div>
             <div class="tend-share-focus-sub">$${fmtN(topCategory.amount)} · ${_tend_pctLabel(topCategory.pct)} del total</div>
-            ${topSub?`<div class="tend-share-focus-chip" style="--share-chip:${topCategory.color};">Subcategoría dominante: <strong>${esc(topSub.name)}</strong> · ${_tend_pctLabel(topSub.pctOfTotal)}</div>`:''}
+            ${topSub?`<div class="tend-share-focus-chip" style="--share-chip:${topCategory.color};">Subcategoría dominante: <strong>${esc(topSub.name)}</strong> · $${fmtN(topSub.amount)} · ${_tend_pctLabel(topSub.pctOfTotal)}</div>`:''}
           </div>
           <div class="tend-share-pill-grid">${pills}</div>
         </div>

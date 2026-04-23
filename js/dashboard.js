@@ -2841,6 +2841,8 @@ let _db2EvolutionState = null;
 function _applyDb2CcPrivacy(prefix, hasUsdValue=false){
   const arsEl=document.getElementById(`kpi-${prefix}-ars`);
   const usdEl=document.getElementById(`kpi-${prefix}-usd`);
+  const amountSide=arsEl?.closest('.db2-cc-amount-side') || usdEl?.closest('.db2-cc-amount-side');
+  if(amountSide) amountSide.classList.add('is-masked');
   if(arsEl){
     if(typeof cancelNumberTextAnimation==='function') cancelNumberTextAnimation(arsEl);
     arsEl.textContent='••••••••';
@@ -2850,6 +2852,12 @@ function _applyDb2CcPrivacy(prefix, hasUsdValue=false){
     usdEl.textContent=hasUsdValue?'••••':'';
     usdEl.style.display=hasUsdValue?'':'none';
   }
+}
+function _clearDb2CcPrivacy(prefix){
+  const arsEl=document.getElementById(`kpi-${prefix}-ars`);
+  const usdEl=document.getElementById(`kpi-${prefix}-usd`);
+  const amountSide=arsEl?.closest('.db2-cc-amount-side') || usdEl?.closest('.db2-cc-amount-side');
+  if(amountSide) amountSide.classList.remove('is-masked');
 }
 function setDb2EvoMode(mode){
   db2EvoMode = mode === 'month' ? 'month' : 'daily';
@@ -2929,6 +2937,7 @@ function renderDb2CcCycles(data){
         if(isMasked()){
           _applyDb2CcPrivacy(prefix, usdTotal > 0);
         } else {
+          _clearDb2CcPrivacy(prefix);
           animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
           if(amtUsdEl){
             if(usdTotal > 0){
@@ -2985,6 +2994,7 @@ function renderDb2CcCycles(data){
       if(isMasked()){
         _applyDb2CcPrivacy(prefix, usdTotal > 0);
       } else {
+        _clearDb2CcPrivacy(prefix);
         animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
         if(amtUsdEl){
           if(usdTotal > 0){
@@ -3487,12 +3497,12 @@ function _db2BuildEvolutionPeriodSeries(scope){
   const currentMonth=scope?.monthKey || getMonthKey(new Date());
   const txMonths=(state.transactions||[]).map(t=>t.month||getMonthKey(t.date));
   const incomeMonths=(state.incomeMonths||[]).map(item=>item.month);
-  const monthKeys=[...new Set([...txMonths, ...incomeMonths, currentMonth])].filter(Boolean).sort().slice(-6);
+  const monthKeys=[...new Set([...txMonths, ...incomeMonths, currentMonth])].filter(Boolean).sort();
   return {
     labels:monthKeys.map(_db2ShortMonthLabel),
     expenseData:monthKeys.map(monthKey=>_db2BuildMonthExpenseEntries(monthKey).reduce((sum,item)=>sum+_db2ToArsAmount(item),0)),
     incomeData:monthKeys.map(monthKey=>getIncomeSnapshot(monthKey).total || 0),
-    subtitle:'Últimos meses · gasto vs ingreso'
+    subtitle:'Todos los meses · gasto vs ingreso'
   };
 }
 
@@ -3539,7 +3549,7 @@ function renderDb2EvolutionChart(){
   const tickFont  = {size:12, weight:'600', family:'-apple-system,SF Pro Display,sans-serif'};
 
   const chart = new Chart(ctx, {
-    type: 'line',
+    type: useMonthMode ? 'bar' : 'line',
     data: {
       labels,
       datasets: [
@@ -3547,29 +3557,37 @@ function renderDb2EvolutionChart(){
           label: 'Ingresos',
           data: incData,
           borderColor: '#56c683',
-          backgroundColor: 'rgba(86,198,131,0.16)',
-          borderWidth: 4,
-          pointRadius: 7,
-          pointHoverRadius: 7,
+          backgroundColor: useMonthMode ? 'rgba(86,198,131,0.82)' : 'rgba(86,198,131,0.16)',
+          borderWidth: useMonthMode ? 1.5 : 4,
+          pointRadius: useMonthMode ? 0 : 7,
+          pointHoverRadius: useMonthMode ? 0 : 7,
           pointBackgroundColor: '#ffffff',
           pointBorderColor: '#56c683',
-          pointBorderWidth: 4,
-          tension: 0.42,
-          fill: true
+          pointBorderWidth: useMonthMode ? 0 : 4,
+          tension: useMonthMode ? 0 : 0.42,
+          fill: !useMonthMode,
+          borderRadius: useMonthMode ? 10 : 0,
+          maxBarThickness: useMonthMode ? 28 : undefined,
+          categoryPercentage: useMonthMode ? 0.7 : undefined,
+          barPercentage: useMonthMode ? 0.84 : undefined
         },
         {
           label: 'Gastos',
           data: gasData,
           borderColor: '#f36a2b',
-          backgroundColor: 'rgba(243,106,43,0.16)',
-          borderWidth: 4,
-          pointRadius: 7,
-          pointHoverRadius: 7,
+          backgroundColor: useMonthMode ? 'rgba(243,106,43,0.82)' : 'rgba(243,106,43,0.16)',
+          borderWidth: useMonthMode ? 1.5 : 4,
+          pointRadius: useMonthMode ? 0 : 7,
+          pointHoverRadius: useMonthMode ? 0 : 7,
           pointBackgroundColor: '#ffffff',
           pointBorderColor: '#f36a2b',
-          pointBorderWidth: 4,
-          tension: 0.42,
-          fill: true
+          pointBorderWidth: useMonthMode ? 0 : 4,
+          tension: useMonthMode ? 0 : 0.42,
+          fill: !useMonthMode,
+          borderRadius: useMonthMode ? 10 : 0,
+          maxBarThickness: useMonthMode ? 28 : undefined,
+          categoryPercentage: useMonthMode ? 0.7 : undefined,
+          barPercentage: useMonthMode ? 0.84 : undefined
         }
       ]
     },
@@ -3591,7 +3609,14 @@ function renderDb2EvolutionChart(){
       },
       scales: {
         x: {
-          ticks: { color: tickColor, font: tickFont, maxRotation: 0, minRotation: 0, padding: 16 },
+          ticks: {
+            color: tickColor,
+            font: tickFont,
+            maxRotation: 0,
+            minRotation: 0,
+            padding: useMonthMode ? 10 : 16,
+            autoSkip: false
+          },
           grid: { display: false, drawBorder: false },
           border: { display: false }
         },

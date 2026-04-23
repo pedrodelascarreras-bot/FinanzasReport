@@ -16944,6 +16944,10 @@ body.light-mode .tdp-tp-input {
   padding-top: 0;
   white-space: nowrap;
 }
+.db2-cc-amount-side.is-masked .db2-cc-amt,
+.db2-cc-amount-side.is-masked .db2-cc-amt-usd {
+  visibility: hidden;
+}
 
 /* ═══ PROYECCIÓN AL CIERRE ═══ */
 .db2-proj-card {
@@ -21627,10 +21631,9 @@ body:not(.light-mode) .sidebar-brand .df-drip{
 }
 .tend-share-cat-side span {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 600;
   color: var(--text3);
-  text-transform: uppercase;
-  letter-spacing: .08em;
+  letter-spacing: .01em;
 }
 .tend-share-cat-track {
   height: 10px;
@@ -21678,7 +21681,7 @@ body:not(.light-mode) .sidebar-brand .df-drip{
   opacity: 0.72;
 }
 .tend-share-substats {
-  min-width: 112px;
+  min-width: 180px;
   text-align: right;
   display: flex;
   flex-direction: column;
