@@ -170,9 +170,11 @@
   function initSplash(){
     const splash = document.getElementById('splash');
     if(!splash) return;
+    if(splash.dataset.bootShown==='1' && splash.classList.contains('visible')) return;
 
     buildContent();
 
+    splash.dataset.bootShown='1';
     splash.style.display = 'flex';
     requestAnimationFrame(() => {
       requestAnimationFrame(() => splash.classList.add('visible'));
@@ -291,4 +293,10 @@
   window.refreshSplashGoogleState = refreshSplashGoogleState;
   window.handleSplashPrimaryAction = handleSplashPrimaryAction;
   window.handleSplashTopAction = handleSplashTopAction;
+  window.ensureBootSplash = function ensureBootSplash(){
+    const splash = document.getElementById('splash');
+    if(!splash) return;
+    if(splash.classList.contains('visible')) return;
+    initSplash();
+  };
 })();

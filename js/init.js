@@ -642,8 +642,14 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(typeof enforceMobilePagePreferences === 'function') enforceMobilePagePreferences();
   if(!getApiKey()){/* API Key now always visible in sidebar IA section */}
   fetchUsdRate();
-  // Daily briefing — shows once per day when data exists
+  // Splash de bienvenida al abrir la app.
   if(typeof initSplash === 'function') initSplash();
+  setTimeout(()=>{
+    if(typeof ensureBootSplash === 'function') ensureBootSplash();
+  },180);
+  window.addEventListener('load',()=>{
+    if(typeof ensureBootSplash === 'function') ensureBootSplash();
+  },{once:true});
 });
 
 // ══ MANUAL EXPENSE ══

@@ -1520,6 +1520,7 @@ function renderDashboard(){
   const dashboardCards=(state.ccCards||[]);
   const dashboardCardTotals={};
   const dashboardCardDisplayTotals={};
+  const dashboardCardCycleByKey={};
   let dashboardCardsArs=0;
   let dashboardCardsUsd=0;
   let dashboardCardsCount=0;
@@ -1527,6 +1528,7 @@ function renderDashboard(){
     const key=(card.payMethodKey||card.id||'').toLowerCase();
     dashboardCardTotals[key]={ars:0,usd:0,count:0};
     dashboardCardDisplayTotals[key]={ars:0,usd:0,count:0};
+    dashboardCardCycleByKey[key]=dashboardCycleForCards||currentTcCycle||null;
   });
   const dashboardCardBaseTxns=(monthTxns||[]).filter(t=>{
     if(t.isPendingCuota||t.isPendingSubscription) return false;
@@ -1588,10 +1590,10 @@ function renderDashboard(){
   const rawPeriodArsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticARS:projectedMonthTotals.ars);
   const rawPeriodUsdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticUSD:projectedMonthTotals.usd);
   const rawPeriodCntMonth=_allBillable.length + (_tcModeActive?syntheticCount:projectedMonthTotals.count);
-  const operationalArsMonth=rawPeriodArsMonth;
-  const operationalUsdMonth=rawPeriodUsdMonth;
+  const operationalArsMonth=dashboardSummaryTotals.ars||rawPeriodArsMonth;
+  const operationalUsdMonth=dashboardSummaryTotals.usd||rawPeriodUsdMonth;
   const operationalCntMonth=rawPeriodCntMonth;
-  const creditCycleArsTotal=arsMonth;
+  const creditCycleArsTotal=dashboardCardsArs||arsMonth;
 
   // ── Ingresos ──
   // Priority: 1) income month linked to active TC cycle open month  2) exact active month
