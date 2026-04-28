@@ -601,11 +601,18 @@ function clearDoneTasks(){
 }
 function getCalendarMinMonth(){
   const today=normalizeAgendaDate(new Date())||new Date();
-  return new Date(today.getFullYear(), today.getMonth()-5, 1, 12, 0, 0, 0);
+  return new Date(today.getFullYear(), today.getMonth()-1, 1, 12, 0, 0, 0);
+}
+function getCalendarMaxMonth(){
+  const today=normalizeAgendaDate(new Date())||new Date();
+  return new Date(today.getFullYear(), today.getMonth(), 1, 12, 0, 0, 0);
 }
 function clampCalendarMonth(date){
   const min=getCalendarMinMonth();
-  return date < min ? new Date(min.getFullYear(), min.getMonth(), 1, 12, 0, 0, 0) : date;
+  const max=getCalendarMaxMonth();
+  if(date < min) return new Date(min.getFullYear(), min.getMonth(), 1, 12, 0, 0, 0);
+  if(date > max) return new Date(max.getFullYear(), max.getMonth(), 1, 12, 0, 0, 0);
+  return new Date(date.getFullYear(), date.getMonth(), 1, 12, 0, 0, 0);
 }
 function getCalendarItemToneClass(item){
   if(!item) return 'neutral';
@@ -619,6 +626,10 @@ function getCalendarItemToneClass(item){
 function setCalendarMonthOffset(offset){
   const base=normalizeAgendaDate(state.calendarMonth||new Date())||new Date();
   const next=clampCalendarMonth(new Date(base.getFullYear(),base.getMonth()+offset,1,12,0,0,0));
+  if(base.getFullYear()===next.getFullYear() && base.getMonth()===next.getMonth()){
+    renderCalendarPage();
+    return;
+  }
   state.calendarMonth=dateToInputValue(next);
   const selected=normalizeAgendaDate(state.calendarSelectedDate);
   if(!selected || selected.getMonth()!==next.getMonth() || selected.getFullYear()!==next.getFullYear()){
@@ -658,7 +669,10 @@ function renderCalendarPage(){
     const minMonth=getCalendarMinMonth();
     prevBtn.disabled=monthStart.getFullYear()===minMonth.getFullYear() && monthStart.getMonth()===minMonth.getMonth();
   }
-  if(nextBtn) nextBtn.disabled=false;
+  if(nextBtn){
+    const maxMonth=getCalendarMaxMonth();
+    nextBtn.disabled=monthStart.getFullYear()===maxMonth.getFullYear() && monthStart.getMonth()===maxMonth.getMonth();
+  }
   if(monthLabel){
     monthLabel.textContent=monthStart.toLocaleDateString('es-AR',{month:'long',year:'numeric'});
   }
