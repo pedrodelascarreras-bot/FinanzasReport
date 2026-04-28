@@ -61,8 +61,9 @@ function getProjectedCommitmentEntriesForRange(opts={}){
   if(Number.isNaN(start.getTime())||Number.isNaN(end.getTime())||start>end) return [];
   const entries=[];
   const entryKeys=new Set();
+  const dismissedEntries=new Set(state.dismissedCommitmentEntries||[]);
   const addEntry=(key,obj)=>{
-    if(!key||entryKeys.has(key)) return;
+    if(!key||entryKeys.has(key)||dismissedEntries.has(key)) return;
     entryKeys.add(key);
     entries.push({_key:key,...obj});
   };
@@ -93,6 +94,10 @@ function getProjectedCommitmentEntriesForRange(opts={}){
       amount:Number(t.amount)||0,
       currency:t.currency||'ARS',
       payMethod:t.payMethod||'',
+      sourceTxnId:t.id||null,
+      sourceSubscriptionId:t.sourceSubscriptionId||null,
+      cuotaGroupId:t.cuotaGroupId||null,
+      cuotaNum:t.cuotaNum||null,
       group:t.isPendingCuota?'cuotas':'suscripciones',
       kind:t.isPendingCuota?'Cuota proyectada':'Suscripción proyectada',
       meta:t.isPendingCuota?`Cuota ${t.cuotaNum}/${t.cuotaTotal}`:'Próximo cobro',
@@ -121,6 +126,8 @@ function getProjectedCommitmentEntriesForRange(opts={}){
           amount:Number(snap.amountPerCuota)||0,
           currency:group.currency||'ARS',
           payMethod:group.payMethod||'',
+          sourceAutoCuotaKey:group.key,
+          cuotaGroupId:group.transactions[0]?.cuotaGroupId||null,
           group:'cuotas',
           kind:'Cuota del ciclo',
           meta:`Cuota ${cuotaIndex}/${snap.total}`,
@@ -144,6 +151,7 @@ function getProjectedCommitmentEntriesForRange(opts={}){
         amount:Number(c.amount)||0,
         currency:c.currency||'ARS',
         payMethod:c.payMethod||'',
+        sourceManualCuotaId:c.id,
         group:'cuotas',
         kind:'Cuota manual',
         meta:`Cuota ${cuotaIndex}/${c.total}`,
@@ -157,6 +165,10 @@ function getProjectedCommitmentEntriesForRange(opts={}){
 
   (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
     getRecurringDatesInRange(s.day,start,end).forEach(dueDate=>{
+      if(s.startDate){
+        const startDate=new Date(s.startDate+'T00:00:00');
+        if(dueDate<startDate) return;
+      }
       const matured=hasReachedEffectiveChargeDate(dueDate,todayRef);
       const monthKey=getMonthKey(dueDate);
       if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
@@ -166,6 +178,7 @@ function getProjectedCommitmentEntriesForRange(opts={}){
         amount:Number(s.price)||0,
         currency:s.currency||'ARS',
         payMethod:s.payMethod||'',
+        sourceSubscriptionId:s.id,
         group:'suscripciones',
         kind:'Suscripción',
         meta:`Cobro mensual · día ${s.day}`,

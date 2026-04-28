@@ -282,8 +282,8 @@ function getDashboardTimelineData(baseDate=new Date()){
     const card=(state.ccCards||[]).find(c=>c.id===cyc.cardId);
     const close=normalizeDate(cyc.closeDate+'T12:00:00');
     const due=cyc.dueDate?normalizeDate(cyc.dueDate+'T12:00:00'):null;
-    if(close&&close>=today) events.push({type:'close', title:`${card?.name||cyc.label||'Tarjeta'} cierra`, shortLabel:card?.name||cyc.label||'Tarjeta', date:close, days:daysAway(close), page:'credit-cards'});
-    if(due&&due>=today) events.push({type:'due', title:`${card?.name||cyc.label||'Tarjeta'} vence`, shortLabel:card?.name||cyc.label||'Tarjeta', date:due, days:daysAway(due), page:'credit-cards'});
+    if(close&&close>=today) events.push({type:'close', title:`${card?.name||cyc.label||'Tarjeta'} cierra`, shortLabel:card?.name||cyc.label||'Tarjeta', date:close, days:daysAway(close), page:'credit-cards', cardId:cyc.cardId, tcCycleId:cyc.id||null});
+    if(due&&due>=today) events.push({type:'due', title:`${card?.name||cyc.label||'Tarjeta'} vence`, shortLabel:card?.name||cyc.label||'Tarjeta', date:due, days:daysAway(due), page:'credit-cards', cardId:cyc.cardId, tcCycleId:cyc.id||null});
   });
   const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
   autoGroups.forEach(g=>{
@@ -293,14 +293,14 @@ function getDashboardTimelineData(baseDate=new Date()){
     const nextDate=getNextCuotaDate(day);
     const cuotaName=g.displayName||g.name;
     if(nextDate&&nextDate>=today){
-      events.push({type:'commitment', title:cuotaName, shortLabel:cuotaName, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:snap.amountPerCuota, page:'cuotas'});
+      events.push({type:'commitment', title:cuotaName, shortLabel:cuotaName, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:snap.amountPerCuota, page:'cuotas', autoCuotaKey:g.key});
     }
   });
   (state.cuotas||[]).forEach(c=>{
     if(c.paid>=c.total||!c.day||typeof getNextCuotaDate!=='function') return;
     const nextDate=getNextCuotaDate(c.day);
     if(nextDate&&nextDate>=today){
-      events.push({type:'commitment', title:c.name, shortLabel:c.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:c.amount, page:'cuotas'});
+      events.push({type:'commitment', title:c.name, shortLabel:c.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:c.amount, page:'cuotas', manualCuotaId:c.id});
     }
   });
   const toMonthly=s=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
@@ -308,14 +308,14 @@ function getDashboardTimelineData(baseDate=new Date()){
     if(s.active===false||!s.day||typeof getNextCuotaDate!=='function') return;
     const nextDate=getNextCuotaDate(s.day);
     if(nextDate&&nextDate>=today){
-      events.push({type:'subscription', title:s.name, shortLabel:s.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:s.currency==='USD'?toMonthly(s)*(USD_TO_ARS||1420):toMonthly(s), page:'subs'});
+      events.push({type:'subscription', title:s.name, shortLabel:s.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:s.currency==='USD'?toMonthly(s)*(USD_TO_ARS||1420):toMonthly(s), page:'subs', subscriptionId:s.id});
     }
   });
   (state.fixedExpenses||[]).forEach(f=>{
     if(!f.day||typeof getNextCuotaDate!=='function') return;
     const nextDate=getNextCuotaDate(f.day);
     if(nextDate&&nextDate>=today){
-      events.push({type:'fixed', title:f.name, shortLabel:f.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:f.currency==='USD'?f.amount*(USD_TO_ARS||1420):f.amount, page:'fixed'});
+      events.push({type:'fixed', title:f.name, shortLabel:f.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:f.currency==='USD'?f.amount*(USD_TO_ARS||1420):f.amount, page:'fixed', fixedExpenseId:f.id});
     }
   });
   events.sort((a,b)=>a.date-b.date||((a.days||0)-(b.days||0)));
@@ -575,8 +575,7 @@ function addCalendarTask(){
   dateInput.value=dueDate;
   saveState();
   if(typeof renderNotifications==='function')renderNotifications();
-  if(document.getElementById('page-calendar')?.classList.contains('active')) renderCalendarPage();
-  if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
+  refreshCalendarViews();
 }
 function toggleTask(id){
   const t=(state.tasks||[]).find(x=>x.id===id);
@@ -584,14 +583,12 @@ function toggleTask(id){
   t.done=!t.done;
   t.doneAt=t.done?Date.now():null;
   saveState();if(typeof renderNotifications==='function')renderNotifications();
-  if(document.getElementById('page-calendar')?.classList.contains('active')) renderCalendarPage();
-  if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
+  refreshCalendarViews();
 }
 function deleteTask(id){
   state.tasks=(state.tasks||[]).filter(x=>x.id!==id);
   saveState();if(typeof renderNotifications==='function')renderNotifications();
-  if(document.getElementById('page-calendar')?.classList.contains('active')) renderCalendarPage();
-  if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
+  refreshCalendarViews();
 }
 function clearDoneTasks(){
   state.tasks=(state.tasks||[]).filter(t=>!t.done);
@@ -605,7 +602,7 @@ function getCalendarMinMonth(){
 }
 function getCalendarMaxMonth(){
   const today=normalizeAgendaDate(new Date())||new Date();
-  return new Date(today.getFullYear(), today.getMonth(), 1, 12, 0, 0, 0);
+  return new Date(today.getFullYear(), today.getMonth()+6, 1, 12, 0, 0, 0);
 }
 function clampCalendarMonth(date){
   const min=getCalendarMinMonth();
@@ -622,6 +619,75 @@ function getCalendarItemToneClass(item){
   if(item.type==='subscription') return 'subscription';
   if(item.type==='fixed') return 'fixed';
   return 'cuota';
+}
+function getCalendarDayItems(dateValue){
+  const selected=normalizeAgendaDate(dateValue);
+  if(!selected) return [];
+  return getCalendarAgendaItems(new Date(),{includePast:true,includeDoneTasks:false})
+    .filter(item=>{
+      const dt=normalizeAgendaDate(item.date);
+      return dt && dateToInputValue(dt)===dateToInputValue(selected);
+    })
+    .sort((a,b)=>normalizeAgendaDate(a.date)-normalizeAgendaDate(b.date) || String(a.title||'').localeCompare(String(b.title||''),'es'));
+}
+function getCalendarItemMeta(item){
+  const when=item.type==='task'
+    ? 'Task'
+    : item.type==='due'
+      ? 'Vencimiento'
+      : item.type==='close'
+        ? 'Cierre TC'
+        : item.type==='subscription'
+          ? 'Suscripción'
+          : item.type==='fixed'
+            ? 'Gasto fijo'
+            : 'Compromiso';
+  const amount=item.amount?`$${fmtN(Math.round(item.amount))}`:'';
+  return [when,amount].filter(Boolean).join(' · ');
+}
+function getCalendarAgendaItemKey(item, index){
+  if(item?.taskId) return `task:${item.taskId}`;
+  if(item?.subscriptionId) return `subscription:${item.subscriptionId}`;
+  if(item?.fixedExpenseId) return `fixed:${item.fixedExpenseId}`;
+  if(item?.manualCuotaId) return `cuota:${item.manualCuotaId}`;
+  if(item?.autoCuotaKey) return `autocuota:${item.autoCuotaKey}`;
+  if(item?.tcCycleId) return `${item.type}:${item.tcCycleId}`;
+  return `${item?.type||'item'}:${dateToInputValue(item?.date)||'nodate'}:${index}`;
+}
+function calendarSupportsDirectEdit(item){
+  return !!(item?.taskId || item?.subscriptionId || item?.fixedExpenseId || item?.manualCuotaId || item?.autoCuotaKey);
+}
+function renderCalendarDayItems(items, opts={}){
+  const emptyMessage=opts.emptyMessage || 'Este día está libre. Podés usarlo para programar una task.';
+  if(!items.length) return `<div class="calendar-empty">${emptyMessage}</div>`;
+  window._calendarAgendaItemsByKey={};
+  return items.map((item, index)=>{
+    const key=getCalendarAgendaItemKey(item,index);
+    window._calendarAgendaItemsByKey[key]=item;
+    const meta=getCalendarItemMeta(item);
+    let actions='';
+    if(item.type==='task'){
+      actions=`<div class="calendar-item-actions">
+        <button class="calendar-item-check ${item.done?'checked':''}" onclick="event.stopPropagation();toggleTask('${item.taskId}')">${item.done?'✓':''}</button>
+        <button class="calendar-item-link calendar-item-secondary" onclick="event.stopPropagation();editCalendarTask('${item.taskId}')">Editar</button>
+        <button class="calendar-item-delete" onclick="event.stopPropagation();deleteCalendarAgendaItem('${key}')">✕</button>
+      </div>`;
+    } else if(calendarSupportsDirectEdit(item)){
+      actions=`<div class="calendar-item-actions">
+        <button class="calendar-item-link" onclick="event.stopPropagation();editCalendarAgendaItem('${key}')">Editar</button>
+        <button class="calendar-item-delete" onclick="event.stopPropagation();deleteCalendarAgendaItem('${key}')">✕</button>
+      </div>`;
+    } else {
+      actions=`<button class="calendar-item-link" onclick="event.stopPropagation();openCalendarAgendaItem('${key}')">Abrir</button>`;
+    }
+    return `<div class="calendar-item-card ${getCalendarItemToneClass(item)}">
+      <div class="calendar-item-main">
+        <div class="calendar-item-title">${esc(item.shortLabel||item.title||'Item')}</div>
+        <div class="calendar-item-meta">${meta}</div>
+      </div>
+      ${actions}
+    </div>`;
+  }).join('');
 }
 function setCalendarMonthOffset(offset){
   const base=normalizeAgendaDate(state.calendarMonth||new Date())||new Date();
@@ -643,9 +709,163 @@ function jumpCalendarToToday(){
   state.calendarSelectedDate=dateToInputValue(today);
   renderCalendarPage();
 }
-function selectCalendarDate(dateValue){
+function selectCalendarDate(dateValue, openDetail){
   state.calendarSelectedDate=dateValue;
   renderCalendarPage();
+  if(openDetail) openCalendarDayModal(dateValue);
+}
+function refreshCalendarViews(){
+  if(document.getElementById('page-calendar')?.classList.contains('active')) renderCalendarPage();
+  if(document.getElementById('modal-calendar-day')?.classList.contains('open')) openCalendarDayModal(state.calendarSelectedDate||dateToInputValue(new Date()));
+  if(document.getElementById('page-dashboard')?.classList.contains('active')) renderDashboard();
+}
+function openCalendarNewTask(dateValue){
+  const safeDate=dateToInputValue(dateValue||state.calendarSelectedDate||new Date());
+  closeModal('modal-calendar-day');
+  document.getElementById('modal-calendar-task-title').textContent='Nueva task';
+  document.getElementById('modal-calendar-task-editing').value='';
+  document.getElementById('modal-calendar-task-text').value='';
+  document.getElementById('modal-calendar-task-date').value=safeDate;
+  document.getElementById('btn-del-calendar-task').style.display='none';
+  openModal('modal-calendar-task');
+  setTimeout(()=>document.getElementById('modal-calendar-task-text')?.focus(),80);
+}
+function editCalendarTask(taskId){
+  const task=(state.tasks||[]).find(x=>x.id===taskId);
+  if(!task) return;
+  closeModal('modal-calendar-day');
+  document.getElementById('modal-calendar-task-title').textContent='Editar task';
+  document.getElementById('modal-calendar-task-editing').value=task.id;
+  document.getElementById('modal-calendar-task-text').value=task.text||'';
+  document.getElementById('modal-calendar-task-date').value=task.dueDate||dateToInputValue(state.calendarSelectedDate||new Date());
+  document.getElementById('btn-del-calendar-task').style.display='inline-flex';
+  openModal('modal-calendar-task');
+  setTimeout(()=>document.getElementById('modal-calendar-task-text')?.focus(),80);
+}
+function saveCalendarTaskModal(){
+  const text=document.getElementById('modal-calendar-task-text').value.trim();
+  const dueDate=document.getElementById('modal-calendar-task-date').value||dateToInputValue(state.calendarSelectedDate||new Date());
+  const editing=document.getElementById('modal-calendar-task-editing').value||'';
+  if(!text||!dueDate){ showToast('Completá la task y la fecha','warn'); return; }
+  if(!state.tasks) state.tasks=[];
+  if(editing){
+    const task=state.tasks.find(x=>x.id===editing);
+    if(task){
+      task.text=text;
+      task.dueDate=dueDate;
+    }
+  } else {
+    state.tasks.push({id:Math.random().toString(36).substr(2,9),text,done:false,createdAt:Date.now(),doneAt:null,dueDate});
+  }
+  state.calendarSelectedDate=dueDate;
+  saveState();
+  closeModal('modal-calendar-task');
+  refreshCalendarViews();
+  if(typeof renderNotifications==='function') renderNotifications();
+  showToast(editing?'Task actualizada':'Task agregada','success');
+}
+function deleteCalendarTaskModal(){
+  const taskId=document.getElementById('modal-calendar-task-editing').value||'';
+  if(!taskId) return;
+  deleteTask(taskId);
+  closeModal('modal-calendar-task');
+  refreshCalendarViews();
+}
+function openCalendarSubscriptionModal(dateValue){
+  const safeDate=dateToInputValue(dateValue||state.calendarSelectedDate||new Date());
+  const dt=normalizeAgendaDate(safeDate);
+  closeModal('modal-calendar-day');
+  openNewSubModal();
+  if(dt){
+    document.getElementById('sub-day').value=dt.getDate();
+    document.getElementById('sub-start-date').value=safeDate;
+  }
+}
+function openCalendarCuotaModal(dateValue){
+  const dt=normalizeAgendaDate(dateValue||state.calendarSelectedDate||new Date());
+  closeModal('modal-calendar-day');
+  openNewCuotaModal();
+  if(dt) document.getElementById('cuota-day').value=dt.getDate();
+}
+function openCalendarFixedModal(dateValue){
+  const dt=normalizeAgendaDate(dateValue||state.calendarSelectedDate||new Date());
+  closeModal('modal-calendar-day');
+  openNewFixedModal();
+  if(dt) document.getElementById('fixed-day').value=dt.getDate();
+}
+function openCalendarDayModal(dateValue){
+  const safeDate=dateToInputValue(dateValue||state.calendarSelectedDate||new Date());
+  const selectedDate=normalizeAgendaDate(safeDate);
+  const labelEl=document.getElementById('calendar-day-modal-label');
+  const subEl=document.getElementById('calendar-day-modal-sub');
+  const listEl=document.getElementById('calendar-day-modal-list');
+  const dateInput=document.getElementById('calendar-day-modal-date');
+  if(!selectedDate||!labelEl||!subEl||!listEl||!dateInput) return;
+  const items=getCalendarDayItems(safeDate);
+  const taskCount=items.filter(item=>item.type==='task').length;
+  dateInput.value=safeDate;
+  labelEl.textContent=selectedDate.toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
+  subEl.textContent=items.length
+    ? `${items.length} item${items.length!==1?'s':''}${taskCount?` · ${taskCount} task${taskCount!==1?'s':''}`:''}`
+    : 'No hay items para este día';
+  listEl.innerHTML=renderCalendarDayItems(items,{emptyMessage:'No hay nada cargado para este día. Podés sumar una task o un compromiso nuevo.'});
+  openModal('modal-calendar-day');
+}
+function openCalendarAgendaItem(itemKey){
+  const item=window._calendarAgendaItemsByKey?.[itemKey];
+  if(!item) return;
+  if(item.page) nav(item.page);
+}
+function editCalendarAgendaItem(itemKey){
+  const item=window._calendarAgendaItemsByKey?.[itemKey];
+  if(!item) return;
+  closeModal('modal-calendar-day');
+  if(item.taskId) return editCalendarTask(item.taskId);
+  if(item.subscriptionId) return editSub(item.subscriptionId);
+  if(item.fixedExpenseId) return editFixed(item.fixedExpenseId);
+  if(item.manualCuotaId) return editCuota(item.manualCuotaId);
+  if(item.autoCuotaKey) return openAutoCuotaModal(item.autoCuotaKey);
+  openCalendarAgendaItem(itemKey);
+}
+function deleteCalendarAgendaItem(itemKey){
+  const item=window._calendarAgendaItemsByKey?.[itemKey];
+  if(!item) return;
+  if(item.taskId){
+    if(!confirm('¿Eliminar esta task?')) return;
+    deleteTask(item.taskId);
+    refreshCalendarViews();
+    return;
+  }
+  if(item.subscriptionId){
+    if(!confirm('¿Eliminar esta suscripción?')) return;
+    state.subscriptions=(state.subscriptions||[]).filter(s=>s.id!==item.subscriptionId);
+    if(typeof syncProjectedSubscriptionTransactions==='function') syncProjectedSubscriptionTransactions();
+    saveState();
+    refreshCalendarViews();
+    showToast('Suscripción eliminada','info');
+    return;
+  }
+  if(item.fixedExpenseId){
+    if(!confirm('¿Eliminar este gasto fijo?')) return;
+    state.fixedExpenses=(state.fixedExpenses||[]).filter(f=>f.id!==item.fixedExpenseId);
+    saveState();
+    refreshCalendarViews();
+    showToast('Gasto fijo eliminado','info');
+    return;
+  }
+  if(item.manualCuotaId){
+    if(!confirm('¿Eliminar esta cuota manual?')) return;
+    state.cuotas=(state.cuotas||[]).filter(c=>c.id!==item.manualCuotaId);
+    saveState();
+    refreshCalendarViews();
+    showToast('Cuota eliminada','info');
+    return;
+  }
+  if(item.autoCuotaKey){
+    if(!confirm('¿Ocultar esta cuota automática del seguimiento?')) return;
+    if(typeof dismissAutoCuota==='function') dismissAutoCuota(item.autoCuotaKey);
+    refreshCalendarViews();
+  }
 }
 function renderCalendarPage(){
   const page=document.getElementById('page-calendar');
@@ -716,7 +936,7 @@ function renderCalendarPage(){
     const primaryType=priorities.find(type=>items.some(item=>item.type===type)) || (items[0]?.type || '');
     const toneClass=items.length?`has-${getCalendarItemToneClass({type:primaryType})}`:'';
     const preview=items.slice(0,2).map(item=>`<span class="calendar-chip ${getCalendarItemToneClass(item)}">${esc((item.shortLabel||item.title||'').slice(0,18))}</span>`).join('');
-    return `<button class="calendar-cell ${isToday?'is-today':''} ${isSelected?'is-selected':''} ${toneClass}" onclick="selectCalendarDate('${key}')">
+    return `<button class="calendar-cell ${isToday?'is-today':''} ${isSelected?'is-selected':''} ${toneClass}" onclick="selectCalendarDate('${key}', true)">
       <span class="calendar-cell-day">${cell.getDate()}</span>
       ${itemCount?`<span class="calendar-cell-count">${itemCount}</span>`:''}
       <span class="calendar-cell-preview">${preview}</span>
@@ -729,34 +949,7 @@ function renderCalendarPage(){
   selectedSubEl.textContent=selectedItems.length
     ? `${selectedItems.length} item${selectedItems.length!==1?'s':''}${selectedTasks?` · ${selectedTasks} task${selectedTasks!==1?'s':''}`:''}`
     : 'No hay items para este día';
-  dayListEl.innerHTML=selectedItems.length ? selectedItems.map(item=>{
-    const when=item.type==='task'
-      ? 'Task'
-      : item.type==='due'
-        ? 'Vencimiento'
-        : item.type==='close'
-          ? 'Cierre TC'
-          : item.type==='subscription'
-            ? 'Suscripción'
-            : item.type==='fixed'
-              ? 'Gasto fijo'
-              : 'Compromiso';
-    const amount=item.amount?`$${fmtN(Math.round(item.amount))}`:'';
-    const meta=[when,amount].filter(Boolean).join(' · ');
-    const action=item.type==='task'
-      ? `<div class="calendar-item-actions">
-          <button class="calendar-item-check ${item.done?'checked':''}" onclick="event.stopPropagation();toggleTask('${item.taskId}')">${item.done?'✓':''}</button>
-          <button class="calendar-item-delete" onclick="event.stopPropagation();deleteTask('${item.taskId}')">✕</button>
-        </div>`
-      : `<button class="calendar-item-link" onclick="event.stopPropagation();nav('${item.page||'cuotas'}')">Abrir</button>`;
-    return `<div class="calendar-item-card ${getCalendarItemToneClass(item)}">
-      <div class="calendar-item-main">
-        <div class="calendar-item-title">${esc(item.shortLabel||item.title||'Item')}</div>
-        <div class="calendar-item-meta">${meta}</div>
-      </div>
-      ${action}
-    </div>`;
-  }).join('') : '<div class="calendar-empty">Este día está libre. Podés usarlo para programar una task.</div>';
+  dayListEl.innerHTML=renderCalendarDayItems(selectedItems);
 
   const upcoming=getCalendarAgendaItems(new Date(),{includePast:false,includeDoneTasks:false}).slice(0,8);
   upcomingEl.innerHTML=upcoming.length ? upcoming.map(item=>{

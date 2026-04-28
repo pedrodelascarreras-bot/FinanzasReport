@@ -1908,6 +1908,7 @@ function getCurrentProfileSnapshot(){
     viewCycleConfig: cloneDeepProfileValue(state.viewCycleConfig || {}),
     tcCycles: cloneDeepProfileValue(state.tcCycles || []),
     hiddenTcCycles: cloneDeepProfileValue(state.hiddenTcCycles || []),
+    dismissedCommitmentEntries: cloneDeepProfileValue(state.dismissedCommitmentEntries || []),
     ccCards: cloneDeepProfileValue(markOwnedItems(state.ccCards || [], state.activeUserProfileId || 'default-profile')),
     ccCycles: cloneDeepProfileValue(markOwnedItems(state.ccCycles || [], state.activeUserProfileId || 'default-profile')),
     ccActiveCard: state.ccActiveCard || null,
@@ -2090,6 +2091,7 @@ function applyUserProfile(profileId){
   state.dismissedNotifs = cloneDeepProfileValue(profile.dismissedNotifs || []);
   state.decisionCenterCollapsed = !!profile.decisionCenterCollapsed;
   state.dismissedAutoCuotas = cloneDeepProfileValue(profile.dismissedAutoCuotas || []);
+  state.dismissedCommitmentEntries = cloneDeepProfileValue(profile.dismissedCommitmentEntries || []);
   state.onboardingState = { ...(state.onboardingState || {}), ...(profile.onboardingState || {}) };
   if(profile.gmailClientId){
     state.gmailClientId = profile.gmailClientId;

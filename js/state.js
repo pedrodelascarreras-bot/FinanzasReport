@@ -42,6 +42,7 @@ let state={
   dismissedNotifs: [],   // IDs of notifications the user dismissed
   decisionCenterCollapsed:false,
   dismissedAutoCuotas:[], // keys of auto-cuotas permanently dismissed
+  dismissedCommitmentEntries:[], // projected commitment entries manually hidden by the user
   tasks: [],             // [{id,text,done,createdAt,doneAt}]
   ccCards: [],           // [{id,name,type,color,...}]
   ccCycles: [],          // [{id,cardId,tcCycleId,status,manualExpenses,excludedIds,...}]
@@ -105,6 +106,7 @@ function getStateSnapshot(){
     dismissedNotifs:state.dismissedNotifs||[],
     decisionCenterCollapsed:!!state.decisionCenterCollapsed,
     dismissedAutoCuotas:state.dismissedAutoCuotas||[],
+    dismissedCommitmentEntries:state.dismissedCommitmentEntries||[],
     tasks:state.tasks||[],
     txnCardFilter:state.txnCardFilter||''
   };
@@ -363,6 +365,7 @@ async function loadFromDrive(){
     state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
+    state.dismissedCommitmentEntries=s.dismissedCommitmentEntries||[];
     state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';
     state.txnFilterMode=_normalizeViewMode(s.txnFilterMode||state.txnFilterMode||'visa');
@@ -456,6 +459,7 @@ function loadState(){
     state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
+    state.dismissedCommitmentEntries=s.dismissedCommitmentEntries||[];
     state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';
     state.txnFilterMode=_normalizeViewMode(s.txnFilterMode||state.txnFilterMode||'visa');

@@ -894,6 +894,49 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="modal-calendar-day">
+  <div class="modal calendar-day-modal">
+    <div class="modal-header">
+      <div>
+        <div class="modal-title" id="calendar-day-modal-label">—</div>
+        <div class="modal-sub" id="calendar-day-modal-sub">—</div>
+      </div>
+      <button class="modal-close" onclick="closeModal('modal-calendar-day')">✕</button>
+    </div>
+    <div class="modal-body calendar-day-modal-body">
+      <input type="hidden" id="calendar-day-modal-date">
+      <div class="calendar-day-modal-actions">
+        <button class="btn btn-ghost btn-sm" onclick="openCalendarNewTask(document.getElementById('calendar-day-modal-date').value)">+ Task</button>
+        <button class="btn btn-ghost btn-sm" onclick="openCalendarSubscriptionModal(document.getElementById('calendar-day-modal-date').value)">+ Suscripción</button>
+        <button class="btn btn-ghost btn-sm" onclick="openCalendarCuotaModal(document.getElementById('calendar-day-modal-date').value)">+ Cuota</button>
+        <button class="btn btn-ghost btn-sm" onclick="openCalendarFixedModal(document.getElementById('calendar-day-modal-date').value)">+ Fijo</button>
+      </div>
+      <div class="calendar-day-list" id="calendar-day-modal-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-calendar-task">
+  <div class="modal" style="max-width:430px;">
+    <div class="modal-title" id="modal-calendar-task-title">Nueva task</div>
+    <div class="modal-sub">Podés programarla, corregirla o moverla de fecha desde acá.</div>
+    <input type="hidden" id="modal-calendar-task-editing">
+    <div class="input-group">
+      <label class="input-label">Task</label>
+      <input type="text" class="input-field" id="modal-calendar-task-text" placeholder="Ej. Llamar al banco">
+    </div>
+    <div class="input-group">
+      <label class="input-label">Fecha</label>
+      <input type="date" class="input-field" id="modal-calendar-task-date">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-calendar-task')">Cancelar</button>
+      <button class="btn btn-ghost" id="btn-del-calendar-task" onclick="deleteCalendarTaskModal()" style="display:none;color:var(--danger);">Borrar</button>
+      <button class="btn btn-primary" onclick="saveCalendarTaskModal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- DISEÑO DEL DASHBOARD -->
 <div id="page-dashboard-design" class="page">
   <div class="page-header fade-up">
@@ -2612,6 +2655,7 @@
         <div class="input-group"><label class="input-label">Frecuencia</label><select class="input-field" id="sub-freq"><option value="monthly">Mensual</option><option value="annual">Anual</option><option value="weekly">Semanal</option></select></div>
         <div class="input-group"><label class="input-label">Día de cobro</label><input type="number" class="input-field" id="sub-day" placeholder="ej: 15" min="1" max="31"></div>
       </div>
+      <div class="input-group"><label class="input-label">Primer cobro válido</label><input type="date" class="input-field" id="sub-start-date"></div>
       <div class="input-group"><label class="input-label">Categoría</label><select class="input-field" id="sub-cat"></select></div>
       <div class="input-group"><label class="input-label">Color</label><div class="color-picker-row" id="sub-color-picker"></div></div>
     </div>

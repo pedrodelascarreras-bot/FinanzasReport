@@ -360,10 +360,71 @@ function setTxnCycleCommitmentsTab(tab){
   renderTransactions();
 }
 
+function getTxnCycleCommitmentEntry(key){
+  return (window._txnCycleCommitmentsByKey||{})[key] || null;
+}
+
+function dismissTxnCycleCommitmentEntry(key){
+  if(!key) return;
+  if(!state.dismissedCommitmentEntries) state.dismissedCommitmentEntries=[];
+  if(!state.dismissedCommitmentEntries.includes(key)) state.dismissedCommitmentEntries.push(key);
+  saveState();
+  refreshAll();
+  showToast('Compromiso ocultado de este período','success');
+}
+
+function editTxnCycleCommitment(key){
+  const entry=getTxnCycleCommitmentEntry(key);
+  if(!entry) return;
+  if(entry.sourceTxnId){
+    openEditTxnModal(entry.sourceTxnId);
+    return;
+  }
+  if(entry.group==='suscripciones' && entry.sourceSubscriptionId){
+    editSub(entry.sourceSubscriptionId);
+    return;
+  }
+  if(entry.group==='cuotas' && entry.sourceManualCuotaId){
+    editCuota(entry.sourceManualCuotaId);
+    return;
+  }
+  if(entry.group==='cuotas' && entry.sourceAutoCuotaKey){
+    openAutoCuotaModal(entry.sourceAutoCuotaKey);
+    return;
+  }
+  showToast('No encontramos un editor para este compromiso','info');
+}
+
+function deleteTxnCycleCommitment(key){
+  const entry=getTxnCycleCommitmentEntry(key);
+  if(!entry) return;
+  if(entry.sourceTxnId){
+    deleteTxn(entry.sourceTxnId);
+    return;
+  }
+  dismissTxnCycleCommitmentEntry(key);
+}
+
+function addTxnCycleCommitment(kind){
+  if(kind==='suscripciones'){
+    openNewSubModal();
+    return;
+  }
+  if(kind==='cuotas'){
+    openNewCuotaModal();
+    return;
+  }
+  openNewExpenseModal();
+}
+
 function renderTxnCycleCommitmentsPanel(wrap, entries){
   const oldPanel=document.getElementById('txn-cycle-commitments');
   if(oldPanel) oldPanel.remove();
   if(!wrap || !entries.length) return;
+  window._txnCycleCommitmentsByKey=entries.reduce((acc,entry)=>{
+    if(entry?._key) acc[entry._key]=entry;
+    return acc;
+  },{});
 
   const groupTabs=[
     {key:'all', label:'Todo'},
@@ -389,7 +450,11 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
         +'<div class="txn-cycle-panel-kicker">Cuotas y compromisos del ciclo</div>'
         +'<div class="txn-cycle-panel-sub">Acá ves lo que cae dentro del ciclo actual aunque el banco no mande un mail nuevo todos los meses.</div>'
       +'</div>'
-      +`<div class="txn-cycle-panel-count">${entries.length} item${entries.length!==1?'s':''}</div>`
+      +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">'
+        +'<button class="txn-cycle-tab" onclick="addTxnCycleCommitment(\'suscripciones\')">+ Suscripción</button>'
+        +'<button class="txn-cycle-tab" onclick="addTxnCycleCommitment(\'cuotas\')">+ Cuota</button>'
+        +`<div class="txn-cycle-panel-count">${entries.length} item${entries.length!==1?'s':''}</div>`
+      +'</div>'
     +'</div>'
     +'<div class="txn-cycle-tabs">'
       +tabs.map(tab=>`<button class="txn-cycle-tab ${effectiveTab===tab.key?'active':''}" onclick="setTxnCycleCommitmentsTab('${tab.key}')">${tab.label} <span>${counts[tab.key]||0}</span></button>`).join('')
@@ -411,7 +476,13 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
                   +`<div class="txn-cycle-meta">${esc(item.kind)} · ${esc(item.meta)} · ${settled?'Cobrado':'Pendiente'}</div>`
                 +'</div>'
                 +`<div class="txn-cycle-status ${settled?'is-settled':'is-pending'}">${settled?'Cobrado':'Pendiente'}</div>`
-                +`<div class="txn-cycle-amount" style="color:${item.tone};">${amount}</div>`
+                +'<div style="display:flex;align-items:center;gap:10px;justify-content:flex-end;">'
+                  +`<div class="txn-cycle-amount" style="color:${item.tone};">${amount}</div>`
+                  +'<div style="display:flex;align-items:center;gap:6px;">'
+                    +`<button class="calendar-item-link" onclick="event.stopPropagation();editTxnCycleCommitment('${item._key}')">Editar</button>`
+                    +`<button class="calendar-item-delete" onclick="event.stopPropagation();deleteTxnCycleCommitment('${item._key}')">Borrar</button>`
+                  +'</div>'
+                +'</div>'
               +'</div>';
             }).join('')+'</div>';
             const isARS=e=>(e.currency||'ARS')!=='USD';
@@ -466,6 +537,8 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
       title:sub.name||t.subscriptionName||t._baseDesc||t.description,
       amount:t.amount,
       currency:t.currency||sub.currency||'ARS',
+      sourceTxnId:t.id,
+      sourceSubscriptionId:sub.id,
       group:'suscripciones',
       kind:'Suscripción registrada',
       meta:'Cobro ya recibido',
@@ -495,6 +568,7 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
       title:t.thirdPartyNote||t._baseDesc||t.description,
       amount:recoverBase,
       currency:t.currency||'ARS',
+      sourceTxnId:t.id,
       group:'terceros',
       kind:'Gasto de terceros',
       meta,
@@ -917,10 +991,14 @@ function renderTransactions(){
     const breakdown=txnCategoryBreakdown(focusTxns);
     const dominant=breakdown[0]||{label:'Sin categoría',amount:0,pct:0};
     const todaySpend=groupedDays[0]?.total||0;
-    const avgDelta=avgDaily?Math.round(((todaySpend-avgDaily)/avgDaily)*100):0;
-    const positiveDelta=avgDelta>=0;
     const budgetTarget=Math.max(avgDaily*0.95,1);
     const progressPct=Math.min(100, Math.max(8, (todaySpend/budgetTarget)*100));
+    const periodSubscriptionTxns=focusTxns.filter(tx=>
+      (state.subscriptions||[]).some(sub=>typeof txnMatchesSubscription==='function' && txnMatchesSubscription(tx,sub))
+    );
+    const periodQuotaTxns=focusTxns.filter(tx=>!!tx.cuotaNum && !tx.isPendingCuota);
+    const periodSubscriptionTotal=periodSubscriptionTxns.reduce((s,tx)=>s+Math.abs(txnAmountArs(tx)),0);
+    const periodQuotaTotal=periodQuotaTxns.reduce((s,tx)=>s+Math.abs(txnAmountArs(tx)),0);
     const syncLabel=txnSyncLabel();
     const syncItems=txnSyncMetadata();
     const commitmentEntries=getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef);
@@ -1195,16 +1273,17 @@ function renderTransactions(){
               +'<div class="mv-insights-top"><div class="label">Mostrando insights</div><button class="mv-toggle" onclick="toggleTxnInsightsPanel()"></button></div>'
               +'<div class="mv-right-stack">'
                 +'<div class="mv-hero">'
-                  +'<div style="position:absolute;right:8px;top:16px;opacity:.88;"><svg width="84" height="72" viewBox="0 0 82 70" fill="none"><path d="M2 58c8-2 10-14 16-14 7 0 9 10 15 10 8 0 10-16 18-16 9 0 11 18 20 18 5 0 7-5 11-13" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round"/><circle cx="72" cy="31" r="4" fill="#38bdf8"/></svg></div>'
+              +'<div style="position:absolute;right:8px;top:16px;opacity:.88;"><svg width="84" height="72" viewBox="0 0 82 70" fill="none"><path d="M2 58c8-2 10-14 16-14 7 0 9 10 15 10 8 0 10-16 18-16 9 0 11 18 20 18 5 0 7-5 11-13" stroke="#38bdf8" stroke-width="2.5" stroke-linecap="round"/><circle cx="72" cy="31" r="4" fill="#38bdf8"/></svg></div>'
                   +'<div class="eyebrow"><span style="color:#7dd3fc;">✦</span> DATOS DEL PERÍODO · '+esc((groupedDays[0]?groupedDays[0].date.toLocaleDateString('es-AR',{day:'2-digit',month:'long'}):'sin datos')).toUpperCase()+'</div>'
-                  +'<h3>Vas un '+Math.abs(avgDelta)+'% '+(positiveDelta?'por encima':'por debajo')+' de tu vel. diaria</h3>'
-                  +'<p>Llevás gastado <strong style="color:#fff;">$'+fmtN(todaySpend)+'</strong> de <strong style="color:#fff;">$'+fmtN(budgetTarget)+'</strong> previstos</p>'
+                  +'<h3>'+esc(periodoLabel||'Vista actual')+'</h3>'
+                  +'<p><strong style="color:#fff;">'+focusTxns.length+' movimientos</strong> reales · <strong style="color:#fff;">$'+fmtN(totalSpend)+'</strong> en consumo registrado</p>'
                   +'<div class="mv-bar"><span></span></div>'
-                  +'<div style="text-align:right;font-size:10.5px;font-weight:700;color:rgba(255,255,255,.8)">Presupuesto: $'+fmtN(budgetTarget)+'</div>'
+                  +'<div style="text-align:right;font-size:10.5px;font-weight:700;color:rgba(255,255,255,.8)">'+breakdown.length+' categorías con actividad</div>'
                 +'</div>'
                 +'<div class="mv-mini-grid">'
-                  +'<div class="mv-card mv-mini"><div class="k">Velocidad de quema (día)</div><div class="v">$'+fmtN(avgDaily)+'</div><div class="s">'+(positiveDelta?'↑':'↓')+' '+Math.abs(avgDelta)+'% vs. promedio</div><div style="height:24px;display:flex;align-items:flex-end;gap:5px;">'+groupedDays.slice(0,7).reverse().map(g=>'<span style="display:block;width:10px;height:'+Math.max(6,Math.min(22,Math.round((g.total/(avgDaily||1))*10)))+'px;border-radius:999px;background:#0369a1;"></span>').join('')+'</div></div>'
                   +'<div class="mv-card mv-mini" style="border:1px solid #e0f2fe;"><div class="k">Mayor impacto</div><div class="mv-dominant"><div class="mv-dominant-icon">'+txnCategoryGlyph(dominant.label)+'</div><div style="min-width:0;flex:1;"><div style="font-size:12.5px;font-weight:800;color:#0c4a6e;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;">'+esc(dominant.label)+'</div><div style="margin-top:3px;font-size:11.1px;color:#0284c7;font-weight:700;">'+dominant.pct+'% del total</div></div></div></div>'
+                  +'<div class="mv-card mv-mini"><div class="k">Suscripciones</div><div class="v">$'+fmtN(periodSubscriptionTotal)+'</div><div class="s">'+periodSubscriptionTxns.length+' cobro'+(periodSubscriptionTxns.length===1?'':'s')+' real'+(periodSubscriptionTxns.length===1?'':'es')+' en este período</div></div>'
+                  +'<div class="mv-card mv-mini"><div class="k">Cuotas</div><div class="v">$'+fmtN(periodQuotaTotal)+'</div><div class="s">'+periodQuotaTxns.length+' cuota'+(periodQuotaTxns.length===1?'':'s')+' cobrada'+(periodQuotaTxns.length===1?'':'s')+' en este período</div></div>'
                 +'</div>'
                 +'<div class="mv-card mv-breakdown"><div class="mv-breakdown-head"><div class="t">TOP 5 CATEGORÍAS</div><button onclick="txnShowCategoryDetails()">Ranking</button></div>'
                 +'<div style="font-size:22px;font-weight:800;color:#0c4a6e;margin-top:4px;letter-spacing:-0.03em;">$'+fmtN(totalSpend)+'</div><div style="font-size:11px;color:#64748b;font-weight:600;margin-bottom:8px;">Total del período</div>'

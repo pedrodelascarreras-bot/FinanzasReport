@@ -174,6 +174,7 @@ function upsertImportedSubscriptionFromTxn(txn){
     merchantKey,
     sourceRuleId:txn.importRuleId||null,
     sourceBank:txn.sourceBank||'Gmail',
+    startDate:existing?.startDate||dateToYMD(txn.date),
     lastChargeDate:dateToYMD(txn.date),
     payMethod:txn.payMethod||existing?.payMethod||null,
     ownerProfileId:txn.ownerProfileId||state.activeUserProfileId||existing?.ownerProfileId||'default-profile'
@@ -191,12 +192,17 @@ function syncProjectedSubscriptionTransactions(){
   const projections=[];
   activeSubs.forEach(sub=>{
     const merchantKey=sub.merchantKey||getSubscriptionMerchantKey(sub.name);
-    const start=sub.lastChargeDate?new Date(sub.lastChargeDate+'T12:00:00'):today;
+    const startRef=sub.startDate||sub.lastChargeDate||null;
+    const start=startRef?new Date(startRef+'T12:00:00'):today;
     for(let offset=0;offset<6;offset++){
-      const candidate=new Date(start.getFullYear(),start.getMonth()+1+offset,1);
+      const candidate=new Date(start.getFullYear(),start.getMonth()+offset,1);
       const maxDay=new Date(candidate.getFullYear(),candidate.getMonth()+1,0).getDate();
       const chargeDay=Math.min(parseInt(sub.day,10)||1,maxDay);
       const chargeDate=new Date(candidate.getFullYear(),candidate.getMonth(),chargeDay);
+      if(sub.startDate){
+        const subStart=new Date(sub.startDate+'T00:00:00');
+        if(chargeDate<subStart) continue;
+      }
       if(chargeDate<today)continue;
       const monthKey=getMonthKey(chargeDate);
       const realExists=hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[]);
@@ -978,6 +984,7 @@ function openNewSubModal(){
   document.getElementById('modal-sub-editing').value='';
   document.getElementById('sub-name').value='';
   document.getElementById('sub-price').value='';document.getElementById('sub-day').value='';
+  document.getElementById('sub-start-date').value='';
   document.getElementById('sub-currency').value='ARS';document.getElementById('sub-freq').value='monthly';
   document.getElementById('btn-del-sub').style.display='none';
   initEmojiPicker('sub','🔔');
@@ -992,6 +999,7 @@ function editSub(id){
   document.getElementById('modal-sub-editing').value=id;
   document.getElementById('sub-name').value=s.name;
   document.getElementById('sub-price').value=s.price;document.getElementById('sub-day').value=s.day||'';
+  document.getElementById('sub-start-date').value=s.startDate||s.lastChargeDate||'';
   document.getElementById('sub-currency').value=s.currency||'ARS';document.getElementById('sub-freq').value=s.freq||'monthly';
   document.getElementById('sub-cat').value=s.cat||'Plataformas';
   document.getElementById('btn-del-sub').style.display='inline-flex';
@@ -1003,7 +1011,7 @@ function saveSub(){
   const name=document.getElementById('sub-name').value.trim();const price=parseFloat(document.getElementById('sub-price').value)||0;
   if(!name||price<=0){showToast('⚠️ Completá nombre y precio','error');return;}
   const sw=document.querySelector('#sub-color-picker .color-swatch.selected');const rawC=sw?sw.style.backgroundColor:'#888888';const color=rawC.startsWith('#')?rawC:rgbToHex(rawC);
-  const obj={id:Date.now().toString(36),name,emoji:document.getElementById('sub-emoji').value||'🔔',price,currency:document.getElementById('sub-currency').value,freq:document.getElementById('sub-freq').value,day:parseInt(document.getElementById('sub-day').value)||null,cat:document.getElementById('sub-cat').value,color};
+  const obj={id:Date.now().toString(36),name,emoji:document.getElementById('sub-emoji').value||'🔔',price,currency:document.getElementById('sub-currency').value,freq:document.getElementById('sub-freq').value,day:parseInt(document.getElementById('sub-day').value)||null,startDate:document.getElementById('sub-start-date').value||null,cat:document.getElementById('sub-cat').value,color};
   const editing=document.getElementById('modal-sub-editing').value;
   if(editing){const i=state.subscriptions.findIndex(x=>x.id===editing);if(i>=0)state.subscriptions[i]={...state.subscriptions[i],...obj,id:editing};}
   else state.subscriptions.push(obj);
