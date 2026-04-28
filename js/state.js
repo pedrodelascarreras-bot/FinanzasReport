@@ -380,6 +380,9 @@ async function loadFromDrive(){
     if(typeof enrichTransaction === 'function'){
       state.transactions.forEach(t=>enrichTransaction(t, t.origen_del_movimiento||'importado_desde_resumen'));
     }
+    if(typeof normalizeTcCyclesForConsistency === 'function'){
+      try{ normalizeTcCyclesForConsistency(); }catch(e){ console.warn('tc cycle normalize error', e); }
+    }
     // Also persist to localStorage
     try{
       localStorage.setItem('fin_state',JSON.stringify(getStateSnapshot()));
@@ -470,6 +473,9 @@ function loadState(){
     // Enrichment retroactivo: origen, nombre original Gmail, reglas y logos.
     if(typeof enrichTransaction === 'function'){
       state.transactions.forEach(t=>enrichTransaction(t, t.origen_del_movimiento||'importado_desde_resumen'));
+    }
+    if(typeof normalizeTcCyclesForConsistency === 'function'){
+      try{ normalizeTcCyclesForConsistency(); }catch(e){ console.warn('tc cycle normalize error', e); }
     }
     // populate legacy hidden fields for dashboard compat
     const latestInc=getLatestIncomeARS();if(latestInc)state.income.ars=latestInc;

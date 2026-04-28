@@ -75,6 +75,129 @@ function ensureViewCycleConfig(){
   };
 }
 
+function _tcCycleMonthKey(value){
+  return String(value||'').slice(0,7);
+}
+
+function _tcCycleLabelForCard(cardId, closeDate, fallbackLabel){
+  if(!closeDate) return fallbackLabel||'Ciclo';
+  const closeD=new Date(closeDate+'T12:00:00');
+  const monthLabel=closeD.toLocaleDateString('es-AR',{month:'short',year:'numeric'}).replace('.','');
+  const cardName=(state.ccCards||[]).find(c=>c.id===cardId)?.name||fallbackLabel||'Tarjeta';
+  return `${cardName.replace(/^Santander\s+/i,'')} · ${monthLabel}`;
+}
+
+function _tcCycleStatusRank(status){
+  if(status==='paid') return 3;
+  if(status==='minimum') return 2;
+  if(status==='pending') return 1;
+  return 0;
+}
+
+function normalizeTcCyclesForConsistency(){
+  ensureViewCycleConfig();
+  if(!Array.isArray(state.tcCycles)) state.tcCycles=[];
+  if(!Array.isArray(state.ccCycles)) state.ccCycles=[];
+  const manualCycles=(state.tcCycles||[])
+    .filter(c=>c&&c.closeDate)
+    .map(c=>({...c}));
+  if(!manualCycles.length) return false;
+
+  let changed=false;
+  const groups=new Map();
+  manualCycles.forEach(cycle=>{
+    const payMethod=(getTcCyclePayMethodKey(cycle)||'mes').toLowerCase();
+    const bucket=[payMethod, cycle.cardId||'', _tcCycleMonthKey(cycle.closeDate)].join('::');
+    if(!groups.has(bucket)) groups.set(bucket, []);
+    groups.get(bucket).push(cycle);
+  });
+
+  const nextCycles=[];
+  const removedIds=new Set();
+  const idRemap=new Map();
+
+  groups.forEach(group=>{
+    if(group.length===1){
+      nextCycles.push(group[0]);
+      return;
+    }
+    changed=true;
+    const sorted=group.slice().sort((a,b)=>{
+      const byClose=(a.closeDate||'').localeCompare(b.closeDate||'');
+      if(byClose!==0) return byClose;
+      const aAuto=(a.source||'manual')==='auto'?1:0;
+      const bAuto=(b.source||'manual')==='auto'?1:0;
+      return aAuto-bAuto;
+    });
+    const survivor={...sorted[sorted.length-1]};
+    const monthKey=_tcCycleMonthKey(survivor.closeDate);
+    survivor.openDate=monthKey?`${monthKey}-01`:(survivor.openDate||'');
+    survivor.dueDate=sorted.map(c=>c.dueDate).filter(Boolean).sort().pop()||survivor.dueDate||null;
+    survivor.source='manual';
+    survivor.label=_tcCycleLabelForCard(survivor.cardId, survivor.closeDate, survivor.label);
+    sorted.slice(0,-1).forEach(oldCycle=>{
+      removedIds.add(oldCycle.id);
+      idRemap.set(oldCycle.id, survivor.id);
+    });
+    nextCycles.push(survivor);
+  });
+
+  if(removedIds.size){
+    const mergedStates=[];
+    state.ccCycles.forEach(entry=>{
+      const nextId=idRemap.get(entry.tcCycleId)||entry.tcCycleId;
+      const existing=mergedStates.find(item=>item.cardId===entry.cardId&&item.tcCycleId===nextId);
+      if(!existing){
+        mergedStates.push({
+          ...entry,
+          id:`${nextId}_${entry.cardId||''}`,
+          tcCycleId:nextId,
+          manualExpenses:[...(entry.manualExpenses||[])],
+          excludedIds:[...(entry.excludedIds||[])]
+        });
+        return;
+      }
+      existing.manualExpenses=[...existing.manualExpenses,...(entry.manualExpenses||[])];
+      existing.excludedIds=Array.from(new Set([...(existing.excludedIds||[]),...(entry.excludedIds||[])]));
+      if(_tcCycleStatusRank(entry.status)>_tcCycleStatusRank(existing.status)) existing.status=entry.status;
+      if(!existing.dueDate&&entry.dueDate) existing.dueDate=entry.dueDate;
+      if(!existing.closeDate&&entry.closeDate) existing.closeDate=entry.closeDate;
+    });
+    state.ccCycles=mergedStates;
+    if(state.dashTcCycle&&removedIds.has(state.dashTcCycle)) state.dashTcCycle=idRemap.get(state.dashTcCycle)||null;
+    if(window._tcCycleEditId&&removedIds.has(window._tcCycleEditId)) window._tcCycleEditId=idRemap.get(window._tcCycleEditId)||'';
+    if(window._ccViewCycle){
+      Object.keys(window._ccViewCycle).forEach(cardId=>{
+        const cycleId=window._ccViewCycle[cardId];
+        if(cycleId&&removedIds.has(cycleId)) window._ccViewCycle[cardId]=idRemap.get(cycleId)||null;
+      });
+    }
+  }
+
+  state.tcCycles=nextCycles.sort((a,b)=>(b.closeDate||'').localeCompare(a.closeDate||''));
+
+  ['visa','amex'].forEach(payMethod=>{
+    const latest=state.tcCycles.find(c=>(getTcCyclePayMethodKey(c)||'').toLowerCase()===payMethod);
+    if(!latest?.closeDate) return;
+    const closeD=new Date(latest.closeDate+'T12:00:00');
+    const cfg=state.viewCycleConfig[payMethod]||{};
+    const closeDay=closeD.getDate();
+    const openDay=latest.openDate ? new Date(latest.openDate+'T12:00:00').getDate() : cfg.openDay;
+    const dueDay=latest.dueDate ? new Date(latest.dueDate+'T12:00:00').getDate() : cfg.dueDay;
+    if(cfg.closeDay!==closeDay||cfg.openDay!==openDay||cfg.dueDay!==dueDay){
+      state.viewCycleConfig[payMethod]={...cfg,openDay,closeDay,dueDay};
+      changed=true;
+    }
+  });
+
+  const validIds=new Set(state.tcCycles.map(c=>c.id));
+  if(state.dashTcCycle&&!validIds.has(state.dashTcCycle)){
+    state.dashTcCycle=null;
+    changed=true;
+  }
+  return changed;
+}
+
 function _safeCycleDay(value, fallback){
   const n=Math.max(1, Math.min(31, Number(value)||fallback));
   return Number.isFinite(n)?n:fallback;
@@ -177,6 +300,7 @@ function _ensureTcCycleVisible(signature){
 }
 
 function getTcCycles(mode){
+  normalizeTcCyclesForConsistency();
   const normalizedMode=mode?normalizeViewMode(mode):null;
   const legacy=(state.tcCycles||[]).map(c=>{
     const explicitPayMethod=(c.payMethodKey||'').toLowerCase();
@@ -211,7 +335,8 @@ function getTcCycles(mode){
   rows=rows.filter(c=>{
     const close=c.closeDate||'';
     const open=c.openDate||close;
-    return close>=range.startYmd && open<=range.todayYmd;
+    const closeMonth=_tcCycleMonthKey(close);
+    return close>=range.startYmd && open<=range.todayYmd && (!closeMonth || closeMonth<=range.currentMonthKey);
   });
   return rows.slice().sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
 }
@@ -329,6 +454,7 @@ function addTcCycleFromCC(){
   }else{
     state.tcCycles.push(nextCycle);
   }
+  normalizeTcCyclesForConsistency();
   window._tcCycleEditId='';
   window._ccConfigDraftCardId=cardId||'';
   saveState();
@@ -490,10 +616,12 @@ function setPayMethod(method){
 window.addEventListener('DOMContentLoaded',()=>{
   loadState();
   ensureViewCycleConfig();
+  const tcCyclesChanged=normalizeTcCyclesForConsistency();
   state.dashView=resolveUiViewMode(state.dashView||'visa');
   state.txnFilterMode=resolveUiViewMode(state.txnFilterMode||'visa');
   state.tendMode=resolveUiViewMode(state.tendMode||'visa');
   state.repMode=resolveUiViewMode(state.repMode||'visa');
+  if(tcCyclesChanged) saveState();
   ensureActiveUserProfileBootstrap();
   ensureGmailImportRules();
   state.gmailClientId = getGmailClientId();
@@ -628,6 +756,7 @@ function importBackupJSON(event){
       localStorage.setItem('fin_state',JSON.stringify(data.state));
       localStorage.setItem('fin_last_restore', new Date().toISOString());
       loadState();
+      normalizeTcCyclesForConsistency();
       saveState();
       refreshAll();
       updateLastRestoreLabel();
@@ -1966,6 +2095,7 @@ function applyUserProfile(profileId){
     state.gmailClientId = profile.gmailClientId;
     localStorage.setItem('fin_gmail_client_id', profile.gmailClientId);
   }
+  normalizeTcCyclesForConsistency();
   saveState();
   if(typeof refreshAll === 'function') refreshAll();
   renderSettingsPage();
