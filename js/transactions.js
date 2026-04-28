@@ -2250,7 +2250,7 @@ function saveNewExpense(){
   if(!desc){showToast('Ingresa una descripcion','error');return;}
   if(!dateVal){showToast('Ingresa una fecha','error');return;}
   if(!amountVal||amountVal<=0){showToast('Ingresa un monto valido','error');return;}
-  const payMethodMap={ef:'ef',deb:'deb',tc:'tc',usd:'ef'};
+  const payMethodMap={ef:'ef',deb:'deb',visa:'visa',amex:'amex',usd:'ef'};
   const currency=method==='usd'?'USD':'ARS';
   const date=new Date(dateVal+'T12:00:00');
   const id=Math.random().toString(36).substr(2,9);

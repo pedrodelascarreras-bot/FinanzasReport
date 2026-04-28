@@ -21636,7 +21636,13 @@ body:not(.light-mode) .sidebar-brand .df-drip{
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 12px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
 }
+.tend-share-cat-head.is-clickable { cursor: pointer; }
 .tend-share-cat-main { display: flex; align-items: center; gap: 12px; min-width: 0; }
 .tend-share-cat-emoji {
   width: 40px;
@@ -21666,6 +21672,33 @@ body:not(.light-mode) .sidebar-brand .df-drip{
   display: flex;
   flex-direction: column;
   gap: 3px;
+}
+.tend-share-cat-side-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.tend-share-cat-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  color: var(--text3);
+  font-size: 18px;
+  line-height: 1;
+  transition: transform 0.18s ease, color 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+.tend-share-cat-chevron.is-ready {
+  border-color: var(--border);
+  background: rgba(255,255,255,0.04);
+}
+.tend-share-cat-head.is-clickable:hover .tend-share-cat-chevron.is-ready {
+  color: var(--text);
+  background: rgba(255,255,255,0.08);
 }
 .tend-share-cat-side strong {
   font-size: 28px;
@@ -21901,6 +21934,7 @@ body.light-mode .tend-share-subtrack {
   .tend-share-donut { width: min(100%, 210px); }
   .tend-share-cat-head { flex-direction: column; }
   .tend-share-cat-side { text-align: left; }
+  .tend-share-cat-side-wrap { width: 100%; justify-content: space-between; }
 }
 
 /* ── Ranking accordion ── */

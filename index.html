@@ -1758,22 +1758,6 @@
           <div class="tend-context-insight" id="tend-context-insight" style="display:none;"></div>
         </div>
 
-        <!-- Ranking de gasto -->
-        <div class="table-card tend-ranking-wrap fade-up d2">
-          <div class="table-header-inline" style="padding:16px 20px 12px;">
-            <div>
-              <div class="table-title">Ranking de gasto</div>
-              <div class="table-sub table-subtle" id="tend-ranking-sub">Por monto total</div>
-            </div>
-            <div style="display:flex;gap:6px;flex-wrap:wrap;">
-              <button class="tend-rank-tab active" id="rank-tab-monto" onclick="setTendRankingTab('monto')">Por monto</button>
-              <button class="tend-rank-tab" id="rank-tab-anterior" onclick="setTendRankingTab('anterior')">vs. Anterior</button>
-              <button class="tend-rank-tab" id="rank-tab-pct" onclick="setTendRankingTab('participacion')">Participación</button>
-            </div>
-          </div>
-          <div id="tend-ranking-list" style="padding:0 20px 16px;"></div>
-        </div>
-
       </div>
 
       <!-- Right: Insights panel -->
@@ -3294,7 +3278,7 @@
 <div class="modal-overlay" id="modal-new-expense">
   <div class="modal" style="width:520px;">
     <div class="modal-title">Nuevo gasto manual</div>
-    <div class="modal-sub">Registra un gasto de efectivo, debito, tarjeta o USD</div>
+    <div class="modal-sub">Registra un gasto de efectivo, debito, Visa, AMEX o USD</div>
     <div style="display:flex;flex-direction:column;gap:14px;">
       <div class="grid-2">
         <div class="input-group"><label class="input-label">Descripcion</label><input id="ne-desc" type="text" class="input-field" placeholder="Ej: Almuerzo, Farmacia..."></div>
@@ -3306,7 +3290,8 @@
           <select id="ne-method" class="input-field">
             <option value="ef">Efectivo</option>
             <option value="deb">Débito</option>
-            <option value="tc">Tarjeta de crédito</option>
+            <option value="visa">Tarjeta de crédito Visa</option>
+            <option value="amex">Tarjeta de crédito American Express</option>
             <option value="usd">USD</option>
           </select>
         </div>

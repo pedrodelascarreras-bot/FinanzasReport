@@ -320,6 +320,8 @@ function _tend_renderMonthlyShare(customEl,currentLabel,grandTotal,sortedParents
   `).join('');
 
   const cards=categories.map(item=>{
+    const safeId=`tend-share-sub-${item.parent.replace(/[^a-zA-Z0-9]/g,'_')}`;
+    const hasSubEntries=item.subEntries.length>0;
     const subRows=item.subEntries.map(sub=>`
       <div class="tend-share-subrow">
         <div class="tend-share-subcopy">
@@ -338,23 +340,26 @@ function _tend_renderMonthlyShare(customEl,currentLabel,grandTotal,sortedParents
 
     return `
       <article class="tend-share-cat-card">
-        <div class="tend-share-cat-head">
+        <button class="tend-share-cat-head${hasSubEntries?' is-clickable':''}" ${hasSubEntries?`type="button" onclick="toggleBreakdown('${safeId}')"`:'type="button" disabled'}>
           <div class="tend-share-cat-main">
             <span class="tend-share-cat-emoji">${item.emoji}</span>
             <div class="tend-share-cat-copy">
               <div class="tend-share-cat-name">${esc(item.parent)}</div>
-              <div class="tend-share-cat-meta">${item.subEntries.length} subcategoría${item.subEntries.length!==1?'s':''} · $${fmtN(item.amount)}</div>
+              <div class="tend-share-cat-meta">${item.subEntries.length} subcategoría${item.subEntries.length!==1?'s':''} · $${fmtN(item.amount)}${hasSubEntries?' · tocar para desplegar':''}</div>
             </div>
           </div>
-          <div class="tend-share-cat-side">
-            <strong style="color:${item.color};">${_tend_pctLabel(item.pct)}</strong>
-            <span>$${fmtN(item.amount)} · del mes</span>
+          <div class="tend-share-cat-side-wrap">
+            <div class="tend-share-cat-side">
+              <strong style="color:${item.color};">${_tend_pctLabel(item.pct)}</strong>
+              <span>$${fmtN(item.amount)} · del mes</span>
+            </div>
+            <span class="tend-share-cat-chevron${hasSubEntries?' is-ready':''}" id="${safeId}-chevron">›</span>
           </div>
-        </div>
+        </button>
         <div class="tend-share-cat-track">
           <div class="tend-share-cat-fill" style="width:${_tend_pctWidth(item.pct)}%;background:${item.color};"></div>
         </div>
-        <div class="tend-share-sublist">${subRows}</div>
+        <div class="tend-share-sublist" id="${safeId}" style="display:none;">${subRows}</div>
       </article>
     `;
   }).join('');
