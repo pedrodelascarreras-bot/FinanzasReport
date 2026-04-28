@@ -21,6 +21,22 @@ function hasReachedEffectiveChargeDate(value,todayRef=new Date()){
   const todayYmd=dateToYMD(todayRef);
   return !!ymd && !!todayYmd && ymd<=todayYmd;
 }
+function hasRealCuotaChargeForInstallment(cuotaGroupId, cuotaNum, txns=state.transactions||[]){
+  if(!cuotaGroupId || !cuotaNum) return false;
+  return txns.some(txn=>
+    !txn.isPendingCuota &&
+    txn.cuotaGroupId===cuotaGroupId &&
+    Number(txn.cuotaNum)===Number(cuotaNum)
+  );
+}
+function hasRealCuotaChargeInMonth(cuotaGroupId, monthKey, txns=state.transactions||[]){
+  if(!cuotaGroupId || !monthKey) return false;
+  return txns.some(txn=>
+    !txn.isPendingCuota &&
+    txn.cuotaGroupId===cuotaGroupId &&
+    getMonthKey(txn.date)===monthKey
+  );
+}
 function getRecurringDatesInRange(day,start,end){
   if(!day||!start||!end) return [];
   const dates=[];
@@ -57,6 +73,13 @@ function getProjectedCommitmentEntriesForRange(opts={}){
   };
 
   sourceTxns.filter(t=>(t.isPendingCuota||t.isPendingSubscription)&&inRange(t.date)).forEach(t=>{
+    if(t.isPendingCuota){
+      const monthKey=getMonthKey(t.date);
+      if(
+        hasRealCuotaChargeForInstallment(t.cuotaGroupId, t.cuotaNum, sourceTxns) ||
+        hasRealCuotaChargeInMonth(t.cuotaGroupId, monthKey, sourceTxns)
+      ) return;
+    }
     if(t.isPendingSubscription && t.sourceSubscriptionId){
       const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
       const monthKey=getMonthKey(t.date);
@@ -87,6 +110,9 @@ function getProjectedCommitmentEntriesForRange(opts={}){
       const dueDay=snap.cfg?.day||snap.scheduleDay||null;
       if(!dueDay) return;
       getRecurringDatesInRange(dueDay,start,end).forEach(dueDate=>{
+        const monthKey=getMonthKey(dueDate);
+        const groupId=group.transactions[0]?.cuotaGroupId||null;
+        if(groupId && hasRealCuotaChargeInMonth(groupId, monthKey, sourceTxns)) return;
         const matured=hasReachedEffectiveChargeDate(dueDate,todayRef);
         const cuotaIndex=Math.min(snap.total, Math.max(1, matured ? snap.paid : snap.paid+1));
         addEntry(`auto-${group.key}-${dateToYMD(dueDate)}`,{

@@ -61,6 +61,7 @@ function ccGetCycleExpenses(cardId, tcCycleId){
   const _tcGeneric=['tc','Tarjeta de Crédito','tarjeta_credito'];
   const txnExpenses=(state.transactions||[]).filter(t=>{
     if(excluded.has(t.id))return false;
+    if(t.isPendingCuota||t.isPendingSubscription)return false;
     if(pmKey){
       // Exact card match always counts. Generic TC tags count only once on the owner card.
       const _match=t.payMethod===pmKey||(_tcGeneric.includes(t.payMethod)&&cardId===genericOwnerId);
