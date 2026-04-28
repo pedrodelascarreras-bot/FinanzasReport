@@ -386,6 +386,9 @@ async function loadFromDrive(){
     if(typeof normalizeTcCyclesForConsistency === 'function'){
       try{ normalizeTcCyclesForConsistency(); }catch(e){ console.warn('tc cycle normalize error', e); }
     }
+    if(typeof reconcileDeletedCommitmentHistory === 'function'){
+      try{ reconcileDeletedCommitmentHistory({ silent:true }); }catch(e){ console.warn('commitment reconcile error', e); }
+    }
     // Also persist to localStorage
     try{
       localStorage.setItem('fin_state',JSON.stringify(getStateSnapshot()));
@@ -480,6 +483,9 @@ function loadState(){
     }
     if(typeof normalizeTcCyclesForConsistency === 'function'){
       try{ normalizeTcCyclesForConsistency(); }catch(e){ console.warn('tc cycle normalize error', e); }
+    }
+    if(typeof reconcileDeletedCommitmentHistory === 'function'){
+      try{ reconcileDeletedCommitmentHistory({ silent:true }); }catch(e){ console.warn('commitment reconcile error', e); }
     }
     // populate legacy hidden fields for dashboard compat
     const latestInc=getLatestIncomeARS();if(latestInc)state.income.ars=latestInc;

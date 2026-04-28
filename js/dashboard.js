@@ -326,7 +326,21 @@ function getDashboardTimelineData(baseDate=new Date()){
 }
 function normalizeAgendaDate(value){
   if(!value) return null;
-  const dt=value instanceof Date?new Date(value):new Date(value);
+  let dt=null;
+  if(value instanceof Date){
+    dt=new Date(value);
+  } else if(typeof value==='string'){
+    const trimmed=value.trim();
+    const match=trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(match){
+      const [,yy,mm,dd]=match;
+      dt=new Date(Number(yy), Number(mm)-1, Number(dd), 12, 0, 0, 0);
+    } else {
+      dt=new Date(trimmed);
+    }
+  } else {
+    dt=new Date(value);
+  }
   if(isNaN(dt)) return null;
   dt.setHours(12,0,0,0);
   return dt;
@@ -838,9 +852,12 @@ function deleteCalendarAgendaItem(itemKey){
   }
   if(item.subscriptionId){
     if(!confirm('¿Eliminar esta suscripción?')) return;
-    state.subscriptions=(state.subscriptions||[]).filter(s=>s.id!==item.subscriptionId);
-    if(typeof syncProjectedSubscriptionTransactions==='function') syncProjectedSubscriptionTransactions();
-    saveState();
+    if(typeof deleteSubscriptionById==='function') deleteSubscriptionById(item.subscriptionId,{silent:true});
+    else {
+      state.subscriptions=(state.subscriptions||[]).filter(s=>s.id!==item.subscriptionId);
+      if(typeof syncProjectedSubscriptionTransactions==='function') syncProjectedSubscriptionTransactions();
+      saveState();
+    }
     refreshCalendarViews();
     showToast('Suscripción eliminada','info');
     return;
@@ -855,15 +872,19 @@ function deleteCalendarAgendaItem(itemKey){
   }
   if(item.manualCuotaId){
     if(!confirm('¿Eliminar esta cuota manual?')) return;
-    state.cuotas=(state.cuotas||[]).filter(c=>c.id!==item.manualCuotaId);
-    saveState();
+    if(typeof deleteManualCuotaById==='function') deleteManualCuotaById(item.manualCuotaId,{silent:true});
+    else {
+      state.cuotas=(state.cuotas||[]).filter(c=>c.id!==item.manualCuotaId);
+      saveState();
+    }
     refreshCalendarViews();
     showToast('Cuota eliminada','info');
     return;
   }
   if(item.autoCuotaKey){
     if(!confirm('¿Ocultar esta cuota automática del seguimiento?')) return;
-    if(typeof dismissAutoCuota==='function') dismissAutoCuota(item.autoCuotaKey);
+    if(typeof dismissAutoCuotaWithHistory==='function') dismissAutoCuotaWithHistory(item.autoCuotaKey,{silent:true});
+    else if(typeof dismissAutoCuota==='function') dismissAutoCuota(item.autoCuotaKey);
     refreshCalendarViews();
   }
 }
@@ -1330,6 +1351,14 @@ function renderDashboard(){
   let syntheticARS=0;
   let syntheticUSD=0;
   let syntheticCount=0;
+  const dashboardRangeMeta=(()=>{
+    if(_tcModeActive&&activeTcCycle){
+      const scopedCycles=getTcCycles(activeCycleMode);
+      const openStr=getTcCycleOpen(scopedCycles, scopedCycles.findIndex(c=>c.id===activeTcCycle.id))||activeTcCycle.closeDate;
+      return {openStr,closeStr:activeTcCycle.closeDate};
+    }
+    return null;
+  })();
   const getSyntheticCycleTotals=cycle=>{
     if(!cycle) return {ars:0,usd:0,count:0};
     const totals={ars:0,usd:0,count:0};
@@ -1488,106 +1517,73 @@ function renderDashboard(){
   const debWidgetAmt=_tcWidgetTxns.filter(t=>t.currency==='ARS'&&t.payMethod==='deb').reduce((s,t)=>s+t.amount,0);
   const hasPayTagsWidget=_tcWidgetTxns.some(t=>t.payMethod);
 
+  const dashboardCards=(state.ccCards||[]);
   const dashboardCardTotals={};
   const dashboardCardDisplayTotals={};
   let dashboardCardsArs=0;
   let dashboardCardsUsd=0;
   let dashboardCardsCount=0;
-  const dashboardCards=(state.ccCards||[]);
-  const dashboardCardCycleByCardId={};
-  const dashboardCardCycleByKey={};
-  const _dashboardAnchorYmd=(dashboardCycleForCards?.closeDate)||dateToYMD(today);
-  const _resolveCardCycleByMode=(modeKey)=>{
-    const mode=normalizeViewMode(modeKey||'mes');
-    const cardCycles=getTcCycles(mode);
-    if(!cardCycles.length) return null;
-    const containing=cardCycles.find(c=>{
-      const idx=cardCycles.findIndex(x=>x.id===c.id);
-      const open=getTcCycleOpen(cardCycles, idx);
-      return open&&_dashboardAnchorYmd>=open&&_dashboardAnchorYmd<=c.closeDate;
-    });
-    if(containing) return containing;
-    const latestPast=cardCycles.find(c=>(c.closeDate||'')<=_dashboardAnchorYmd);
-    if(latestPast) return latestPast;
-    return cardCycles[cardCycles.length-1]||cardCycles[0]||null;
-  };
-  if(dashboardCards.length){
-    dashboardCards.forEach(card=>{
-      const cardMode=normalizeViewMode((card.payMethodKey||'mes').toLowerCase());
-      let cardCycle=null;
-      if(
-        dashboardCycleForCards &&
-        (
-          (dashboardCycleForCards.cardId&&dashboardCycleForCards.cardId===card.id) ||
-          (
-            !dashboardCycleForCards.cardId &&
-            normalizeViewMode((dashboardCycleForCards.payMethodKey||activeCycleMode||'mes').toLowerCase())===cardMode
-          )
-        )
-      ){
-        cardCycle=dashboardCycleForCards;
-      }else{
-        cardCycle=_resolveCardCycleByMode(cardMode);
-      }
-      if(cardCycle){
-        dashboardCardCycleByCardId[card.id]=cardCycle;
-        dashboardCardCycleByKey[(card.payMethodKey||card.id||'').toLowerCase()]=cardCycle;
-      }
-    });
-  }
-  if(isTcView&&dashboardCycleForCards&&dashboardCards.length&&typeof ccGetCycleExpenses==='function'&&typeof ccGetTotals==='function'){
-    dashboardCards.forEach(card=>{
-      const scopedCycle=dashboardCardCycleByCardId[card.id]||dashboardCycleForCards;
-      if(!scopedCycle){
-        dashboardCardTotals[card.payMethodKey||card.id]={ars:0,usd:0,count:0};
-        dashboardCardDisplayTotals[card.payMethodKey||card.id]={ars:0,usd:0,count:0};
-        return;
-      }
-      const expenses=ccGetCycleExpenses(card.id,scopedCycle.id).filter(isCountableCycleExpense);
-      const totals=ccGetTotals(expenses);
-      dashboardCardTotals[card.payMethodKey||card.id]={ars:totals.ars||0,usd:totals.usd||0,count:totals.count||0};
-      dashboardCardDisplayTotals[card.payMethodKey||card.id]={ars:totals.ars||0,usd:totals.usd||0,count:totals.count||0};
-      dashboardCardsArs+=totals.ars||0;
-      dashboardCardsUsd+=totals.usd||0;
-      dashboardCardsCount+=totals.count||0;
-    });
-  } else if(!isTcView&&dashboardCards.length){
-    // Vista Mes: monthly totals per card from monthTxns
-    dashboardCards.forEach(card=>{
-      const key=(card.payMethodKey||card.id||'').toLowerCase();
-      const cardTxns=monthTxns.filter(t=>(t.payMethod||'').toLowerCase()===key&&!t.isPendingCuota&&!t.isPendingSubscription);
-      const ars=cardTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-      const usd=cardTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-      const count=cardTxns.length;
-      dashboardCardTotals[key]={ars,usd,count};
-      dashboardCardDisplayTotals[key]={ars,usd,count};
-      dashboardCardsArs+=ars;
-      dashboardCardsUsd+=usd;
-      dashboardCardsCount+=count;
-    });
-  }
-  const widgetSyntheticTotals=(dashboardCycleForCards&&dashboardCards.length)
-    ? ((_tcModeActive&&activeTcCycle&&dashboardCycleForCards.id===activeTcCycle.id)
-        ? {ars:syntheticARS,usd:syntheticUSD,count:syntheticCount}
-        : getSyntheticCycleTotals(dashboardCycleForCards))
-    : {ars:0,usd:0,count:0};
-  if(dashboardCycleForCards&&dashboardCards.length){
-    const cycleOwnerCardId=state.ccActiveCard||dashboardCards.find(c=>c.payMethodKey==='visa')?.id||dashboardCards[0]?.id||null;
-    const cycleOwnerCard=dashboardCards.find(c=>c.id===cycleOwnerCardId)||dashboardCards[0]||null;
-    const cycleOwnerKey=cycleOwnerCard?.payMethodKey||cycleOwnerCard?.id||null;
-    if(cycleOwnerKey){
-      const ownerTotals=dashboardCardDisplayTotals[cycleOwnerKey]||{ars:0,usd:0,count:0};
-      dashboardCardDisplayTotals[cycleOwnerKey]={
-        ars:(ownerTotals.ars||0)+widgetSyntheticTotals.ars,
-        usd:(ownerTotals.usd||0)+widgetSyntheticTotals.usd,
-        count:(ownerTotals.count||0)+widgetSyntheticTotals.count
-      };
-    }
-  }
-  if(isTcView&&dashboardCycleForCards&&dashboardCards.length){
-    arsMonth=dashboardCardsArs+syntheticARS;
-    usdMonth=dashboardCardsUsd+syntheticUSD;
-    cntMonth=dashboardCardsCount+syntheticCount;
+  dashboardCards.forEach(card=>{
+    const key=(card.payMethodKey||card.id||'').toLowerCase();
+    dashboardCardTotals[key]={ars:0,usd:0,count:0};
+    dashboardCardDisplayTotals[key]={ars:0,usd:0,count:0};
+  });
+  const dashboardCardBaseTxns=(monthTxns||[]).filter(t=>{
+    if(t.isPendingCuota||t.isPendingSubscription) return false;
+    const key=(t.payMethod||'').toLowerCase();
+    return key==='visa'||key==='amex';
+  });
+  dashboardCardBaseTxns.forEach(t=>{
+    const key=(t.payMethod||'').toLowerCase();
+    if(!dashboardCardTotals[key]) dashboardCardTotals[key]={ars:0,usd:0,count:0};
+    if((t.currency||'ARS')==='USD') dashboardCardTotals[key].usd+=(Number(t.amount)||0);
+    else dashboardCardTotals[key].ars+=(Number(t.amount)||0);
+    dashboardCardTotals[key].count++;
+  });
+  const dashboardProjectedEntries=(dashboardRangeMeta&&typeof getProjectedCommitmentEntriesForRange==='function')
+    ? getProjectedCommitmentEntriesForRange({
+        startStr:dashboardRangeMeta.openStr,
+        endStr:dashboardRangeMeta.closeStr,
+        todayRef:today,
+        txns:state.transactions||[]
+      }).filter(entry=>entry.includeInTotal)
+    : [];
+  dashboardProjectedEntries.forEach(entry=>{
+    const ownerKey=(entry.payMethod||'').toLowerCase()==='amex'?'amex':'visa';
+    if(!dashboardCardDisplayTotals[ownerKey]) dashboardCardDisplayTotals[ownerKey]={ars:0,usd:0,count:0};
+    if((entry.currency||'ARS')==='USD') dashboardCardDisplayTotals[ownerKey].usd+=(Number(entry.amount)||0);
+    else dashboardCardDisplayTotals[ownerKey].ars+=(Number(entry.amount)||0);
+    dashboardCardDisplayTotals[ownerKey].count++;
+  });
+  Object.keys(dashboardCardTotals).forEach(key=>{
+    dashboardCardDisplayTotals[key]={
+      ars:(dashboardCardTotals[key]?.ars||0)+(dashboardCardDisplayTotals[key]?.ars||0),
+      usd:(dashboardCardTotals[key]?.usd||0)+(dashboardCardDisplayTotals[key]?.usd||0),
+      count:(dashboardCardTotals[key]?.count||0)+(dashboardCardDisplayTotals[key]?.count||0)
+    };
+    dashboardCardsArs+=dashboardCardDisplayTotals[key].ars||0;
+    dashboardCardsUsd+=dashboardCardDisplayTotals[key].usd||0;
+    dashboardCardsCount+=dashboardCardDisplayTotals[key].count||0;
+  });
+  const dashboardSummaryTotals=(typeof getTxnDisplaySummaryTotals==='function')
+    ? getTxnDisplaySummaryTotals({
+        mode:isTcView?activeCycleMode:'mes',
+        activeCycleMeta:dashboardRangeMeta,
+        searchVal:'',
+        txns:monthTxns||[],
+        summaryTxns:monthTxns||[],
+        todayRef:today,
+        monthKey:activeMk,
+        hasCategoryFilter:false,
+        hasCurrencyFilter:false,
+        hasCardFilter:false,
+        estadoFilter:'all'
+      })
+    : {ars:arsMonth,usd:usdMonth,grand:arsMonth+(usdMonth*(window.USD_TO_ARS||USD_TO_ARS||1))};
+  arsMonth=dashboardSummaryTotals.ars||0;
+  usdMonth=dashboardSummaryTotals.usd||0;
+  if(isTcView&&dashboardCards.length){
+    cntMonth=dashboardCardsCount||cntMonth;
   }
   const rawPeriodArsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticARS:projectedMonthTotals.ars);
   const rawPeriodUsdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticUSD:projectedMonthTotals.usd);

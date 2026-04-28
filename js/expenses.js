@@ -18,18 +18,10 @@ function getAutoCuotaConfig(group){
   return cfgs[group.key]||cfgs[group.legacyKey]||{};
 }
 
-function dismissAutoCuota(key){
+function getAutoCuotaGroups(includeDismissed=false){
   if(!state.dismissedAutoCuotas) state.dismissedAutoCuotas=[];
-  if(!state.dismissedAutoCuotas.includes(key)) state.dismissedAutoCuotas.push(key);
-  saveState();renderCuotas();showToast('Cuota removida','info');
-}
-
-function detectAutoCuotas(){
-  if(!state.dismissedAutoCuotas) state.dismissedAutoCuotas=[];
-  // Group transactions that look like installments (have cuotaNum/cuotaTotal)
   const groups={};
   state.transactions.filter(t=>t.cuotaNum&&t.cuotaTotal).forEach(t=>{
-    // normalize key: strip the cuota number from description to get the base name
     const baseName=t.description.replace(/\s*\d+\/\d+\s*$/,'').replace(/cuota\s+\d+\s+de\s+\d+/i,'').trim();
     const key=getAutoCuotaKey(t,baseName);
     const legacyKey=getLegacyAutoCuotaKey(baseName);
@@ -37,7 +29,251 @@ function detectAutoCuotas(){
     if(!groups[key])groups[key]={key,legacyKey,name:baseName,displayName:alias||baseName,transactions:[],amount:t.amount,currency:t.currency};
     groups[key].transactions.push(t);
   });
-  return Object.values(groups).filter(g=>!state.dismissedAutoCuotas.includes(g.key)&&!state.dismissedAutoCuotas.includes(g.legacyKey));
+  const all=Object.values(groups);
+  if(includeDismissed) return all;
+  return all.filter(g=>!state.dismissedAutoCuotas.includes(g.key)&&!state.dismissedAutoCuotas.includes(g.legacyKey));
+}
+
+function buildCommitmentMaterializedTxn(base={}){
+  const dateValue=base.date instanceof Date?new Date(base.date):new Date(String(base.date).includes('T')?base.date:(String(base.date)+'T12:00:00'));
+  if(Number.isNaN(dateValue.getTime())) return null;
+  dateValue.setHours(12,0,0,0);
+  return {
+    ...base,
+    date:dateValue,
+    week:getWeekKey(dateValue),
+    month:getMonthKey(dateValue),
+    isMaterializedCommitment:true,
+    estado_revision:base.estado_revision||'detectado_automaticamente',
+    origen_del_movimiento:base.origen_del_movimiento||'compromiso_materializado'
+  };
+}
+
+function appendMaterializedCommitmentTxn(txn){
+  if(!txn||!txn.id) return false;
+  if((state.transactions||[]).some(existing=>existing.id===txn.id)) return false;
+  state.transactions=[...(state.transactions||[]),txn];
+  return true;
+}
+
+function getAutoCuotaInstallmentDate(firstTxn, installmentNum, dueDay){
+  if(!firstTxn||!installmentNum) return null;
+  const firstDate=firstTxn.date instanceof Date?new Date(firstTxn.date):new Date(firstTxn.date);
+  if(Number.isNaN(firstDate.getTime())) return null;
+  const firstNum=Math.max(1,Number(firstTxn.cuotaNum)||1);
+  const monthOffset=Number(installmentNum)-firstNum;
+  const target=new Date(firstDate.getFullYear(),firstDate.getMonth()+monthOffset,1,12,0,0,0);
+  const maxDay=new Date(target.getFullYear(),target.getMonth()+1,0).getDate();
+  target.setDate(Math.min(Number(dueDay)||firstDate.getDate(),maxDay));
+  target.setHours(12,0,0,0);
+  return target;
+}
+
+function materializeAutoCuotaHistoryForGroup(group, opts={}){
+  if(!group?.transactions?.length) return 0;
+  const todayRef=opts.todayRef instanceof Date?opts.todayRef:new Date();
+  const snap=getAutoCuotaSnapshot(group,todayRef);
+  const firstTxn=snap.firstTxn;
+  const groupId=group.transactions[0]?.cuotaGroupId||null;
+  if(!firstTxn||!groupId) return 0;
+  let created=0;
+  const dueDay=snap.cfg?.day||snap.scheduleDay||new Date(firstTxn.date).getDate();
+  const maxInstallment=Math.min(Number(snap.total)||0, Number(snap.paid)||0);
+  for(let installmentNum=1;installmentNum<=maxInstallment;installmentNum++){
+    if(hasRealCuotaChargeForInstallment(groupId, installmentNum, state.transactions||[])) continue;
+    const chargeDate=getAutoCuotaInstallmentDate(firstTxn, installmentNum, dueDay);
+    if(!chargeDate || !hasReachedEffectiveChargeDate(chargeDate, todayRef)) continue;
+    const materialized=buildCommitmentMaterializedTxn({
+      id:`mat_cuota_${groupId}_${installmentNum}`,
+      description:`${group.name} (Cuota ${installmentNum}/${snap.total})`,
+      _baseDesc:group.name,
+      amount:firstTxn.amount,
+      currency:firstTxn.currency||group.currency||'ARS',
+      category:firstTxn.category||'Cuotas',
+      source:firstTxn.source||'commitment',
+      cuotaNum:installmentNum,
+      cuotaTotal:snap.total,
+      cuotaGroupId:groupId,
+      payMethod:firstTxn.payMethod||null,
+      comercio_detectado:firstTxn.comercio_detectado||null,
+      cat_sugerida:firstTxn.cat_sugerida||null,
+      date:chargeDate
+    });
+    if(!materialized) continue;
+    state.transactions=(state.transactions||[]).filter(txn=>
+      !(txn.isPendingCuota && txn.cuotaGroupId===groupId && Number(txn.cuotaNum)===installmentNum)
+    );
+    if(appendMaterializedCommitmentTxn(materialized)) created++;
+  }
+  return created;
+}
+
+function inferManualCuotaInstallmentDate(cuota, installmentNum, todayRef=new Date()){
+  const totalPaid=Math.max(0,Number(cuota?.paid)||0);
+  if(!totalPaid || !installmentNum) return null;
+  const dueDay=parseInt(cuota?.day,10)||todayRef.getDate();
+  if(cuota?.startDate){
+    const start=new Date(String(cuota.startDate).includes('T')?cuota.startDate:(cuota.startDate+'T12:00:00'));
+    if(Number.isNaN(start.getTime())) return null;
+    const target=new Date(start.getFullYear(),start.getMonth()+Math.max(installmentNum-1,0),1,12,0,0,0);
+    const maxDay=new Date(target.getFullYear(),target.getMonth()+1,0).getDate();
+    target.setDate(Math.min(dueDay,maxDay));
+    return target;
+  }
+  let anchor=new Date(todayRef.getFullYear(),todayRef.getMonth(),1,12,0,0,0);
+  let anchorMaxDay=new Date(anchor.getFullYear(),anchor.getMonth()+1,0).getDate();
+  anchor.setDate(Math.min(dueDay,anchorMaxDay));
+  if(anchor>todayRef){
+    anchor=new Date(todayRef.getFullYear(),todayRef.getMonth()-1,1,12,0,0,0);
+    anchorMaxDay=new Date(anchor.getFullYear(),anchor.getMonth()+1,0).getDate();
+    anchor.setDate(Math.min(dueDay,anchorMaxDay));
+  }
+  const monthOffset=totalPaid-installmentNum;
+  const target=new Date(anchor.getFullYear(),anchor.getMonth()-monthOffset,1,12,0,0,0);
+  const maxDay=new Date(target.getFullYear(),target.getMonth()+1,0).getDate();
+  target.setDate(Math.min(dueDay,maxDay));
+  return target;
+}
+
+function materializeManualCuotaHistory(cuota, opts={}){
+  if(!cuota) return 0;
+  const paid=Math.max(0,Number(cuota.paid)||0);
+  if(!paid) return 0;
+  const todayRef=opts.todayRef instanceof Date?opts.todayRef:new Date();
+  let created=0;
+  for(let installmentNum=1;installmentNum<=paid;installmentNum++){
+    const materializedId=`mat_manual_cuota_${cuota.id}_${installmentNum}`;
+    if((state.transactions||[]).some(txn=>txn.id===materializedId)) continue;
+    const chargeDate=inferManualCuotaInstallmentDate(cuota, installmentNum, todayRef);
+    if(!chargeDate || !hasReachedEffectiveChargeDate(chargeDate, todayRef)) continue;
+    const materialized=buildCommitmentMaterializedTxn({
+      id:materializedId,
+      description:`${cuota.name} (Cuota ${installmentNum}/${cuota.total||paid})`,
+      _baseDesc:cuota.name,
+      amount:Number(cuota.amount)||0,
+      currency:cuota.currency||'ARS',
+      category:'Cuotas',
+      source:'commitment',
+      cuotaNum:installmentNum,
+      cuotaTotal:Number(cuota.total)||paid,
+      cuotaGroupId:`manual_${cuota.id}`,
+      payMethod:cuota.payMethod||null,
+      date:chargeDate
+    });
+    if(appendMaterializedCommitmentTxn(materialized)) created++;
+  }
+  return created;
+}
+
+function getSubscriptionMaterializationDates(sub, todayRef=new Date()){
+  if(!sub||sub.freq!=='monthly'||!sub.day) return [];
+  const dates=[];
+  const startRef=sub.startDate||sub.lastChargeDate||'';
+  if(startRef){
+    const start=new Date(String(startRef).includes('T')?startRef:(startRef+'T12:00:00'));
+    if(Number.isNaN(start.getTime())) return dates;
+    const cursor=new Date(start.getFullYear(),start.getMonth(),1,12,0,0,0);
+    const limit=new Date(todayRef.getFullYear(),todayRef.getMonth(),1,12,0,0,0);
+    while(cursor<=limit){
+      const maxDay=new Date(cursor.getFullYear(),cursor.getMonth()+1,0).getDate();
+      const chargeDate=new Date(cursor.getFullYear(),cursor.getMonth(),Math.min(parseInt(sub.day,10)||1,maxDay),12,0,0,0);
+      if(hasReachedEffectiveChargeDate(chargeDate,todayRef)) dates.push(chargeDate);
+      cursor.setMonth(cursor.getMonth()+1);
+    }
+    return dates;
+  }
+  const dueDay=parseInt(sub.day,10)||todayRef.getDate();
+  const anchor=new Date(todayRef.getFullYear(),todayRef.getMonth(),Math.min(dueDay,new Date(todayRef.getFullYear(),todayRef.getMonth()+1,0).getDate()),12,0,0,0);
+  dates.push(anchor<=todayRef?anchor:new Date(todayRef.getFullYear(),todayRef.getMonth()-1,Math.min(dueDay,new Date(todayRef.getFullYear(),todayRef.getMonth(),0).getDate()),12,0,0,0));
+  return dates;
+}
+
+function materializeSubscriptionHistory(sub, opts={}){
+  if(!sub) return 0;
+  const todayRef=opts.todayRef instanceof Date?opts.todayRef:new Date();
+  const dates=getSubscriptionMaterializationDates(sub,todayRef);
+  if(!dates.length) return 0;
+  let created=0;
+  const monthlyAmount=commitmentsMonthlyAmount(sub);
+  dates.forEach(chargeDate=>{
+    const monthKey=getMonthKey(chargeDate);
+    if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
+    const materialized=buildCommitmentMaterializedTxn({
+      id:`mat_sub_${sub.id}_${monthKey}`,
+      description:`${sub.name} (suscripción)`,
+      _baseDesc:sub.name,
+      amount:Number(monthlyAmount)||0,
+      currency:sub.currency||'ARS',
+      category:sub.cat||'Suscripciones',
+      source:'subscription',
+      sourceSubscriptionId:sub.id,
+      merchantKey:sub.merchantKey||getSubscriptionMerchantKey(sub.name),
+      payMethod:sub.payMethod||null,
+      date:chargeDate
+    });
+    state.transactions=(state.transactions||[]).filter(txn=>
+      !(txn.isPendingSubscription && txn.sourceSubscriptionId===sub.id && getMonthKey(txn.date)===monthKey)
+    );
+    if(appendMaterializedCommitmentTxn(materialized)) created++;
+  });
+  return created;
+}
+
+function deleteSubscriptionById(id, opts={}){
+  const sub=(state.subscriptions||[]).find(s=>s.id===id);
+  if(!sub) return false;
+  materializeSubscriptionHistory(sub, opts);
+  state.subscriptions=(state.subscriptions||[]).filter(s=>s.id!==id);
+  syncProjectedSubscriptionTransactions();
+  saveState();
+  renderSubs();
+  refreshAll();
+  if(opts.silent!==true) showToast('Suscripción eliminada','info');
+  return true;
+}
+
+function deleteManualCuotaById(id, opts={}){
+  const cuota=(state.cuotas||[]).find(c=>c.id===id);
+  if(!cuota) return false;
+  materializeManualCuotaHistory(cuota, opts);
+  state.cuotas=(state.cuotas||[]).filter(c=>c.id!==id);
+  saveState();
+  renderCuotas();
+  refreshAll();
+  if(opts.silent!==true) showToast('Cuota eliminada','info');
+  return true;
+}
+
+function dismissAutoCuotaWithHistory(key, opts={}){
+  const group=getAutoCuotaGroups(true).find(g=>g.key===key||g.legacyKey===key);
+  if(group) materializeAutoCuotaHistoryForGroup(group, opts);
+  dismissAutoCuota(key, opts);
+  return true;
+}
+
+function reconcileDeletedCommitmentHistory(opts={}){
+  let created=0;
+  const dismissed=new Set(state.dismissedAutoCuotas||[]);
+  getAutoCuotaGroups(true).forEach(group=>{
+    if(!dismissed.has(group.key) && !dismissed.has(group.legacyKey)) return;
+    created+=materializeAutoCuotaHistoryForGroup(group, opts);
+  });
+  if(created){
+    saveState();
+    console.info('[finanzas] reconciled deleted commitment history', { created });
+  }
+  return created;
+}
+
+function dismissAutoCuota(key, opts={}){
+  if(!state.dismissedAutoCuotas) state.dismissedAutoCuotas=[];
+  if(!state.dismissedAutoCuotas.includes(key)) state.dismissedAutoCuotas.push(key);
+  saveState();renderCuotas();
+  if(opts.silent!==true) showToast('Cuota removida','info');
+}
+
+function detectAutoCuotas(){
+  return getAutoCuotaGroups(false);
 }
 function getAutoCuotaSnapshot(group, baseDate=new Date()){
   const cfg=getAutoCuotaConfig(group);
@@ -157,6 +393,18 @@ function getImportedSubscriptionByKey(key, ruleId){
 function upsertImportedSubscriptionFromTxn(txn){
   if(!txn||!txn.isAutoDebit||!txn.subscriptionName)return null;
   if(!state.subscriptions)state.subscriptions=[];
+  const txnMonthKey=getMonthKey(txn.date);
+  state.transactions=(state.transactions||[]).filter(existing=>
+    !(
+      existing.isMaterializedCommitment &&
+      getMonthKey(existing.date)===txnMonthKey &&
+      txnMatchesSubscription(existing,{
+        id:txn.sourceSubscriptionId||existing.sourceSubscriptionId||'',
+        merchantKey:txn.merchantKey||getSubscriptionMerchantKey(txn.subscriptionName),
+        name:txn.subscriptionName
+      })
+    )
+  );
   const merchantKey=txn.merchantKey||getSubscriptionMerchantKey(txn.subscriptionName);
   const existing=getImportedSubscriptionByKey(merchantKey,txn.importRuleId);
   const nextObj={
@@ -487,13 +735,11 @@ function commitmentsInvokeEdit(action,id){
 function commitmentsDeleteExpiredCuota(source,id){
   if(!confirm('¿Borrar esta cuota vencida definitivamente? Los movimientos ya registrados no se borran.')) return;
   if(source==='auto'){
-    dismissAutoCuota(id);
+    dismissAutoCuotaWithHistory(id);
     return;
   }
-  state.cuotas=(state.cuotas||[]).filter(c=>c.id!==id);
-  saveState();
+  deleteManualCuotaById(id,{silent:true});
   renderCommitmentsPage();
-  refreshAll();
   showToast('Cuota vencida eliminada','info');
 }
 function renderCommitmentsPage(){
@@ -878,8 +1124,9 @@ function saveCuota(){
 }
 function deleteCuota(){
   const id=document.getElementById('modal-cuota-editing').value;
-  state.cuotas=state.cuotas.filter(c=>c.id!==id);
-  saveState();closeModal('modal-cuota');renderCuotas();refreshAll();showToast('Cuota eliminada','info');
+  deleteManualCuotaById(id,{silent:true});
+  closeModal('modal-cuota');
+  showToast('Cuota eliminada','info');
 }
 function openAutoCuotaModal(key){
   const g=detectAutoCuotas().find(g=>g.key===key);if(!g)return;
@@ -1020,9 +1267,9 @@ function saveSub(){
 }
 function deleteSub(){
   const id=document.getElementById('modal-sub-editing').value;
-  state.subscriptions=state.subscriptions.filter(s=>s.id!==id);
-  syncProjectedSubscriptionTransactions();
-  saveState();closeModal('modal-sub');renderSubs();refreshAll();showToast('Suscripción eliminada','info');
+  deleteSubscriptionById(id,{silent:true});
+  closeModal('modal-sub');
+  showToast('Suscripción eliminada','info');
 }
 
 // ══ RENDER SUBS ANNUAL BREAKDOWN ══

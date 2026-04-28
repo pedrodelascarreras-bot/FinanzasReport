@@ -276,6 +276,7 @@ function nav(page){
   if(page==='profile' && typeof renderProfilePage==='function')renderProfilePage();
   if(page==='security' && typeof renderSecurityPage==='function')renderSecurityPage();
   if(page==='dashboard')renderDashboard();
+  if(page==='calendar' && typeof jumpCalendarToToday==='function') jumpCalendarToToday();
   if(page==='dashboard-design')renderDashboardDesignPage();
   if(page==='credit-cards')renderCreditCards();
   if(page==='cc-compare'){if(typeof initCcCompare==='function')initCcCompare();}

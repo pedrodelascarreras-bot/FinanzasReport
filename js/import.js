@@ -431,7 +431,10 @@ function autoCreateGmailCuotas(txns){
   for(const t of cuotaTxns){
     // Eliminar cualquier cuota proyectada para la misma posición (este pago real la reemplaza)
     state.transactions=state.transactions.filter(x=>
-      !(x.isPendingCuota&&x.cuotaGroupId===t.cuotaGroupId&&x.cuotaNum===t.cuotaNum)
+      !(
+        (x.isPendingCuota&&x.cuotaGroupId===t.cuotaGroupId&&x.cuotaNum===t.cuotaNum)||
+        (x.isMaterializedCommitment&&x.cuotaGroupId===t.cuotaGroupId&&x.cuotaNum===t.cuotaNum)
+      )
     );
     // Generar proyecciones para las cuotas restantes (a partir de la siguiente)
     for(let n=t.cuotaNum+1;n<=t.cuotaTotal;n++){
