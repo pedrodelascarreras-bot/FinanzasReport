@@ -284,7 +284,29 @@ function getRepTxns(){
     const cycleId=sel.replace('cycle:','');
     const cycles=getTcCycles(mode);
     const cycle=cycles.find(c=>c.id===cycleId);
-    return cycle?getTcCycleTxns(cycle,cycles):[];
+    if(!cycle) return [];
+    const fallbackTxns=typeof getTcCycleTxns==='function' ? getTcCycleTxns(cycle,cycles) : [];
+    if(typeof ccGetCycleExpenses!=='function') return fallbackTxns;
+    const resolvedCard=cycle.cardId
+      ? (state.ccCards||[]).find(card=>card.id===cycle.cardId)
+      : (typeof _resolveCardForMode==='function' ? _resolveCardForMode(mode) : null);
+    const cardId=resolvedCard?.id||cycle.cardId||state.ccActiveCard||(state.ccCards||[])[0]?.id||'';
+    if(!cardId) return fallbackTxns;
+    return ccGetCycleExpenses(cardId, cycle.id).map(expense=>({
+      id:expense.id||`rep-${cycle.id}-${expense.date}-${expense.description||'gasto'}`,
+      date:expense.date,
+      month:getMonthKey(expense.date),
+      week:typeof getWeekKey==='function' ? getWeekKey(expense.date) : '',
+      description:expense.description||'Sin detalle',
+      category:expense.category||'Sin categoría',
+      amount:expense.amountUSD>0 ? Number(expense.amountUSD)||0 : Number(expense.amountARS)||0,
+      currency:expense.amountUSD>0 ? 'USD' : 'ARS',
+      payMethod:resolvedCard?.payMethodKey||mode,
+      isPendingCuota:!!expense.isPendingCuota,
+      isPendingSubscription:!!expense.isPendingSubscription,
+      isThirdParty:false,
+      source:expense.source||'txn'
+    }));
   }
   if(mode==='rango'){
     let from=document.getElementById('rep-range-from')?.value||'';
