@@ -1399,53 +1399,66 @@
       <div class="rep-config-card rep-filter-card">
         <div class="rep-filter-card-head">
           <div>
-            <div class="rep-section-title">Filtros del reporte</div>
-            <div class="rep-filter-sub">Elegí el período y generá la vista previa sin salir del informe.</div>
+            <div class="rep-section-title">Reporte inteligente</div>
+            <div class="rep-filter-sub">Elegí el período, ajustá la profundidad y generá un informe completo listo para descargar o analizar con IA.</div>
           </div>
           <div class="rep-filter-actions">
-            <button class="btn btn-ghost rep-more-btn" id="rep-more-filters-btn" onclick="toggleRepMoreFilters()">Más filtros</button>
             <button class="btn btn-ghost rep-top-action" onclick="openSendReportModal()">Enviar email</button>
             <button class="btn btn-ghost rep-top-action" onclick="printReport()">Imprimir</button>
             <button class="btn btn-primary rep-top-action" onclick="exportRepPDF()">Exportar PDF</button>
           </div>
         </div>
         <div class="rep-stack">
-          <div class="rep-mode-grid">
-            <button class="tft-btn rep-mode-btn active" id="rep-mode-mes" onclick="setRepMode('mes')">Mes</button>
-            <button class="tft-btn rep-mode-btn" id="rep-mode-visa" onclick="setRepMode('visa')">Vista VISA</button>
-            <button class="tft-btn rep-mode-btn" id="rep-mode-rango" onclick="setRepMode('rango')">Rango</button>
-            <button class="tft-btn rep-mode-btn" id="rep-mode-all" onclick="setRepMode('todo')">Histórico</button>
+          <div class="rep-filter-block">
+            <div class="rep-inline-label">Tipo de período</div>
+            <div class="rep-mode-grid">
+              <button class="tft-btn rep-mode-btn active" id="rep-mode-mes" onclick="setRepMode('mes')">Mes</button>
+              <button class="tft-btn rep-mode-btn" id="rep-mode-visa" onclick="setRepMode('visa')">Vista VISA</button>
+              <button class="tft-btn rep-mode-btn" id="rep-mode-rango" onclick="setRepMode('rango')">Rango</button>
+              <button class="tft-btn rep-mode-btn" id="rep-mode-all" onclick="setRepMode('todo')">Histórico</button>
+            </div>
           </div>
-          <!-- Month / TC selector -->
-          <select id="rep-period-select" class="rep-select" onchange="updateRepPreview()">
-            <option value="">Elegí un período</option>
-          </select>
-          <!-- Date range (hidden by default) -->
-          <div id="rep-range-wrap" class="rep-range-wrap">
-            <div class="rep-range-row">
-              <div class="rep-range-field">
-                <div class="rep-range-label">Desde</div>
-                <input type="date" id="rep-range-from" class="rep-select" onchange="updateRepPreview()">
-              </div>
-              <span class="rep-range-arrow">→</span>
-              <div class="rep-range-field">
-                <div class="rep-range-label">Hasta</div>
-                <input type="date" id="rep-range-to" class="rep-select" onchange="updateRepPreview()">
+          <div class="rep-filter-block">
+            <div class="rep-inline-label">Período puntual</div>
+            <select id="rep-period-select" class="rep-select" onchange="updateRepPreview()">
+              <option value="">Elegí un período</option>
+            </select>
+            <div id="rep-range-wrap" class="rep-range-wrap">
+              <div class="rep-range-row">
+                <div class="rep-range-field">
+                  <div class="rep-range-label">Desde</div>
+                  <input type="date" id="rep-range-from" class="rep-select" onchange="updateRepPreview()">
+                </div>
+                <span class="rep-range-arrow">→</span>
+                <div class="rep-range-field">
+                  <div class="rep-range-label">Hasta</div>
+                  <input type="date" id="rep-range-to" class="rep-select" onchange="updateRepPreview()">
+                </div>
               </div>
             </div>
+          </div>
+          <div class="rep-filter-block">
+            <div class="rep-inline-label">Profundidad del informe</div>
+            <div class="rep-depth-grid">
+              <button class="tft-btn rep-depth-btn" id="rep-depth-base" onclick="setRepDetailMode('base')">Claro</button>
+              <button class="tft-btn rep-depth-btn" id="rep-depth-complete" onclick="setRepDetailMode('complete')">Completo</button>
+              <button class="tft-btn rep-depth-btn" id="rep-depth-ai" onclick="setRepDetailMode('ai')">IA</button>
+            </div>
+            <label class="rep-toggle-row">
+              <input type="checkbox" id="rep-include-all-txns" onchange="toggleRepIncludeAllMovements(this.checked)">
+              <span>Incluir anexo con todos los movimientos del período</span>
+            </label>
           </div>
         </div>
       </div>
 
-      <div class="rep-more-panel-label">Filtros avanzados</div>
-
       <!-- ✉️ Enviar reporte por email -->
       <div class="rep-config-card rep-callout-card">
         <div class="rep-callout">
-          <div class="rep-callout-icon">✉️</div>
+          <div class="rep-callout-icon">AI</div>
           <div>
-            <div class="rep-callout-title">Entregar por email</div>
-            <div class="rep-callout-sub">PDF y análisis listos para compartir</div>
+            <div class="rep-callout-title">Listo para compartir o analizar</div>
+            <div class="rep-callout-sub">Exportá el PDF, adjuntalo a una IA y usá el prompt sugerido para pedir un diagnóstico profundo.</div>
           </div>
         </div>
         <button class="btn btn-primary rep-export-primary" onclick="openSendReportModal()">
@@ -1453,7 +1466,6 @@
         </button>
       </div>
 
-      <!-- Exportar PDF — always visible -->
       <div class="rep-config-card rep-export-card">
         <div class="rep-export-actions">
           <button class="btn btn-primary rep-export-primary" onclick="exportRepPDF()">
@@ -1462,102 +1474,35 @@
           <button class="btn btn-ghost rep-export-secondary" onclick="printReport()">
             Abrir impresión
           </button>
-          <div class="rep-design-grid">
-            <button class="tft-btn rep-design-btn active" id="rep-design-exec" onclick="setRepDesign('executive')">Ejecutivo</button>
-            <button class="tft-btn rep-design-btn" id="rep-design-detail" onclick="setRepDesign('detailed')">Detallado</button>
-            <button class="tft-btn rep-design-btn" id="rep-design-minimal" onclick="setRepDesign('minimal')">Minimal</button>
+          <div class="rep-export-summary">
+            <div class="rep-export-summary-title">Qué incluye este nuevo informe</div>
+            <div class="rep-export-summary-copy">Resumen ejecutivo, comparativas, concentración del gasto, compromisos, patrones de consumo, calidad de datos, preguntas sugeridas y recomendaciones concretas.</div>
           </div>
         </div>
-        <div class="rep-hint">Elegí el formato del informe y luego exportalo o abrí la vista de impresión para guardarlo como PDF.</div>
+        <div class="rep-hint">El diseño visual queda fijo y cuidado. Lo que cambia es la profundidad del análisis y si querés sumar el anexo completo de movimientos.</div>
       </div>
 
-      <!-- Secciones -->
       <div class="rep-config-card rep-content-card">
-        <div class="rep-section-title">Contenido del informe</div>
-        <div class="rep-content-toolbar">
-          <button class="dashboard-widget-mini" onclick="toggleReportSectionGroup('core', true)">Esenciales</button>
-          <button class="dashboard-widget-mini" onclick="toggleReportSectionGroup('analysis', true)">Analítica</button>
-          <button class="dashboard-widget-mini" onclick="toggleReportSectionGroup('detail', true)">Detalle</button>
-          <button class="dashboard-widget-mini" onclick="toggleAllReportSections(true)">Todo</button>
-          <button class="dashboard-widget-mini" onclick="toggleAllReportSections(false)">Nada</button>
+        <div class="rep-section-title">Cobertura automática del reporte</div>
+        <div class="rep-content-toolbar rep-auto-toolbar">
+          <div class="dashboard-widget-mini is-static">Lectura ejecutiva</div>
+          <div class="dashboard-widget-mini is-static">Comparativas y alertas</div>
+          <div class="dashboard-widget-mini is-static">Patrones y compromisos</div>
+          <div class="dashboard-widget-mini is-static">Recomendaciones y preguntas</div>
         </div>
-        <div class="rep-check-list" id="rep-sections">
-          <label class="rep-check-item checked" data-section-group="core">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="resumen"> 
-            <div><div class="rep-check-label">Resumen general</div><div class="rep-check-sub">Total ARS/USD · ingresos · margen</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="core">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="score">
-            <div><div class="rep-check-label">Score financiero</div><div class="rep-check-sub">Puntaje 0–100 del mes con análisis</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="core">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="proyeccion">
-            <div><div class="rep-check-label">Proyección al cierre</div><div class="rep-check-sub">Estimado de gasto a fin de mes</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="analysis">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="comparacion">
-            <div><div class="rep-check-label">Comparación mes anterior</div><div class="rep-check-sub">Delta por categoría vs período previo</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="analysis">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="alertas">
-            <div><div class="rep-check-label">Alertas y recomendaciones</div><div class="rep-check-sub">Categorías disparadas, anomalías</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="analysis">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="habitos">
-            <div><div class="rep-check-label">Hábitos de consumo</div><div class="rep-check-sub">Días pico, ticket promedio, semana más cara</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="core">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="categorias">
-            <div><div class="rep-check-label">Gastos por categoría</div><div class="rep-check-sub">Barras y porcentajes</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="analysis">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="medios">
-            <div><div class="rep-check-label">Medios de pago</div><div class="rep-check-sub">TC vs débito vs efectivo</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="core">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="compromisos">
-            <div><div class="rep-check-label">Compromisos próximo mes</div><div class="rep-check-sub">Cuotas y suscripciones que vienen</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="analysis">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="fijosvar">
-            <div><div class="rep-check-label">Gastos fijos vs variables</div><div class="rep-check-sub">Qué % de tu gasto es predecible</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="analysis">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="tendcats">
-            <div><div class="rep-check-label">Tendencia por categoría</div><div class="rep-check-sub">Últimos meses, qué sube o baja</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="analysis">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="variabilidad">
-            <div><div class="rep-check-label">Consistencia mensual</div><div class="rep-check-sub">Qué tan estable es tu gasto mes a mes</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="analysis">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="simulador">
-            <div><div class="rep-check-label">Simulador de gasto disponible</div><div class="rep-check-sub">Cuánto podés gastar sin quedar en rojo</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="detail">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="etacuotas">
-            <div><div class="rep-check-label">Fin estimado de cuotas</div><div class="rep-check-sub">Cuándo termina cada cuota activa</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="analysis">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="recomendaciones">
-            <div><div class="rep-check-label">Recomendaciones de recorte</div><div class="rep-check-sub">Top 3 acciones concretas para ahorrar</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="analysis">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="metas">
-            <div><div class="rep-check-label">Progreso de metas de ahorro</div><div class="rep-check-sub">Avance hacia cada objetivo</div></div>
-          </label>
-          <label class="rep-check-item checked" data-section-group="detail">
-            <input type="checkbox" checked onchange="updateRepPreview()" data-section="top10">
-            <div><div class="rep-check-label">Top 10 gastos</div><div class="rep-check-sub">Movimientos más altos del período</div></div>
-          </label>
-          <label class="rep-check-item" data-section-group="detail">
-            <input type="checkbox" onchange="updateRepPreview()" data-section="cuotas">
-            <div><div class="rep-check-label">Cuotas y suscripciones activas</div><div class="rep-check-sub">Detalle de compromisos vigentes</div></div>
-          </label>
-          <label class="rep-check-item" data-section-group="detail">
-            <input type="checkbox" onchange="updateRepPreview()" data-section="todos">
-            <div><div class="rep-check-label">Todos los movimientos</div><div class="rep-check-sub">Lista completa del período</div></div>
-          </label>
+        <div class="rep-auto-list">
+          <article class="rep-auto-item">
+            <div class="rep-check-label">Claro</div>
+            <div class="rep-check-sub">Versión compacta para leer rápido, compartir o imprimir.</div>
+          </article>
+          <article class="rep-auto-item">
+            <div class="rep-check-label">Completo</div>
+            <div class="rep-check-sub">Suma concentración del gasto, comercios, calidad de datos y más contexto operativo.</div>
+          </article>
+          <article class="rep-auto-item">
+            <div class="rep-check-label">IA</div>
+            <div class="rep-check-sub">Agrega preguntas sugeridas, contexto ampliado y estructura ideal para pedir un análisis profundo a ChatGPT o Claude.</div>
+          </article>
         </div>
       </div>
 
@@ -1576,6 +1521,17 @@
       </div>
     </div>
 
+  </div>
+
+  <div class="rep-ai-panel fade-up d2">
+    <div class="rep-ai-panel-head">
+      <div>
+        <div class="rep-section-title">Prompt para Análisis con IA</div>
+        <div class="rep-filter-sub">Adjuntá el PDF de este reporte en ChatGPT, Claude o la IA que uses, pegá este prompt y pedile un diagnóstico detallado del período.</div>
+      </div>
+      <button class="btn btn-primary" onclick="copyRepAiPrompt()">Copiar prompt</button>
+    </div>
+    <textarea id="rep-ai-prompt" class="rep-ai-textarea" readonly></textarea>
   </div>
 </div>
 

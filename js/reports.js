@@ -185,24 +185,43 @@ async function sendReportNow() {
 }
 
 function renderReportesPage(){
-  syncRepMoreFiltersState();
+  ensureRepReportState();
   setRepMode(normalizeRepMode(state.repMode||'visa'));
+  setRepDetailMode(state.repDetailMode||'ai', true);
 }
 
-function syncRepMoreFiltersState(){
+function ensureRepReportState(){
+  state.repMoreFiltersOpen=true;
+  state.repDesign='executive';
+  if(!state.repDetailMode) state.repDetailMode='ai';
+  if(typeof state.repIncludeAllMovements!=='boolean') state.repIncludeAllMovements=false;
   const config=document.querySelector('#page-reportes .rep-config');
-  const btn=document.getElementById('rep-more-filters-btn');
-  const open=!!state.repMoreFiltersOpen;
-  if(config) config.classList.toggle('rep-filters-open', open);
-  if(btn) btn.textContent=open?'Ocultar filtros':'Más filtros';
+  if(config) config.classList.add('rep-filters-open');
+  const includeEl=document.getElementById('rep-include-all-txns');
+  if(includeEl) includeEl.checked=!!state.repIncludeAllMovements;
 }
 
 function toggleRepMoreFilters(){
-  state.repMoreFiltersOpen=!state.repMoreFiltersOpen;
-  syncRepMoreFiltersState();
+  state.repMoreFiltersOpen=true;
+}
+
+function setRepDetailMode(mode, skipPreview){
+  ensureRepReportState();
+  const next=(mode==='base'||mode==='complete'||mode==='ai')?mode:'ai';
+  state.repDetailMode=next;
+  document.getElementById('rep-depth-base')?.classList.toggle('active', next==='base');
+  document.getElementById('rep-depth-complete')?.classList.toggle('active', next==='complete');
+  document.getElementById('rep-depth-ai')?.classList.toggle('active', next==='ai');
+  if(!skipPreview) updateRepPreview();
+}
+
+function toggleRepIncludeAllMovements(checked){
+  state.repIncludeAllMovements=!!checked;
+  updateRepPreview();
 }
 
 function setRepMode(mode){
+  ensureRepReportState();
   state.repMode=normalizeRepMode(mode||'visa');
   // HTML button id "rep-mode-all" maps to mode value "todo"
   ['mes','visa','rango','all'].forEach(m=>{
@@ -321,8 +340,15 @@ function getRepTxns(){
 }
 
 function getRepSections(){
-  return [...document.querySelectorAll('[data-section]')]
-    .filter(el=>el.checked).map(el=>el.dataset.section);
+  ensureRepReportState();
+  const presets={
+    base:['resumen','score','comparacion','alertas','categorias','concentracion','compromisos','fijosvar','flujo','recomendaciones','top10'],
+    complete:['resumen','score','proyeccion','comparacion','alertas','habitos','categorias','concentracion','comercios','medios','compromisos','fijosvar','flujo','tendcats','variabilidad','simulador','etacuotas','recomendaciones','metas','top10','cuotas','calidad'],
+    ai:['resumen','score','proyeccion','comparacion','alertas','habitos','categorias','concentracion','comercios','medios','compromisos','fijosvar','flujo','tendcats','variabilidad','simulador','etacuotas','recomendaciones','metas','top10','cuotas','calidad','preguntasia']
+  };
+  const selected=new Set(presets[state.repDetailMode]||presets.ai);
+  if(state.repIncludeAllMovements) selected.add('todos');
+  return [...selected];
 }
 
 function getRepPeriodLabel(){
@@ -424,6 +450,32 @@ function buildReportHTML(txns,sections,periodLabel){
 
   // Top 10
   const top10=[...txns].filter(t=>t.currency==='ARS').sort((a,b)=>b.amount-a.amount).slice(0,10);
+  const topExpenses=[...txns]
+    .filter(t=>t.currency==='ARS')
+    .sort((a,b)=>b.amount-a.amount)
+    .slice(0,5);
+  const merchantMap={};
+  txns.filter(t=>t.currency==='ARS').forEach(t=>{
+    const key=String(t.description||'Sin detalle').trim()||'Sin detalle';
+    if(!merchantMap[key]) merchantMap[key]={amount:0,count:0};
+    merchantMap[key].amount+=Number(t.amount)||0;
+    merchantMap[key].count+=1;
+  });
+  const topMerchants=Object.entries(merchantMap)
+    .map(([name,data])=>({name,amount:data.amount,count:data.count}))
+    .sort((a,b)=>b.amount-a.amount)
+    .slice(0,8);
+
+  const uncategorizedTxns=txns.filter(t=>{
+    const cat=String(t.category||'').trim().toLowerCase();
+    return !cat || cat==='sin categoría' || cat==='uncategorized' || cat==='procesando...';
+  });
+  const uncategorizedArs=uncategorizedTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  const noPayMethodTxns=txns.filter(t=>!String(t.payMethod||'').trim());
+  const noPayMethodArs=noPayMethodTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  const usdSharePct=totalArs>0?Math.round((usdT*USD_TO_ARS)/totalArs*100):0;
+  const top3CatShare=arsT>0?Math.round(cats.slice(0,3).reduce((s,[,val])=>s+val,0)/arsT*100):0;
+  const top5ExpenseShare=arsT>0?Math.round(topExpenses.reduce((s,t)=>s+t.amount,0)/arsT*100):0;
 
   // Cuotas activas
   const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
@@ -444,10 +496,42 @@ function buildReportHTML(txns,sections,periodLabel){
   const daysLeft=daysInMonth-dayOfMonth;
 
   // Comparación mes anterior
+  const reportMode=normalizeRepMode(state.repMode||'visa');
+  const mapCycleExpenseToTxn=expense=>({
+    date:expense.date,
+    month:getMonthKey(expense.date),
+    description:expense.description||'Sin detalle',
+    category:expense.category||'Sin categoría',
+    amount:expense.amountUSD>0 ? Number(expense.amountUSD)||0 : Number(expense.amountARS)||0,
+    currency:expense.amountUSD>0 ? 'USD' : 'ARS',
+    payMethod:expense.payMethod||reportMode
+  });
   const prevMonths=getAvailableMonths().sort();
   const curIdx=prevMonths.indexOf(txnMk);
   const prevMk=curIdx>0?prevMonths[curIdx-1]:null;
-  const prevTxns=prevMk?state.transactions.filter(t=>(t.month||getMonthKey(t.date))===prevMk):[];
+  let prevLabel=prevMk||'';
+  let prevTxns=[];
+  if(reportMode==='visa'){
+    const cycleValue=document.getElementById('rep-period-select')?.value||'';
+    const currentCycleId=cycleValue.replace('cycle:','');
+    const cycles=getTcCycles(reportMode);
+    const cycleIdx=cycles.findIndex(c=>c.id===currentCycleId);
+    const prevCycle=cycleIdx>=0?cycles[cycleIdx+1]:null;
+    prevLabel=prevCycle?.label||prevCycle?.closeDate||'';
+    if(prevCycle){
+      const prevCardId=prevCycle.cardId
+        || (typeof _resolveCardForMode==='function' ? _resolveCardForMode(reportMode)?.id : '')
+        || state.ccActiveCard
+        || state.ccCards?.[0]?.id
+        || '';
+      prevTxns=typeof ccGetCycleExpenses==='function'
+        ? ccGetCycleExpenses(prevCardId, prevCycle.id).map(mapCycleExpenseToTxn)
+        : getTcCycleTxns(prevCycle, cycles);
+    }
+  } else if(prevMk){
+    prevLabel=prevMk;
+    prevTxns=state.transactions.filter(t=>(t.month||getMonthKey(t.date))===prevMk);
+  }
   const prevArs=prevTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   const prevCatMap={};prevTxns.filter(t=>t.currency==='ARS').forEach(t=>{prevCatMap[t.category]=(prevCatMap[t.category]||0)+t.amount;});
   const diffTotal=arsT-prevArs;
@@ -501,6 +585,18 @@ function buildReportHTML(txns,sections,periodLabel){
   if(state.subscriptions.length>=4) execActions.push({label:'Revisar suscripciones', body:`Tenés ${state.subscriptions.length} servicios activos que podrían optimizarse.`});
   if(cuotasActivas.length) execActions.push({label:'Preparar próximo cierre', body:`El próximo período arranca con ${cuotasActivas.length} cuotas activas ya comprometidas.`});
   if(!execActions.length) execActions.push({label:'Sostener disciplina', body:'No hay desvíos graves: el foco pasa por mantener consistencia y calidad de datos.'});
+
+  const fixedCommitmentArs=state.subscriptions.reduce((s,sub)=>s+(sub.currency==='ARS'?toMonthly(sub):toMonthly(sub)*USD_TO_ARS),0)
+    + cuotasActivas.reduce((s,c)=>s+(c.amount||c.monthlyAmount||0),0);
+  const fixedLoadPct=incTotal>0?Math.round(fixedCommitmentArs/incTotal*100):null;
+  const pressureLabel=pct===null?'Sin ingreso cargado':pct>=100?'En rojo':pct>=85?'Muy exigido':pct>=65?'Ajustado':'Manejable';
+  const pressureTone=pct===null?'#64748b':pct>=100?'#dc2626':pct>=85?'#d97706':pct>=65?'#b45309':'#16a34a';
+  const aiQuestions=[
+    `¿Qué tres comportamientos concretos explican la mayor parte del gasto del período ${periodLabel}?`,
+    `¿Qué categorías o comercios debería revisar primero si quiero bajar gasto sin afectar demasiado mi calidad de vida?`,
+    `¿Qué parte del gasto parece estructural y qué parte parece corregible durante el próximo período?`,
+    `¿Qué señales de desorden, concentración o riesgo operativo ves en mis movimientos o en la calidad del dato?`
+  ];
 
   // Metas de ahorro
   const savGoals=state.savGoals||[];
@@ -609,19 +705,20 @@ function buildReportHTML(txns,sections,periodLabel){
   }
 
   // ── COMPARACIÓN ──
-  if(sections.includes('comparacion')&&prevMk){
-    const[py,pm]=prevMk.split('-').map(Number);
-    const prevLabel=MNAMES_R[pm-1]+' '+py;
+  if(sections.includes('comparacion')&&prevTxns.length){
+    const prevLabelText=reportMode==='visa'
+      ? prevLabel
+      : (()=>{const[py,pm]=String(prevLabel).split('-').map(Number);return MNAMES_R[pm-1]+' '+py;})();
     const allCatsCmp=[...new Set([...Object.keys(catMap),...Object.keys(prevCatMap)])].sort((a,b)=>(catMap[b]||0)-(catMap[a]||0));
     html+=`<div class="rpt-section">
-    <div class="rpt-section-title">Comparación con ${prevLabel}</div>
+    <div class="rpt-section-title">Comparación con ${prevLabelText}</div>
     <div class="rpt-kpi-row" style="grid-template-columns:1fr 1fr 1fr;">
-      <div class="rpt-kpi"><div class="rpt-kpi-label">${prevLabel}</div><div class="rpt-kpi-val">$${fmtN(prevArs)}</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">${prevLabelText}</div><div class="rpt-kpi-val">$${fmtN(prevArs)}</div></div>
       <div class="rpt-kpi"><div class="rpt-kpi-label">${periodLabel}</div><div class="rpt-kpi-val">$${fmtN(arsT)}</div></div>
       <div class="rpt-kpi"><div class="rpt-kpi-label">Diferencia</div><div class="rpt-kpi-val" style="color:${diffTotal>0?'#dc2626':'#16a34a'};">${diffTotal>0?'+':''}$${fmtN(Math.abs(diffTotal))}</div><div class="rpt-kpi-sub">${diffPct?(diffTotal>0?'▲ +':'▼ ')+Math.abs(diffPct)+'%':''}</div></div>
     </div>
     <div style="margin-top:12px;">
-      <table class="rpt-table"><thead><tr><th>Categoría</th><th style="text-align:right">${prevLabel}</th><th style="text-align:right">${periodLabel}</th><th style="text-align:right">Variación</th></tr></thead><tbody>
+      <table class="rpt-table"><thead><tr><th>Categoría</th><th style="text-align:right">${prevLabelText}</th><th style="text-align:right">${periodLabel}</th><th style="text-align:right">Variación</th></tr></thead><tbody>
       ${allCatsCmp.slice(0,8).map(cat=>{const a=prevCatMap[cat]||0,b=catMap[cat]||0,d=b-a;return`<tr><td>${esc(cat)}</td><td class="td-r" style="color:#999;">$${fmtN(a)}</td><td class="td-r">$${fmtN(b)}</td><td class="td-r" style="color:${d>0?'#dc2626':d<0?'#16a34a':'#aaa'};">${d>0?'+':''}$${fmtN(d)}</td></tr>`;}).join('')}
       </tbody></table>
     </div></div>`;
@@ -676,6 +773,31 @@ function buildReportHTML(txns,sections,periodLabel){
     html+=`</div>`;
   }
 
+  if(sections.includes('concentracion')&&arsT>0){
+    html+=`<div class="rpt-section">
+    <div class="rpt-section-title">Concentración del gasto</div>
+    <div class="rpt-kpi-row">
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Top 3 categorías</div><div class="rpt-kpi-val">${top3CatShare}%</div><div class="rpt-kpi-sub">del gasto ARS total</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Top 5 gastos</div><div class="rpt-kpi-val">${top5ExpenseShare}%</div><div class="rpt-kpi-sub">del gasto ARS total</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Peso del gasto en USD</div><div class="rpt-kpi-val">${usdSharePct}%</div><div class="rpt-kpi-sub">convertido a ARS</div></div>
+    </div>
+    <div style="margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#94a3b8;margin-bottom:10px;">Lectura rápida</div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
+        <div style="font-size:12px;color:#334155;line-height:1.65;"><strong>${esc(cats[0]?.[0]||'Sin datos')}</strong> lidera el período con ${cats[0]&&arsT>0?Math.round(cats[0][1]/arsT*100):0}% del gasto ARS.</div>
+        <div style="font-size:12px;color:#334155;line-height:1.65;">${topExpenses[0]?`El gasto individual más alto fue <strong>${esc(topExpenses[0].description)}</strong> por $${fmtN(topExpenses[0].amount)}.`:'No hay gasto puntual dominante.'}</div>
+      </div>
+    </div></div>`;
+  }
+
+  if(sections.includes('comercios')&&topMerchants.length){
+    html+=`<div class="rpt-section">
+    <div class="rpt-section-title">Comercios y descripciones más pesadas</div>
+    <table class="rpt-table"><thead><tr><th>Comercio / descripción</th><th style="text-align:right">Cantidad</th><th style="text-align:right">Total ARS</th><th style="text-align:right">% del gasto</th></tr></thead><tbody>
+    ${topMerchants.map(item=>`<tr><td style="font-weight:600;">${esc(String(item.name).slice(0,70))}</td><td class="td-r">${item.count}</td><td class="td-r">$${fmtN(Math.round(item.amount))}</td><td class="td-r">${arsT>0?Math.round(item.amount/arsT*100):0}%</td></tr>`).join('')}
+    </tbody></table></div>`;
+  }
+
   // ── MEDIOS DE PAGO ──
   if(sections.includes('medios')&&txns.some(t=>t.payMethod)){
     const totalMed=medios.tc+medios.deb+medios.ef;
@@ -699,6 +821,20 @@ function buildReportHTML(txns,sections,periodLabel){
       <div class="rpt-kpi"><div class="rpt-kpi-label">Cuotas activas</div><div class="rpt-kpi-val">$${fmtN(Math.round(cuotasTotal))}</div><div class="rpt-kpi-sub">${cuotasActivas.length} cuotas</div></div>
       <div class="rpt-kpi"><div class="rpt-kpi-label">Suscripciones</div><div class="rpt-kpi-val">$${fmtN(Math.round(subsTotal))}</div><div class="rpt-kpi-sub">${state.subscriptions.length} servicios</div></div>
       <div class="rpt-kpi"><div class="rpt-kpi-label">Total comprometido</div><div class="rpt-kpi-val">$${fmtN(Math.round(totalComp))}</div><div class="rpt-kpi-sub">${incTotal>0?Math.round(totalComp/incTotal*100)+'% del ingreso':''}</div></div>
+    </div></div>`;
+  }
+
+  if(sections.includes('flujo')){
+    html+=`<div class="rpt-section">
+    <div class="rpt-section-title">Presión financiera y capacidad de maniobra</div>
+    <div class="rpt-kpi-row">
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Presión del período</div><div class="rpt-kpi-val" style="color:${pressureTone};">${pressureLabel}</div><div class="rpt-kpi-sub">${pct!==null?pct+'% del ingreso consumido':'Sin ingreso configurado'}</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Carga comprometida</div><div class="rpt-kpi-val">${fixedLoadPct!==null?fixedLoadPct+'%':'—'}</div><div class="rpt-kpi-sub">cuotas + suscripciones sobre ingreso</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Margen actual</div><div class="rpt-kpi-val">${margen!==null?'$'+fmtN(Math.round(margen)):'—'}</div><div class="rpt-kpi-sub">${margen!==null&&margen>0?'espacio todavía utilizable':'sin colchón suficiente'}</div></div>
+    </div>
+    <div style="margin-top:12px;padding:12px 14px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;font-size:12px;color:#334155;line-height:1.7;">
+      ${fixedLoadPct!==null&&fixedLoadPct>=40?'Una parte importante de tu ingreso ya llega comprometida antes del gasto variable.':fixedLoadPct!==null?'Tu estructura comprometida todavía deja algo de flexibilidad para ajustar el gasto variable.':'Sin ingreso cargado no se puede medir bien la capacidad de maniobra.'}
+      ${pct!==null&&pct>=95?' El foco debería estar en cortar gasto discrecional rápido o reordenar compromisos del próximo cierre.':''}
     </div></div>`;
   }
 
@@ -855,6 +991,19 @@ function buildReportHTML(txns,sections,periodLabel){
     </div></div>`;
   }
 
+  if(sections.includes('calidad')){
+    html+=`<div class="rpt-section">
+    <div class="rpt-section-title">Calidad y contexto del dato</div>
+    <div class="rpt-kpi-row">
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Sin categoría</div><div class="rpt-kpi-val">${uncategorizedTxns.length}</div><div class="rpt-kpi-sub">$${fmtN(Math.round(uncategorizedArs))} ARS</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Sin medio de pago</div><div class="rpt-kpi-val">${noPayMethodTxns.length}</div><div class="rpt-kpi-sub">$${fmtN(Math.round(noPayMethodArs))} ARS</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Categorías activas</div><div class="rpt-kpi-val">${cats.length}</div><div class="rpt-kpi-sub">${txns.length} movimientos evaluados</div></div>
+    </div>
+    <div style="margin-top:12px;font-size:12px;color:#475569;line-height:1.75;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px;">
+      ${uncategorizedTxns.length||noPayMethodTxns.length?'Conviene corregir estos huecos de datos para que el análisis futuro sea más preciso y las categorías/métricas queden mejor alineadas con el resto de la app.':'La calidad del dato del período es buena: no aparecen huecos relevantes en categorización ni en medio de pago.'}
+    </div></div>`;
+  }
+
   // ── METAS DE AHORRO ──
   if(sections.includes('metas')&&savGoals.length){
     html+=`<div class="rpt-section">
@@ -911,26 +1060,33 @@ function buildReportHTML(txns,sections,periodLabel){
     html+=`</tbody></table></div>`;
   }
 
+  if(sections.includes('preguntasia')){
+    html+=`<div class="rpt-section">
+    <div class="rpt-section-title">Preguntas sugeridas para profundizar con IA</div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      ${aiQuestions.map((question,idx)=>`<div style="padding:12px 14px;border-radius:10px;background:#f8fafc;border:1px solid #dbeafe;color:#1e3a8a;font-size:12px;line-height:1.65;"><strong>Pregunta ${idx+1}.</strong> ${esc(question)}</div>`).join('')}
+    </div></div>`;
+  }
+
   html+=`<div class="rpt-footer"><span>● FINANZAS — Reporte personal</span><span>Generado el ${now}</span></div></div>`;
   return html;
 }
 
 function updateRepPreview(){
+  ensureRepReportState();
   const txns=getRepTxns();
   const sections=getRepSections();
   const label=getRepPeriodLabel();
   const content=document.getElementById('rep-preview-content');
   const meta=document.getElementById('rep-preview-meta');
-  if(meta)meta.textContent=txns.length+' movimientos · '+sections.length+' secciones · diseño '+(state.repDesign||'executive');
+  const depthLabel=state.repDetailMode==='base'?'Claro':state.repDetailMode==='complete'?'Completo':'IA';
+  if(meta)meta.textContent=txns.length+' movimientos · '+sections.length+' bloques · profundidad '+depthLabel;
   if(!content)return;
   if(!txns.length){
     content.innerHTML='<div class="rep-preview-empty">Sin datos para el período seleccionado</div>';
+    refreshRepAiPrompt(txns, label);
     return;
   }
-  // Update check item styles
-  document.querySelectorAll('.rep-check-item').forEach(el=>{
-    el.classList.toggle('checked',el.querySelector('input').checked);
-  });
 
   const design = state.repDesign || 'executive';
   const html = buildReportHTML(txns,sections,label);
@@ -938,6 +1094,69 @@ function updateRepPreview(){
   // Apply design-specific classes to simulation preview
   content.className = 'rep-preview-content design-' + design;
   content.innerHTML = html;
+  refreshRepAiPrompt(txns, label);
+}
+
+function refreshRepAiPrompt(txns, periodLabel){
+  const target=document.getElementById('rep-ai-prompt');
+  if(!target) return;
+  const label=periodLabel||getRepPeriodLabel();
+  const modeLabel=normalizeRepMode(state.repMode||'visa')==='visa'?'Vista VISA':normalizeRepMode(state.repMode||'visa')==='mes'?'Mes':'Período personalizado';
+  const ars=txns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  const usd=txns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+  const totalArs=ars+(usd*USD_TO_ARS);
+  const incomeArs=state.income.ars+state.income.varArs+((state.income.usd+state.income.varUsd)*USD_TO_ARS);
+  const topCats=Object.entries(txns.filter(t=>t.currency==='ARS').reduce((acc,t)=>{
+    acc[t.category||'Sin categoría']=(acc[t.category||'Sin categoría']||0)+(Number(t.amount)||0);
+    return acc;
+  },{})).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const topSpends=[...txns].filter(t=>t.currency==='ARS').sort((a,b)=>b.amount-a.amount).slice(0,5);
+  target.value=[
+    'Actuá como mi asesor financiero personal y analista de comportamiento de gasto.',
+    '',
+    `Voy a adjuntarte un reporte PDF de mi app Finanzas correspondiente a: ${label}.`,
+    `Tipo de período: ${modeLabel}.`,
+    `Profundidad del informe exportado: ${state.repDetailMode==='base'?'Claro':state.repDetailMode==='complete'?'Completo':'IA'}.`,
+    '',
+    'Quiero un análisis muy profundo, práctico y accionable. No quiero una descripción superficial del reporte: quiero diagnóstico, interpretación, preguntas inteligentes y plan de acción.',
+    '',
+    'Contexto clave del período:',
+    `- Movimientos analizados: ${txns.length}.`,
+    `- Gasto total aproximado en ARS equivalentes: $${fmtN(Math.round(totalArs))}.`,
+    `- Gasto en ARS: $${fmtN(Math.round(ars))}.`,
+    `- Gasto en USD: U$D ${fmtN(Math.round(usd))}.`,
+    `- Ingreso mensual configurado en la app: ${incomeArs>0?'$'+fmtN(Math.round(incomeArs)):'no cargado o incompleto'}.`,
+    `- Categorías más pesadas: ${topCats.length?topCats.map(([cat,val])=>`${cat} ($${fmtN(Math.round(val))})`).join(', '):'sin datos suficientes'}.`,
+    `- Gastos individuales más altos: ${topSpends.length?topSpends.map(item=>`${item.description} ($${fmtN(Math.round(item.amount))})`).join('; '):'sin datos suficientes'}.`,
+    '',
+    'Necesito que respondas en este formato:',
+    '1. Resumen ejecutivo del período en lenguaje claro.',
+    '2. Qué está bien, qué está mal y qué te preocuparía más.',
+    '3. Patrones de comportamiento de consumo que detectás.',
+    '4. Categorías, comercios o hábitos que explican la mayor parte del gasto.',
+    '5. Riesgos concretos para el próximo período si sigo igual.',
+    '6. Oportunidades reales de ahorro o corrección, priorizadas por impacto.',
+    '7. Qué preguntas me harías a mí para terminar de entender el contexto y mejorar el diagnóstico.',
+    '8. Un plan concreto para los próximos 30 días con acciones específicas.',
+    '9. Un plan complementario para ordenar mejor mis categorías, hábitos o calidad del dato si ves inconsistencias.',
+    '',
+    'Importante:',
+    '- Si el reporte muestra alertas, comparativas, compromisos, concentración del gasto o problemas de calidad del dato, usalos para sacar conclusiones concretas.',
+    '- No me des consejos genéricos; quiero observaciones específicas basadas en los números del reporte.',
+    '- Si ves algo ambiguo, no lo inventes: señalalo y convertí esa ambigüedad en preguntas útiles para mí.',
+    '- Cerrá tu respuesta con un bloque llamado "3 decisiones que tomaría esta semana".'
+  ].join('\n');
+}
+
+function copyRepAiPrompt(){
+  const promptEl=document.getElementById('rep-ai-prompt');
+  if(!promptEl||!promptEl.value.trim()){
+    showToast('No hay prompt listo para copiar','error');
+    return;
+  }
+  navigator.clipboard.writeText(promptEl.value)
+    .then(()=>showToast('✓ Prompt copiado', 'success'))
+    .catch(()=>showToast('No pude copiar el prompt', 'error'));
 }
 
 function exportRepHTML(){showToast('Usá Guardar PDF','info');}
