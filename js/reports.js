@@ -365,6 +365,21 @@ function getRepPeriodLabel(){
   return sel.options[sel.selectedIndex]?.text||sel.value;
 }
 
+function getReportIncomeSnapshot(){
+  const incArs=Number(state.income?.ars||0)+Number(state.income?.varArs||0);
+  const incUsd=Number(state.income?.usd||0)+Number(state.income?.varUsd||0);
+  const usdRate=getReportUsdRate();
+  return {
+    ars:incArs,
+    usd:incUsd,
+    totalArs:incArs+(incUsd*usdRate)
+  };
+}
+
+function getReportUsdRate(){
+  return Number(window.USD_TO_ARS || USD_TO_ARS || state.usdRateSell || state.usdRate || 0);
+}
+
 function getReportStyleSheet(s){
   const cfg=s||{accent:'#1d1d1f',fontSz:'12px',pad:'32px',brand:'20px',headerBorder:'3px solid #1d1d1f',kpiBg:'#f7f7f7',sectionTitle:'11px'};
   return '*{box-sizing:border-box;margin:0;padding:0;}'
@@ -432,10 +447,12 @@ function buildReportHTML(txns,sections,periodLabel){
   const today=new Date();
   const arsT=txns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   const usdT=txns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-  const incArs=state.income.ars+state.income.varArs;
-  const incUsd=state.income.usd+state.income.varUsd;
-  const incTotal=incArs+(incUsd*USD_TO_ARS);
-  const totalArs=arsT+(usdT*USD_TO_ARS);
+  const income=getReportIncomeSnapshot();
+  const incArs=income.ars;
+  const incUsd=income.usd;
+  const incTotal=income.totalArs;
+  const usdRate=getReportUsdRate();
+  const totalArs=arsT+(usdT*usdRate);
   const margen=incTotal>0?Math.max(0,incTotal-totalArs):null;
   const pct=incTotal>0?Math.round(totalArs/incTotal*100):null;
 
@@ -473,7 +490,7 @@ function buildReportHTML(txns,sections,periodLabel){
   const uncategorizedArs=uncategorizedTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   const noPayMethodTxns=txns.filter(t=>!String(t.payMethod||'').trim());
   const noPayMethodArs=noPayMethodTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const usdSharePct=totalArs>0?Math.round((usdT*USD_TO_ARS)/totalArs*100):0;
+  const usdSharePct=totalArs>0?Math.round((usdT*usdRate)/totalArs*100):0;
   const top3CatShare=arsT>0?Math.round(cats.slice(0,3).reduce((s,[,val])=>s+val,0)/arsT*100):0;
   const top5ExpenseShare=arsT>0?Math.round(topExpenses.reduce((s,t)=>s+t.amount,0)/arsT*100):0;
 
@@ -491,7 +508,7 @@ function buildReportHTML(txns,sections,periodLabel){
   const isCurrentMonth=txnMk===getMonthKey(today);
   const dayOfMonth=today.getDate();
   const daysInMonth=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
-  const dailyRate=dayOfMonth>0?arsT/dayOfMonth:0;
+  const dailyRate=dayOfMonth>0?totalArs/dayOfMonth:0;
   const projected=Math.round(dailyRate*daysInMonth);
   const daysLeft=daysInMonth-dayOfMonth;
 
@@ -586,7 +603,7 @@ function buildReportHTML(txns,sections,periodLabel){
   if(cuotasActivas.length) execActions.push({label:'Preparar próximo cierre', body:`El próximo período arranca con ${cuotasActivas.length} cuotas activas ya comprometidas.`});
   if(!execActions.length) execActions.push({label:'Sostener disciplina', body:'No hay desvíos graves: el foco pasa por mantener consistencia y calidad de datos.'});
 
-  const fixedCommitmentArs=state.subscriptions.reduce((s,sub)=>s+(sub.currency==='ARS'?toMonthly(sub):toMonthly(sub)*USD_TO_ARS),0)
+  const fixedCommitmentArs=state.subscriptions.reduce((s,sub)=>s+(sub.currency==='ARS'?toMonthly(sub):toMonthly(sub)*usdRate),0)
     + cuotasActivas.reduce((s,c)=>s+(c.amount||c.monthlyAmount||0),0);
   const fixedLoadPct=incTotal>0?Math.round(fixedCommitmentArs/incTotal*100):null;
   const pressureLabel=pct===null?'Sin ingreso cargado':pct>=100?'En rojo':pct>=85?'Muy exigido':pct>=65?'Ajustado':'Manejable';
@@ -633,7 +650,7 @@ function buildReportHTML(txns,sections,periodLabel){
         </div>
         <div class="rpt-exec-metric-band">
           <div class="rpt-exec-metric"><div class="rpt-exec-metric-label">Gasto total</div><div class="rpt-exec-metric-value">$${fmtN(Math.round(totalArs))}</div><div class="rpt-exec-metric-sub">${txns.length} movimientos</div></div>
-          <div class="rpt-exec-metric"><div class="rpt-exec-metric-label">Uso del ingreso</div><div class="rpt-exec-metric-value">${pct!==null?pct+'%':'—'}</div><div class="rpt-exec-metric-sub">${incTotal>0?'Ingreso estimado $'+fmtN(Math.round(incTotal)):'Sin ingreso configurado'}</div></div>
+          <div class="rpt-exec-metric"><div class="rpt-exec-metric-label">Uso del ingreso</div><div class="rpt-exec-metric-value">${pct!==null?pct+'%':'—'}</div><div class="rpt-exec-metric-sub">${incTotal>0?'Ingreso estimado $'+fmtN(Math.round(incTotal))+' · TC $'+fmtN(Math.round(usdRate)):'Sin ingreso configurado'}</div></div>
           <div class="rpt-exec-metric"><div class="rpt-exec-metric-label">Margen ejecutivo</div><div class="rpt-exec-metric-value">${margen!==null?'$'+fmtN(Math.round(margen)):'—'}</div><div class="rpt-exec-metric-sub">${margen!==null&&margen>0?'Todavía disponible':'Exige seguimiento'}</div></div>
           <div class="rpt-exec-metric"><div class="rpt-exec-metric-label">Categoría dominante</div><div class="rpt-exec-metric-value">${esc(cats[0]?.[0]||'Sin datos')}</div><div class="rpt-exec-metric-sub">${cats[0]&&arsT>0?Math.round(cats[0][1]/arsT*100)+'% del gasto':'Sin concentración relevante'}</div></div>
         </div>
@@ -661,7 +678,7 @@ function buildReportHTML(txns,sections,periodLabel){
     <div class="rpt-section-title">Resumen general</div>
     <div class="rpt-kpi-row">
       <div class="rpt-kpi"><div class="rpt-kpi-label">Gasto total ARS</div><div class="rpt-kpi-val">$${fmtN(arsT)}</div><div class="rpt-kpi-sub">${txns.filter(t=>t.currency==='ARS').length} movimientos</div></div>
-      <div class="rpt-kpi"><div class="rpt-kpi-label">Gasto total USD</div><div class="rpt-kpi-val">U$D ${fmtN(usdT)}</div><div class="rpt-kpi-sub">= $${fmtN(Math.round(usdT*USD_TO_ARS))} ARS</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Gasto total USD</div><div class="rpt-kpi-val">U$D ${fmtN(usdT)}</div><div class="rpt-kpi-sub">= $${fmtN(Math.round(usdT*usdRate))} ARS</div></div>
       <div class="rpt-kpi"><div class="rpt-kpi-label">Margen disponible</div><div class="rpt-kpi-val" style="color:${margen!==null&&margen<=0?'#dc2626':'#1d1d1f'};">${margen!==null?'$'+fmtN(margen):'—'}</div><div class="rpt-kpi-sub">${pct!==null?pct+'% del ingreso utilizado':''}</div></div>
     </div>
     ${incTotal>0?`<div style="margin-top:14px;background:#f7f7f7;border-radius:8px;padding:12px 16px;">
@@ -694,7 +711,7 @@ function buildReportHTML(txns,sections,periodLabel){
     html+=`<div class="rpt-section">
     <div class="rpt-section-title">Proyección al cierre del mes</div>
     <div class="rpt-kpi-row">
-      <div class="rpt-kpi"><div class="rpt-kpi-label">Gasto hasta hoy</div><div class="rpt-kpi-val">$${fmtN(arsT)}</div><div class="rpt-kpi-sub">Día ${dayOfMonth} de ${daysInMonth}</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Gasto hasta hoy</div><div class="rpt-kpi-val">$${fmtN(Math.round(totalArs))}</div><div class="rpt-kpi-sub">Día ${dayOfMonth} de ${daysInMonth}</div></div>
       <div class="rpt-kpi"><div class="rpt-kpi-label">Ritmo diario</div><div class="rpt-kpi-val">$${fmtN(Math.round(dailyRate))}</div><div class="rpt-kpi-sub">Promedio por día</div></div>
       <div class="rpt-kpi"><div class="rpt-kpi-label">Estimado a fin de mes</div><div class="rpt-kpi-val" style="color:${projColor};">$${fmtN(projected)}</div><div class="rpt-kpi-sub">${daysLeft} días restantes</div></div>
     </div>
@@ -812,7 +829,7 @@ function buildReportHTML(txns,sections,periodLabel){
 
   // ── COMPROMISOS PRÓXIMO MES ──
   if(sections.includes('compromisos')){
-    const subsTotal=state.subscriptions.reduce((s,sub)=>s+(sub.currency==='ARS'?toMonthly(sub):toMonthly(sub)*USD_TO_ARS),0);
+    const subsTotal=state.subscriptions.reduce((s,sub)=>s+(sub.currency==='ARS'?toMonthly(sub):toMonthly(sub)*usdRate),0);
     const cuotasTotal=cuotasActivas.reduce((s,c)=>s+(c.amount||c.monthlyAmount||0),0);
     const totalComp=subsTotal+cuotasTotal;
     html+=`<div class="rpt-section">
@@ -925,11 +942,11 @@ function buildReportHTML(txns,sections,periodLabel){
 
   // ── SIMULADOR ──
   if(sections.includes('simulador')&&isCurrentMonth&&incTotal>0){
-    const gastoHoy=arsT;const diasPasados=dayOfMonth;const diasRestantes=daysLeft;
+    const gastoHoy=totalArs;const diasPasados=dayOfMonth;const diasRestantes=daysLeft;
     const presupuestoRestante=Math.max(0,incTotal-gastoHoy);
     const disponibleDiario=diasRestantes>0?presupuestoRestante/diasRestantes:0;
     const puedoGastarHoy=Math.max(0,disponibleDiario);
-    const comprometido=(cuotasActivas.reduce((s,c)=>s+(c.amount||c.monthlyAmount||0),0))+(state.subscriptions.reduce((s,sub)=>s+toMonthly(sub),0));
+    const comprometido=(cuotasActivas.reduce((s,c)=>s+(c.amount||c.monthlyAmount||0),0))+(state.subscriptions.reduce((s,sub)=>s+((sub.currency==='ARS')?toMonthly(sub):toMonthly(sub)*usdRate),0));
     const libreReal=Math.max(0,presupuestoRestante-comprometido);
     html+=`<div class="rpt-section">
     <div class="rpt-section-title">¿Cuánto podés gastar este mes?</div>
@@ -1013,7 +1030,7 @@ function buildReportHTML(txns,sections,periodLabel){
       const _rAccARS=savAccounts.filter(a=>a.currency==='ARS').reduce((s,a)=>s+a.balance,0);
       const _rAccUSD=savAccounts.filter(a=>a.currency==='USD').reduce((s,a)=>s+a.balance,0);
       return savGoals.map(g=>{
-      const saved=g.currency==='USD'?_rAccUSD+(_rAccARS/USD_TO_ARS):_rAccARS+(_rAccUSD*USD_TO_ARS);
+      const saved=g.currency==='USD'?_rAccUSD+(_rAccARS/usdRate):_rAccARS+(_rAccUSD*usdRate);
       const target=g.target;
       const prefix=g.currency==='USD'?'U$D ':'$';
       const pctG=target>0?Math.min(100,Math.round(saved/target*100)):0;
@@ -1102,10 +1119,11 @@ function refreshRepAiPrompt(txns, periodLabel){
   if(!target) return;
   const label=periodLabel||getRepPeriodLabel();
   const modeLabel=normalizeRepMode(state.repMode||'visa')==='visa'?'Vista VISA':normalizeRepMode(state.repMode||'visa')==='mes'?'Mes':'Período personalizado';
+  const usdRate=getReportUsdRate();
   const ars=txns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   const usd=txns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-  const totalArs=ars+(usd*USD_TO_ARS);
-  const incomeArs=state.income.ars+state.income.varArs+((state.income.usd+state.income.varUsd)*USD_TO_ARS);
+  const totalArs=ars+(usd*usdRate);
+  const incomeArs=Number(state.income.ars||0)+Number(state.income.varArs||0)+((Number(state.income.usd||0)+Number(state.income.varUsd||0))*usdRate);
   const topCats=Object.entries(txns.filter(t=>t.currency==='ARS').reduce((acc,t)=>{
     acc[t.category||'Sin categoría']=(acc[t.category||'Sin categoría']||0)+(Number(t.amount)||0);
     return acc;
@@ -1125,6 +1143,7 @@ function refreshRepAiPrompt(txns, periodLabel){
     `- Gasto total aproximado en ARS equivalentes: $${fmtN(Math.round(totalArs))}.`,
     `- Gasto en ARS: $${fmtN(Math.round(ars))}.`,
     `- Gasto en USD: U$D ${fmtN(Math.round(usd))}.`,
+    `- Tipo de cambio usado por la app para este análisis: $${fmtN(Math.round(usdRate))} por USD.`,
     `- Ingreso mensual configurado en la app: ${incomeArs>0?'$'+fmtN(Math.round(incomeArs)):'no cargado o incompleto'}.`,
     `- Categorías más pesadas: ${topCats.length?topCats.map(([cat,val])=>`${cat} ($${fmtN(Math.round(val))})`).join(', '):'sin datos suficientes'}.`,
     `- Gastos individuales más altos: ${topSpends.length?topSpends.map(item=>`${item.description} ($${fmtN(Math.round(item.amount))})`).join('; '):'sin datos suficientes'}.`,
@@ -1304,15 +1323,18 @@ function openResumen(){
   const lastImp=state.imports[0];
   const periodTxns=lastImp&&lastImp.txnIds?state.transactions.filter(t=>lastImp.txnIds.includes(t.id)):state.transactions;
   const label=lastImp?lastImp.label:'Todos los datos';
+  const usdRate=getReportUsdRate();
   const ars=periodTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   const usd=periodTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-  const inc=state.income.ars+state.income.varArs;const pct=inc>0?Math.round((ars/inc)*100):null;
+  const income=getReportIncomeSnapshot();
+  const totalArs=ars+(usd*usdRate);
+  const pct=income.totalArs>0?Math.round((totalArs/income.totalArs)*100):null;
   const catMap={};periodTxns.filter(t=>t.currency==='ARS').forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount;});
   const topCats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
   let diffHtml='';
   if(state.imports.length>=2){const prevImp=state.imports[1];const prevTxns=prevImp.txnIds?state.transactions.filter(t=>prevImp.txnIds.includes(t.id)):[];const prevArs=prevTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);const diff=ars-prevArs;const dp=prevArs>0?((diff/prevArs)*100).toFixed(1):null;diffHtml='<div class="resumen-block"><h4>vs período anterior ('+prevImp.label+')</h4><div class="resumen-row"><span class="rr-label">Diferencia</span><span class="rr-val" style="color:'+(diff>0?'var(--danger)':'var(--accent)')+';">'+(diff>0?'+':'')+'$'+fmtN(Math.abs(diff))+' ARS</span></div>'+(dp?'<div class="resumen-row"><span class="rr-label">Variación</span><span class="rr-val" style="color:'+(diff>0?'var(--danger)':'var(--accent)')+';">'+(diff>0?'▲':'▼')+' '+Math.abs(dp)+'%</span></div>':'')+'</div>';}
   document.getElementById('resumen-periodo').textContent=label;
-  document.getElementById('resumen-body').innerHTML='<div class="resumen-block"><h4>💰 Gastos del período</h4><div class="resumen-row"><span class="rr-label">Total ARS</span><span class="rr-val">$'+fmtN(ars)+'</span></div>'+(usd>0?'<div class="resumen-row"><span class="rr-label">Total USD</span><span class="rr-val">U$D '+fmtN(usd)+'</span></div>':'')+(pct!==null?'<div class="resumen-row"><span class="rr-label">% del ingreso</span><span class="rr-val" style="color:'+(pct>state.alertThreshold?'var(--danger)':'var(--accent)')+';">'+pct+'%</span></div>':'')+'<div class="resumen-row"><span class="rr-label">Transacciones</span><span class="rr-val">'+periodTxns.length+'</span></div></div><div class="resumen-block"><h4>🏆 Top categorías</h4>'+topCats.map(([cat,amt])=>'<div class="resumen-row"><span class="rr-label">'+cat+'</span><span class="rr-val">$'+fmtN(amt)+'</span></div>').join('')+'</div>'+diffHtml;
+  document.getElementById('resumen-body').innerHTML='<div class="resumen-block"><h4>💰 Gastos del período</h4><div class="resumen-row"><span class="rr-label">Total ARS</span><span class="rr-val">$'+fmtN(ars)+'</span></div>'+(usd>0?'<div class="resumen-row"><span class="rr-label">Total USD</span><span class="rr-val">U$D '+fmtN(usd)+'</span></div><div class="resumen-row"><span class="rr-label">Total equivalente</span><span class="rr-val">$'+fmtN(Math.round(totalArs))+'</span></div>':'')+(pct!==null?'<div class="resumen-row"><span class="rr-label">% del ingreso</span><span class="rr-val" style="color:'+(pct>state.alertThreshold?'var(--danger)':'var(--accent)')+';">'+pct+'%</span></div>':'')+'<div class="resumen-row"><span class="rr-label">Transacciones</span><span class="rr-val">'+periodTxns.length+'</span></div></div><div class="resumen-block"><h4>🏆 Top categorías</h4>'+topCats.map(([cat,amt])=>'<div class="resumen-row"><span class="rr-label">'+cat+'</span><span class="rr-val">$'+fmtN(amt)+'</span></div>').join('')+'</div>'+diffHtml;
   openModal('modal-resumen');
 }
 function copyResumen(){
