@@ -1524,11 +1524,23 @@ function renderDashboard(){
   let dashboardCardsArs=0;
   let dashboardCardsUsd=0;
   let dashboardCardsCount=0;
+  const _todayYmdDash=dateToYMD(today);
+  // Always use ALL cycles (unfiltered by mode) for per-card active cycle lookup.
+  // _tcCycles may be filtered to a single card mode (e.g. 'visa'), which would
+  // leave AMEX with no cardSpecificCycles and incorrectly fall back to the VISA cycle.
+  const _allCardCycles=getTcCycles();
   dashboardCards.forEach(card=>{
     const key=(card.payMethodKey||card.id||'').toLowerCase();
     dashboardCardTotals[key]={ars:0,usd:0,count:0};
     dashboardCardDisplayTotals[key]={ars:0,usd:0,count:0};
-    dashboardCardCycleByKey[key]=dashboardCycleForCards||currentTcCycle||null;
+    // Find the active cycle for THIS specific card using the full cycle set
+    const cardSpecificCycles=_allCardCycles.filter(c=>c.cardId===card.id);
+    const cardActiveCycle=cardSpecificCycles.find(c=>{
+      const idx=_allCardCycles.findIndex(x=>x.id===c.id);
+      const open=getTcCycleOpen(_allCardCycles,idx);
+      return open&&_todayYmdDash>=open&&_todayYmdDash<=c.closeDate;
+    })||cardSpecificCycles[0]||null;
+    dashboardCardCycleByKey[key]=cardActiveCycle||null;
   });
   const dashboardCardBaseTxns=(monthTxns||[]).filter(t=>{
     if(t.isPendingCuota||t.isPendingSubscription) return false;

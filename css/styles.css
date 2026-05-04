@@ -22328,7 +22328,7 @@ body.light-mode .ccr-row:hover { background: rgba(0,0,0,0.02); }
 body.light-mode .ccr-card-header { background: rgba(0,0,0,0.03); }
 body.light-mode .ccr-expand-btn:hover { background: rgba(0,0,0,0.03); }
 
-/* ── Config dashboard: vertical layout ── */
+/* ── Config dashboard ── */
 .ccfg-dashboard {
   margin-bottom: 0;
 }
@@ -22349,11 +22349,15 @@ body.light-mode .ccr-expand-btn:hover { background: rgba(0,0,0,0.03); }
   font-weight: 600;
   color: var(--text3);
 }
+
+/* Cards grid — fills full width with equal columns */
 .ccfg-cards-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 14px;
 }
+
+/* Individual card */
 .ccfg-card {
   border: 1px solid color-mix(in srgb, var(--cc-card-color, var(--border)) 22%, var(--border));
   border-radius: 16px;
@@ -22365,16 +22369,16 @@ body.light-mode .ccr-expand-btn:hover { background: rgba(0,0,0,0.03); }
   transition: border-color .16s, box-shadow .16s;
 }
 .ccfg-card:hover {
-  border-color: color-mix(in srgb, var(--cc-card-color, var(--accent)) 36%, var(--border));
-  box-shadow: 0 8px 24px rgba(0,0,0,.06);
+  border-color: color-mix(in srgb, var(--cc-card-color, var(--accent)) 40%, var(--border));
+  box-shadow: 0 8px 24px rgba(0,0,0,.07);
 }
-.ccfg-card.is-paid {
-  border-color: color-mix(in srgb, #10b981 28%, var(--border));
-}
+.ccfg-card.is-paid  { border-color: color-mix(in srgb, #10b981 30%, var(--border)); }
 .ccfg-card.is-editing {
-  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--border));
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 15%, transparent);
 }
+
+/* Card header row */
 .ccfg-card-head {
   display: flex;
   align-items: center;
@@ -22402,13 +22406,24 @@ body.light-mode .ccr-expand-btn:hover { background: rgba(0,0,0,0.03); }
   color: var(--text3);
   padding: 2px 7px;
   border-radius: 6px;
-  background: color-mix(in srgb, var(--cc-card-color, var(--text3)) 10%, transparent);
+  background: color-mix(in srgb, var(--cc-card-color, var(--text3)) 12%, transparent);
 }
+
+/* "Activo" badge inside ccfg cards */
+.ccfg-badge-active {
+  background: rgba(16,185,129,.15);
+  color: #10b981;
+  border: 1px solid rgba(16,185,129,.3);
+}
+
+/* Cycle label */
 .ccfg-card-label {
   font-size: 12px;
   font-weight: 700;
   color: var(--text2);
 }
+
+/* Date chips row */
 .ccfg-card-dates {
   display: flex;
   flex-wrap: wrap;
@@ -22433,49 +22448,61 @@ body.light-mode .ccr-expand-btn:hover { background: rgba(0,0,0,0.03); }
   text-transform: uppercase;
   color: var(--text3);
 }
+
+/* Countdown chips (días al cierre / vencimiento) */
+.ccfg-card-countdown {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ccfg-countdown-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 18%, var(--border));
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+}
+.ccfg-countdown-chip b {
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .05em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+.ccfg-countdown-chip.is-urgent {
+  background: rgba(245,158,11,.1);
+  border-color: rgba(245,158,11,.3);
+  color: #d97706;
+}
+.ccfg-countdown-chip.is-urgent b { color: #d97706; }
+.ccfg-countdown-chip.is-overdue {
+  background: rgba(239,68,68,.1);
+  border-color: rgba(239,68,68,.3);
+  color: #dc2626;
+}
+.ccfg-countdown-chip.is-overdue b { color: #dc2626; }
+
+/* Total row */
 .ccfg-card-total {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  margin-top: 2px;
 }
-.ccfg-card-total span {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text3);
-}
-.ccfg-card-total strong {
-  font-size: 18px;
-  font-weight: 850;
-  color: var(--text);
-  letter-spacing: -0.02em;
-}
-.ccfg-card-total small {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text3);
-}
-.ccfg-card-due {
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--text2);
-  padding: 4px 10px;
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--accent) 8%, transparent);
-  align-self: flex-start;
-}
-.ccfg-card-due.is-overdue {
-  color: #ef4444;
-  background: rgba(239,68,68,.1);
-}
-.ccfg-card-due.is-urgent {
-  color: #f59e0b;
-  background: rgba(245,158,11,.1);
-}
+.ccfg-card-total span { font-size: 11px; font-weight: 600; color: var(--text3); }
+.ccfg-card-total strong { font-size: 20px; font-weight: 850; color: var(--text); letter-spacing: -0.025em; }
+.ccfg-card-total small  { font-size: 11px; font-weight: 600; color: var(--text3); }
+
+/* Action buttons */
 .ccfg-card-actions {
   display: flex;
   gap: 8px;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 .ccfg-card-actions button {
   flex: 1;
@@ -22493,12 +22520,9 @@ body.light-mode .ccr-expand-btn:hover { background: rgba(0,0,0,0.03); }
   border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
   color: var(--accent);
 }
-.ccfg-card-empty .ccfg-card-empty-msg {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text3);
-  padding: 6px 0;
-}
+
+/* Empty card */
+.ccfg-card-empty .ccfg-card-empty-msg { font-size: 12px; font-weight: 600; color: var(--text3); padding: 6px 0; }
 .ccfg-card-action {
   width: 100%;
   height: 36px;
@@ -22514,32 +22538,135 @@ body.light-mode .ccr-expand-btn:hover { background: rgba(0,0,0,0.03); }
   background: color-mix(in srgb, var(--accent) 10%, transparent);
   border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
 }
-.ccfg-form-section {
-  min-width: 0;
-  position: sticky;
-  top: 16px;
+
+/* Collapsible history */
+.ccfg-history {
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+  padding-top: 4px;
 }
-.ccfg-form-section .cc-config-new-cycle {
-  width: 100%;
+.ccfg-history summary {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text3);
+  cursor: pointer;
+  padding: 6px 2px;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  user-select: none;
+}
+.ccfg-history summary::-webkit-details-marker { display: none; }
+.ccfg-history summary::before {
+  content: '▸';
+  font-size: 10px;
+  transition: transform .15s;
+}
+.ccfg-history[open] summary::before { transform: rotate(90deg); }
+.ccfg-history summary:hover { color: var(--text2); }
+.ccfg-hist-list { display: flex; flex-direction: column; gap: 4px; padding: 4px 0 2px; }
+.ccfg-hist-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface3) 40%, transparent);
+  transition: background .12s;
+}
+.ccfg-hist-row:hover { background: color-mix(in srgb, var(--surface3) 80%, transparent); }
+.ccfg-hist-label { flex: 1; font-size: 11.5px; font-weight: 600; color: var(--text2); min-width: 0; }
+.ccfg-hist-total { font-size: 12px; font-weight: 750; color: var(--text); font-family: var(--font); white-space: nowrap; }
+.ccfg-hist-edit {
+  width: 26px; height: 26px;
+  border-radius: 7px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text3);
+  font-size: 12px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all .12s;
+}
+.ccfg-hist-edit:hover { color: var(--accent); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, transparent); }
+.ccfg-hist-empty { font-size: 11px; color: var(--text3); padding: 4px 2px; }
+
+/* ── Horizontal form section (below cards) ── */
+.ccfg-form-section { margin-top: 6px; }
+.ccfg-form-card { padding: 22px 24px !important; }
+.ccfg-form-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.ccfg-form-header h3 {
+  margin: 0;
+  font: 850 15px/1.2 var(--font);
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.ccfg-form-header p { margin: 4px 0 0; font-size: 12px; color: var(--text3); font-weight: 500; }
+/* Horizontal grid: tarjeta full-width, luego 3 dates + 1 día + actions en fila */
+.ccfg-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr 100px auto;
+  gap: 12px 14px;
+  align-items: end;
+}
+.ccfg-field-card { grid-column: 1 / -1; }
+.ccfg-form-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-self: end;
+  grid-column: -2 / -1;
+}
+.ccfg-form-actions .cc-config-save-btn {
+  white-space: nowrap;
+  height: 42px;
+  padding: 0 18px;
+  font-size: 13px;
+}
+.ccfg-form-actions .cc-config-cancel-btn {
+  height: 34px;
+  font-size: 12px;
 }
 
-/* Responsive: stack vertically on smaller screens */
-@media (max-width: 900px) {
-  .ccfg-layout {
-    grid-template-columns: 1fr;
+/* Responsive */
+@media (max-width: 960px) {
+  .ccfg-form-grid {
+    grid-template-columns: 1fr 1fr 1fr;
   }
-  .ccfg-form-section {
-    position: static;
-  }
+  .ccfg-field-card  { grid-column: 1 / -1; }
+  .ccfg-field-day   { grid-column: span 1; }
+  .ccfg-form-actions { grid-column: 1 / -1; flex-direction: row; }
+}
+@media (max-width: 600px) {
+  .ccfg-cards-grid  { grid-template-columns: 1fr; }
+  .ccfg-form-grid   { grid-template-columns: 1fr 1fr; }
+  .ccfg-form-actions { grid-column: 1 / -1; }
 }
 
-/* Light mode overrides for config dashboard */
+/* Light / dark mode overrides */
 body.light-mode .ccfg-card { background: #fff; }
 body:not(.light-mode) .ccfg-card { background: #15172a; border-color: rgba(255,255,255,.08); }
 body:not(.light-mode) .ccfg-card:hover { border-color: rgba(255,255,255,.16); }
 body:not(.light-mode) .ccfg-card-head strong { color: #f8f7ff; }
 body:not(.light-mode) .ccfg-card-total strong { color: #f8f7ff; }
 body:not(.light-mode) .ccfg-dashboard-head h3 { color: #f8f7ff; }
+body:not(.light-mode) .ccfg-form-card { background: #15172a !important; border-color: rgba(255,255,255,.08) !important; }
+body:not(.light-mode) .ccfg-form-header h3 { color: #f8f7ff; }
+
+/* Tab badge: invert on selected card (dark bg) for legibility */
+#page-credit-cards .cc-card-switch.is-active .cc-card-switch-cycle-active,
+#page-credit-cards .cc-card-switch.has-active-cycle.is-active .cc-card-switch-cycle-active {
+  background: rgba(255,255,255,.95);
+  color: #059669;
+}
 
 /* Credit card configuration — premium clean layout */
 #page-credit-cards {
