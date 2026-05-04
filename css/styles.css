@@ -22328,6 +22328,212 @@ body.light-mode .ccr-row:hover { background: rgba(0,0,0,0.02); }
 body.light-mode .ccr-card-header { background: rgba(0,0,0,0.03); }
 body.light-mode .ccr-expand-btn:hover { background: rgba(0,0,0,0.03); }
 
+/* ── Config dashboard: multi-card status grid ── */
+.ccfg-dashboard {
+  margin-bottom: 4px;
+}
+.ccfg-dashboard-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.ccfg-dashboard-head h3 {
+  margin: 0;
+  font: 850 17px/1.2 var(--font);
+  color: var(--text);
+  letter-spacing: -0.025em;
+}
+.ccfg-dashboard-head small {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text3);
+}
+.ccfg-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+.ccfg-card {
+  border: 1px solid color-mix(in srgb, var(--cc-card-color, var(--border)) 22%, var(--border));
+  border-radius: 16px;
+  padding: 18px 20px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: border-color .16s, box-shadow .16s;
+}
+.ccfg-card:hover {
+  border-color: color-mix(in srgb, var(--cc-card-color, var(--accent)) 36%, var(--border));
+  box-shadow: 0 8px 24px rgba(0,0,0,.06);
+}
+.ccfg-card.is-paid {
+  border-color: color-mix(in srgb, #10b981 28%, var(--border));
+}
+.ccfg-card.is-editing {
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 15%, transparent);
+}
+.ccfg-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.ccfg-card-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.ccfg-card-head strong {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  flex: 1;
+  min-width: 0;
+}
+.ccfg-card-brand {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--cc-card-color, var(--text3)) 10%, transparent);
+}
+.ccfg-card-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+}
+.ccfg-card-dates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ccfg-card-dates div {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 9px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--border) 70%, transparent);
+  background: color-mix(in srgb, var(--surface3) 50%, transparent);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text2);
+}
+.ccfg-card-dates b {
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  color: var(--text3);
+}
+.ccfg-card-total {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-top: 2px;
+}
+.ccfg-card-total span {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+}
+.ccfg-card-total strong {
+  font-size: 18px;
+  font-weight: 850;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+.ccfg-card-total small {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text3);
+}
+.ccfg-card-due {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text2);
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  align-self: flex-start;
+}
+.ccfg-card-due.is-overdue {
+  color: #ef4444;
+  background: rgba(239,68,68,.1);
+}
+.ccfg-card-due.is-urgent {
+  color: #f59e0b;
+  background: rgba(245,158,11,.1);
+}
+.ccfg-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+.ccfg-card-actions button {
+  flex: 1;
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text2);
+  font: 700 11.5px var(--font);
+  cursor: pointer;
+  transition: all .14s;
+}
+.ccfg-card-actions button:hover {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 30%, var(--border));
+  color: var(--accent);
+}
+.ccfg-card-empty .ccfg-card-empty-msg {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text3);
+  padding: 6px 0;
+}
+.ccfg-card-action {
+  width: 100%;
+  height: 36px;
+  border-radius: 9px;
+  border: 1px dashed color-mix(in srgb, var(--accent) 30%, var(--border));
+  background: color-mix(in srgb, var(--accent) 4%, transparent);
+  color: var(--accent);
+  font: 750 12px var(--font);
+  cursor: pointer;
+  transition: all .14s;
+}
+.ccfg-card-action:hover {
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.ccfg-form-section {
+  max-width: 480px;
+}
+.ccfg-form-section .cc-config-new-cycle {
+  width: 100%;
+}
+
+/* Light mode overrides for config dashboard */
+body.light-mode .ccfg-card { background: #fff; }
+body:not(.light-mode) .ccfg-card { background: #15172a; border-color: rgba(255,255,255,.08); }
+body:not(.light-mode) .ccfg-card:hover { border-color: rgba(255,255,255,.16); }
+body:not(.light-mode) .ccfg-card-head strong { color: #f8f7ff; }
+body:not(.light-mode) .ccfg-card-total strong { color: #f8f7ff; }
+body:not(.light-mode) .ccfg-dashboard-head h3 { color: #f8f7ff; }
+
+@media (max-width: 680px) {
+  .ccfg-cards-grid { grid-template-columns: 1fr; }
+  .ccfg-form-section { max-width: 100%; }
+}
+
 /* Credit card configuration — premium clean layout */
 #page-credit-cards {
   background: #fbfbfd;
@@ -23643,6 +23849,32 @@ body:not(.light-mode) #page-income .icomp-tip {
   font: 900 10px/1 var(--font);
   letter-spacing: .02em;
   text-transform: uppercase;
+}
+
+#page-credit-cards .cc-card-switch-cycle-active {
+  position: absolute;
+  top: 14px;
+  right: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  background: rgba(16,185,129,.22);
+  border: 1px solid rgba(16,185,129,.38);
+  color: #34d399;
+  font: 800 10px/1 var(--font);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+#page-credit-cards .cc-card-switch-cycle-active::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  flex-shrink: 0;
 }
 
 #page-credit-cards .cc-card-switch-brand {

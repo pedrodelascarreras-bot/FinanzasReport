@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "FinanzasApp",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["/tmp/finanzas_serve2.py"],
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["serve", "-l", "3000", "--no-clipboard"],
       "port": 3000,
       "autoPort": true
     }
