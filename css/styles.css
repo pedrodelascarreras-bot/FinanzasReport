@@ -22328,15 +22328,9 @@ body.light-mode .ccr-row:hover { background: rgba(0,0,0,0.02); }
 body.light-mode .ccr-card-header { background: rgba(0,0,0,0.03); }
 body.light-mode .ccr-expand-btn:hover { background: rgba(0,0,0,0.03); }
 
-/* ── Config dashboard: two-column layout ── */
-.ccfg-layout {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  gap: 20px;
-  align-items: start;
-}
+/* ── Config dashboard: vertical layout ── */
 .ccfg-dashboard {
-  min-width: 0;
+  margin-bottom: 0;
 }
 .ccfg-dashboard-head {
   display: flex;

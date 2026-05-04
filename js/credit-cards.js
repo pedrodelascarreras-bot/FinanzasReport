@@ -750,7 +750,9 @@ function renderCcConfigPanel(){
   const editingCycle=editingId ? cycles.find(c=>c.id===editingId) : null;
   const draftCardId=window._ccConfigDraftCardId||editingCycle?.cardId||state.ccActiveCard||cards[0]?.id||'';
   const todayYmd=dateToYMD(new Date());
+  const today=new Date();today.setHours(0,0,0,0);
   const fmtShort=s=>{if(!s)return'—';const d=new Date(s+'T12:00:00');return d.toLocaleDateString('es-AR',{day:'numeric',month:'short'});};
+  const daysFrom=s=>{if(!s)return null;const d=new Date(s+'T12:00:00');d.setHours(0,0,0,0);return Math.round((d-today)/86400000);};
   const cardOptions=cards.map(card=>`<option value="${esc(card.id)}" ${card.id===draftCardId?'selected':''}>${esc(card.name)}</option>`).join('');
 
   const actionsEl=document.getElementById('cc-page-actions');
@@ -770,48 +772,81 @@ function renderCcConfigPanel(){
     const totals=activeCycle?ccGetTotals(ccGetCycleExpenses(card.id,activeCycle.id)):{ars:0,usd:0};
     const statusEntry=activeCycle?state.ccCycles.find(x=>x.tcCycleId===activeCycle.id&&x.cardId===card.id):null;
     const isPaid=statusEntry?.status==='paid';
+    const isCurrentlyActive=activeCycle&&open<=todayYmd&&todayYmd<=activeCycle.closeDate;
     const brand=ccCardBrandLabel(card);
-    const dueMeta=activeCycle?ccCountdown(statusEntry?.dueDate||activeCycle.dueDate):null;
     const isEditing=editingCycle?.cardId===card.id;
+    const dueDateStr=statusEntry?.dueDate||activeCycle?.dueDate||'';
+    const daysToClose=activeCycle?daysFrom(activeCycle.closeDate):null;
+    const daysToDue=dueDateStr?daysFrom(dueDateStr):null;
+
+    const statusBadgeClass=isPaid?'ccr-badge-paid':isCurrentlyActive?'ccfg-badge-active':'ccr-badge-pending';
+    const statusBadgeText=isPaid?'Pagado':isCurrentlyActive?'Activo':'Pendiente';
+
+    const fmtDays=(n,label)=>{
+      if(n===null)return'';
+      if(n<0)return`<span class="ccfg-countdown-chip is-overdue"><b>${label}</b>Vencido</span>`;
+      if(n===0)return`<span class="ccfg-countdown-chip is-urgent"><b>${label}</b>Hoy</span>`;
+      return`<span class="ccfg-countdown-chip ${n<=5?'is-urgent':''}"><b>${label}</b>${n} día${n===1?'':'s'}</span>`;
+    };
+
+    // Past cycles for history
+    const pastCycles=cardCycles.filter(c=>c.id!==activeCycle?.id&&c.closeDate<todayYmd).slice(0,8);
+    const historyHtml=pastCycles.length?pastCycles.map(c=>{
+      const ps=state.ccCycles.find(x=>x.tcCycleId===c.id&&x.cardId===card.id);
+      const pp=ps?.status==='paid';
+      const pt=ccGetTotals(ccGetCycleExpenses(card.id,c.id));
+      return`<div class="ccfg-hist-row">
+        <span class="ccr-status-dot ${pp?'is-paid':'is-pending'}"></span>
+        <span class="ccfg-hist-label">${esc(c.label)}</span>
+        <span class="ccfg-hist-total">${pt.ars>0?'$'+fmtN(Math.round(pt.ars)):'$0'}</span>
+        <button class="ccfg-hist-edit" onclick="editTcCycle('${c.id}')">✎</button>
+      </div>`;
+    }).join(''):'<div class="ccfg-hist-empty">Sin ciclos anteriores</div>';
 
     if(!hasActiveCycle){
-      return `
-        <article class="ccfg-card ccfg-card-empty" style="--cc-card-color:${card.color};">
-          <div class="ccfg-card-head">
-            <span class="ccfg-card-dot" style="background:${card.color};"></span>
-            <strong>${esc(card.name)}</strong>
-            <span class="ccfg-card-brand">${brand}</span>
-          </div>
-          <div class="ccfg-card-empty-msg">Sin ciclo activo</div>
-          <button class="ccfg-card-action" onclick="ccOpenCycleComposer('${card.id}')">+ Configurar ciclo</button>
-        </article>`;
-    }
-
-    return `
-      <article class="ccfg-card ${isPaid?'is-paid':''} ${isEditing?'is-editing':''}" style="--cc-card-color:${card.color};">
+      return`<article class="ccfg-card ccfg-card-empty" style="--cc-card-color:${card.color};">
         <div class="ccfg-card-head">
           <span class="ccfg-card-dot" style="background:${card.color};"></span>
           <strong>${esc(card.name)}</strong>
           <span class="ccfg-card-brand">${brand}</span>
-          <span class="ccr-badge ${isPaid?'ccr-badge-paid':'ccr-badge-pending'}">${isPaid?'Pagado':'Pendiente'}</span>
         </div>
-        <div class="ccfg-card-label">${esc(activeCycle.label)}</div>
-        <div class="ccfg-card-dates">
-          <div><b>Apertura</b><span>${esc(fmtShort(open))}</span></div>
-          <div><b>Cierre</b><span>${esc(fmtShort(activeCycle.closeDate))}</span></div>
-          <div><b>Vencimiento</b><span>${activeCycle.dueDate?esc(fmtShort(activeCycle.dueDate)):'—'}</span></div>
-        </div>
-        <div class="ccfg-card-total">
-          <span>Total</span>
-          <strong>${totals.ars>0?'$'+fmtN(Math.round(totals.ars)):'$0'}</strong>
-          ${totals.usd>0?`<small>USD ${fmtN(totals.usd)}</small>`:''}
-        </div>
-        ${dueMeta&&!isPaid?`<div class="ccfg-card-due ${dueMeta.overdue?'is-overdue':dueMeta.urgent?'is-urgent':''}">${dueMeta.text}</div>`:''}
-        <div class="ccfg-card-actions">
-          <button onclick="editTcCycle('${activeCycle.id}')">Editar</button>
-          <button onclick="ccOpenCycleComposer('${card.id}')">Nuevo ciclo</button>
-        </div>
+        <div class="ccfg-card-empty-msg">Sin ciclo activo</div>
+        <button class="ccfg-card-action" onclick="ccOpenCycleComposer('${card.id}')">+ Configurar ciclo</button>
       </article>`;
+    }
+
+    return`<article class="ccfg-card ${isPaid?'is-paid':''} ${isEditing?'is-editing':''}" style="--cc-card-color:${card.color};">
+      <div class="ccfg-card-head">
+        <span class="ccfg-card-dot" style="background:${card.color};"></span>
+        <strong>${esc(card.name)}</strong>
+        <span class="ccfg-card-brand">${brand}</span>
+        <span class="ccr-badge ${statusBadgeClass}">${statusBadgeText}</span>
+      </div>
+      <div class="ccfg-card-label">${esc(activeCycle.label)}</div>
+      <div class="ccfg-card-dates">
+        <div><b>Apertura</b><span>${esc(fmtShort(open))}</span></div>
+        <div><b>Cierre</b><span>${esc(fmtShort(activeCycle.closeDate))}</span></div>
+        <div><b>Vencimiento</b><span>${dueDateStr?esc(fmtShort(dueDateStr)):'—'}</span></div>
+      </div>
+      <div class="ccfg-card-countdown">
+        ${fmtDays(daysToClose,'Cierre')}
+        ${fmtDays(daysToDue,'Vence')}
+      </div>
+      <div class="ccfg-card-total">
+        <span>Total</span>
+        <strong>${totals.ars>0?'$'+fmtN(Math.round(totals.ars)):'$0'}</strong>
+        ${totals.usd>0?`<small>USD ${fmtN(totals.usd)}</small>`:''}
+      </div>
+      <div class="ccfg-card-actions">
+        <button onclick="editTcCycle('${activeCycle.id}')">Editar ciclo</button>
+        <button onclick="ccOpenCycleComposer('${card.id}')">Nuevo ciclo</button>
+      </div>
+      ${pastCycles.length?`
+      <details class="ccfg-history">
+        <summary>Historial · ${pastCycles.length} ciclo${pastCycles.length===1?'':'s'} anterior${pastCycles.length===1?'':'es'}</summary>
+        <div class="ccfg-hist-list">${historyHtml}</div>
+      </details>`:''}
+    </article>`;
   }).join('');
 
   // Close day select for form
@@ -824,23 +859,27 @@ function renderCcConfigPanel(){
 
   el.innerHTML=`
     <div class="cc-config-shell cc-config-modern-shell">
-      <div class="ccfg-layout fade-up d1">
-        <section class="ccfg-dashboard">
-          <div class="ccfg-dashboard-head">
-            <h3>Estado de tus tarjetas</h3>
-            <small>${cards.length} tarjeta${cards.length===1?'':'s'} configurada${cards.length===1?'':'s'}</small>
-          </div>
-          <div class="ccfg-cards-grid">
-            ${cardStatusHtml}
-          </div>
-        </section>
+      <section class="ccfg-dashboard fade-up d1">
+        <div class="ccfg-dashboard-head">
+          <h3>Estado de tus tarjetas</h3>
+          <small>${cards.length} tarjeta${cards.length===1?'':'s'} configurada${cards.length===1?'':'s'}</small>
+        </div>
+        <div class="ccfg-cards-grid">
+          ${cardStatusHtml}
+        </div>
+      </section>
 
-        <aside class="ccfg-form-section fade-up d2">
-          <div class="cc-config-modern-card cc-config-new-cycle">
-            <h3>${editingCycle?'Editar ciclo':'Nuevo ciclo'}</h3>
-            <p>${editingCycle?'Modificá las fechas de este ciclo.':'Elegí la tarjeta y definí las fechas del nuevo período.'}</p>
+      <section class="ccfg-form-section fade-up d2">
+        <div class="cc-config-modern-card ccfg-form-card">
+          <div class="ccfg-form-header">
+            <div>
+              <h3>${editingCycle?'Editar ciclo':'Nuevo ciclo'}</h3>
+              <p>${editingCycle?'Modificá las fechas de este ciclo.':'Elegí la tarjeta y definí las fechas del nuevo período.'}</p>
+            </div>
             ${editingCycle?`<div class="cc-config-edit-banner">Editando: ${esc(editingCycle.label||'ciclo')}</div>`:''}
-            <label class="cc-config-field">
+          </div>
+          <div class="ccfg-form-grid">
+            <label class="cc-config-field ccfg-field-card">
               <span>Tarjeta</span>
               <select class="cc-cfg-input" id="tc-cycle-card-cc">${cardOptions}</select>
             </label>
@@ -856,18 +895,20 @@ function renderCcConfigPanel(){
               <span>Vencimiento</span>
               <input type="date" class="cc-cfg-input" id="tc-cycle-due-cc">
             </label>
-            <label class="cc-config-field">
+            <label class="cc-config-field ccfg-field-day">
               <span>Día de cierre</span>
               <select class="cc-cfg-input" id="tc-cycle-day-cc" onchange="ccApplyCloseDayFromConfig(this.value)">
                 ${closeDayOptions}
               </select>
             </label>
-            <input type="hidden" id="tc-cycle-label-cc" value="${editingCycle?esc(editingCycle.label||''):''}">
-            <button class="cc-config-save-btn" onclick="addTcCycleFromCC()">${editingCycle?'Guardar cambios':'Guardar nuevo ciclo'}</button>
-            ${editingCycle?'<button class="cc-config-cancel-btn" onclick="cancelTcCycleEdit()">Cancelar edición</button>':''}
+            <div class="ccfg-form-actions">
+              <input type="hidden" id="tc-cycle-label-cc" value="${editingCycle?esc(editingCycle.label||''):''}">
+              <button class="cc-config-save-btn" onclick="addTcCycleFromCC()">${editingCycle?'Guardar cambios':'Guardar ciclo'}</button>
+              ${editingCycle?'<button class="cc-config-cancel-btn" onclick="cancelTcCycleEdit()">Cancelar</button>':''}
+            </div>
           </div>
-        </aside>
-      </div>
+        </div>
+      </section>
     </div>
   `;
 }
