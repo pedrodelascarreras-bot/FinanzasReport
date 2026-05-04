@@ -255,14 +255,14 @@ function renderCcCardTabs(){
       const open=cycle.openDate||getTcCycleOpen(cycles,idx)||cycle.closeDate;
       return open<=todayYmd && todayYmd<=cycle.closeDate;
     })();
-    return `<button class="cc-card-switch ${isSelected?'is-active':''} ${brandClass}" onclick="ccSelectCard('${card.id}')" style="--cc-card-color:${card.color};">
+    return `<button class="cc-card-switch ${isSelected?'is-active':''} ${brandClass} ${hasActiveCycle?'has-active-cycle':''}" onclick="ccSelectCard('${card.id}')" style="--cc-card-color:${card.color};">
       <span class="cc-card-switch-dot"></span>
       <span class="cc-card-switch-main">
         <strong>${esc(card.name)}</strong>
         <small>${esc(last)} · ${cycle?esc(cycle.label):'Sin ciclo'} · ${statusText}</small>
+        ${hasActiveCycle?'<span class="cc-card-switch-cycle-active">● Activo</span>':''}
       </span>
       <span class="cc-card-switch-total">${totals.ars>0?'$'+fmtN(Math.round(totals.ars)):'—'}</span>
-      ${hasActiveCycle?'<span class="cc-card-switch-cycle-active">Activo</span>':''}
       ${isSelected?'<span class="cc-card-switch-active-label">Viendo ahora</span>':''}
       <span class="cc-card-switch-brand">${brandText}</span>
     </button>`;
@@ -824,48 +824,50 @@ function renderCcConfigPanel(){
 
   el.innerHTML=`
     <div class="cc-config-shell cc-config-modern-shell">
-      <section class="ccfg-dashboard fade-up d1">
-        <div class="ccfg-dashboard-head">
-          <h3>Estado de tus tarjetas</h3>
-          <small>${cards.length} tarjeta${cards.length===1?'':'s'} configurada${cards.length===1?'':'s'}</small>
-        </div>
-        <div class="ccfg-cards-grid">
-          ${cardStatusHtml}
-        </div>
-      </section>
+      <div class="ccfg-layout fade-up d1">
+        <section class="ccfg-dashboard">
+          <div class="ccfg-dashboard-head">
+            <h3>Estado de tus tarjetas</h3>
+            <small>${cards.length} tarjeta${cards.length===1?'':'s'} configurada${cards.length===1?'':'s'}</small>
+          </div>
+          <div class="ccfg-cards-grid">
+            ${cardStatusHtml}
+          </div>
+        </section>
 
-      <section class="ccfg-form-section fade-up d2">
-        <div class="cc-config-modern-card cc-config-new-cycle">
-          <h3>${editingCycle?'Editar ciclo':'Configurar nuevo ciclo'}</h3>
-          <p>${editingCycle?'Modificá las fechas de este ciclo.':'Elegí la tarjeta y definí las fechas del nuevo período.'}</p>
-          ${editingCycle?`<div class="cc-config-edit-banner">Editando: ${esc(editingCycle.label||'ciclo')}</div>`:''}
-          <label class="cc-config-field">
-            <span>Tarjeta</span>
-            <select class="cc-cfg-input" id="tc-cycle-card-cc">${cardOptions}</select>
-          </label>
-          <label class="cc-config-field">
-            <span>Apertura del ciclo</span>
-            <input type="date" class="cc-cfg-input" id="tc-cycle-open-cc">
-          </label>
-          <label class="cc-config-field">
-            <span>Cierre del resumen</span>
-            <input type="date" class="cc-cfg-input" id="tc-cycle-close-cc" onchange="ccSyncCloseDayFromDate()">
-          </label>
-          <label class="cc-config-field">
-            <span>Vencimiento</span>
-            <input type="date" class="cc-cfg-input" id="tc-cycle-due-cc">
-          </label>
-          <label class="cc-config-field">
-            <span>Día de cierre</span>
-            <select class="cc-cfg-input" id="tc-cycle-day-cc" onchange="ccApplyCloseDayFromConfig(this.value)">
-              ${closeDayOptions}
-            </select>
-          </label>
-          <input type="hidden" id="tc-cycle-label-cc" value="${editingCycle?esc(editingCycle.label||''):''}">
-          <button class="cc-config-save-btn" onclick="addTcCycleFromCC()">${editingCycle?'Guardar cambios':'Guardar nuevo ciclo'}</button>
-          ${editingCycle?'<button class="cc-config-cancel-btn" onclick="cancelTcCycleEdit()">Cancelar edición</button>':''}
-        </div>
-      </section>
+        <aside class="ccfg-form-section fade-up d2">
+          <div class="cc-config-modern-card cc-config-new-cycle">
+            <h3>${editingCycle?'Editar ciclo':'Nuevo ciclo'}</h3>
+            <p>${editingCycle?'Modificá las fechas de este ciclo.':'Elegí la tarjeta y definí las fechas del nuevo período.'}</p>
+            ${editingCycle?`<div class="cc-config-edit-banner">Editando: ${esc(editingCycle.label||'ciclo')}</div>`:''}
+            <label class="cc-config-field">
+              <span>Tarjeta</span>
+              <select class="cc-cfg-input" id="tc-cycle-card-cc">${cardOptions}</select>
+            </label>
+            <label class="cc-config-field">
+              <span>Apertura del ciclo</span>
+              <input type="date" class="cc-cfg-input" id="tc-cycle-open-cc">
+            </label>
+            <label class="cc-config-field">
+              <span>Cierre del resumen</span>
+              <input type="date" class="cc-cfg-input" id="tc-cycle-close-cc" onchange="ccSyncCloseDayFromDate()">
+            </label>
+            <label class="cc-config-field">
+              <span>Vencimiento</span>
+              <input type="date" class="cc-cfg-input" id="tc-cycle-due-cc">
+            </label>
+            <label class="cc-config-field">
+              <span>Día de cierre</span>
+              <select class="cc-cfg-input" id="tc-cycle-day-cc" onchange="ccApplyCloseDayFromConfig(this.value)">
+                ${closeDayOptions}
+              </select>
+            </label>
+            <input type="hidden" id="tc-cycle-label-cc" value="${editingCycle?esc(editingCycle.label||''):''}">
+            <button class="cc-config-save-btn" onclick="addTcCycleFromCC()">${editingCycle?'Guardar cambios':'Guardar nuevo ciclo'}</button>
+            ${editingCycle?'<button class="cc-config-cancel-btn" onclick="cancelTcCycleEdit()">Cancelar edición</button>':''}
+          </div>
+        </aside>
+      </div>
     </div>
   `;
 }
