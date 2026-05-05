@@ -1455,6 +1455,246 @@ function renderTransactions(){
   }
 }
 
+// ══ MOBILE TRANSACTIONS ══
+function renderMobileTransactions(txns, meta) {
+  const shell = document.getElementById('mob-txn-shell');
+  if (!shell || window.innerWidth > 768) return;
+
+  // Self-contained: always compute from current-month data regardless of desktop TC filter.
+  const today = new Date();
+  const _MN = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const currentMonthKey = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
+  const allStateTxns = (typeof state !== 'undefined' && state.transactions) ? state.transactions : ((window.state && window.state.transactions) ? window.state.transactions : (txns || []));
+  const monthTxns = allStateTxns.filter(t => {
+    if (t.isPendingCuota || t.isPendingSubscription) return false;
+    const mk = t.month || (() => {
+      const d = t.date instanceof Date ? t.date : new Date(t.date);
+      return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    })();
+    return mk === currentMonthKey;
+  });
+  const arsTotal  = monthTxns.filter(t => (t.currency || 'ARS') === 'ARS').reduce((s, t) => s + Math.abs(Number(t.amount) || 0), 0);
+  const usdTotal  = monthTxns.filter(t => (t.currency || 'ARS') === 'USD').reduce((s, t) => s + Math.abs(Number(t.amount) || 0), 0);
+  const grandTotal = arsTotal + usdTotal * (window.USD_TO_ARS || 1);
+  const periodoLabel = _MN[today.getMonth()] + ' ' + today.getFullYear();
+
+  const fmtN = (n) => Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const esc = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const displayPeriod = periodoLabel || (_MN[today.getMonth()] + ' ' + today.getFullYear());
+
+  // Group current month's txns by date (already filtered above)
+  const realTxns = monthTxns.slice();
+  const groupMap = {};
+  realTxns.forEach(tx => {
+    const d = tx.date instanceof Date ? tx.date : new Date(tx.date);
+    const key = d.toISOString().slice(0, 10);
+    if (!groupMap[key]) groupMap[key] = [];
+    groupMap[key].push(tx);
+  });
+  const sortedKeys = Object.keys(groupMap).sort().reverse();
+
+  // Day header label
+  const DAYS_ES = ['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'];
+  const MONTHS_ES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
+  const todayKey = today.toISOString().slice(0, 10);
+  const yesterdayKey = new Date(today - 86400000).toISOString().slice(0, 10);
+  function dayLabel(key) {
+    if (key === todayKey) return 'HOY, ' + today.getDate() + ' ' + MONTHS_ES[today.getMonth()];
+    const d = new Date(key + 'T12:00:00');
+    if (key === yesterdayKey) return 'AYER, ' + d.getDate() + ' ' + MONTHS_ES[d.getMonth()];
+    return DAYS_ES[d.getDay()] + ', ' + d.getDate() + ' ' + MONTHS_ES[d.getMonth()];
+  }
+
+  // Avatar for each txn
+  function mobAvatar(tx) {
+    const name = (tx.comercio_detectado || tx._baseDesc || tx.description || '').toLowerCase();
+    const logoMap = [
+      { match: ['netflix'], bg: '#141414', text: '#E30C18', label: 'N' },
+      { match: ['spotify'], bg: '#1DB954', text: '#fff', label: '♫' },
+      { match: ['mercadopago', 'merpago'], bg: '#009EE3', text: '#fff', label: 'MP' },
+      { match: ['shell'], bg: '#F7C331', text: '#D31710', label: '⛽' },
+      { match: ['carrefour'], bg: '#004899', text: '#fff', label: 'C' },
+      { match: ['ypf'], bg: '#1F64D8', text: '#fff', label: 'YPF' },
+      { match: ['rappi'], bg: '#20BFA9', text: '#fff', label: 'R' },
+      { match: ['mcdo', 'mcdonald'], bg: '#DA1E2A', text: '#FFC928', label: 'M' },
+      { match: ['uber'], bg: '#000', text: '#fff', label: 'U' },
+      { match: ['cabify'], bg: '#7C3AED', text: '#fff', label: 'C' },
+    ];
+    const match = logoMap.find(item => item.match.some(m => name.includes(m)));
+    if (match) return `<span class="mob-txn-avatar" style="background:${match.bg};color:${match.text};">${esc(match.label)}</span>`;
+    const initials = (tx.comercio_detectado || tx._baseDesc || tx.description || 'M').trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('').toUpperCase().slice(0, 2);
+    const hue = [...initials].reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+    return `<span class="mob-txn-avatar" style="background:hsl(${hue},45%,22%);color:hsl(${hue},60%,70%);">${esc(initials)}</span>`;
+  }
+
+  // Time label
+  function mobTime(tx) {
+    if (tx.txnTime) return tx.txnTime.slice(0, 5);
+    const d = tx.date instanceof Date ? tx.date : new Date(tx.date);
+    if (d && !isNaN(d)) {
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mm = String(d.getMinutes()).padStart(2, '0');
+      if (hh !== '00' || mm !== '00') return `${hh}:${mm}`;
+    }
+    return '';
+  }
+
+  // Amount display
+  function mobAmount(tx) {
+    const isIncome = tx.isIncome || tx.amount < 0 || (tx.category || '').toLowerCase().includes('transfer');
+    const isPositive = isIncome || tx.amount < 0;
+    const sign = isPositive ? '+' : '';
+    const prefix = tx.currency === 'USD' ? 'U$D ' : '$';
+    const val = Math.abs(tx.amount || 0);
+    return { label: `${sign}${prefix}${fmtN(val)}`, positive: isPositive };
+  }
+
+  // Build groups HTML
+  const MAX_PER_DAY = 5;
+  const MAX_DAYS = 5;
+  const visibleKeys = sortedKeys.slice(0, MAX_DAYS);
+
+  let groupsHtml = '';
+  if (visibleKeys.length === 0) {
+    groupsHtml = `<div class="mob-txn-empty">
+      <div class="mob-txn-empty-icon">📋</div>
+      <div class="mob-txn-empty-text">Sin movimientos en este período</div>
+    </div>`;
+  } else {
+    visibleKeys.forEach(key => {
+      const items = groupMap[key].slice(0, MAX_PER_DAY);
+      const rowsHtml = items.map(tx => {
+        const cat = tx.category && tx.category !== 'Procesando...' && tx.category !== 'Uncategorized' ? tx.category : 'Sin categoría';
+        const amt = mobAmount(tx);
+        const time = mobTime(tx);
+        return `
+          <div class="mob-txn-row" onclick="openTxnDetail('${esc(tx.id)}')">
+            ${mobAvatar(tx)}
+            <div class="mob-txn-row-info">
+              <div class="mob-txn-name">${esc(tx.comercio_detectado || tx._baseDesc || tx.description || 'Movimiento')}</div>
+              <div class="mob-txn-cat">${esc(cat)}</div>
+            </div>
+            ${time ? `<div class="mob-txn-time">${esc(time)}</div>` : '<div class="mob-txn-time"></div>'}
+            <div class="mob-txn-amt${amt.positive ? ' positive' : ''}">${esc(amt.label)}</div>
+          </div>`;
+      }).join('');
+      groupsHtml += `
+        <div class="mob-txn-group">
+          <div class="mob-txn-day-hd">${esc(dayLabel(key))}</div>
+          <div class="mob-txn-list">${rowsHtml}</div>
+        </div>`;
+    });
+  }
+
+  // Commitments counts
+  const cuotasCount = (state.manualCuotas || []).filter(c => c.active !== false).length +
+    ((state.transactions || []).filter(t => t.isPendingCuota).length);
+  const subsCount = (state.subscriptions || []).filter(s => s.active !== false).length;
+  const fijosCount = (state.fijos || []).filter(f => f.active !== false).length;
+  const compromisosCount = Math.max(fijosCount, (state.compromisos || []).length);
+
+  shell.innerHTML = `
+    <div class="mob-txn-page">
+
+      <!-- Header -->
+      <div class="mob-txn-header">
+        <button class="mob-txn-ham" onclick="document.getElementById('sidebar-open-btn')?.click()" aria-label="Menú">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <span class="mob-txn-logo"><strong>DRIP</strong>FLOW</span>
+        <div class="mob-txn-hdr-right">
+          <button class="mob-txn-bell" onclick="toggleNotifPanel?.()" aria-label="Notificaciones">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          </button>
+          <div class="mob-txn-avatar-btn" onclick="nav('settings')">P</div>
+        </div>
+      </div>
+
+      <!-- Title -->
+      <div class="mob-txn-title-block">
+        <h1 class="mob-txn-title">Movimientos</h1>
+        <p class="mob-txn-subtitle">Controlá tus gastos</p>
+      </div>
+
+      <!-- Filters -->
+      <div class="mob-txn-filters">
+        <button class="mob-txn-pill active" onclick="openTxnPeriodPicker?.()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          ${esc(displayPeriod)}
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+        </button>
+        <button class="mob-txn-pill" onclick="toggleTxnAdvancedFilters?.(); renderTransactions();">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Filtros
+        </button>
+      </div>
+
+      <!-- Totals strip -->
+      <div class="mob-txn-totals">
+        <div class="mob-txn-total-col">
+          <div class="mob-txn-total-label">ARS</div>
+          <div class="mob-txn-total-val ars">$${fmtN(arsTotal)}</div>
+        </div>
+        <div class="mob-txn-total-sep"></div>
+        <div class="mob-txn-total-col">
+          <div class="mob-txn-total-label">USD</div>
+          <div class="mob-txn-total-val usd">${usdTotal > 0 ? 'USD ' + fmtN(usdTotal) : 'USD 0,00'}</div>
+        </div>
+        <div class="mob-txn-total-sep"></div>
+        <div class="mob-txn-total-col">
+          <div class="mob-txn-total-label">TOTAL</div>
+          <div class="mob-txn-total-val total">$${fmtN(grandTotal || arsTotal)}</div>
+        </div>
+      </div>
+
+      <!-- Transaction groups -->
+      <div class="mob-txn-groups">
+        ${groupsHtml}
+      </div>
+
+      <!-- See all link -->
+      ${realTxns.length > 0 ? `
+      <button class="mob-txn-see-all" onclick="nav('transactions')">
+        Ver todos los movimientos
+      </button>` : ''}
+
+      <!-- Commitments card -->
+      <div class="mob-txn-commits" onclick="nav('cuotas')" style="cursor:pointer">
+        <div class="mob-txn-commits-hd">
+          <div>
+            <div class="mob-txn-commits-title">Cuotas, suscripciones y compromisos</div>
+            <div class="mob-txn-commits-sub">Vencimientos próximos y cargos recurrentes</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C4DFF" stroke-width="2.2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
+        </div>
+        <div class="mob-txn-commits-grid">
+          <div class="mob-txn-commit-item">
+            <div class="mob-txn-commit-icon" style="background:rgba(124,77,255,0.15);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C4DFF" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+            </div>
+            <div class="mob-txn-commit-label">Cuotas</div>
+            <div class="mob-txn-commit-sub">${cuotasCount} próximas</div>
+          </div>
+          <div class="mob-txn-commit-item">
+            <div class="mob-txn-commit-icon" style="background:rgba(36,146,255,0.15);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2692FF" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
+            </div>
+            <div class="mob-txn-commit-label">Suscripciones</div>
+            <div class="mob-txn-commit-sub">${subsCount} activas</div>
+          </div>
+          <div class="mob-txn-commit-item">
+            <div class="mob-txn-commit-icon" style="background:rgba(39,228,122,0.12);">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#27E47A" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+            </div>
+            <div class="mob-txn-commit-label">Compromisos</div>
+            <div class="mob-txn-commit-sub">${compromisosCount} próximos</div>
+          </div>
+        </div>
+      </div>
+
+    </div>`;
+}
+
 // ══ MULTI-SELECT ══
 if(!state._selectedTxns) state._selectedTxns=new Set();
 
@@ -2264,3 +2504,35 @@ function saveNewExpense(){
   closeModal('modal-new-expense');
   showToast('Gasto agregado: '+desc,'success');
 }
+
+// ── Mobile transactions wrapper ──
+// Wraps renderTransactions so that every call also triggers the mobile render.
+// Using an external wrapper avoids closure-binding issues with the inner function.
+(function() {
+  const _origRenderTransactions = window.renderTransactions;
+  if (typeof _origRenderTransactions !== 'function') return;
+  window.renderTransactions = function() {
+    _origRenderTransactions.apply(this, arguments);
+    // After the desktop render, update the mobile shell
+    if (typeof renderMobileTransactions === 'function' && window.innerWidth <= 768) {
+      const txns = (typeof state !== 'undefined' && state.transactions) ? state.transactions : [];
+      // Compute visible period totals from DOM (already set by renderTransactions)
+      const arsEl  = document.getElementById('txns-total-ars');
+      const usdEl  = document.getElementById('txns-total-usd');
+      const mainEl = document.getElementById('txns-main');
+      const detailEl = document.getElementById('txns-detail');
+      const parseAmt = (el) => {
+        if (!el) return 0;
+        const raw = el.textContent.replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',', '.');
+        return parseFloat(raw) || 0;
+      };
+      const arsTotal   = parseAmt(arsEl);
+      const usdTotal   = parseAmt(usdEl);
+      const grandTotal = parseAmt(mainEl);
+      const periodoLabel = detailEl ? (detailEl.textContent.split(' · ')[0] || '') : '';
+      let filteredTxns = txns.slice();
+      // Simple date filter: use what's visible after renderTransactions ran
+      renderMobileTransactions(filteredTxns, { arsTotal, usdTotal, grandTotal, periodoLabel });
+    }
+  };
+})();
