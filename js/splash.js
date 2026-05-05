@@ -82,6 +82,29 @@
     if(!content) return;
 
     content.innerHTML = `
+      <!-- ── MOBILE AUTH SPLASH (max-width:768px only) ── -->
+      <div class="mob-auth-shell" id="mob-auth-shell">
+        <div class="mob-auth-logo-wrap">
+          <div class="mob-auth-logo-sq">
+            <img src="design-system/branding/logo.svg" alt="DRIPFLOW" class="mob-auth-logo-img">
+          </div>
+        </div>
+        <div class="mob-auth-brand" aria-label="DRIPFLOW">
+          <span class="mob-auth-brand-drip">DRIP</span><span class="mob-auth-brand-flow">FLOW</span>
+        </div>
+        <h1 class="mob-auth-headline">Tu información merece <em>seguridad.</em></h1>
+        <p class="mob-auth-subtitle">Conectá tu cuenta de Google y empezá a tener el control total de tus finanzas.</p>
+        <button class="mob-auth-google-btn" type="button" onclick="handleSplashPrimaryAction(event)" aria-label="Iniciar sesión con Google">
+          <span class="mob-auth-gbtn-icon">${googleLogoSVG(22)}</span>
+          <span class="mob-auth-gbtn-text">${ctaLabel}</span>
+          <span class="mob-auth-gbtn-arrow"><svg viewBox="0 0 24 24" fill="none" stroke="#7C4DFF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></span>
+        </button>
+        <div class="mob-auth-security">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13"><rect x="5" y="11" width="14" height="10" rx="3"/><path d="M8 11V8a4 4 0 1 1 8 0v3"/></svg>
+          <span>${reassurance}</span>
+        </div>
+      </div>
+
       <div class="sp-private-shell">
         <div class="spw-topbar">
           <div class="spw-brand df-logo" aria-label="DRIPFLOW">

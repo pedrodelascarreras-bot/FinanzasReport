@@ -25885,3 +25885,182 @@ body:not(.light-mode) #page-dashboard #dash-month-select option {
     font-size: 12px;
   }
 }
+
+
+/* ═══════════════════════════════════════════════════════════════
+   MOBILE AUTH SPLASH — mob-auth-shell
+   Shown only on mobile (max-width:768px). Desktop splash unchanged.
+═══════════════════════════════════════════════════════════════ */
+
+/* Hidden by default (desktop) */
+.mob-auth-shell { display: none; }
+
+/* Base styles (used when visible on mobile) */
+.mob-auth-logo-wrap {
+  margin-bottom: 16px;
+}
+.mob-auth-logo-sq {
+  width: 80px;
+  height: 80px;
+  border-radius: 22px;
+  background: linear-gradient(145deg, #1a1040, #0d1528);
+  border: 1px solid rgba(124,77,255,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 0 30px rgba(124,77,255,0.35),
+    0 0 60px rgba(36,124,255,0.15),
+    0 8px 24px rgba(0,0,0,0.5);
+}
+.mob-auth-logo-img {
+  width: 50px;
+  height: 50px;
+  object-fit: contain;
+}
+.mob-auth-brand {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  margin-bottom: 32px;
+}
+.mob-auth-brand-drip {
+  background: linear-gradient(90deg, #247CFF, #7C4DFF);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.mob-auth-brand-flow {
+  color: #F4F6FF;
+  opacity: 0.9;
+}
+.mob-auth-headline {
+  font-size: clamp(28px, 8vw, 34px);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: #F4F6FF;
+  text-align: center;
+  margin: 0 0 16px;
+  max-width: 320px;
+}
+.mob-auth-headline em {
+  font-style: normal;
+  background: linear-gradient(90deg, #247CFF, #7C4DFF);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.mob-auth-subtitle {
+  font-size: 15px;
+  line-height: 1.6;
+  color: #9EA6C7;
+  text-align: center;
+  max-width: 300px;
+  margin: 0 0 32px;
+}
+.mob-auth-google-btn {
+  width: 100%;
+  max-width: 340px;
+  height: 56px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #ffffff 0%, #f0ebff 100%);
+  box-shadow:
+    0 0 25px rgba(124,77,255,0.35),
+    0 4px 20px rgba(0,0,0,0.25);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
+  margin-bottom: 16px;
+}
+.mob-auth-google-btn:hover {
+  filter: brightness(1.04);
+  box-shadow:
+    0 0 35px rgba(124,77,255,0.45),
+    0 6px 24px rgba(0,0,0,0.3);
+}
+.mob-auth-google-btn:active {
+  transform: scale(0.97);
+  box-shadow:
+    0 0 18px rgba(124,77,255,0.3),
+    0 2px 12px rgba(0,0,0,0.2);
+}
+.mob-auth-gbtn-icon {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.mob-auth-gbtn-text {
+  flex: 1;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1A1F36;
+  letter-spacing: -0.01em;
+}
+.mob-auth-gbtn-arrow {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+.mob-auth-security {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #7E86A6;
+  font-size: 12px;
+  opacity: 0.75;
+  text-align: center;
+}
+.mob-auth-security svg { flex-shrink: 0; opacity: 0.7; }
+
+/* ── Mobile media query — show mob-auth-shell, hide desktop splash ── */
+@media (max-width: 768px) {
+  /* Override splash background */
+  #splash {
+    background:
+      radial-gradient(circle at 50% 0%, rgba(124,77,255,0.28) 0%, transparent 55%),
+      radial-gradient(circle at 80% 80%, rgba(36,124,255,0.12) 0%, transparent 40%),
+      linear-gradient(180deg, #0B1020 0%, #070B1A 100%) !important;
+  }
+
+  /* Hide existing splash chrome on mobile */
+  #splash .sp-logo { display: none !important; }
+  #splash .sp-footer { display: none !important; }
+
+  /* Make sp-inner a centered column */
+  #splash .sp-inner {
+    width: 100%;
+    max-width: 420px;
+    margin: 0 auto;
+    padding: env(safe-area-inset-top, 20px) 24px env(safe-area-inset-bottom, 20px);
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 100dvh;
+    transform: none !important;
+  }
+
+  /* Show mobile shell */
+  .mob-auth-shell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    animation: mobAuthFadeIn 0.45s cubic-bezier(0.22,1,0.36,1) both;
+  }
+
+  /* Hide desktop shell */
+  .sp-private-shell { display: none !important; }
+
+  @keyframes mobAuthFadeIn {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+}
