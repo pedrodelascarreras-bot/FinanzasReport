@@ -1098,3 +1098,252 @@ function ccToggleTcConfig(){
 }
 
 window.checkCreditCardAlerts = checkCreditCardAlerts;
+
+// ══ MOBILE CREDIT CARDS RENDER ══
+function renderMobileCreditCards() {
+  const shell = document.getElementById('mob-cc-shell');
+  if (!shell || window.innerWidth > 768) return;
+
+  ccInit();
+  const cards = state.ccCards || [];
+  if (!cards.length) {
+    shell.innerHTML = '<div style="padding:32px;text-align:center;color:#9EA6C7;">Sin tarjetas configuradas</div>';
+    return;
+  }
+
+  const activeCardId = state.ccActiveCard || cards[0]?.id;
+  const cycles = getTcCycles();
+
+  const _esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const _fmtN = (n) => Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // ── Card selector HTML ──
+  const cardsHtml = cards.map(card => {
+    const isActive = card.id === activeCardId;
+    const brand = ccCardBrandLabel(card);
+    const brandLc = brand.toLowerCase();
+    const last = card.last4 || card.digits || card.lastDigits || '••••';
+    const activeClass = isActive ? (brandLc === 'amex' ? 'active-amex' : 'active-visa') : '';
+    const badgeClass = brandLc === 'amex' ? 'mob-cc-badge-active mob-cc-badge-amex-active' : 'mob-cc-badge-active';
+    return `
+      <button class="mob-cc-card-btn ${activeClass}" onclick="ccSelectCard('${_esc(card.id)}')">
+        <div class="mob-cc-card-name">${_esc(card.name)}</div>
+        <div class="mob-cc-card-digits">•••• ${_esc(last)}</div>
+        <div class="mob-cc-card-footer">
+          ${isActive ? `<span class="${badgeClass}">ACTIVA</span>` : '<span></span>'}
+          <span class="mob-cc-brand-pill ${brandLc}">${_esc(brand)}</span>
+        </div>
+      </button>`;
+  }).join('');
+
+  // ── Active cycle data ──
+  const activeCard = cards.find(c => c.id === activeCardId);
+  const brand = activeCard ? ccCardBrandLabel(activeCard) : 'VISA';
+  const brandLc = brand.toLowerCase();
+  const cycle = ccFindDefaultCycleForCard(activeCardId, cycles);
+  const expenses = cycle ? ccGetCycleExpenses(activeCardId, cycle.id) : [];
+  const totals = ccGetTotals(expenses);
+  const catSummary = ccGetCatSummary(expenses);
+
+  // ── Cycle card HTML ──
+  let cycleHtml;
+  if (!cycle) {
+    cycleHtml = `
+      <div class="mob-cc-empty-state">
+        <div class="mob-cc-empty-icon">💳</div>
+        <div class="mob-cc-empty-text">Sin ciclo configurado para esta tarjeta</div>
+        <button class="mob-cc-empty-cta" onclick="ccSelectPageTab('config')">+ Configurar ciclo</button>
+      </div>`;
+  } else {
+    const totalARS = totals.ars + totals.usd * (window.USD_TO_ARS || 1);
+
+    // Progress: days elapsed in cycle / total cycle days
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const todayYmd = dateToYMD(today);
+    const idx = cycles.findIndex(c => c.id === cycle.id);
+    const openDate = cycle.openDate || getTcCycleOpen(cycles, idx) || cycle.closeDate;
+    const open = new Date(openDate + 'T12:00:00');
+    const close = new Date((cycle.closeDate || openDate) + 'T12:00:00');
+    const totalDays = Math.max(1, Math.round((close - open) / 86400000));
+    const elapsed = Math.max(0, Math.min(totalDays, Math.round((today - open) / 86400000)));
+    const pct = Math.round((elapsed / totalDays) * 100);
+
+    // Due date
+    const dueInfo = cycle.dueDate ? ccCountdown(cycle.dueDate) : null;
+    const dueText = dueInfo ? dueInfo.text : (cycle.closeDate ? 'Cierra ' + ccFmtDate(cycle.closeDate) : '—');
+    const dueClass = dueInfo?.overdue ? 'overdue' : dueInfo?.urgent ? 'urgent' : '';
+
+    // Donut SVG (r=30, circumference ~188.5)
+    const r = 30, cx = 36, cy = 36;
+    const circ = 2 * Math.PI * r;
+    const dash = circ;
+    const offset = circ * (1 - pct / 100);
+
+    cycleHtml = `
+      <div class="mob-cc-cycle-top">
+        <div class="mob-cc-cycle-left">
+          <div class="mob-cc-cycle-label">Gasto del ciclo</div>
+          <div class="mob-cc-cycle-amount">$${_fmtN(Math.round(totalARS))}</div>
+          <div class="mob-cc-cycle-due ${dueClass}">${_esc(dueText)}</div>
+        </div>
+        <div class="mob-cc-donut-wrap">
+          <svg class="mob-cc-donut" viewBox="0 0 72 72">
+            <circle class="mob-cc-donut-bg" cx="${cx}" cy="${cy}" r="${r}"/>
+            <circle class="mob-cc-donut-fill ${brandLc}" cx="${cx}" cy="${cy}" r="${r}"
+              stroke-dasharray="${dash.toFixed(1)}"
+              stroke-dashoffset="${offset.toFixed(1)}"/>
+            <text x="36" y="36" text-anchor="middle" dominant-baseline="central"
+              transform="rotate(90,36,36)"
+              style="font-size:10px;font-weight:700;fill:#F4F6FF;">${pct}%</text>
+            <text x="36" y="46" text-anchor="middle"
+              transform="rotate(90,36,36)"
+              style="font-size:6px;font-weight:500;fill:#9EA6C7;">del ciclo</text>
+          </svg>
+        </div>
+      </div>
+      <div class="mob-cc-prog-bar">
+        <div class="mob-cc-prog-fill ${brandLc}" style="width:${pct}%"></div>
+      </div>`;
+  }
+
+  // ── Top categorías HTML ──
+  const topCats = catSummary.slice(0, 5);
+  const totalCatARS = topCats.reduce((s, c) => s + c.ars, 0) || 1;
+  const catIconBg = (cat) => {
+    const n = String(cat || '').toLowerCase();
+    if (n.includes('super') || n.includes('aliment')) return '#1a4a1a';
+    if (n.includes('restaurant') || n.includes('comida') || n.includes('delivery')) return '#3a2010';
+    if (n.includes('uber') || n.includes('transporte') || n.includes('cabify')) return '#1a1a3a';
+    if (n.includes('salud') || n.includes('farmacia')) return '#1a3020';
+    if (n.includes('regalo')) return '#3a1a30';
+    if (n.includes('entreten') || n.includes('stream')) return '#2a1540';
+    return '#1a1a2a';
+  };
+
+  let catsHtml;
+  if (topCats.length === 0) {
+    catsHtml = '<div style="text-align:center;padding:16px;color:#9EA6C7;font-size:13px;">Sin categorías este ciclo</div>';
+  } else {
+    const topTotal = topCats.reduce((s, c) => s + c.ars, 0) || 1;
+    catsHtml = topCats.map(c => {
+      const pctCat = Math.round((c.ars / topTotal) * 100);
+      const barWidth = Math.max(4, Math.round((c.ars / topCats[0].ars) * 100));
+      const icon = ccCategoryIcon(c.cat);
+      return `
+        <div class="mob-cc-cat-row">
+          <div class="mob-cc-cat-icon" style="background:${catIconBg(c.cat)}">${icon}</div>
+          <div class="mob-cc-cat-info">
+            <div class="mob-cc-cat-name">${_esc(c.cat)}</div>
+            <div class="mob-cc-cat-bar-track">
+              <div class="mob-cc-cat-bar-fill ${brandLc}" style="width:${barWidth}%"></div>
+            </div>
+          </div>
+          <div class="mob-cc-cat-right">
+            <div class="mob-cc-cat-amt">$${_fmtN(Math.round(c.ars))}</div>
+            <div class="mob-cc-cat-pct">${pctCat}%</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Últimos movimientos HTML ──
+  const logoMap = [
+    { match: ['netflix'], bg: '#141414', text: '#E30C18', label: 'N' },
+    { match: ['spotify'], bg: '#1DB954', text: '#fff', label: '♫' },
+    { match: ['mercadopago', 'merpago', 'mercado pago'], bg: '#009EE3', text: '#fff', label: 'MP' },
+    { match: ['shell'], bg: '#F7C331', text: '#D31710', label: '⛽' },
+    { match: ['carrefour'], bg: '#004899', text: '#fff', label: 'C' },
+    { match: ['rappi'], bg: '#20BFA9', text: '#fff', label: 'R' },
+    { match: ['mcdo', 'mcdonald'], bg: '#DA1E2A', text: '#FFC928', label: 'M' },
+    { match: ['uber'], bg: '#1a1a2a', text: '#fff', label: 'U' },
+  ];
+  function mobCcAvatar(desc) {
+    const name = (desc || '').toLowerCase();
+    const match = logoMap.find(item => item.match.some(m => name.includes(m)));
+    if (match) return `<div class="mob-cc-txn-avatar" style="background:${match.bg};color:${match.text};">${_esc(match.label)}</div>`;
+    const initials = (desc || 'M').trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('').toUpperCase().slice(0, 2);
+    const hue = [...initials].reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+    return `<div class="mob-cc-txn-avatar" style="background:hsl(${hue},45%,22%);color:hsl(${hue},60%,70%);">${_esc(initials)}</div>`;
+  }
+
+  const lastTxns = expenses.slice(0, 6);
+  let txnsHtml;
+  if (lastTxns.length === 0) {
+    txnsHtml = '<div style="text-align:center;padding:16px;color:#9EA6C7;font-size:13px;">Sin movimientos en este ciclo</div>';
+  } else {
+    txnsHtml = lastTxns.map(tx => {
+      const isPositive = tx.amountARS < 0;
+      const sign = isPositive ? '+' : '';
+      const amt = Math.abs(tx.amountARS || tx.amountUSD || 0);
+      const prefix = tx.amountUSD && !tx.amountARS ? 'U$D ' : '$';
+      const amtStr = `${sign}${prefix}${_fmtN(Math.round(amt))}`;
+      const cat = tx.category && tx.category !== 'Procesando...' ? tx.category : 'Sin categoría';
+      // Time from date string
+      let timeStr = '';
+      const txDate = tx.date ? new Date(tx.date + 'T12:00:00') : null;
+      if (tx.txnTime) timeStr = tx.txnTime.slice(0, 5);
+      return `
+        <div class="mob-cc-txn-row">
+          ${mobCcAvatar(tx.description)}
+          <div class="mob-cc-txn-info">
+            <div class="mob-cc-txn-name">${_esc(tx.description || 'Movimiento')}</div>
+            <div class="mob-cc-txn-cat">${_esc(cat)}</div>
+          </div>
+          ${timeStr ? `<div class="mob-cc-txn-time">${_esc(timeStr)}</div>` : ''}
+          <div class="mob-cc-txn-amt${isPositive ? ' positive' : ''}">${_esc(amtStr)}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Assemble page ──
+  shell.innerHTML = `
+    <div class="mob-cc-page">
+
+      <div class="mob-cc-header">
+        <button class="mob-cc-ham" onclick="toggleMobMenu ? toggleMobMenu() : null">☰</button>
+        <div class="mob-cc-logo">DRIP<strong>FLOW</strong></div>
+        <div class="mob-cc-hdr-right">
+          <button class="mob-cc-bell">🔔</button>
+          <button class="mob-cc-avatar-btn" onclick="nav('profile')">P</button>
+        </div>
+      </div>
+
+      <div class="mob-cc-title-block">
+        <h1 class="mob-cc-title">Movimientos</h1>
+        <p class="mob-cc-subtitle">Vas bien, llevás controlado tu dinero</p>
+      </div>
+
+      <div class="mob-cc-cards-row">${cardsHtml}</div>
+
+      <div class="mob-cc-cycle-card">${cycleHtml}</div>
+
+      <div class="mob-cc-cats-card">
+        <div class="mob-cc-section-hd">
+          <div class="mob-cc-section-title">Top categorías</div>
+          <button class="mob-cc-section-link" onclick="ccSelectPageTab('resumen')">Ver todas</button>
+        </div>
+        ${catsHtml}
+      </div>
+
+      <div class="mob-cc-txns-card">
+        <div class="mob-cc-section-hd">
+          <div class="mob-cc-section-title">Últimos movimientos</div>
+          <button class="mob-cc-section-link" onclick="nav('transactions')">Ver todos</button>
+        </div>
+        ${txnsHtml}
+      </div>
+
+    </div>`;
+}
+
+// ── External wrapper: call renderMobileCreditCards after every desktop render ──
+(function() {
+  const _origRenderCreditCards = window.renderCreditCards;
+  if (typeof _origRenderCreditCards !== 'function') return;
+  window.renderCreditCards = function() {
+    _origRenderCreditCards.apply(this, arguments);
+    if (window.innerWidth <= 768) {
+      try { renderMobileCreditCards(); } catch(e) { console.error('renderMobileCreditCards error', e); }
+    }
+  };
+})();

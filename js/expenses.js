@@ -1067,6 +1067,209 @@ function fmtCuotaNextDate(d){
   if(diff<=7)return'<span style="color:var(--accent3);font-weight:700;">en '+diff+'d ('+label+')</span>';
   return'<span style="color:var(--text2);">'+label+'</span>';
 }
+// ══ MOBILE COMPROMISOS RENDER ══
+function renderMobileCompromisos() {
+  const shell = document.getElementById('mob-comp-shell');
+  if (!shell || window.innerWidth > 768) return;
+
+  // Gather data using existing helpers
+  const monthKey = getMonthKey(new Date());
+  const income = commitmentsGetIncomeSnapshot(monthKey);
+  const { fixedItems, subsItems, cuotaItems, allActive } = commitmentsBuildData();
+  const filter = state.commitmentsFilter || 'all';
+
+  const totalArs = allActive.reduce((s, i) => s + i.amountArs, 0);
+  const pctIncome = income.total > 0 ? Math.round((totalArs / income.total) * 100) : 0;
+  const subsTotalArs = subsItems.reduce((s, i) => s + i.amountArs, 0);
+
+  const _esc = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  const _fmt = (n) => Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // ── Filter tabs ──
+  const tabs = [
+    ['all', 'Todos'],
+    ['fixed', 'Gastos fijos'],
+    ['subscriptions', 'Suscripciones'],
+    ['quotas', 'Cuotas'],
+  ];
+  const tabsHtml = tabs.map(([key, label]) =>
+    `<button class="mob-comp-tab${filter === key ? ' active' : ''}"
+      onclick="commitmentsSetFilter('${key}')">${_esc(label)}</button>`
+  ).join('');
+
+  // ── Total donut (% of income) ──
+  const r = 28, cx = 35, cy = 35, circ = 2 * Math.PI * r;
+  const filled = Math.min(pctIncome, 100);
+  const dashOffset = circ * (1 - filled / 100);
+  const donutColor = pctIncome >= 60 ? '#FF4D6A' : pctIncome >= 35 ? '#F7B731' : '#27E47A';
+
+  // ── Upcoming 7 days ──
+  const MES_CORTO = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+  const upcoming = allActive
+    .filter(i => i.due && i.due.nextDate && (i.due.status === 'soon' || i.due.status === 'overdue' || i.due.sortDays <= 7))
+    .sort((a, b) => a.due.sortDays - b.due.sortDays)
+    .slice(0, 5);
+
+  let upcomingHtml;
+  if (upcoming.length === 0) {
+    upcomingHtml = '<div style="padding:12px 0;text-align:center;color:#9EA6C7;font-size:13px;">Sin vencimientos próximos</div>';
+  } else {
+    upcomingHtml = upcoming.map(item => {
+      const d = item.due.nextDate;
+      const day = d.getDate();
+      const mon = MES_CORTO[d.getMonth()];
+      const isUSD = (item.currency || 'ARS') === 'USD';
+      const prefix = isUSD ? 'USD ' : '$';
+      const amt = isUSD ? _fmt(Number(item.rawAmount || item.amount)) : _fmt(Math.round(item.amountArs));
+      return `
+        <div class="mob-comp-upcoming-row">
+          <div class="mob-comp-date-badge">
+            <div class="mob-comp-date-day">${day}</div>
+            <div class="mob-comp-date-mon">${mon}</div>
+          </div>
+          <div class="mob-comp-upcoming-name">${_esc(item.name)}</div>
+          <div class="mob-comp-upcoming-amt${isUSD ? ' usd' : ''}">${_esc(prefix + amt)}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── All commitments filtered list ──
+  const filtered = allActive.filter(item => {
+    if (filter === 'fixed') return item.type === 'fixed';
+    if (filter === 'subscriptions') return item.type === 'subscription';
+    if (filter === 'quotas') return item.type === 'quota';
+    return true;
+  });
+
+  let listHtml;
+  if (filtered.length === 0) {
+    listHtml = '<div style="padding:20px;text-align:center;color:#9EA6C7;font-size:13px;">Sin compromisos en esta categoría</div>';
+  } else {
+    listHtml = filtered.map(item => {
+      const isUSD = (item.currency || 'ARS') === 'USD';
+      const prefix = isUSD ? 'USD ' : '$';
+      const displayAmt = isUSD ? _fmt(Number(item.rawAmount || item.amount)) : _fmt(Math.round(item.amountArs));
+      const typeLabel = item.type === 'subscription' ? 'Suscripción' : item.type === 'fixed' ? 'Gasto fijo' : 'Cuota';
+      const badgeClass = item.due?.status === 'soon' ? 'soon' : item.due?.status === 'overdue' ? 'overdue' : '';
+
+      // Avatar
+      const known = commitmentsKnownLogo(item.name || '');
+      let avatarHtml;
+      if (known) {
+        avatarHtml = `<div class="mob-comp-item-avatar" style="background:${known.bg};color:${known.color};">${_esc(known.label)}</div>`;
+      } else if (item.emoji) {
+        avatarHtml = `<div class="mob-comp-item-avatar" style="background:rgba(124,77,255,0.1);font-size:18px;">${_esc(item.emoji)}</div>`;
+      } else {
+        const initials = String(item.name || 'C').split(/\s+/).slice(0,2).map(p => p[0] || '').join('').toUpperCase();
+        const hue = [...initials].reduce((a, c) => a + c.charCodeAt(0), 0) % 360;
+        avatarHtml = `<div class="mob-comp-item-avatar" style="background:hsl(${hue},40%,18%);color:hsl(${hue},55%,65%);">${_esc(initials)}</div>`;
+      }
+
+      return `
+        <div class="mob-comp-item-row">
+          ${avatarHtml}
+          <div class="mob-comp-item-info">
+            <div class="mob-comp-item-name">${_esc(item.name)}</div>
+            <div class="mob-comp-item-sub">${typeLabel} · ${_esc(prefix + displayAmt)}/mes</div>
+          </div>
+          <div class="mob-comp-item-right">
+            <div class="mob-comp-item-amt${isUSD ? ' usd' : ''}">${_esc(prefix + displayAmt)}</div>
+            ${item.due?.label ? `<div class="mob-comp-item-badge ${badgeClass}">${_esc(item.due.label.replace('Próximo ',''))}</div>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Assemble ──
+  shell.innerHTML = `
+    <div class="mob-comp-page">
+
+      <div class="mob-comp-header">
+        <button class="mob-comp-ham">☰</button>
+        <div class="mob-comp-logo">DRIP<strong>FLOW</strong></div>
+        <div class="mob-comp-hdr-right">
+          <button class="mob-comp-bell">🔔</button>
+          <button class="mob-comp-avatar-btn" onclick="nav('profile')">P</button>
+        </div>
+      </div>
+
+      <div class="mob-comp-title-block">
+        <h1 class="mob-comp-title">Compromisos</h1>
+        <p class="mob-comp-subtitle">Tus gastos fijos, cuotas y suscripciones en un solo lugar.</p>
+      </div>
+
+      <div class="mob-comp-tabs">${tabsHtml}</div>
+
+      <div class="mob-comp-total-card">
+        <div class="mob-comp-total-top">
+          <div class="mob-comp-total-left">
+            <div class="mob-comp-total-label">Total comprometido</div>
+            <div class="mob-comp-total-amount">$${_fmt(Math.round(totalArs))}</div>
+            <div class="mob-comp-total-sub">${allActive.length} compromisos activos</div>
+          </div>
+          <div class="mob-comp-donut-wrap">
+            <svg class="mob-comp-donut" viewBox="0 0 70 70">
+              <circle class="mob-comp-donut-bg" cx="${cx}" cy="${cy}" r="${r}"/>
+              <circle class="mob-comp-donut-fill" cx="${cx}" cy="${cy}" r="${r}"
+                stroke="${donutColor}"
+                stroke-dasharray="${circ.toFixed(1)}"
+                stroke-dashoffset="${dashOffset.toFixed(1)}"/>
+              <text x="35" y="35" text-anchor="middle" dominant-baseline="central"
+                transform="rotate(90,35,35)"
+                style="font-size:12px;font-weight:800;fill:#F4F6FF;">${pctIncome}%</text>
+            </svg>
+          </div>
+        </div>
+        <div class="mob-comp-income-bar-wrap">
+          <div class="mob-comp-income-bar-label">vs. ingresos mensuales</div>
+          <div class="mob-comp-income-bar-track">
+            <div class="mob-comp-income-bar-fill" style="width:${Math.min(pctIncome, 100)}%"></div>
+          </div>
+        </div>
+      </div>
+
+      ${upcoming.length > 0 ? `
+      <div>
+        <div class="mob-comp-section-hd">
+          <div class="mob-comp-section-title">Próximos 7 días</div>
+          <button class="mob-comp-section-link" onclick="nav('calendar')">Ver calendario</button>
+        </div>
+        <div class="mob-comp-upcoming-list">${upcomingHtml}</div>
+      </div>` : ''}
+
+      <div class="mob-comp-list-card">
+        <div class="mob-comp-section-hd">
+          <div class="mob-comp-section-title">Todos los compromisos</div>
+        </div>
+        ${listHtml}
+      </div>
+
+      ${subsTotalArs > 0 ? `
+      <div class="mob-comp-savings-card">
+        <div class="mob-comp-savings-left">
+          <div class="mob-comp-savings-label">Podrías liberar</div>
+          <div class="mob-comp-savings-amount">$${_fmt(Math.round(subsTotalArs))}</div>
+          <div class="mob-comp-savings-sub">Si cancelás todas tus suscripciones variables</div>
+          <button class="mob-comp-savings-cta" onclick="commitmentsSetFilter('subscriptions')">Ver detalle →</button>
+        </div>
+        <div class="mob-comp-savings-icon">📊</div>
+      </div>` : ''}
+
+    </div>`;
+}
+
+// ── External wrapper: call renderMobileCompromisos after every desktop render ──
+(function() {
+  const _orig = window.renderCommitmentsPage;
+  if (typeof _orig !== 'function') return;
+  window.renderCommitmentsPage = function() {
+    _orig.apply(this, arguments);
+    if (window.innerWidth <= 768) {
+      try { renderMobileCompromisos(); } catch(e) { console.error('renderMobileCompromisos error', e); }
+    }
+  };
+})();
+
 function renderCuotas(){
   renderCommitmentsPage();
 }

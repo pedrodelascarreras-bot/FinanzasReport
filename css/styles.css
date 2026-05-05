@@ -26642,3 +26642,289 @@ body:not(.light-mode) #page-dashboard #dash-month-select option {
   .mob-cc-title { font-size: 24px; }
   .mob-cc-donut { width: 62px; height: 62px; }
 }
+
+/* ─────────────────────────────────────────────
+   MOBILE COMPROMISOS — mob-comp-shell
+───────────────────────────────────────────── */
+.mob-comp-shell { display: none; }
+
+.mob-comp-page {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 0 0 100px;
+  background: linear-gradient(180deg, #0B1224 0%, #070B1A 100%);
+  min-height: 100vh;
+}
+
+/* Header */
+.mob-comp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 4px;
+}
+.mob-comp-ham {
+  width: 36px; height: 36px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: #F4F6FF;
+  font-size: 18px; flex-shrink: 0;
+}
+.mob-comp-logo {
+  font-size: 15px; font-weight: 700; letter-spacing: 0.12em; color: #F4F6FF;
+}
+.mob-comp-logo strong { color: #7C4DFF; }
+.mob-comp-hdr-right { display: flex; align-items: center; gap: 10px; }
+.mob-comp-bell {
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  background: none; border: none; cursor: pointer; color: #9EA6C7; font-size: 16px;
+}
+.mob-comp-avatar-btn {
+  width: 34px; height: 34px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7C4DFF, #2692FF);
+  border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 13px; font-weight: 700; color: #fff;
+}
+
+/* Title */
+.mob-comp-title-block { padding: 0 4px; }
+.mob-comp-title {
+  font-size: 28px; font-weight: 800;
+  letter-spacing: -0.03em; color: #F4F6FF; margin: 0 0 3px;
+}
+.mob-comp-subtitle {
+  font-size: 13px; font-weight: 500; color: #9EA6C7; margin: 0;
+  line-height: 1.4;
+}
+
+/* Filter tabs */
+.mob-comp-tabs {
+  display: flex; gap: 8px;
+  overflow-x: auto; scrollbar-width: none;
+  padding: 2px 0 4px;
+}
+.mob-comp-tabs::-webkit-scrollbar { display: none; }
+.mob-comp-tab {
+  flex-shrink: 0;
+  height: 34px; padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(140,130,255,0.2);
+  background: rgba(124,77,255,0.05);
+  color: #9EA6C7; font-size: 13px; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: all 0.18s ease;
+}
+.mob-comp-tab.active {
+  background: #7C4DFF;
+  border-color: #7C4DFF;
+  color: #fff;
+}
+
+/* Main total card */
+.mob-comp-total-card {
+  background: linear-gradient(145deg, #1a0d5c 0%, #0f0937 100%);
+  border: 1px solid rgba(124,77,255,0.3);
+  border-radius: 22px;
+  padding: 20px 18px 18px;
+  position: relative;
+  overflow: hidden;
+}
+.mob-comp-total-card::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 160px; height: 160px;
+  background: radial-gradient(circle, rgba(124,77,255,0.18) 0%, transparent 70%);
+  border-radius: 50%;
+}
+.mob-comp-total-top {
+  display: flex; align-items: flex-start; justify-content: space-between; gap: 12px;
+  position: relative;
+}
+.mob-comp-total-left { flex: 1; }
+.mob-comp-total-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase;
+  color: rgba(200,192,255,0.7); margin-bottom: 8px;
+}
+.mob-comp-total-amount {
+  font-size: 30px; font-weight: 800; color: #F4F6FF;
+  letter-spacing: -0.03em; margin-bottom: 6px;
+}
+.mob-comp-total-sub {
+  font-size: 12px; color: rgba(200,192,255,0.6); font-weight: 500;
+}
+/* Donut */
+.mob-comp-donut-wrap {
+  flex-shrink: 0;
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+}
+.mob-comp-donut {
+  width: 70px; height: 70px;
+  transform: rotate(-90deg);
+}
+.mob-comp-donut-bg { fill: none; stroke: rgba(200,192,255,0.1); stroke-width: 6; }
+.mob-comp-donut-fill { fill: none; stroke: #27E47A; stroke-width: 6; stroke-linecap: round; }
+/* Progress bar */
+.mob-comp-income-bar-wrap {
+  margin-top: 16px; position: relative;
+}
+.mob-comp-income-bar-label {
+  font-size: 11px; color: rgba(200,192,255,0.5); font-weight: 500; margin-bottom: 6px;
+}
+.mob-comp-income-bar-track {
+  height: 4px; border-radius: 999px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+.mob-comp-income-bar-fill {
+  height: 100%; border-radius: 999px;
+  background: linear-gradient(90deg, #7C4DFF, #B47AFF);
+  transition: width 0.8s ease;
+}
+
+/* Upcoming section */
+.mob-comp-section-hd {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 12px;
+}
+.mob-comp-section-title {
+  font-size: 15px; font-weight: 700; color: #F4F6FF;
+}
+.mob-comp-section-link {
+  font-size: 12px; font-weight: 600; color: #7C4DFF;
+  background: none; border: none; cursor: pointer; padding: 0;
+}
+
+/* Upcoming list (transparent, no card) */
+.mob-comp-upcoming-list {
+  display: flex; flex-direction: column; gap: 0;
+}
+.mob-comp-upcoming-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(140,130,255,0.08);
+}
+.mob-comp-upcoming-row:last-child { border-bottom: none; }
+.mob-comp-date-badge {
+  flex-shrink: 0; text-align: center;
+  width: 38px;
+}
+.mob-comp-date-day {
+  font-size: 16px; font-weight: 800; color: #F4F6FF; line-height: 1;
+}
+.mob-comp-date-mon {
+  font-size: 9px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: #7C4DFF; margin-top: 1px;
+}
+.mob-comp-upcoming-name {
+  flex: 1; font-size: 13px; font-weight: 600; color: #F4F6FF;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mob-comp-upcoming-amt {
+  font-size: 13px; font-weight: 700; color: #F4F6FF; flex-shrink: 0;
+}
+.mob-comp-upcoming-amt.usd { color: #2692FF; }
+
+/* All commitments card */
+.mob-comp-list-card {
+  background: #101729;
+  border: 1px solid rgba(140,130,255,0.16);
+  border-radius: 22px;
+  padding: 18px 16px 10px;
+}
+.mob-comp-item-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid rgba(140,130,255,0.07);
+  cursor: pointer;
+}
+.mob-comp-item-row:last-child { border-bottom: none; }
+.mob-comp-item-avatar {
+  width: 40px; height: 40px; border-radius: 14px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 15px; font-weight: 700;
+}
+.mob-comp-item-info { flex: 1; min-width: 0; }
+.mob-comp-item-name {
+  font-size: 13px; font-weight: 600; color: #F4F6FF;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mob-comp-item-sub {
+  font-size: 11px; color: #9EA6C7; font-weight: 500; margin-top: 1px;
+}
+.mob-comp-item-right { text-align: right; flex-shrink: 0; }
+.mob-comp-item-amt {
+  font-size: 13px; font-weight: 700; color: #F4F6FF;
+}
+.mob-comp-item-amt.usd { color: #2692FF; }
+.mob-comp-item-badge {
+  display: inline-block; margin-top: 3px;
+  font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+  padding: 2px 7px; border-radius: 999px;
+  background: rgba(124,77,255,0.12);
+  border: 1px solid rgba(124,77,255,0.25);
+  color: #C8C0FF;
+}
+.mob-comp-item-badge.soon {
+  background: rgba(247,183,49,0.12);
+  border-color: rgba(247,183,49,0.3);
+  color: #F7B731;
+}
+.mob-comp-item-badge.overdue {
+  background: rgba(255,77,106,0.12);
+  border-color: rgba(255,77,106,0.3);
+  color: #FF4D6A;
+}
+
+/* Savings card */
+.mob-comp-savings-card {
+  background: linear-gradient(145deg, #0d1f10, #091510);
+  border: 1px solid rgba(39,228,122,0.2);
+  border-radius: 22px;
+  padding: 18px 18px 18px;
+  display: flex; align-items: center; gap: 14px;
+}
+.mob-comp-savings-left { flex: 1; }
+.mob-comp-savings-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: rgba(39,228,122,0.6); margin-bottom: 6px;
+}
+.mob-comp-savings-amount {
+  font-size: 22px; font-weight: 800; color: #27E47A; letter-spacing: -0.02em;
+  margin-bottom: 4px;
+}
+.mob-comp-savings-sub {
+  font-size: 12px; color: rgba(200,200,200,0.6); line-height: 1.4;
+}
+.mob-comp-savings-cta {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin-top: 10px;
+  font-size: 12px; font-weight: 600; color: #27E47A;
+  background: none; border: none; cursor: pointer; padding: 0;
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.mob-comp-savings-icon {
+  flex-shrink: 0; font-size: 36px; line-height: 1;
+}
+
+/* Mobile-only activation */
+@media (max-width: 768px) {
+  .mob-comp-shell {
+    display: block;
+    padding: 16px 20px 0;
+  }
+  body:has(#page-cuotas.active) .app-header { display: none !important; }
+  #page-cuotas #commitments-native-root { display: none !important; }
+  #page-cuotas { overflow-x: hidden; padding: 0; }
+
+  /* 4-item nav: shrink label font so "Compromisos" fits */
+  .mob-nav-btn .mn-label { font-size: 9px; }
+}
+
+@media (max-width: 430px) {
+  .mob-comp-total-amount { font-size: 26px; }
+  .mob-comp-title { font-size: 24px; }
+}

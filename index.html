@@ -1804,6 +1804,8 @@
 
 <!-- CUOTAS -->
 <div id="page-cuotas" class="page">
+  <!-- Mobile Compromisos Shell — visible only on mobile (max-width: 768px) -->
+  <div id="mob-comp-shell" class="mob-comp-shell"></div>
   <div id="commitments-native-root"></div>
 </div>
 
@@ -2191,9 +2193,9 @@
       <span class="mn-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span>
       <span class="mn-label">Tarjetas</span>
     </button>
-    <button class="mob-nav-btn" id="mn-more" onclick="toggleMobMore()">
-      <span class="mn-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="19" r="1" fill="currentColor"/></svg></span>
-      <span class="mn-label">Más</span>
+    <button class="mob-nav-btn" id="mn-cuotas" onclick="nav('cuotas')">
+      <span class="mn-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M9 16l2 2 4-4"/></svg></span>
+      <span class="mn-label">Compromisos</span>
     </button>
   </div>
 </nav>
