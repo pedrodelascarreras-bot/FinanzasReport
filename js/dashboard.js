@@ -4444,9 +4444,14 @@ function renderMobileDashboard(data) {
   const _calMN = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const firstDOW = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
   const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  // Always use real calendar-month transactions for the calendar widget
+  // (monthTxns may be TC-period filtered, which can span a different month)
+  const _calSourceTxns = (typeof state !== 'undefined' && state.transactions)
+    ? state.transactions.filter(t => !t.isPendingCuota && !t.isPendingSubscription)
+    : (monthTxns || []);
   // Map each calendar-month transaction to its day number
   const txnsByDay = {};
-  (monthTxns||[]).forEach(t => {
+  _calSourceTxns.forEach(t => {
     if (!t.date) return;
     try {
       const d = new Date(t.date+'T12:00:00');
