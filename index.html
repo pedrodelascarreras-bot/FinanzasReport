@@ -3394,14 +3394,23 @@
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="js/cc-compare.js"></script>
 <script src="js/animations.js"></script>
+<script src="js/lock.js"></script>
 
-<!-- ═══ MOBILE THEME PICKER BOTTOM SHEET ═══ -->
-<div id="mob-theme-sheet" class="mob-theme-sheet" aria-modal="true" role="dialog" aria-label="Elegir tema">
+<!-- ═══ MOBILE SETTINGS BOTTOM SHEET ═══ -->
+<div id="mob-theme-sheet" class="mob-theme-sheet" aria-modal="true" role="dialog" aria-label="Ajustes">
   <div class="mob-theme-backdrop" onclick="closeMobileThemePicker()"></div>
   <div class="mob-theme-panel">
     <div class="mob-theme-handle"></div>
-    <h3 class="mob-theme-title">Tema de la app</h3>
+    <h3 class="mob-theme-title">Ajustes</h3>
+
+    <!-- ── Apariencia ── -->
+    <div class="mob-settings-section-label">Apariencia</div>
     <div class="mob-theme-options">
+      <button class="mob-theme-opt" id="mob-theme-auto" onclick="setMobileTheme('auto')">
+        <span class="mob-theme-opt-icon">✦</span>
+        <span class="mob-theme-opt-label">Automático<small>Sigue la configuración del sistema</small></span>
+        <span class="mob-theme-opt-check">✓</span>
+      </button>
       <button class="mob-theme-opt" id="mob-theme-light" onclick="setMobileTheme('light')">
         <span class="mob-theme-opt-icon">☀️</span>
         <span class="mob-theme-opt-label">Modo claro</span>
@@ -3413,41 +3422,105 @@
         <span class="mob-theme-opt-check">✓</span>
       </button>
     </div>
+
+    <!-- ── Seguridad ── -->
+    <div class="mob-settings-section-label">Seguridad</div>
+    <div class="mob-theme-options">
+      <button class="mob-theme-opt" id="mob-lock-btn" onclick="openLockFromSettings()">
+        <span class="mob-theme-opt-icon">🔐</span>
+        <span class="mob-theme-opt-label" id="mob-lock-label">Código de la app<small id="mob-lock-sub">Sin protección activa</small></span>
+        <span class="mob-theme-opt-arrow">›</span>
+      </button>
+    </div>
   </div>
 </div>
 
 <script>
+/* ══════════════════════════════════════════════════════════
+   MOBILE SETTINGS — theme (auto/light/dark) + lock
+   ══════════════════════════════════════════════════════════ */
+
+const _THEME_KEY = 'fluxen_theme_pref'; // 'auto' | 'light' | 'dark'
+const _sysDark   = window.matchMedia('(prefers-color-scheme: dark)');
+
+/* ── Apply theme ── */
+function _applyTheme(mode) {
+  const prefersDark = _sysDark.matches;
+  const wantLight   = mode === 'light' || (mode === 'auto' && !prefersDark);
+  if (wantLight) {
+    document.body.classList.add('light-mode');
+  } else {
+    document.body.classList.remove('light-mode');
+  }
+}
+
+/* ── Set theme (called by buttons & auto watcher) ── */
+function setMobileTheme(mode) {
+  localStorage.setItem(_THEME_KEY, mode);
+  _applyTheme(mode);
+  _updateMobileThemeChecks();
+  setTimeout(closeMobileThemePicker, 220);
+}
+
+/* ── Watch system theme changes (for Auto mode) ── */
+_sysDark.addEventListener('change', function() {
+  const saved = localStorage.getItem(_THEME_KEY) || 'auto';
+  if (saved === 'auto') _applyTheme('auto');
+});
+
+/* ── Boot: apply saved preference ── */
+(function _initTheme() {
+  const saved = localStorage.getItem(_THEME_KEY);
+  if (saved) {
+    _applyTheme(saved);
+  } else {
+    // No preference saved: default to auto
+    localStorage.setItem(_THEME_KEY, 'auto');
+    _applyTheme('auto');
+  }
+})();
+
+/* ── Update checkmarks ── */
+function _updateMobileThemeChecks() {
+  const saved   = localStorage.getItem(_THEME_KEY) || 'auto';
+  document.getElementById('mob-theme-auto')?.classList.toggle('active',  saved === 'auto');
+  document.getElementById('mob-theme-light')?.classList.toggle('active', saved === 'light');
+  document.getElementById('mob-theme-dark')?.classList.toggle('active',  saved === 'dark');
+
+  // Update lock description
+  const lockSub = document.getElementById('mob-lock-sub');
+  if (lockSub && typeof getLockType === 'function') {
+    const t = getLockType();
+    lockSub.textContent = t === 'pin'    ? 'PIN de 4 dígitos activo'
+                        : t === 'faceid' ? 'Face ID activo'
+                        : 'Sin protección activa';
+  }
+}
+
+/* ── Open/close settings sheet ── */
 function openMobileThemePicker() {
   const sheet = document.getElementById('mob-theme-sheet');
   if (!sheet) return;
   _updateMobileThemeChecks();
   sheet.classList.add('open');
-  // Use the reference-counted iOS lock to avoid desync with modal system
   if (typeof _iosLock === 'function') _iosLock();
   else document.body.style.overflow = 'hidden';
 }
 function closeMobileThemePicker() {
   const sheet = document.getElementById('mob-theme-sheet');
   if (!sheet) return;
-  if (!sheet.classList.contains('open')) return; // already closed — don't double-unlock
+  if (!sheet.classList.contains('open')) return;
   sheet.classList.remove('open');
   if (typeof _iosUnlock === 'function') _iosUnlock();
   else document.body.style.overflow = '';
 }
-function setMobileTheme(mode) {
-  if (typeof setThemeMode === 'function') setThemeMode(mode);
-  else if (typeof toggleTheme === 'function') {
-    const isLight = document.body.classList.contains('light-mode');
-    if (mode === 'light' && !isLight) toggleTheme();
-    if (mode === 'dark' && isLight) toggleTheme();
-  }
-  _updateMobileThemeChecks();
-  setTimeout(closeMobileThemePicker, 220);
-}
-function _updateMobileThemeChecks() {
-  const isLight = document.body.classList.contains('light-mode');
-  document.getElementById('mob-theme-light')?.classList.toggle('active', isLight);
-  document.getElementById('mob-theme-dark')?.classList.toggle('active', !isLight);
+
+/* ── Open lock settings from the sheet ── */
+function openLockFromSettings() {
+  closeMobileThemePicker();
+  setTimeout(function() {
+    if (typeof openLockSettings === 'function') openLockSettings();
+  }, 180);
 }
 </script>
 </body>

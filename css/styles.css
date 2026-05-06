@@ -27009,6 +27009,37 @@ body.light-mode .mob-theme-opt.active .mob-theme-opt-label { color: #3d25c8; }
 }
 .mob-theme-opt.active .mob-theme-opt-check { opacity: 1; }
 
+/* Sub-label inside mob-theme-opt (for Auto mode description) */
+.mob-theme-opt-label small {
+  display: block;
+  font-size: 11px; font-weight: 400;
+  color: #9EA6C7;
+  margin-top: 1px;
+}
+.mob-theme-opt.active .mob-theme-opt-label small { color: rgba(255,255,255,0.65); }
+body.light-mode .mob-theme-opt-label small { color: #9EA6C7; }
+
+/* Arrow for nav options (like lock settings) */
+.mob-theme-opt-arrow {
+  font-size: 20px; color: #6B7399;
+  line-height: 1; flex-shrink: 0;
+}
+
+/* Section labels inside the settings sheet */
+.mob-settings-section-label {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.07em;
+  color: #6B7399;
+  margin: 16px 4px 8px;
+}
+body.light-mode .mob-settings-section-label { color: #9EA6C7; }
+
+/* Increase panel padding so sections breathe */
+.mob-theme-panel {
+  padding-bottom: max(40px, env(safe-area-inset-bottom, 40px));
+  gap: 0;
+}
+
 @keyframes mob-sheet-slide-up {
   from { transform: translateY(100%); }
   to   { transform: translateY(0); }
@@ -27219,3 +27250,335 @@ body.light-mode #page-credit-cards {
     pointer-events: auto;
   }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   LOCK SCREEN — PIN / Face ID overlay
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Full-screen shell ── */
+.lk-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  overflow: hidden;
+  animation: lk-enter 0.38s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.lk-shell.lk-exit {
+  animation: lk-exit 0.38s cubic-bezier(0.4, 0, 0.6, 1) both;
+}
+
+/* ── Background — matches body dark gradient ── */
+.lk-bg {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(64,125,255,0.18) 0%, transparent 40%),
+    radial-gradient(circle at 80% 5%,  rgba(124,77,255,0.14)  0%, transparent 35%),
+    linear-gradient(180deg, #0B1020 0%, #07080F 100%);
+  z-index: 0;
+}
+
+/* ── Inner content ── */
+.lk-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 360px;
+  padding: max(48px, env(safe-area-inset-top, 48px)) 24px 40px;
+  gap: 0;
+}
+
+/* ── Brand ── */
+.lk-brand { margin-bottom: 36px; }
+.lk-logo  { height: 28px; width: auto; }
+
+/* ── Lock icon ── */
+.lk-icon-wrap {
+  width: 64px; height: 64px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(124,77,255,0.2), rgba(38,146,255,0.15));
+  border: 1px solid rgba(124,77,255,0.3);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 18px;
+  box-shadow: 0 0 40px rgba(124,77,255,0.2);
+}
+.lk-icon {
+  width: 28px; height: 28px;
+  color: #B47AFF;
+}
+
+/* ── Label ── */
+.lk-label {
+  font-size: 17px; font-weight: 600;
+  color: #F4F6FF;
+  margin: 0 0 28px;
+  letter-spacing: -0.01em;
+}
+
+/* ── PIN dots ── */
+.lk-dots {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 14px;
+}
+.lk-dot {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  border: 2px solid rgba(180,122,255,0.5);
+  background: transparent;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+}
+.lk-dot.filled {
+  background: #7C4DFF;
+  border-color: #7C4DFF;
+  transform: scale(1.1);
+}
+
+/* ── Error message ── */
+.lk-error {
+  min-height: 20px;
+  font-size: 13px; font-weight: 500;
+  color: #FF6B6B;
+  text-align: center;
+  margin: 0 0 18px;
+}
+
+/* ── Shake animation ── */
+@keyframes lk-shake {
+  0%,100% { transform: translateX(0); }
+  15%      { transform: translateX(-8px); }
+  45%      { transform: translateX(8px); }
+  75%      { transform: translateX(-5px); }
+}
+.lk-dots.shake { animation: lk-shake 0.55s cubic-bezier(0.36,0.07,0.19,0.97) both; }
+
+/* ── Keypad ── */
+.lk-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 100%;
+  max-width: 300px;
+  margin-top: 6px;
+}
+.lk-key {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.07);
+  color: #F4F6FF;
+  font-size: 24px; font-weight: 500;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.12s, transform 0.1s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 72px;
+  font-family: inherit;
+}
+.lk-key:active {
+  background: rgba(124,77,255,0.3);
+  transform: scale(0.93);
+}
+.lk-key-empty {
+  background: transparent;
+  pointer-events: none;
+}
+.lk-key-del {
+  font-size: 20px;
+  color: #9EA6C7;
+}
+
+/* ── Face ID button ── */
+.lk-faceid-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 24px 32px;
+  border-radius: 24px;
+  border: 1px solid rgba(124,77,255,0.3);
+  background: rgba(124,77,255,0.08);
+  color: #B47AFF;
+  font-size: 15px; font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, transform 0.1s;
+  margin-top: 8px;
+  font-family: inherit;
+}
+.lk-faceid-btn svg {
+  width: 52px; height: 52px;
+  stroke: #B47AFF;
+}
+.lk-faceid-btn:active { background: rgba(124,77,255,0.18); transform: scale(0.97); }
+.lk-faceid-btn.loading { opacity: 0.6; pointer-events: none; }
+.lk-faceid-btn.loading span::after { content: '...'; }
+
+/* ── Enter / exit animations ── */
+@keyframes lk-enter {
+  from { opacity: 0; transform: scale(1.04); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes lk-exit {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.96); }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   LOCK SETUP SHEET (bottom sheet for settings)
+   ══════════════════════════════════════════════════════════════ */
+.lk-setup-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  pointer-events: none;
+}
+.lk-setup-sheet.open { pointer-events: auto; }
+
+.lk-setup-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0);
+  transition: background 0.3s;
+  cursor: pointer;
+}
+.lk-setup-sheet.open .lk-setup-backdrop {
+  background: rgba(0,0,0,0.55);
+}
+
+.lk-setup-panel {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  background: linear-gradient(180deg, #141828 0%, #0E1220 100%);
+  border-radius: 24px 24px 0 0;
+  border-top: 1px solid rgba(140,130,255,0.15);
+  padding: 12px 20px max(28px, env(safe-area-inset-bottom, 28px));
+  display: flex; flex-direction: column; gap: 16px;
+  transform: translateY(100%);
+  transition: transform 0.36s cubic-bezier(0.22,1,0.36,1);
+  max-height: 92vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.lk-setup-sheet.open .lk-setup-panel {
+  transform: translateY(0);
+}
+
+.lk-setup-handle {
+  width: 36px; height: 4px;
+  border-radius: 2px;
+  background: rgba(255,255,255,0.15);
+  align-self: center;
+  margin-bottom: 4px;
+}
+
+.lk-setup-title {
+  font-size: 18px; font-weight: 700;
+  color: #F4F6FF; margin: 0;
+  letter-spacing: -0.02em;
+}
+
+.lk-setup-sub {
+  font-size: 13px; color: #9EA6C7;
+  margin: -8px 0 0;
+  line-height: 1.5;
+}
+
+/* ── Option buttons ── */
+.lk-setup-options {
+  display: flex; flex-direction: column; gap: 10px;
+}
+.lk-setup-opt {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(140,130,255,0.12);
+  background: rgba(255,255,255,0.04);
+  color: #F4F6FF;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  width: 100%;
+  font-family: inherit;
+}
+.lk-setup-opt:active { background: rgba(124,77,255,0.1); }
+.lk-setup-opt.active {
+  border-color: rgba(124,77,255,0.4);
+  background: rgba(124,77,255,0.1);
+}
+.lk-setup-opt-danger {
+  border-color: rgba(255,80,80,0.2);
+  background: rgba(255,80,80,0.04);
+}
+.lk-setup-opt-danger:active { background: rgba(255,80,80,0.1); }
+.lk-setup-opt-danger .lk-setup-opt-icon { color: #FF6B6B; }
+.lk-setup-opt-danger .lk-setup-opt-icon svg { stroke: #FF6B6B; }
+.lk-setup-opt-danger strong { color: #FF6B6B; }
+
+.lk-setup-opt-icon {
+  width: 38px; height: 38px;
+  border-radius: 10px;
+  background: rgba(124,77,255,0.12);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  color: #B47AFF;
+}
+.lk-setup-opt-icon svg { width: 20px; height: 20px; stroke: #B47AFF; }
+.lk-setup-opt-body {
+  flex: 1; display: flex; flex-direction: column; gap: 2px;
+}
+.lk-setup-opt-body strong { font-size: 14px; font-weight: 600; }
+.lk-setup-opt-body span   { font-size: 12px; color: #9EA6C7; font-weight: 400; }
+.lk-setup-opt-check {
+  font-size: 16px; color: #27E47A; font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ── PIN setup flow (inside sheet) ── */
+.lk-setup-pin-flow {
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
+.lk-setup-pin-label {
+  font-size: 15px; font-weight: 600; color: #F4F6FF;
+  margin: 0 0 20px; text-align: center;
+}
+.lk-setup-dots { margin-bottom: 12px; }
+.lk-setup-keypad { margin-top: 8px; }
+.lk-setup-back {
+  margin-top: 16px;
+  background: none; border: none;
+  color: #9EA6C7; font-size: 13px; font-weight: 500;
+  cursor: pointer; padding: 8px 16px;
+  touch-action: manipulation;
+  font-family: inherit;
+}
+
+/* ── Light mode adjustments ── */
+body.light-mode .lk-bg {
+  background:
+    radial-gradient(circle at 20% 10%, rgba(64,125,255,0.08) 0%, transparent 40%),
+    radial-gradient(circle at 80% 5%,  rgba(124,77,255,0.06)  0%, transparent 35%),
+    linear-gradient(180deg, #f0f2f8 0%, #e8eaf2 100%);
+}
+body.light-mode .lk-label { color: #1a1a2e; }
+body.light-mode .lk-dot   { border-color: rgba(100,60,200,0.3); }
+body.light-mode .lk-dot.filled { background: #6c3aed; border-color: #6c3aed; }
+body.light-mode .lk-key   { background: rgba(0,0,0,0.06); color: #1a1a2e; }
+body.light-mode .lk-key:active { background: rgba(108,58,237,0.18); }
+body.light-mode .lk-icon-wrap { background: rgba(108,58,237,0.1); border-color: rgba(108,58,237,0.2); }
+body.light-mode .lk-icon  { color: #6c3aed; }
+body.light-mode .lk-setup-panel { background: #ffffff; border-top-color: rgba(0,0,0,0.08); }
+body.light-mode .lk-setup-title { color: #1a1a2e; }
+body.light-mode .lk-setup-opt   { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.07); color: #1a1a2e; }
+body.light-mode .lk-setup-opt-body span { color: #6b7280; }
