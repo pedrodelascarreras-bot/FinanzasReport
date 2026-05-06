@@ -4350,23 +4350,55 @@ function renderMobileDashboard(data) {
 
   const {
     arsMonth=0, usdMonth=0, margen=0, pct=0, incTotalARS=0, spendBudget=0,
-    projected=0, projPeriodClose=null, monthTxns=[], ccWidgetData={}
+    projected=0, projPeriodClose=null, monthTxns=[], ccWidgetData={},
+    dailyRate=0, totalGastoARS=0
   } = data || {};
 
   // Helpers
   const fmtN = (n) => Number(n||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
   const fmtAmt = (n, prefix='$') => `${prefix}${fmtN(n)}`;
-  const fmtDate = (ymd) => {
-    if (!ymd) return '—';
+  // fmtDate handles both 'YYYY-MM-DD' strings AND Date objects
+  const fmtDate = (val) => {
+    if (!val) return '—';
     try {
-      return new Date(ymd+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short'}).replace(/\./g,'').toUpperCase();
+      const d = (val instanceof Date) ? val : new Date(val+'T12:00:00');
+      if (isNaN(d.getTime())) return '—';
+      return d.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}).replace(/\./g,'').toUpperCase();
     } catch(e){return '—';}
   };
 
-  // Period label
+  // Period label — reflects actual selected view (TC cycle or month)
   const today = new Date();
   const _MN=['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
-  const periodLabel = _MN[today.getMonth()] + ' ' + today.getFullYear();
+  const _isTcView = typeof state!=='undefined' && state.dashView && state.dashView !== 'mes';
+  let periodLabel;
+  if (_isTcView) {
+    // Get the active cycle label
+    try {
+      const _cycles = typeof getTcCycles==='function' ? getTcCycles() : [];
+      const _actCyc = typeof _resolveDashboardTcCycle==='function' ? _resolveDashboardTcCycle(_cycles) : _cycles[0];
+      periodLabel = _actCyc?.label ? ('CICLO ' + (_actCyc.label||'').toUpperCase()) : 'CICLO VISA';
+    } catch(e){ periodLabel = 'CICLO VISA'; }
+  } else {
+    periodLabel = _MN[today.getMonth()] + ' ' + today.getFullYear();
+  }
+
+  // Daily average (spending per elapsed day in the period)
+  const _daysElapsed = _isTcView
+    ? (() => {
+        try {
+          const _cycles = typeof getTcCycles==='function' ? getTcCycles() : [];
+          const _actCyc = typeof _resolveDashboardTcCycle==='function' ? _resolveDashboardTcCycle(_cycles) : null;
+          if (!_actCyc) return today.getDate();
+          const idx = _cycles.findIndex(c=>c.id===_actCyc.id);
+          const openStr = typeof getTcCycleOpen==='function' ? getTcCycleOpen(_cycles, idx) : null;
+          if (!openStr) return today.getDate();
+          const diff = (today - new Date(openStr+'T12:00:00')) / 86400000;
+          return Math.max(1, Math.round(diff));
+        } catch(e){ return today.getDate(); }
+      })()
+    : today.getDate();
+  const dailyAvg = _daysElapsed > 0 ? (totalGastoARS || arsMonth) / _daysElapsed : 0;
 
   // CC Cycles
   const cycleByKey = ccWidgetData?.cycleByKey || {};
@@ -4406,6 +4438,42 @@ function renderMobileDashboard(data) {
   const totalDisplay = arsMonth + (usdMonth*(window.USD_TO_ARS||1));
   const margenPct = incTotalARS>0 ? Math.round((margen/incTotalARS)*100) : 0;
 
+  // Mini-calendar data
+  const calYear  = today.getFullYear();
+  const calMonth = today.getMonth();
+  const _calMN = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const firstDOW = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
+  // Map each calendar-month transaction to its day number
+  const txnsByDay = {};
+  (monthTxns||[]).forEach(t => {
+    if (!t.date) return;
+    try {
+      const d = new Date(t.date+'T12:00:00');
+      if (d.getMonth()===calMonth && d.getFullYear()===calYear) {
+        const dn = d.getDate();
+        (txnsByDay[dn] = txnsByDay[dn]||[]).push(t);
+      }
+    } catch(e){}
+  });
+  // Store for tap handler (rebuilt each render, safe)
+  window._mobCalTxns = txnsByDay;
+
+  // Build calendar cells HTML
+  const _calDOW = ['D','L','M','X','J','V','S'];
+  let calCells = _calDOW.map(d=>`<div class="mob-cal-dow">${d}</div>`).join('');
+  // Leading empty cells
+  for (let i=0; i<firstDOW; i++) calCells += '<div class="mob-cal-empty"></div>';
+  for (let d=1; d<=daysInMonth; d++) {
+    const hasTxns = !!(txnsByDay[d]?.length);
+    const isToday = (d===today.getDate());
+    const cls = ['mob-cal-day', isToday?'mob-cal-today':'', hasTxns?'mob-cal-has-txn':''].filter(Boolean).join(' ');
+    calCells += `<div class="${cls}" onclick="window._mobCalTap(${d})" role="button" tabindex="${hasTxns?0:-1}">
+      <span class="mob-cal-dnum">${d}</span>
+      ${hasTxns?'<div class="mob-cal-dot"></div>':''}
+    </div>`;
+  }
+
   // Category palette & icons
   const catPalette=['#7C4DFF','#247CFF','#FF4545','#FF9500','#28E878'];
   const catIconMap={'consumos sensibles':'🛍️','alimentación':'🍔','alimentos':'🍔','supermercado':'🛒','transporte':'🚗','uber':'🚗','taxi':'🚕','combustible':'⛽','salud':'🏥','farmacia':'💊','médico':'🩺','regalos':'🎁','sin clasificar':'📦','ocio':'🎬','entretenimiento':'🎮','servicios':'💡','educación':'📚','tecnología':'💻','ropa':'👕','restaurant':'🍽️','comida':'🍕','viajes':'✈️','hogar':'🏠','suscripciones':'📱','seguros':'🛡️'};
@@ -4424,10 +4492,10 @@ function renderMobileDashboard(data) {
       <div class="mob-dash-hdr-right"></div>
     </div>
 
-    <div class="mob-dash-period">
+    <button class="mob-dash-period" onclick="openMobPeriodPicker()" aria-label="Cambiar período">
       <span>${periodLabel}</span>
       <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
-    </div>
+    </button>
 
     <div class="mob-main-card" onclick="nav('transactions')" style="cursor:pointer">
       <div class="mob-main-card-top">
@@ -4484,7 +4552,6 @@ function renderMobileDashboard(data) {
     <div class="mob-section-card">
       <div class="mob-sec-hd">
         <span class="mob-sec-title">CICLO DE TARJETAS</span>
-        <button class="mob-sec-link" onclick="nav('credit-cards')">Ver detalle →</button>
       </div>
       <div class="mob-cc-grid">
         <div class="mob-cc-item mob-cc-visa-item">
@@ -4516,7 +4583,8 @@ function renderMobileDashboard(data) {
           <div class="mob-proj-info">
             <div class="mob-proj-kicker">PROYECCIÓN A CIERRE</div>
             <div class="mob-proj-amount">${fmtAmt(projected)}</div>
-            <div class="mob-proj-sub">Estimación activa hasta ${projPeriodClose?fmtDate(projPeriodClose):'—'}</div>
+            <div class="mob-proj-sub">Estimación activa hasta ${fmtDate(projPeriodClose)}</div>
+            ${dailyAvg>0?`<div class="mob-proj-daily">Promedio diario: <strong>${fmtAmt(Math.round(dailyAvg))}</strong></div>`:''}
           </div>
         </div>
         <span class="mob-proj-badge">Según tu ritmo actual</span>
@@ -4560,6 +4628,51 @@ function renderMobileDashboard(data) {
       <button class="mob-connect-btn" onclick="openCloudSync(event)">Conectar</button>
     </div>` : ''}
 
-    <div style="height:90px"></div>
+    <!-- Calendar widget -->
+    <div class="mob-section-card mob-cal-card">
+      <div class="mob-sec-hd">
+        <span class="mob-sec-title">${_calMN[calMonth].toUpperCase()} ${calYear}</span>
+      </div>
+      <div class="mob-cal-grid">${calCells}</div>
+      <div id="mob-cal-detail" class="mob-cal-detail" style="display:none;"></div>
+    </div>
+
+    <div style="height:32px"></div>
   `;
 }
+
+/* ─── Calendar day tap handler ─── */
+window._mobCalTap = function(day) {
+  const detail = document.getElementById('mob-cal-detail');
+  if (!detail) return;
+  const txns = (window._mobCalTxns||{})[day];
+  if (!txns || !txns.length) { detail.style.display='none'; return; }
+
+  // If already showing this day, toggle off
+  if (detail.dataset.day == day && detail.style.display !== 'none') {
+    detail.style.display = 'none';
+    // Deselect all days
+    document.querySelectorAll('.mob-cal-day.mob-cal-selected').forEach(el=>el.classList.remove('mob-cal-selected'));
+    return;
+  }
+
+  // Highlight selected day
+  document.querySelectorAll('.mob-cal-day.mob-cal-selected').forEach(el=>el.classList.remove('mob-cal-selected'));
+  const dayEls = document.querySelectorAll('.mob-cal-day');
+  dayEls.forEach(el => {
+    const num = parseInt(el.querySelector('.mob-cal-dnum')?.textContent||'0',10);
+    if (num===day) el.classList.add('mob-cal-selected');
+  });
+
+  detail.dataset.day = day;
+  const fmt = (n) => '$'+Number(n||0).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
+  const rows = txns.slice(0,8).map(t=>`
+    <div class="mob-cal-det-row">
+      <div class="mob-cal-det-dot" style="background:${t.currency==='USD'?'#247CFF':'#7C4DFF'}"></div>
+      <span class="mob-cal-det-desc">${t.description||'Sin descripción'}</span>
+      <span class="mob-cal-det-amt">${t.currency==='USD'?'U$D '+Number(t.amount||0).toFixed(2):fmt(t.amount)}</span>
+    </div>`).join('');
+  const extra = txns.length>8 ? `<div class="mob-cal-det-more">+${txns.length-8} más</div>` : '';
+  detail.innerHTML = rows + extra;
+  detail.style.display = 'block';
+};

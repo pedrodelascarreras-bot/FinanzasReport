@@ -1185,7 +1185,9 @@ function renderMobileCompromisos() {
     <div class="mob-comp-page">
 
       <div class="mob-comp-header">
-        <button class="mob-comp-ham" onclick="openMobDrawer()" aria-label="Menú">☰</button>
+        <button class="mob-comp-ham" onclick="openMobDrawer()" aria-label="Menú">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
         <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen">
         <div class="mob-comp-hdr-right"></div>
       </div>

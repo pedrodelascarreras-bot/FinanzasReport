@@ -1300,7 +1300,9 @@ function renderMobileCreditCards() {
     <div class="mob-cc-page">
 
       <div class="mob-cc-header">
-        <button class="mob-cc-ham" onclick="openMobDrawer()" aria-label="Menú">☰</button>
+        <button class="mob-cc-ham" onclick="openMobDrawer()" aria-label="Menú">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
         <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen">
         <div class="mob-cc-hdr-right"></div>
       </div>
@@ -1317,7 +1319,7 @@ function renderMobileCreditCards() {
       <div class="mob-cc-cats-card">
         <div class="mob-cc-section-hd">
           <div class="mob-cc-section-title">Top categorías</div>
-          <button class="mob-cc-section-link" onclick="ccSelectPageTab('resumen')">Ver todas</button>
+          <button class="mob-cc-section-link" onclick="nav('tendencia')">Ver todas →</button>
         </div>
         ${catsHtml}
       </div>

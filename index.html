@@ -3498,6 +3498,63 @@
   </div><!-- /mob-drawer-panel -->
 </div><!-- /mob-drawer -->
 
+<!-- ══ PERIOD PICKER SHEET ══ -->
+<div id="mob-period-sheet" class="mob-theme-sheet" role="dialog" aria-modal="true" aria-label="Seleccionar período">
+  <div class="mob-theme-backdrop" onclick="closeMobPeriodPicker()"></div>
+  <div class="mob-theme-panel">
+    <div class="mob-theme-handle"></div>
+    <div class="mob-theme-title">Período</div>
+    <div class="mob-theme-options">
+      <button class="mob-theme-opt" id="mob-period-opt-visa" onclick="closeMobPeriodPicker();setDashView('visa')">
+        <span class="mob-theme-opt-icon">💳</span>
+        <span class="mob-theme-opt-label">Ciclo VISA<small>Ciclo actual de tu tarjeta</small></span>
+        <span class="mob-theme-opt-check">✓</span>
+      </button>
+      <button class="mob-theme-opt" id="mob-period-opt-mes" onclick="closeMobPeriodPicker();setDashView('mes')">
+        <span class="mob-theme-opt-icon">📅</span>
+        <span class="mob-theme-opt-label">Mes actual<small>Todos los gastos del mes</small></span>
+        <span class="mob-theme-opt-check">✓</span>
+      </button>
+    </div>
+  </div>
+</div><!-- /mob-period-sheet -->
+
+<!-- ══ TRANSACTIONS PERIOD PICKER SHEET ══ -->
+<div id="mob-txn-period-sheet" class="mob-theme-sheet" role="dialog" aria-modal="true" aria-label="Seleccionar período">
+  <div class="mob-theme-backdrop" onclick="closeMobTxnPeriodPicker()"></div>
+  <div class="mob-theme-panel">
+    <div class="mob-theme-handle"></div>
+    <div class="mob-theme-title">Período</div>
+    <div class="mob-theme-options" id="mob-txn-period-opts"></div>
+  </div>
+</div><!-- /mob-txn-period-sheet -->
+
+<!-- ══ TRANSACTIONS CURRENCY FILTER SHEET ══ -->
+<div id="mob-txn-filter-sheet" class="mob-theme-sheet" role="dialog" aria-modal="true" aria-label="Filtrar movimientos">
+  <div class="mob-theme-backdrop" onclick="closeMobTxnFilterSheet()"></div>
+  <div class="mob-theme-panel">
+    <div class="mob-theme-handle"></div>
+    <div class="mob-theme-title">Filtrar por moneda</div>
+    <div class="mob-theme-options">
+      <button class="mob-theme-opt" id="mob-txn-filt-all" onclick="window._mobTxnCurrFilter='all';closeMobTxnFilterSheet();renderTransactions()">
+        <span class="mob-theme-opt-icon">🔀</span>
+        <span class="mob-theme-opt-label">Todos<small>ARS y USD</small></span>
+        <span class="mob-theme-opt-check">✓</span>
+      </button>
+      <button class="mob-theme-opt" id="mob-txn-filt-ars" onclick="window._mobTxnCurrFilter='ARS';closeMobTxnFilterSheet();renderTransactions()">
+        <span class="mob-theme-opt-icon">🇦🇷</span>
+        <span class="mob-theme-opt-label">Solo ARS<small>Gastos en pesos</small></span>
+        <span class="mob-theme-opt-check">✓</span>
+      </button>
+      <button class="mob-theme-opt" id="mob-txn-filt-usd" onclick="window._mobTxnCurrFilter='USD';closeMobTxnFilterSheet();renderTransactions()">
+        <span class="mob-theme-opt-icon">💵</span>
+        <span class="mob-theme-opt-label">Solo USD<small>Gastos en dólares</small></span>
+        <span class="mob-theme-opt-check">✓</span>
+      </button>
+    </div>
+  </div>
+</div><!-- /mob-txn-filter-sheet -->
+
 <script>
 /* ══════════════════════════════════════════════════════════════
    THEME — desktop only (mobile always dark)
@@ -3554,6 +3611,82 @@ function _updateDrawerState() {
   }
 }
 
+/* ══════════════════════════════════════════════════════════════
+   PERIOD PICKER — bottom sheet for dashboard period selector
+   ══════════════════════════════════════════════════════════════ */
+function openMobPeriodPicker() {
+  const sheet = document.getElementById('mob-period-sheet');
+  if (!sheet) return;
+  // Mark the currently active option
+  const isMes = typeof state !== 'undefined' && state.dashView === 'mes';
+  const optVisa = document.getElementById('mob-period-opt-visa');
+  const optMes  = document.getElementById('mob-period-opt-mes');
+  if (optVisa) optVisa.classList.toggle('active', !isMes);
+  if (optMes)  optMes.classList.toggle('active',  isMes);
+  sheet.classList.add('open');
+  if (typeof _iosLock === 'function') _iosLock();
+}
+function closeMobPeriodPicker() {
+  const sheet = document.getElementById('mob-period-sheet');
+  if (!sheet) return;
+  sheet.classList.remove('open');
+  if (typeof _iosUnlock === 'function') _iosUnlock();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   TRANSACTIONS PERIOD & FILTER PICKERS
+   ══════════════════════════════════════════════════════════════ */
+function openMobTxnPeriodPicker() {
+  const sheet = document.getElementById('mob-txn-period-sheet');
+  const opts  = document.getElementById('mob-txn-period-opts');
+  if (!sheet || !opts) return;
+
+  // Build last 6 months + next month options
+  const today = new Date();
+  const _MN = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  const curKey = window._mobTxnMonthKey ||
+    (today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0'));
+  const months = [];
+  for (let i = 0; i <= 11; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+    months.push({ key, label: _MN[d.getMonth()] + ' ' + d.getFullYear() });
+  }
+  opts.innerHTML = months.map(m => `
+    <button class="mob-theme-opt${m.key===curKey?' active':''}"
+            onclick="window._mobTxnMonthKey='${m.key}';closeMobTxnPeriodPicker();if(typeof renderTransactions==='function')renderTransactions()">
+      <span class="mob-theme-opt-icon">${m.key===curKey?'📍':'📅'}</span>
+      <span class="mob-theme-opt-label">${m.label}</span>
+      <span class="mob-theme-opt-check">✓</span>
+    </button>`).join('');
+
+  sheet.classList.add('open');
+  if (typeof _iosLock === 'function') _iosLock();
+}
+function closeMobTxnPeriodPicker() {
+  const sheet = document.getElementById('mob-txn-period-sheet');
+  if (!sheet) return;
+  sheet.classList.remove('open');
+  if (typeof _iosUnlock === 'function') _iosUnlock();
+}
+function openMobTxnFilterSheet() {
+  const sheet = document.getElementById('mob-txn-filter-sheet');
+  if (!sheet) return;
+  const cur = window._mobTxnCurrFilter || 'all';
+  ['all','ars','usd'].forEach(k => {
+    const el = document.getElementById('mob-txn-filt-'+k);
+    if (el) el.classList.toggle('active', k === cur.toLowerCase());
+  });
+  sheet.classList.add('open');
+  if (typeof _iosLock === 'function') _iosLock();
+}
+function closeMobTxnFilterSheet() {
+  const sheet = document.getElementById('mob-txn-filter-sheet');
+  if (!sheet) return;
+  sheet.classList.remove('open');
+  if (typeof _iosUnlock === 'function') _iosUnlock();
+}
+
 // Wrap nav() to close drawer first — done after DOMContentLoaded so all
 // scripts (including animations.js) have already registered their wrappers.
 document.addEventListener('DOMContentLoaded', function() {
@@ -3566,4 +3699,3 @@ document.addEventListener('DOMContentLoaded', function() {
 </body>
 
 </html>
-```

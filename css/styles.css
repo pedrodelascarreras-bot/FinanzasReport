@@ -26009,6 +26009,69 @@ body:not(.light-mode) #page-dashboard #dash-month-select option {
   border-color: rgba(124,77,255,0.4);
   color: #E0D9FF;
 }
+/* Active filter pill — highlights when a non-default filter is selected */
+.mob-txn-pill-active {
+  background: rgba(124,77,255,0.22) !important;
+  border-color: rgba(124,77,255,0.55) !important;
+  color: #fff !important;
+}
+
+/* ── Commitment rows (Movimientos page) ── */
+.mob-commits-card { overflow: hidden; }
+.mob-commits-list { display: flex; flex-direction: column; gap: 0; }
+.mob-commit-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s;
+}
+.mob-commit-row:last-child { border-bottom: none; }
+.mob-commit-row:active { background: rgba(124,77,255,0.07); margin: 0 -4px; padding-left: 4px; padding-right: 4px; border-radius: 10px; }
+.mob-commit-avatar {
+  width: 38px; height: 38px; border-radius: 12px;
+  background: rgba(124,77,255,0.12);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.mob-commit-info { flex: 1; min-width: 0; }
+.mob-commit-name {
+  font-size: 14px; font-weight: 600; color: #eef2ff;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mob-commit-meta { font-size: 11px; color: #6B7399; margin-top: 1px; }
+.mob-commit-right {
+  display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0;
+}
+.mob-commit-amt { font-size: 14px; font-weight: 700; color: #eef2ff; }
+.mob-commit-badge {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.05em; padding: 2px 7px; border-radius: 999px;
+}
+.mob-commit-badge-settled  { background: rgba(52,199,89,0.15);  color: #34C759; }
+.mob-commit-badge-pending  { background: rgba(140,130,255,0.14); color: #A09EFF; }
+.mob-commit-badge-soon     { background: rgba(255,149,0,0.15);   color: #FF9500; }
+.mob-commit-badge-overdue  { background: rgba(255,59,48,0.15);   color: #FF3B30; }
+.mob-commits-footer {
+  display: flex; gap: 8px; flex-wrap: wrap;
+  padding: 10px 0 2px; border-top: 1px solid rgba(255,255,255,0.05);
+  margin-top: 4px;
+}
+.mob-commits-tag {
+  font-size: 11px; font-weight: 600; color: #6B7399;
+  background: rgba(255,255,255,0.05);
+  padding: 3px 10px; border-radius: 999px;
+}
+
+/* Light mode overrides */
+body.light-mode .mob-commit-name { color: #1a1535; }
+body.light-mode .mob-commit-meta { color: #9EA6C7; }
+body.light-mode .mob-commit-amt  { color: #1a1535; }
+body.light-mode .mob-commit-avatar { background: rgba(93,53,243,0.08); }
+body.light-mode .mob-commit-row { border-bottom-color: rgba(0,0,0,0.06); }
+body.light-mode .mob-commits-tag { background: rgba(0,0,0,0.04); color: #9EA6C7; }
+body.light-mode .mob-commits-footer { border-top-color: rgba(0,0,0,0.06); }
 
 /* ── Totals strip ── */
 .mob-txn-totals {
@@ -27046,6 +27109,101 @@ body.light-mode .mob-settings-section-label { color: #9EA6C7; }
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+
+/* ═══════════════════════════════════════════════════
+   MOBILE CALENDAR WIDGET
+   ═══════════════════════════════════════════════════ */
+.mob-cal-card { padding-bottom: 0 !important; }
+.mob-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px 0;
+  margin-top: 4px;
+  padding-bottom: 10px;
+}
+.mob-cal-dow {
+  font-size: 10px; font-weight: 700;
+  text-align: center; padding: 6px 0;
+  color: #6B7399;
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.mob-cal-empty { min-height: 36px; }
+.mob-cal-day {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  min-height: 38px; padding: 3px 0;
+  border-radius: 10px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.12s ease;
+  position: relative;
+  gap: 2px;
+}
+.mob-cal-day:active { background: rgba(124,77,255,0.12) !important; }
+.mob-cal-dnum {
+  font-size: 13px; font-weight: 600;
+  color: #b5bece; line-height: 1;
+}
+.mob-cal-day.mob-cal-today .mob-cal-dnum {
+  color: #fff; font-weight: 800;
+}
+.mob-cal-day.mob-cal-today {
+  background: rgba(124,77,255,0.35);
+}
+.mob-cal-day.mob-cal-has-txn .mob-cal-dnum {
+  color: #d8e0ff;
+}
+.mob-cal-day.mob-cal-selected {
+  background: rgba(124,77,255,0.2);
+}
+.mob-cal-day.mob-cal-selected .mob-cal-dnum { color: #fff; }
+.mob-cal-dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: #7C4DFF;
+  flex-shrink: 0;
+}
+.mob-cal-day.mob-cal-today .mob-cal-dot { background: #fff; }
+
+/* Transaction detail panel inside calendar */
+.mob-cal-detail {
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding: 12px 0 16px;
+  display: flex; flex-direction: column; gap: 8px;
+}
+.mob-cal-det-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 2px;
+}
+.mob-cal-det-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.mob-cal-det-desc {
+  flex: 1; font-size: 13px; font-weight: 500;
+  color: #c8d0e8; white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.mob-cal-det-amt {
+  font-size: 13px; font-weight: 700;
+  color: #eef2ff; white-space: nowrap;
+}
+.mob-cal-det-more {
+  font-size: 11px; color: #6B7399;
+  text-align: center; padding-top: 4px;
+}
+
+/* Light mode overrides */
+body.light-mode .mob-cal-dow { color: #9EA6C7; }
+body.light-mode .mob-cal-dnum { color: #6b7280; }
+body.light-mode .mob-cal-day.mob-cal-has-txn .mob-cal-dnum { color: #1a1535; }
+body.light-mode .mob-cal-day.mob-cal-today { background: rgba(93,53,243,0.25); }
+body.light-mode .mob-cal-day.mob-cal-today .mob-cal-dnum { color: #3d25c8; }
+body.light-mode .mob-cal-dot { background: #5d35f3; }
+body.light-mode .mob-cal-day.mob-cal-today .mob-cal-dot { background: #3d25c8; }
+body.light-mode .mob-cal-day.mob-cal-selected { background: rgba(93,53,243,0.1); }
+body.light-mode .mob-cal-det-desc { color: #425066; }
+body.light-mode .mob-cal-det-amt { color: #1a1535; }
+body.light-mode .mob-cal-detail { border-top-color: rgba(0,0,0,0.07); }
 
 /* ═══════════════════════════════════════════════════
    MOBILE LIGHT MODE — headers y nav

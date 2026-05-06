@@ -1460,29 +1460,41 @@ function renderMobileTransactions(txns, meta) {
   const shell = document.getElementById('mob-txn-shell');
   if (!shell || window.innerWidth > 768) return;
 
-  // Self-contained: always compute from current-month data regardless of desktop TC filter.
   const today = new Date();
   const _MN = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   const currentMonthKey = today.getFullYear() + '-' + String(today.getMonth() + 1).padStart(2, '0');
-  const allStateTxns = (typeof state !== 'undefined' && state.transactions) ? state.transactions : ((window.state && window.state.transactions) ? window.state.transactions : (txns || []));
-  const monthTxns = allStateTxns.filter(t => {
+
+  // Support period selection via window._mobTxnMonthKey (default = current month)
+  if (!window._mobTxnMonthKey) window._mobTxnMonthKey = currentMonthKey;
+  const selectedMonthKey = window._mobTxnMonthKey;
+  const currFilter = window._mobTxnCurrFilter || 'all'; // 'all' | 'ARS' | 'USD'
+
+  // Parse selectedMonthKey → label
+  const [selYear, selMon] = selectedMonthKey.split('-').map(Number);
+  const periodoLabel = _MN[selMon - 1] + ' ' + selYear;
+  const isCurrentMonth = selectedMonthKey === currentMonthKey;
+
+  const allStateTxns = (typeof state !== 'undefined' && state.transactions) ? state.transactions : (txns || []);
+  const periodTxns = allStateTxns.filter(t => {
     if (t.isPendingCuota || t.isPendingSubscription) return false;
     const mk = t.month || (() => {
       const d = t.date instanceof Date ? t.date : new Date(t.date);
       return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     })();
-    return mk === currentMonthKey;
+    return mk === selectedMonthKey;
   });
-  const arsTotal  = monthTxns.filter(t => (t.currency || 'ARS') === 'ARS').reduce((s, t) => s + Math.abs(Number(t.amount) || 0), 0);
-  const usdTotal  = monthTxns.filter(t => (t.currency || 'ARS') === 'USD').reduce((s, t) => s + Math.abs(Number(t.amount) || 0), 0);
+  // Apply currency filter
+  const monthTxns = currFilter === 'all' ? periodTxns
+    : periodTxns.filter(t => (t.currency || 'ARS') === currFilter);
+
+  const arsTotal  = periodTxns.filter(t => (t.currency || 'ARS') === 'ARS').reduce((s, t) => s + Math.abs(Number(t.amount) || 0), 0);
+  const usdTotal  = periodTxns.filter(t => (t.currency || 'ARS') === 'USD').reduce((s, t) => s + Math.abs(Number(t.amount) || 0), 0);
   const grandTotal = arsTotal + usdTotal * (window.USD_TO_ARS || 1);
-  const periodoLabel = _MN[today.getMonth()] + ' ' + today.getFullYear();
 
   const fmtN = (n) => Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const esc = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  const displayPeriod = periodoLabel || (_MN[today.getMonth()] + ' ' + today.getFullYear());
 
-  // Group current month's txns by date (already filtered above)
+  // Group selected period txns by date
   const realTxns = monthTxns.slice();
   const groupMap = {};
   realTxns.forEach(tx => {
@@ -1586,12 +1598,78 @@ function renderMobileTransactions(txns, meta) {
     });
   }
 
-  // Commitments counts
-  const cuotasCount = (state.manualCuotas || []).filter(c => c.active !== false).length +
+  // Build commitments data for Cobrado/Pendiente section
+  // Get upcoming commitments from commitmentsBuildData if available
+  let commitmentsItems = [];
+  if (typeof commitmentsBuildData === 'function') {
+    try {
+      const cbd = commitmentsBuildData();
+      // Merge all commitment types and sort by due days
+      commitmentsItems = [
+        ...(cbd.fixedItems || []),
+        ...(cbd.subsItems || []),
+        ...(cbd.cuotaItems || [])
+      ]
+      .filter(item => item && item.name)
+      .sort((a, b) => (a.due?.sortDays ?? 999) - (b.due?.sortDays ?? 999))
+      .slice(0, 6);
+    } catch(e) {}
+  }
+  // Fallback to count-based display
+  const cuotasCount = (state.manualCuotas || state.cuotas || []).filter(c => c.active !== false).length +
     ((state.transactions || []).filter(t => t.isPendingCuota).length);
   const subsCount = (state.subscriptions || []).filter(s => s.active !== false).length;
-  const fijosCount = (state.fijos || []).filter(f => f.active !== false).length;
-  const compromisosCount = Math.max(fijosCount, (state.compromisos || []).length);
+  const fijosCount = (state.fixedExpenses || state.fijos || []).filter(f => f.active !== false).length;
+
+  // Determine Cobrado vs Pendiente for each commitment
+  // A commitment is "cobrado" if there's a matching transaction this month (same period)
+  function _isCommitSettled(item) {
+    const name = (item.name || '').toLowerCase().trim();
+    const amt  = Math.abs(Number(item.rawAmount || item.amount || 0));
+    const nameSlug = name.slice(0, 7);
+    return (periodTxns || []).some(t => {
+      const desc = (t.comercio_detectado || t._baseDesc || t.description || '').toLowerCase();
+      const txAmt = Math.abs(Number(t.amount || 0));
+      const nameMatch = nameSlug.length > 2 && (desc.includes(nameSlug) || name.split(/\s+/).filter(w=>w.length>3).some(w=>desc.includes(w)));
+      const amtMatch  = amt > 0 && Math.abs(txAmt - amt) / amt < 0.15;
+      return nameMatch && amtMatch;
+    });
+  }
+
+  // Build commitment rows HTML
+  function buildCommitRow(item) {
+    const settled = _isCommitSettled(item);
+    const dueStatus = item.due?.status || 'active';
+    let badgeCls, badgeLabel;
+    if (settled) {
+      badgeCls = 'mob-commit-badge-settled'; badgeLabel = 'Cobrado';
+    } else if (dueStatus === 'overdue') {
+      badgeCls = 'mob-commit-badge-overdue'; badgeLabel = 'Vencido';
+    } else if (dueStatus === 'soon') {
+      badgeCls = 'mob-commit-badge-soon'; badgeLabel = item.due?.label || 'Próximo';
+    } else {
+      badgeCls = 'mob-commit-badge-pending'; badgeLabel = item.due?.label || 'Pendiente';
+    }
+    const prefix = (item.currency || 'ARS') === 'USD' ? 'U$D ' : '$';
+    const amtStr = prefix + Number(item.rawAmount || item.amount || 0).toLocaleString('es-AR', {minimumFractionDigits:0,maximumFractionDigits:0});
+    const emoji = item.emoji || (item.type === 'subscription' ? '🔁' : item.type === 'quota' ? '🛒' : '🏠');
+    return `
+      <div class="mob-commit-row" onclick="nav('cuotas')">
+        <div class="mob-commit-avatar">${esc(emoji)}</div>
+        <div class="mob-commit-info">
+          <div class="mob-commit-name">${esc(item.name)}</div>
+          <div class="mob-commit-meta">${esc(item.subtitle || item.type || '')}</div>
+        </div>
+        <div class="mob-commit-right">
+          <div class="mob-commit-amt">${esc(amtStr)}</div>
+          <div class="mob-commit-badge ${badgeCls}">${esc(badgeLabel)}</div>
+        </div>
+      </div>`;
+  }
+
+  const commitsHtml = commitmentsItems.length > 0
+    ? commitmentsItems.map(buildCommitRow).join('')
+    : `<div class="mob-txn-empty" style="padding:16px 0 8px;"><div class="mob-txn-empty-icon">✅</div><div class="mob-txn-empty-text">No hay compromisos próximos</div></div>`;
 
   shell.innerHTML = `
     <div class="mob-txn-page">
@@ -1613,14 +1691,14 @@ function renderMobileTransactions(txns, meta) {
 
       <!-- Filters -->
       <div class="mob-txn-filters">
-        <button class="mob-txn-pill active" onclick="openTxnPeriodPicker?.()">
+        <button class="mob-txn-pill${isCurrentMonth && currFilter==='all'?' active':' mob-txn-pill-active'}" onclick="openMobTxnPeriodPicker()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          ${esc(displayPeriod)}
+          ${esc(periodoLabel)}
           <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
         </button>
-        <button class="mob-txn-pill" onclick="toggleTxnAdvancedFilters?.(); renderTransactions();">
+        <button class="mob-txn-pill${currFilter!=='all'?' mob-txn-pill-active':''}" onclick="openMobTxnFilterSheet()">
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
-          Filtros
+          ${currFilter==='all'?'Filtros':'Moneda: '+currFilter}
         </button>
       </div>
 
@@ -1653,40 +1731,22 @@ function renderMobileTransactions(txns, meta) {
         Ver todos los movimientos
       </button>` : ''}
 
-      <!-- Commitments card -->
-      <div class="mob-txn-commits" onclick="nav('cuotas')" style="cursor:pointer">
-        <div class="mob-txn-commits-hd">
-          <div>
-            <div class="mob-txn-commits-title">Cuotas, suscripciones y compromisos</div>
-            <div class="mob-txn-commits-sub">Vencimientos próximos y cargos recurrentes</div>
-          </div>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C4DFF" stroke-width="2.2" stroke-linecap="round"><path d="m9 18 6-6-6-6"/></svg>
+      <!-- Compromisos section -->
+      <div class="mob-section-card mob-commits-card">
+        <div class="mob-sec-hd">
+          <span class="mob-sec-title">COMPROMISOS DEL MES</span>
+          <button class="mob-sec-link" onclick="nav('cuotas')">Ver todos →</button>
         </div>
-        <div class="mob-txn-commits-grid">
-          <div class="mob-txn-commit-item">
-            <div class="mob-txn-commit-icon" style="background:rgba(124,77,255,0.15);">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7C4DFF" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-            </div>
-            <div class="mob-txn-commit-label">Cuotas</div>
-            <div class="mob-txn-commit-sub">${cuotasCount} próximas</div>
-          </div>
-          <div class="mob-txn-commit-item">
-            <div class="mob-txn-commit-icon" style="background:rgba(36,146,255,0.15);">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2692FF" stroke-width="2" stroke-linecap="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/></svg>
-            </div>
-            <div class="mob-txn-commit-label">Suscripciones</div>
-            <div class="mob-txn-commit-sub">${subsCount} activas</div>
-          </div>
-          <div class="mob-txn-commit-item">
-            <div class="mob-txn-commit-icon" style="background:rgba(39,228,122,0.12);">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#27E47A" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-            </div>
-            <div class="mob-txn-commit-label">Compromisos</div>
-            <div class="mob-txn-commit-sub">${compromisosCount} próximos</div>
-          </div>
-        </div>
+        <div class="mob-commits-list">${commitsHtml}</div>
+        ${commitmentsItems.length > 0 ? `
+        <div class="mob-commits-footer">
+          ${fijosCount > 0 ? `<span class="mob-commits-tag">${fijosCount} fijos</span>` : ''}
+          ${subsCount > 0 ? `<span class="mob-commits-tag">${subsCount} suscripciones</span>` : ''}
+          ${cuotasCount > 0 ? `<span class="mob-commits-tag">${cuotasCount} cuotas</span>` : ''}
+        </div>` : ''}
       </div>
 
+      <div style="height:32px"></div>
     </div>`;
 }
 
