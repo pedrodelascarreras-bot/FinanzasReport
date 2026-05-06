@@ -1301,7 +1301,7 @@ function renderMobileCreditCards() {
 
       <div class="mob-cc-header">
         <button class="mob-cc-ham" onclick="toggleMobMenu ? toggleMobMenu() : null">☰</button>
-        <div class="mob-cc-logo">DRIP<strong>FLOW</strong></div>
+        <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen">
         <div class="mob-cc-hdr-right">
           <button class="mob-cc-bell">🔔</button>
           <button class="mob-cc-avatar-btn" onclick="nav('profile')">P</button>

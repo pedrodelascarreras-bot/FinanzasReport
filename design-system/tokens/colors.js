@@ -1,5 +1,5 @@
 /**
- * DRIPFLOW — Color Tokens (runtime JS)
+ * FLUXEN — Color Tokens (runtime JS)
  * Auto-derived from colors.ts — DO NOT edit manually.
  * Source of truth: design-system/tokens/colors.ts
  */

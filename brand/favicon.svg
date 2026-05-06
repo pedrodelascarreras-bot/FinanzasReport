@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Fluxen">
+  <defs>
+    <linearGradient id="fv-icon" x1="0%" y1="0%" x2="110%" y2="110%">
+      <stop offset="0%"   stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#00B8D4"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="14" fill="#0B1020"/>
+  <g transform="translate(12, 10) scale(0.078)">
+    <path d="
+      M 150 370 C 150 385 162 396 177 396 C 192 396 204 385 204 370
+      L 204 286 L 290 278 C 307 276 318 264 316 249 C 314 234 301 225 284 226
+      L 204 234 L 204 192 L 348 178 C 380 175 396 153 382 128
+      C 375 115 360 108 343 110 L 176 128 C 160 130 150 143 150 160 Z
+    " fill="url(#fv-icon)"/>
+  </g>
+</svg>

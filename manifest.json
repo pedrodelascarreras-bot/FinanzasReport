@@ -1,21 +1,22 @@
 {
-  "name": "DRIPFLOW",
-  "short_name": "DRIPFLOW",
-  "description": "Control total de tus finanzas personales",
-  "start_url": "/",
+  "name": "Fluxen",
+  "short_name": "Fluxen",
+  "description": "Tu dinero. Tu flujo. Tu futuro.",
+  "start_url": "/FinanzasReport/",
+  "scope": "/FinanzasReport/",
   "display": "standalone",
-  "background_color": "#0B0F1A",
-  "theme_color": "#0B0F1A",
+  "background_color": "#0B1020",
+  "theme_color": "#0B1020",
   "orientation": "portrait",
   "icons": [
     {
-      "src": "design-system/branding/icon-192.png",
+      "src": "brand/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "design-system/branding/icon-512.png",
+      "src": "brand/icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

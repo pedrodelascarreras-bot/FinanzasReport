@@ -1186,7 +1186,7 @@ function renderMobileCompromisos() {
 
       <div class="mob-comp-header">
         <button class="mob-comp-ham">☰</button>
-        <div class="mob-comp-logo">DRIP<strong>FLOW</strong></div>
+        <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen">
         <div class="mob-comp-hdr-right">
           <button class="mob-comp-bell">🔔</button>
           <button class="mob-comp-avatar-btn" onclick="nav('profile')">P</button>

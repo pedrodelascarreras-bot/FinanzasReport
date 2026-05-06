@@ -108,7 +108,7 @@
     splash_good_afternoon: 'Buenas tardes',
     splash_good_evening: 'Buenas noches',
     splash_preparing: 'Preparando tu día...',
-    tab_title_dashboard: 'Finanzas · Dashboard',
+    tab_title_dashboard: 'Fluxen · Dashboard',
     all_categorized: '✓ Todos los movimientos están categorizados',
     marked_not_duplicate: '✓ Marcados como gastos distintos',
     desktop_only_page: 'Esa pantalla quedó disponible solo en desktop',

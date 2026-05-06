@@ -1,5 +1,5 @@
 /**
- * DRIPFLOW — Typography Tokens (runtime JS)
+ * FLUXEN — Typography Tokens (runtime JS)
  * Auto-derived from typography.ts — DO NOT edit manually.
  * Source of truth: design-system/tokens/typography.ts
  */

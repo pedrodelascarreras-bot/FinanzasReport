@@ -86,13 +86,13 @@
       <div class="mob-auth-shell" id="mob-auth-shell">
         <div class="mob-auth-logo-wrap">
           <div class="mob-auth-logo-sq">
-            <img src="design-system/branding/logo.svg" alt="DRIPFLOW" class="mob-auth-logo-img">
+            <img src="brand/fluxen-logo.png" alt="Fluxen" class="mob-auth-logo-img">
           </div>
         </div>
-        <div class="mob-auth-brand" aria-label="DRIPFLOW">
-          <span class="mob-auth-brand-drip">DRIP</span><span class="mob-auth-brand-flow">FLOW</span>
+        <div class="mob-auth-brand" aria-label="Fluxen">
+          <img src="brand/fluxen-logo.png" alt="Fluxen" class="mob-auth-brand-img">
         </div>
-        <h1 class="mob-auth-headline">Tu información merece <em>seguridad.</em></h1>
+        <h1 class="mob-auth-headline">Tu dinero. Tu flujo. <em>Tu futuro.</em></h1>
         <p class="mob-auth-subtitle">Conectá tu cuenta de Google y empezá a tener el control total de tus finanzas.</p>
         <button class="mob-auth-google-btn" type="button" onclick="handleSplashPrimaryAction(event)" aria-label="Iniciar sesión con Google">
           <span class="mob-auth-gbtn-icon">${googleLogoSVG(22)}</span>
@@ -107,9 +107,8 @@
 
       <div class="sp-private-shell">
         <div class="spw-topbar">
-          <div class="spw-brand df-logo" aria-label="DRIPFLOW">
-            <span class="df-logo-mark" aria-hidden="true"><span>D</span></span>
-            <span class="df-wordmark"><span class="df-drip">DRIP</span><span class="df-flow">FLOW</span></span>
+          <div class="spw-brand fluxen-spw-brand" aria-label="Fluxen">
+            <img src="brand/fluxen-logo.png" alt="Fluxen" class="fluxen-spw-logo">
           </div>
           <div class="spw-top-actions">
             <button class="spw-icon-btn" type="button" title="Buscar" onclick="handleSplashTopAction('search', event)">${iconSVG('search')}</button>

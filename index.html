@@ -3,23 +3,25 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<title>DRIPFLOW</title>
+<title>Fluxen</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="DRIPFLOW">
+<meta name="apple-mobile-web-app-title" content="Fluxen">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="theme-color" content="#0B0F1A">
-<!-- DRIPFLOW Design System: Plus Jakarta Sans (official brand font) -->
+<meta name="theme-color" content="#0B1020">
+<meta name="description" content="Tu dinero. Tu flujo. Tu futuro.">
+<!-- Fluxen — Plus Jakarta Sans brand font -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700&display=swap" rel="stylesheet">
 <link rel="manifest" href="manifest.json">
-<!-- Apple touch icons (iOS home screen — must be PNG) -->
-<link rel="apple-touch-icon" sizes="180x180" href="design-system/branding/apple-touch-icon.png">
-<link rel="apple-touch-icon" href="design-system/branding/apple-touch-icon.png">
+<!-- Apple touch icon (iOS home screen — PNG required) -->
+<link rel="apple-touch-icon" sizes="180x180" href="brand/apple-touch-icon.png">
+<link rel="apple-touch-icon" href="brand/apple-touch-icon.png">
 <!-- Favicon -->
-<link rel="icon" type="image/svg+xml" href="design-system/branding/favicon.svg">
-<link rel="icon" type="image/png" sizes="192x192" href="design-system/branding/icon-192.png">
+<link rel="icon" type="image/svg+xml" href="brand/favicon.svg">
+<link rel="icon" type="image/png" sizes="64x64" href="brand/favicon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="brand/icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -33,8 +35,8 @@
 <div id="splash" style="display:none;" onclick="if(event.target===this)dismissSplash()">
   <div class="sp-inner">
     <!-- Branding -->
-    <div class="sp-logo df-logo">
-      <img class="df-logo-img df-logo-img-lg" src="design-system/branding/logo.svg" alt="DRIPFLOW">
+    <div class="sp-logo fluxen-logo-wrap">
+      <img class="fluxen-logo-img fluxen-logo-img-lg" src="brand/fluxen-logo.png" alt="fluxen">
     </div>
 
     <!-- Dynamic content injected by splash.js -->
@@ -56,9 +58,8 @@
 
 <aside class="sidebar">
   <div class="sidebar-logo-row">
-    <div class="sidebar-brand df-logo" aria-label="DRIPFLOW">
-      <span class="df-logo-mark" aria-hidden="true"><span>D</span></span>
-      <span class="df-wordmark"><span class="df-drip">DRIP</span><span class="df-flow">FLOW</span></span>
+    <div class="sidebar-brand fluxen-sidebar-brand" aria-label="fluxen">
+      <img class="fluxen-sidebar-logo" src="brand/fluxen-logo.png" alt="fluxen">
     </div>
     <button class="sidebar-toggle" onclick="toggleSidebar()" title="Ocultar menú">‹</button>
   </div>
@@ -138,9 +139,8 @@
 <!-- ═══ GLOBAL APP HEADER ═══ -->
 <header id="app-header" class="app-header">
   <div class="app-header-left">
-    <div class="app-header-brand df-logo" onclick="nav('dashboard')">
-      <span class="df-logo-mark" aria-hidden="true"><span>D</span></span>
-      <span class="df-wordmark app-header-name"><span class="df-drip">DRIP</span><span class="df-flow">FLOW</span></span>
+    <div class="app-header-brand fluxen-header-brand" onclick="nav('dashboard')">
+      <img class="fluxen-header-logo" src="brand/fluxen-logo.png" alt="fluxen">
     </div>
   </div>
   <div class="app-header-right">
