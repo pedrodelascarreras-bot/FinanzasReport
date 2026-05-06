@@ -3394,6 +3394,58 @@
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <script src="js/cc-compare.js"></script>
 <script src="js/animations.js"></script>
+
+<!-- ═══ MOBILE THEME PICKER BOTTOM SHEET ═══ -->
+<div id="mob-theme-sheet" class="mob-theme-sheet" aria-modal="true" role="dialog" aria-label="Elegir tema">
+  <div class="mob-theme-backdrop" onclick="closeMobileThemePicker()"></div>
+  <div class="mob-theme-panel">
+    <div class="mob-theme-handle"></div>
+    <h3 class="mob-theme-title">Tema de la app</h3>
+    <div class="mob-theme-options">
+      <button class="mob-theme-opt" id="mob-theme-light" onclick="setMobileTheme('light')">
+        <span class="mob-theme-opt-icon">☀️</span>
+        <span class="mob-theme-opt-label">Modo claro</span>
+        <span class="mob-theme-opt-check">✓</span>
+      </button>
+      <button class="mob-theme-opt" id="mob-theme-dark" onclick="setMobileTheme('dark')">
+        <span class="mob-theme-opt-icon">🌙</span>
+        <span class="mob-theme-opt-label">Modo oscuro</span>
+        <span class="mob-theme-opt-check">✓</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+function openMobileThemePicker() {
+  const sheet = document.getElementById('mob-theme-sheet');
+  if (!sheet) return;
+  _updateMobileThemeChecks();
+  sheet.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeMobileThemePicker() {
+  const sheet = document.getElementById('mob-theme-sheet');
+  if (!sheet) return;
+  sheet.classList.remove('open');
+  document.body.style.overflow = '';
+}
+function setMobileTheme(mode) {
+  if (typeof setThemeMode === 'function') setThemeMode(mode);
+  else if (typeof toggleTheme === 'function') {
+    const isLight = document.body.classList.contains('light-mode');
+    if (mode === 'light' && !isLight) toggleTheme();
+    if (mode === 'dark' && isLight) toggleTheme();
+  }
+  _updateMobileThemeChecks();
+  setTimeout(closeMobileThemePicker, 220);
+}
+function _updateMobileThemeChecks() {
+  const isLight = document.body.classList.contains('light-mode');
+  document.getElementById('mob-theme-light')?.classList.toggle('active', isLight);
+  document.getElementById('mob-theme-dark')?.classList.toggle('active', !isLight);
+}
+</script>
 </body>
 
 </html>

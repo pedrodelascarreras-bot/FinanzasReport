@@ -1189,7 +1189,7 @@ function renderMobileCompromisos() {
         <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen">
         <div class="mob-comp-hdr-right">
           <button class="mob-comp-bell">🔔</button>
-          <button class="mob-comp-avatar-btn" onclick="nav('profile')">P</button>
+          <button class="mob-comp-avatar-btn" onclick="openMobileThemePicker()">P</button>
         </div>
       </div>
 
