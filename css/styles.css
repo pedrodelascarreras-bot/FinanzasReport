@@ -433,7 +433,7 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  min-height: 32px;
+  min-height: 56px;
   margin-bottom: 12px;
   padding: 0 4px;
 }
@@ -20112,7 +20112,7 @@ body:not(.light-mode) #page-dashboard .header-actions .txn-select option{
 /* ── Shared image logo helpers ── */
 .fluxen-logo-wrap { display:inline-flex; align-items:center; }
 .fluxen-logo-img { display:block; height:auto; max-width:100%; object-fit:contain; }
-.fluxen-logo-img-lg { width:min(220px, 65vw); }
+.fluxen-logo-img-lg { width:min(320px, 72vw); }
 
 /* ── Sidebar brand ── */
 .fluxen-sidebar-brand {
@@ -20120,19 +20120,19 @@ body:not(.light-mode) #page-dashboard .header-actions .txn-select option{
   min-width:0; overflow:hidden;
 }
 .fluxen-sidebar-logo {
-  height:28px; width:auto; max-width:130px;
+  height:46px; width:auto; max-width:160px;
   display:block; object-fit:contain; flex-shrink:0;
 }
-/* Collapsed sidebar: constrain logo width so only the F icon is visible */
+/* Collapsed sidebar: show only the F icon portion */
 .app.sidebar-collapsed .fluxen-sidebar-logo {
-  max-width:34px; object-position:left center;
+  height:38px; max-width:38px; object-position:left center;
 }
 .app.sidebar-collapsed .fluxen-sidebar-brand { justify-content:center; }
 
 /* ── App header brand ── */
-.app-header-brand { padding:8px 14px; cursor:pointer; }
+.app-header-brand { padding:6px 14px; cursor:pointer; }
 .fluxen-header-brand { display:flex; align-items:center; }
-.fluxen-header-logo { height:26px; width:auto; display:block; object-fit:contain; }
+.fluxen-header-logo { height:46px; width:auto; display:block; object-fit:contain; }
 
 /* ── Splash / briefing logo ── */
 #splash .sp-logo { justify-content:center; }
@@ -20140,17 +20140,17 @@ body:not(.light-mode) #page-dashboard .header-actions .txn-select option{
 
 /* ── Auth screen (mobile login) ── */
 .mob-auth-brand-img {
-  width:min(160px, 55vw); height:auto; display:block;
+  width:min(240px, 68vw); height:auto; display:block;
   filter:drop-shadow(0 4px 18px rgba(124,58,237,0.4));
 }
 
 /* ── Daily briefing splash header brand ── */
 .fluxen-spw-brand { display:flex; align-items:center; }
-.fluxen-spw-logo { height:32px; width:auto; display:block; object-fit:contain; }
+.fluxen-spw-logo { height:46px; width:auto; display:block; object-fit:contain; }
 
-/* ── Mobile headers (transactions, cc, compromisos) ── */
+/* ── Mobile headers (transactions, cc, compromisos, dashboard) ── */
 .mob-brand-logo-img {
-  height:22px; width:auto; display:block; object-fit:contain;
+  height:36px; width:auto; display:block; object-fit:contain;
   filter:drop-shadow(0 2px 8px rgba(124,58,237,0.3));
 }
 
@@ -25781,8 +25781,8 @@ body:not(.light-mode) #page-dashboard #dash-month-select option {
     0 8px 24px rgba(0,0,0,0.5);
 }
 .mob-auth-logo-img {
-  width: 50px;
-  height: 50px;
+  width: 72px;
+  height: auto;
   object-fit: contain;
 }
 .mob-auth-brand {
