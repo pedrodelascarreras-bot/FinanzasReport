@@ -1187,10 +1187,7 @@ function renderMobileCompromisos() {
       <div class="mob-comp-header">
         <button class="mob-comp-ham" onclick="openMobDrawer()" aria-label="Menú">☰</button>
         <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen">
-        <div class="mob-comp-hdr-right">
-          <button class="mob-comp-bell">🔔</button>
-          <div class="mob-comp-avatar-btn" aria-hidden="true">P</div>
-        </div>
+        <div class="mob-comp-hdr-right"></div>
       </div>
 
       <div class="mob-comp-title-block">

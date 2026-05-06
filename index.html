@@ -3473,29 +3473,6 @@
     <div class="mob-drawer-section">
       <div class="mob-drawer-section-label">Ajustes</div>
 
-      <!-- Apariencia -->
-      <div class="mob-drawer-settings-card">
-        <div class="mob-drawer-settings-row-label">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"
-               stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
-            <circle cx="12" cy="12" r="4"/>
-            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
-          </svg>
-          Apariencia
-        </div>
-        <div class="mob-drawer-theme-toggle">
-          <button class="mob-dth-btn" id="mdt-auto"  onclick="setMobileTheme('auto')">
-            <span>✦</span> Auto
-          </button>
-          <button class="mob-dth-btn" id="mdt-light" onclick="setMobileTheme('light')">
-            <span>☀️</span> Claro
-          </button>
-          <button class="mob-dth-btn" id="mdt-dark"  onclick="setMobileTheme('dark')">
-            <span>🌙</span> Oscuro
-          </button>
-        </div>
-      </div>
-
       <!-- Seguridad -->
       <button class="mob-drawer-settings-card mob-drawer-lock-row" onclick="closeMobDrawer();setTimeout(openLockSettings,200)">
         <div class="mob-drawer-lock-left">
@@ -3523,31 +3500,16 @@
 
 <script>
 /* ══════════════════════════════════════════════════════════════
-   MOBILE THEME — auto / light / dark
+   THEME — desktop only (mobile always dark)
+   The desktop sidebar buttons call setThemeMode() from ui.js.
+   On mobile we strip any saved light-mode immediately and on resize.
    ══════════════════════════════════════════════════════════════ */
-const _THEME_KEY = 'fluxen_theme_pref';
-const _sysDark   = window.matchMedia('(prefers-color-scheme: dark)');
-
-function _applyTheme(mode) {
-  const wantLight = mode === 'light' || (mode === 'auto' && !_sysDark.matches);
-  document.body.classList.toggle('light-mode', wantLight);
-}
-
-function setMobileTheme(mode) {
-  localStorage.setItem(_THEME_KEY, mode);
-  _applyTheme(mode);
-  _updateDrawerState();
-}
-
-// React to iOS system dark-mode changes when Auto is selected
-_sysDark.addEventListener('change', function() {
-  if ((localStorage.getItem(_THEME_KEY) || 'auto') === 'auto') _applyTheme('auto');
-});
-
-// Boot: apply saved theme immediately
-(function() {
-  const saved = localStorage.getItem(_THEME_KEY) || 'auto';
-  _applyTheme(saved);
+(function _enforceMobileDark() {
+  function _stripLightIfMobile() {
+    if (window.innerWidth <= 768) document.body.classList.remove('light-mode');
+  }
+  _stripLightIfMobile();
+  window.addEventListener('resize', _stripLightIfMobile);
 })();
 
 /* ══════════════════════════════════════════════════════════════
@@ -3570,20 +3532,15 @@ function closeMobDrawer() {
   else document.body.style.overflow = '';
 }
 
-// Alias so existing onclick="openMobileThemePicker()" still works
+// Backwards-compat alias (some code still calls openMobileThemePicker)
 function openMobileThemePicker() { openMobDrawer(); }
 function closeMobileThemePicker() { closeMobDrawer(); }
 
 function _updateDrawerState() {
-  const saved = localStorage.getItem(_THEME_KEY) || 'auto';
-  document.getElementById('mdt-auto')?.classList.toggle('active',  saved === 'auto');
-  document.getElementById('mdt-light')?.classList.toggle('active', saved === 'light');
-  document.getElementById('mdt-dark')?.classList.toggle('active',  saved === 'dark');
-
   // Active nav item
   const pageEl = document.querySelector('.page.active');
   const pageId = pageEl?.id?.replace('page-', '') || '';
-  ['dashboard','transactions','cuotas','credit-cards'].forEach(p => {
+  ['dashboard','transactions','cuotas','credit-cards'].forEach(function(p) {
     document.getElementById('mdi-' + p)?.classList.toggle('active', p === pageId);
   });
 
@@ -3597,13 +3554,14 @@ function _updateDrawerState() {
   }
 }
 
-// Close drawer when nav() is called
-(function() {
-  const _origNav = window.nav;
-  if (typeof _origNav === 'function') {
-    window.nav = function(page) { closeMobDrawer(); return _origNav(page); };
+// Wrap nav() to close drawer first — done after DOMContentLoaded so all
+// scripts (including animations.js) have already registered their wrappers.
+document.addEventListener('DOMContentLoaded', function() {
+  var _prevNav = window.nav;
+  if (typeof _prevNav === 'function') {
+    window.nav = function(page) { closeMobDrawer(); return _prevNav(page); };
   }
-})();
+});
 </script>
 </body>
 

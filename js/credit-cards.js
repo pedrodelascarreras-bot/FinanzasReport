@@ -1302,14 +1302,11 @@ function renderMobileCreditCards() {
       <div class="mob-cc-header">
         <button class="mob-cc-ham" onclick="openMobDrawer()" aria-label="Menú">☰</button>
         <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen">
-        <div class="mob-cc-hdr-right">
-          <button class="mob-cc-bell">🔔</button>
-          <div class="mob-cc-avatar-btn" aria-hidden="true">P</div>
-        </div>
+        <div class="mob-cc-hdr-right"></div>
       </div>
 
       <div class="mob-cc-title-block">
-        <h1 class="mob-cc-title">Movimientos</h1>
+        <h1 class="mob-cc-title">Tarjetas de Crédito</h1>
         <p class="mob-cc-subtitle">Vas bien, llevás controlado tu dinero</p>
       </div>
 

@@ -4697,8 +4697,8 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   :root { --sidebar-w: 0px; }
   .sidebar { display: none; }
   .app { grid-template-columns: 1fr; }
-  .main { padding: 14px 12px 90px; }
-  .mob-nav { display: block; }
+  .main { padding: 14px 12px 24px; }
+  .mob-nav { display: none !important; } /* bottom nav removed */
   .page-title { font-size: 22px; letter-spacing: -0.03em; }
   .page-subtitle { font-size: 11px; }
   .page-header { flex-direction: column; align-items: flex-start; gap: 8px; }
@@ -5037,7 +5037,7 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
 }
 
 @media(max-width:480px) {
-  .main { padding: 12px 10px 90px; }
+  .main { padding: 12px 10px 20px; }
   .page-title { font-size: 18px; }
   .mob-nav-btn { font-size: 8px; padding: 5px 4px; }
   .mob-nav-btn .mn-icon { font-size: 16px; }
@@ -25936,7 +25936,7 @@ body:not(.light-mode) #page-dashboard #dash-month-select option {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 0 0 100px;
+  padding: 0 0 32px;
 }
 
 /* ── Header ── */
@@ -26216,7 +26216,7 @@ body:not(.light-mode) #page-dashboard #dash-month-select option {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 0 0 100px;
+  padding: 0 0 32px;
 }
 
 /* Header */
@@ -26511,9 +26511,7 @@ body:not(.light-mode) #page-dashboard #dash-month-select option {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 0 0 100px;
-  background: linear-gradient(180deg, #0B1224 0%, #070B1A 100%);
-  min-height: 100vh;
+  padding: 0 0 32px;
 }
 
 /* Header */
