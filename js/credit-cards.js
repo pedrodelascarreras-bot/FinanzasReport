@@ -1300,11 +1300,11 @@ function renderMobileCreditCards() {
     <div class="mob-cc-page">
 
       <div class="mob-cc-header">
-        <button class="mob-cc-ham" onclick="toggleMobMenu ? toggleMobMenu() : null">☰</button>
+        <button class="mob-cc-ham" onclick="openMobDrawer()" aria-label="Menú">☰</button>
         <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen">
         <div class="mob-cc-hdr-right">
           <button class="mob-cc-bell">🔔</button>
-          <button class="mob-cc-avatar-btn" onclick="openMobileThemePicker()">P</button>
+          <div class="mob-cc-avatar-btn" aria-hidden="true">P</div>
         </div>
       </div>
 

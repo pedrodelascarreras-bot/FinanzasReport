@@ -27582,3 +27582,290 @@ body.light-mode .lk-setup-panel { background: #ffffff; border-top-color: rgba(0,
 body.light-mode .lk-setup-title { color: #1a1a2e; }
 body.light-mode .lk-setup-opt   { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.07); color: #1a1a2e; }
 body.light-mode .lk-setup-opt-body span { color: #6b7280; }
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE DRAWER — slide-in from left
+   ══════════════════════════════════════════════════════════════ */
+.mob-drawer {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 98000;
+}
+.mob-drawer.open { display: block; }
+
+/* Backdrop */
+.mob-drawer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0);
+  transition: background 0.32s;
+  -webkit-backdrop-filter: blur(0px);
+  backdrop-filter: blur(0px);
+  transition: background 0.32s, backdrop-filter 0.32s;
+}
+.mob-drawer.open .mob-drawer-backdrop {
+  background: rgba(0,0,0,0.52);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+/* Panel */
+.mob-drawer-panel {
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: min(84vw, 320px);
+  background: linear-gradient(180deg, #111827 0%, #0C1120 100%);
+  border-right: 1px solid rgba(140,130,255,0.1);
+  display: flex;
+  flex-direction: column;
+  padding: max(20px, env(safe-area-inset-top, 20px)) 0 max(32px, env(safe-area-inset-bottom, 32px));
+  transform: translateX(-100%);
+  transition: transform 0.34s cubic-bezier(0.22, 1, 0.36, 1);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  box-shadow: 4px 0 40px rgba(0,0,0,0.5);
+}
+.mob-drawer.open .mob-drawer-panel {
+  transform: translateX(0);
+}
+
+/* ── Top bar: logo + close ── */
+.mob-drawer-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 20px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  margin-bottom: 8px;
+}
+.mob-drawer-logo {
+  height: 22px;
+  width: auto;
+}
+.mob-drawer-close {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.07);
+  color: #9EA6C7;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.mob-drawer-close:active { background: rgba(255,255,255,0.12); }
+
+/* ── Nav items ── */
+.mob-drawer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 0 12px;
+}
+
+.mob-drawer-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: none;
+  background: transparent;
+  color: #9EA6C7;
+  font-size: 15px; font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s, color 0.15s;
+  font-family: inherit;
+  letter-spacing: -0.01em;
+}
+.mob-drawer-item:active {
+  background: rgba(124,77,255,0.1);
+}
+.mob-drawer-item.active {
+  background: rgba(124,77,255,0.14);
+  color: #C8B8FF;
+}
+.mob-drawer-item.active .mob-drawer-item-icon svg {
+  stroke: #B47AFF;
+}
+
+.mob-drawer-item-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.05);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.mob-drawer-item.active .mob-drawer-item-icon {
+  background: rgba(124,77,255,0.18);
+}
+.mob-drawer-item-icon svg {
+  stroke: #6B7399;
+  transition: stroke 0.15s;
+}
+.mob-drawer-item:not(.active):hover .mob-drawer-item-icon svg { stroke: #9EA6C7; }
+.mob-drawer-item-label { flex: 1; }
+
+/* ── Divider ── */
+.mob-drawer-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.06);
+  margin: 16px 12px;
+}
+
+/* ── Settings section ── */
+.mob-drawer-section {
+  padding: 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.mob-drawer-section-label {
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.09em;
+  color: #4B5475;
+  padding: 0 4px;
+  margin-bottom: 2px;
+}
+
+/* ── Settings card (shared style) ── */
+.mob-drawer-settings-card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Row label (Apariencia) */
+.mob-drawer-settings-row-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px; font-weight: 600;
+  color: #9EA6C7;
+}
+.mob-drawer-settings-row-label svg { flex-shrink: 0; stroke: #6B7399; }
+
+/* ── Theme toggle pills ── */
+.mob-drawer-theme-toggle {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.mob-dth-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 10px 6px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(255,255,255,0.07);
+  background: rgba(255,255,255,0.03);
+  color: #6B7399;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.16s;
+  font-family: inherit;
+}
+.mob-dth-btn span:first-child { font-size: 18px; line-height: 1; }
+.mob-dth-btn:active { background: rgba(124,77,255,0.12); }
+.mob-dth-btn.active {
+  background: rgba(124,77,255,0.2);
+  border-color: rgba(124,77,255,0.5);
+  color: #C8B8FF;
+}
+
+/* ── Lock row ── */
+.mob-drawer-lock-row {
+  flex-direction: row;
+  align-items: center;
+  cursor: pointer;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: inherit;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.mob-drawer-lock-row:active { background: rgba(124,77,255,0.08); }
+.mob-drawer-lock-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+.mob-drawer-lock-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: rgba(124,77,255,0.14);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.mob-drawer-lock-icon svg { stroke: #B47AFF; }
+.mob-drawer-lock-title {
+  font-size: 14px; font-weight: 600;
+  color: #E8EDFF;
+}
+.mob-drawer-lock-sub {
+  font-size: 11px; font-weight: 500;
+  color: #6B7399;
+  margin-top: 1px;
+}
+.mob-drawer-lock-arrow {
+  stroke: #4B5475;
+  flex-shrink: 0;
+}
+
+/* ── Light mode overrides ── */
+body.light-mode .mob-drawer-panel {
+  background: linear-gradient(180deg, #ffffff 0%, #f5f6fa 100%);
+  border-right-color: rgba(0,0,0,0.07);
+  box-shadow: 4px 0 40px rgba(0,0,0,0.15);
+}
+body.light-mode .mob-drawer-backdrop {
+  /* background handled by .open rule */
+}
+body.light-mode .mob-drawer-top {
+  border-bottom-color: rgba(0,0,0,0.07);
+}
+body.light-mode .mob-drawer-close {
+  background: rgba(0,0,0,0.05); color: #6b7280;
+}
+body.light-mode .mob-drawer-item { color: #6b7280; }
+body.light-mode .mob-drawer-item.active { color: #5d35f3; background: rgba(93,53,243,0.08); }
+body.light-mode .mob-drawer-item-icon { background: rgba(0,0,0,0.04); }
+body.light-mode .mob-drawer-item.active .mob-drawer-item-icon { background: rgba(93,53,243,0.12); }
+body.light-mode .mob-drawer-item-icon svg { stroke: #9EA6C7; }
+body.light-mode .mob-drawer-item.active .mob-drawer-item-icon svg { stroke: #5d35f3; }
+body.light-mode .mob-drawer-divider { background: rgba(0,0,0,0.07); }
+body.light-mode .mob-drawer-section-label { color: #c0c8e0; }
+body.light-mode .mob-drawer-settings-card {
+  background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.07);
+}
+body.light-mode .mob-drawer-settings-row-label { color: #6b7280; }
+body.light-mode .mob-drawer-settings-row-label svg { stroke: #9EA6C7; }
+body.light-mode .mob-dth-btn {
+  background: rgba(0,0,0,0.04); border-color: rgba(0,0,0,0.08); color: #9EA6C7;
+}
+body.light-mode .mob-dth-btn.active {
+  background: rgba(93,53,243,0.1); border-color: rgba(93,53,243,0.35); color: #5d35f3;
+}
+body.light-mode .mob-drawer-lock-icon { background: rgba(93,53,243,0.1); }
+body.light-mode .mob-drawer-lock-icon svg { stroke: #5d35f3; }
+body.light-mode .mob-drawer-lock-title { color: #1a1a2e; }
+body.light-mode .mob-drawer-lock-sub { color: #9EA6C7; }
+body.light-mode .mob-drawer-lock-arrow { stroke: #c0c8e0; }

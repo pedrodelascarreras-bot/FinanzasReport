@@ -4417,7 +4417,7 @@ function renderMobileDashboard(data) {
 
   shell.innerHTML = `
     <div class="mob-dash-header">
-      <button class="mob-dash-hamburger" onclick="document.getElementById('sidebar-open-btn')?.click()" aria-label="Menú">
+      <button class="mob-dash-hamburger" onclick="openMobDrawer()" aria-label="Menú">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
       <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen">
@@ -4425,7 +4425,7 @@ function renderMobileDashboard(data) {
         <button class="mob-dash-bell" onclick="toggleNotifPanel()" aria-label="Notificaciones">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
         </button>
-        <button class="mob-dash-avatar" onclick="openMobileThemePicker()" aria-label="Cambiar tema">P</button>
+        <div class="mob-dash-avatar" aria-hidden="true">P</div>
       </div>
     </div>
 
