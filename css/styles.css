@@ -26816,52 +26816,85 @@ body:not(.light-mode) #page-cuotas .cp-summary-card::before {
    DARK MODE — AHORROS
    ═══════════════════════════════════════════════════ */
 
-/* Hero feature card: violet menos intenso, termina en oscuro (no lavanda claro) */
+/* Página: fondo unificado, sin container visible */
+body:not(.light-mode) #page-savings {
+  background: transparent !important;
+}
+body:not(.light-mode) .sav2-shell {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+}
+
+/* Hero feature card: violet profundo, sin borde externo llamativo */
 body:not(.light-mode) .sav2-feature-card {
   background: linear-gradient(180deg,
-    #3d2080 0%,
-    #2e1a6e 42%,
-    #1a1240 100%) !important;
-  box-shadow: 0 14px 32px rgba(30, 10, 80, 0.45) !important;
+    #3a1e7a 0%,
+    #2b1660 50%,
+    #180f3a 100%) !important;
+  border: none !important;
+  box-shadow: 0 8px 28px rgba(20, 8, 60, 0.5) !important;
 }
 
 /* Header títulos */
-body:not(.light-mode) .sav2-header h1,
-body:not(.light-mode) .sav2-header p,
-body:not(.light-mode) .sav2-section-head h2 {
-  color: #f0f4ff !important;
+body:not(.light-mode) .sav2-header h1 { color: #f0f4ff !important; }
+body:not(.light-mode) .sav2-header p  { color: #7a87b0 !important; }
+body:not(.light-mode) .sav2-section-head h2 { color: #d8e0ff !important; }
+body:not(.light-mode) .sav2-section-head button { color: #7c4dff !important; }
+
+/* Stat cards: SIN fondo propio ni borde — se funden con la página */
+body:not(.light-mode) .sav2-stat-card {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
 }
-body:not(.light-mode) .sav2-header p {
-  color: #7a87b0 !important;
+body:not(.light-mode) .sav2-stat-grid {
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  background: rgba(255,255,255,0.025) !important;
 }
 
-/* Cards: fondos más sutiles, sin bordes tan marcados */
-body:not(.light-mode) .sav2-stat-card,
-body:not(.light-mode) .sav2-list-card,
+/* List cards: línea separadora en vez de borde completo */
+body:not(.light-mode) .sav2-list-card {
+  background: transparent !important;
+  border: none !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+body:not(.light-mode) .sav2-list-stack {
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 14px !important;
+  overflow: hidden !important;
+  background: rgba(255,255,255,0.025) !important;
+}
+body:not(.light-mode) .sav2-list-card:last-child,
+body:not(.light-mode) .sav2-stat-card:last-child {
+  border-bottom: none !important;
+}
+
+/* Activity card */
 body:not(.light-mode) .sav2-activity-card {
-  background: rgba(18, 22, 40, 0.82) !important;
-  border-color: rgba(120,135,200,0.08) !important;
+  background: rgba(255,255,255,0.03) !important;
+  border-color: rgba(255,255,255,0.06) !important;
   box-shadow: none !important;
 }
 
 /* Iconos de stat cards */
-body:not(.light-mode) .sav2-stat-icon.green { background: rgba(25,148,85,0.15) !important; color: #34c97a !important; }
+body:not(.light-mode) .sav2-stat-icon.green  { background: rgba(25,148,85,0.15) !important;  color: #34c97a !important; }
 body:not(.light-mode) .sav2-stat-icon.orange { background: rgba(237,108,24,0.15) !important; color: #f08040 !important; }
 body:not(.light-mode) .sav2-stat-icon.purple { background: rgba(112,71,242,0.15) !important; color: #9d7fff !important; }
 
-/* Textos internos de las cards */
-body:not(.light-mode) .sav2-stat-title {
-  color: #6e7a9e !important;
-}
-body:not(.light-mode) .sav2-stat-value,
-body:not(.light-mode) .sav2-list-name {
-  color: #eef2ff !important;
-}
-body:not(.light-mode) .sav2-stat-sub,
-body:not(.light-mode) .sav2-list-foot,
-body:not(.light-mode) .sav2-activity-sub {
-  color: #6e7a9e !important;
-}
+/* Textos */
+body:not(.light-mode) .sav2-stat-title   { color: #6e7a9e !important; }
+body:not(.light-mode) .sav2-stat-value   { color: #eef2ff !important; }
+body:not(.light-mode) .sav2-stat-sub     { color: #6e7a9e !important; }
+body:not(.light-mode) .sav2-list-name    { color: #eef2ff !important; }
+body:not(.light-mode) .sav2-list-foot    { color: #6e7a9e !important; }
+body:not(.light-mode) .sav2-activity-sub { color: #6e7a9e !important; }
 
 /* Botones */
 body:not(.light-mode) .sav2-btn {
@@ -26871,37 +26904,25 @@ body:not(.light-mode) .sav2-btn {
 }
 body:not(.light-mode) .sav2-btn-primary {
   background: linear-gradient(135deg, #5a38c8, #4a2aad) !important;
-  box-shadow: 0 10px 22px rgba(60,30,150,0.35) !important;
+  box-shadow: 0 8px 18px rgba(60,30,150,0.3) !important;
 }
 
-/* Bottom strip */
+/* Bottom strip: sin caja visible */
 body:not(.light-mode) .sav2-bottom-strip {
-  background: rgba(18,22,42,0.9) !important;
-  border-color: rgba(120,135,200,0.08) !important;
+  background: rgba(255,255,255,0.03) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
 }
-body:not(.light-mode) .sav2-bottom-strip strong {
-  color: #eef2ff !important;
-}
+body:not(.light-mode) .sav2-bottom-strip strong { color: #eef2ff !important; }
 body:not(.light-mode) .sav2-bottom-strip span,
-body:not(.light-mode) .sav2-bottom-strip small {
-  color: #6e7a9e !important;
-}
+body:not(.light-mode) .sav2-bottom-strip small  { color: #6e7a9e !important; }
 body:not(.light-mode) .sav2-bottom-strip div + div::before {
   background: rgba(255,255,255,0.07) !important;
 }
 
 /* Split card dentro del feature */
-body:not(.light-mode) .sav2-split-card {
-  background: rgba(255,255,255,0.08) !important;
-}
-body:not(.light-mode) .sav2-split-left,
-body:not(.light-mode) .sav2-split-right {
-  color: rgba(255,255,255,0.9) !important;
-}
-body:not(.light-mode) .sav2-split-left strong,
-body:not(.light-mode) .sav2-split-right strong {
-  color: #fff !important;
-}
+body:not(.light-mode) .sav2-split-card  { background: rgba(255,255,255,0.08) !important; }
+body:not(.light-mode) .sav2-split-card span  { color: rgba(255,255,255,0.7) !important; }
+body:not(.light-mode) .sav2-split-card strong { color: #fff !important; }
 
 /* ═══════════════════════════════════════════════════
    MOBILE THEME PICKER — bottom sheet
