@@ -20114,28 +20114,20 @@ body:not(.light-mode) #page-dashboard .header-actions .txn-select option{
 .fluxen-logo-img { display:block; height:auto; max-width:100%; object-fit:contain; }
 .fluxen-logo-img-lg { width:min(280px, 68vw); }
 
-/* ── Sidebar brand ── */
+/* ── Sidebar brand — solo ícono F ── */
 .fluxen-sidebar-brand {
-  display:flex; align-items:center;
+  display:flex; align-items:center; justify-content:flex-start;
   min-width:0; overflow:hidden; flex:1;
 }
-/* Expanded: show full logo, hide icon */
-.fluxen-sidebar-full {
-  height:36px; width:auto; display:block; object-fit:contain; flex-shrink:0;
-}
-.fluxen-sidebar-icon { display:none; }
-
-/* Collapsed: show only the F icon */
-.app.sidebar-collapsed .fluxen-sidebar-full { display:none; }
-.app.sidebar-collapsed .fluxen-sidebar-icon {
-  display:block; height:38px; width:auto; object-fit:contain;
+.fluxen-sidebar-icon-img {
+  height:40px; width:auto; display:block; object-fit:contain; flex-shrink:0;
 }
 .app.sidebar-collapsed .fluxen-sidebar-brand { justify-content:center; }
 
 /* ── App header brand ── */
-.app-header-brand { padding:6px 14px; cursor:pointer; }
+.app-header-brand { padding:6px 18px; cursor:pointer; }
 .fluxen-header-brand { display:flex; align-items:center; }
-.fluxen-header-logo { height:40px; width:auto; display:block; object-fit:contain; }
+.fluxen-header-logo { height:52px; width:auto; display:block; object-fit:contain; }
 
 /* ── Splash / briefing logo ── */
 #splash .sp-logo { justify-content:center; }
