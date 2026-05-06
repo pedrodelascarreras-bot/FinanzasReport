@@ -27101,3 +27101,17 @@ body.light-mode #page-cuotas,
 body.light-mode #page-credit-cards {
   background: #f5f6fa !important;
 }
+
+/* ── Avatar buttons: iOS touch fix ── */
+.mob-dash-avatar,
+.mob-txn-avatar-btn,
+.mob-cc-avatar-btn,
+.mob-comp-avatar-btn {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  z-index: 10;
+  border: none;
+  outline: none;
+  padding: 0;
+}

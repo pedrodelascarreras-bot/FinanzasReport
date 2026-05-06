@@ -84,13 +84,8 @@
     content.innerHTML = `
       <!-- ── MOBILE AUTH SPLASH (max-width:768px only) ── -->
       <div class="mob-auth-shell" id="mob-auth-shell">
-        <div class="mob-auth-logo-wrap">
-          <div class="mob-auth-logo-sq">
-            <img src="brand/fluxen-icon.png" alt="fluxen" class="mob-auth-logo-img">
-          </div>
-        </div>
-        <div class="mob-auth-brand" aria-label="Fluxen">
-          <img src="brand/fluxen-logo.png" alt="Fluxen" class="mob-auth-brand-img">
+        <div class="mob-auth-brand" aria-label="fluxen">
+          <img src="brand/fluxen-logo.png" alt="fluxen" class="mob-auth-brand-img">
         </div>
         <h1 class="mob-auth-headline">Tu dinero. Tu flujo. <em>Tu futuro.</em></h1>
         <p class="mob-auth-subtitle">Conectá tu cuenta de Google y empezá a tener el control total de tus finanzas.</p>
