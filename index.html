@@ -3422,13 +3422,17 @@ function openMobileThemePicker() {
   if (!sheet) return;
   _updateMobileThemeChecks();
   sheet.classList.add('open');
-  document.body.style.overflow = 'hidden';
+  // Use the reference-counted iOS lock to avoid desync with modal system
+  if (typeof _iosLock === 'function') _iosLock();
+  else document.body.style.overflow = 'hidden';
 }
 function closeMobileThemePicker() {
   const sheet = document.getElementById('mob-theme-sheet');
   if (!sheet) return;
+  if (!sheet.classList.contains('open')) return; // already closed — don't double-unlock
   sheet.classList.remove('open');
-  document.body.style.overflow = '';
+  if (typeof _iosUnlock === 'function') _iosUnlock();
+  else document.body.style.overflow = '';
 }
 function setMobileTheme(mode) {
   if (typeof setThemeMode === 'function') setThemeMode(mode);

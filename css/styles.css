@@ -27115,3 +27115,107 @@ body.light-mode #page-credit-cards {
   outline: none;
   padding: 0;
 }
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE FULL-WIDTH FIX
+   Remove .main's horizontal padding when a page with its own
+   mobile shell is active — the shell manages its own inset.
+   Also fix Compromisos "window within window" effect.
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Strip .main side + top padding so each mobile shell fills the screen.
+     The app-header is hidden for these pages — shell manages its own top inset. */
+  body:has(#page-dashboard.active) .main,
+  body:has(#page-transactions.active) .main,
+  body:has(#page-cuotas.active) .main,
+  body:has(#page-credit-cards.active) .main {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  /* Compromisos: remove the internal gradient background so the page
+     blends with the body — eliminates the "window within window" */
+  .mob-comp-page {
+    background: transparent !important;
+    min-height: unset;
+  }
+
+  /* Give each shell a consistent 16px side padding for breathing room */
+  .mob-txn-shell  { padding-left: 16px !important; padding-right: 16px !important; }
+  .mob-cc-shell   { padding-left: 16px !important; padding-right: 16px !important; }
+  .mob-comp-shell { padding-left: 16px !important; padding-right: 16px !important; }
+  .mob-dash-shell { padding-left: 16px !important; padding-right: 16px !important; }
+
+  /* Compromisos: totals/summary card should also feel part of the page */
+  .mob-comp-total-card {
+    border-radius: 18px;
+  }
+
+  /* Ensure light-mode pages don't add a clashing background */
+  body.light-mode .mob-comp-page {
+    background: transparent !important;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE SCROLL & TOUCH IMPROVEMENTS
+   Ensure smooth scrolling and properly-sized tap targets on iOS.
+   ══════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  /* Smooth inertial scroll on the whole body */
+  html, body {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+
+  /* The .main container — natural height, never constrained */
+  .main {
+    overflow-y: visible !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* All interactive elements: larger tap targets + instant response */
+  button,
+  [role="button"],
+  .mob-nav-btn,
+  .mob-txn-pill,
+  .mob-comp-tab,
+  .mob-cc-tab-btn,
+  .mob-dash-chip,
+  .mob-txn-row,
+  .mob-comp-row,
+  .mob-cc-txn-row {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+    min-height: 44px; /* Apple HIG minimum tap target */
+    cursor: pointer;
+  }
+
+  /* Exception: short pills that look bad at 44px — keep intrinsic height */
+  .mob-txn-pill,
+  .mob-comp-tab,
+  .mob-cc-tab-btn {
+    min-height: 36px;
+  }
+
+  /* Nav bar buttons */
+  .mob-nav-btn {
+    min-height: 56px;
+  }
+
+  /* Transaction rows — already 60px min-height from JS, ensure touch */
+  .mob-txn-row,
+  .mob-comp-row,
+  .mob-cc-txn-row {
+    min-height: 56px;
+  }
+
+  /* Ensure no invisible overlay blocks taps */
+  .mob-txn-shell *,
+  .mob-comp-shell *,
+  .mob-cc-shell *,
+  .mob-dash-shell * {
+    pointer-events: auto;
+  }
+}
