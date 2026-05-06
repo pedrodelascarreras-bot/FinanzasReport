@@ -86,7 +86,7 @@
       <div class="mob-auth-shell" id="mob-auth-shell">
         <div class="mob-auth-logo-wrap">
           <div class="mob-auth-logo-sq">
-            <img src="brand/fluxen-logo.png" alt="Fluxen" class="mob-auth-logo-img">
+            <img src="brand/fluxen-icon.png" alt="fluxen" class="mob-auth-logo-img">
           </div>
         </div>
         <div class="mob-auth-brand" aria-label="Fluxen">
