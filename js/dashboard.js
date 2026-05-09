@@ -1057,8 +1057,8 @@ async function generateDashInsights(){
   const MNAMES=[t('month_1'),t('month_2'),t('month_3'),t('month_4'),t('month_5'),t('month_6'),t('month_7'),t('month_8'),t('month_9'),t('month_10'),t('month_11'),t('month_12')];
   if(monthLabelEl)monthLabelEl.textContent=MNAMES[iM-1]+' '+iY;
   loadEl.style.display='flex';feedEl.style.display='none';
-  const arsT=monthTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const usdT=monthTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+  const arsT=monthTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
+  const usdT=monthTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
   const catD=getCatData(monthTxns);
   // Resolve income for this month using the new income system (same logic as renderDashboard)
   let incArs=state.income.ars+state.income.varArs;
@@ -1095,7 +1095,7 @@ function collectDashboardAlerts(baseDate=new Date()) {
   });
 
   const monthTxns = getCurrentMonthTxns().filter(t=>!t.isPendingCuota);
-  const arsT = monthTxns.filter(t => t.currency === 'ARS').reduce((s,t) => s + t.amount, 0);
+  const arsT = monthTxns.filter(t => t.currency === 'ARS').reduce((s,t) => s + (typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount), 0);
   let totalIncome = (state.income?.ars||0)+(state.income?.varArs||0);
   const _notifIncEntry=(state.incomeMonths||[]).find(m=>m.month===monthKey);
   if(_notifIncEntry&&typeof getMonthTotalARS==='function'){
@@ -1494,7 +1494,7 @@ function renderDashboard(){
   const arsCnt=billableTxns.filter(t=>t.currency==='ARS').length;
   const uncategorizedCount=billableTxns.filter(t=>!t.category||t.category==='Uncategorized'||t.category==='Procesando...').length;
   const catTotals={};
-  billableTxns.filter(t=>t.currency==='ARS').forEach(t=>{catTotals[t.category||'Sin categoría']=(catTotals[t.category||'Sin categoría']||0)+t.amount;});
+  billableTxns.filter(t=>t.currency==='ARS').forEach(t=>{catTotals[t.category||'Sin categoría']=(catTotals[t.category||'Sin categoría']||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
   const topCategories=Object.entries(catTotals)
     .sort((a,b)=>b[1]-a[1])
     .map(([name,amount])=>({name,amount,pct:arsMonth>0?Math.round(amount/arsMonth*100):0}));
@@ -2042,7 +2042,8 @@ function renderDashboard(){
     methods.forEach(m=>{totByMethod[m.key]=0;});
     filteredTxns.forEach(t=>{
       const pm=t.payMethod||'';
-      const amt=t.currency==='USD'?t.amount*(USD_TO_ARS||1):t.amount;
+      const _pa=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount;
+      const amt=t.currency==='USD'?_pa*(USD_TO_ARS||1):_pa;
       if(methods.find(m=>m.key===pm)){totByMethod[pm]+=amt;totalForBar+=amt;}
     });
     if(totalForBar>0){
@@ -2256,14 +2257,15 @@ function renderDashboard(){
 
 function getWeeklyData(txns){
   txns=txns||state.transactions;
-  const w={};txns.filter(t=>t.currency==='ARS').forEach(t=>{const k=t.week||getWeekKey(t.date);w[k]=(w[k]||0)+t.amount;});
+  const w={};txns.filter(t=>t.currency==='ARS').forEach(t=>{const k=t.week||getWeekKey(t.date);w[k]=(w[k]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
   const s=Object.keys(w).sort();return{labels:s.map(k=>fmtWeekLabel(k)),values:s.map(k=>w[k]),keys:s};
 }
 function getCatData(txns,byGroup){
   txns=txns||state.transactions;
   const c={};
   txns.filter(t=>t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized').forEach(t=>{
-    const amt=t.currency==='USD'?t.amount*USD_TO_ARS:t.amount;
+    const _pa=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount;
+    const amt=t.currency==='USD'?_pa*USD_TO_ARS:_pa;
     const key=byGroup?catGroup(t.category):t.category;
     c[key]=(c[key]||0)+amt;
   });
@@ -2307,7 +2309,7 @@ function renderWeeklyChart(monthTxns){
     const byMonth={};
     state.transactions.filter(t=>t.currency==='ARS').forEach(t=>{
       const k=t.month||getMonthKey(t.date);
-      byMonth[k]=(byMonth[k]||0)+t.amount;
+      byMonth[k]=(byMonth[k]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);
     });
     const sorted=Object.keys(byMonth).sort();
     const labels=sorted.map(formatMonthLabel);
@@ -2333,7 +2335,7 @@ function renderWeeklyChart(monthTxns){
     const byWeek={};
     state.transactions.filter(t=>t.currency==='ARS').forEach(t=>{
       const k=t.week||getWeekKey(t.date);
-      byWeek[k]=(byWeek[k]||0)+t.amount;
+      byWeek[k]=(byWeek[k]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);
     });
     const sorted=Object.keys(byWeek).sort();
     const labels=sorted.map(formatWeekRange);
@@ -2361,7 +2363,7 @@ function renderWeeklyChart(monthTxns){
     const byDay={};
     txns.forEach(t=>{
       const d=dateToYMD(t.date);
-      byDay[d]=(byDay[d]||0)+t.amount;
+      byDay[d]=(byDay[d]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);
     });
     const sorted=Object.keys(byDay).sort();
     const labels=sorted.map(d=>{const dt=new Date(d+'T12:00:00');return dt.getDate()+'/'+(dt.getMonth()+1);});
@@ -2520,7 +2522,7 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     // build category totals for both months
     const sumCats = txns => {
       const c = {};
-      txns.filter(t => t.currency === 'ARS').forEach(t => { c[t.category] = (c[t.category] || 0) + t.amount; });
+      txns.filter(t => t.currency === 'ARS').forEach(t => { c[t.category] = (c[t.category] || 0) + (typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount); });
       return c;
     };
     const curCats  = sumCats(cleanTxns);
@@ -3978,7 +3980,8 @@ function renderDb2CatDonut(monthTxns){
       : [];
     const prevGrouped = {};
     (prevTxns||[]).filter(t => t.category && t.category !== 'Procesando...' && t.category !== 'Uncategorized').forEach(t => {
-      const amt = t.currency === 'USD' ? t.amount * (USD_TO_ARS||1420) : t.amount;
+      const _pa=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount;
+      const amt = t.currency === 'USD' ? _pa * (USD_TO_ARS||1420) : _pa;
       const parent = typeof catGroup === 'function' ? catGroup(t.category) : t.category;
       prevGrouped[parent] = (prevGrouped[parent] || 0) + amt;
     });
@@ -4409,7 +4412,7 @@ function renderMobileDashboard(data) {
   const catTotalsM = {};
   (monthTxns||[]).filter(t=>t.currency==='ARS'&&!t.isPendingCuota&&!t.isPendingSubscription).forEach(t=>{
     const k=t.category||'Sin categoría';
-    catTotalsM[k]=(catTotalsM[k]||0)+(t.amount||0);
+    catTotalsM[k]=(catTotalsM[k]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):(t.amount||0));
   });
   const topCats = Object.entries(catTotalsM)
     .sort((a,b)=>b[1]-a[1]).slice(0,5)

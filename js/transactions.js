@@ -771,8 +771,8 @@ function getTxnDisplaySummaryTotals(opts){
   const hasCardFilter=!!opts?.hasCardFilter;
   const estadoFilter=opts?.estadoFilter||'all';
 
-  let arsTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='ARS').reduce((s,t)=>s+(Number(t.amount)||0),0);
-  let usdTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
+  let arsTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0),0);
+  let usdTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0),0);
 
   const canUseProjectedTotals=
     !searchVal &&
@@ -1102,7 +1102,7 @@ function renderTransactions(){
   const grandTotal=displayTotals.grand;
   const mainEl=document.getElementById('txns-main');const detailEl=document.getElementById('txns-detail');
   const arsEl=document.getElementById('txns-total-ars');const usdEl=document.getElementById('txns-total-usd');
-  if(searchVal){const sArs=summaryTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);const sUsd=summaryTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);if(mainEl)mainEl.textContent=txns.length+' resultado'+(txns.length!==1?'s':'');if(arsEl)arsEl.textContent=sArs>0?'$'+fmtN(sArs):'—';if(usdEl)usdEl.textContent=sUsd>0?'U$D '+fmtN(sUsd):'—';}
+  if(searchVal){const sArs=summaryTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);const sUsd=summaryTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);if(mainEl)mainEl.textContent=txns.length+' resultado'+(txns.length!==1?'s':'');if(arsEl)arsEl.textContent=sArs>0?'$'+fmtN(sArs):'—';if(usdEl)usdEl.textContent=sUsd>0?'U$D '+fmtN(sUsd):'—';}
   else{if(mainEl)mainEl.textContent='$'+fmtN(grandTotal);if(arsEl)arsEl.textContent='$'+fmtN(arsTotal);if(usdEl)usdEl.textContent=usdTotal>0?'U$D '+fmtN(usdTotal):'—';}
   if(detailEl){const parts=[];if(searchVal)parts.push('"'+searchVal+'"');else parts.push(periodoLabel||'Todos');parts.push('Mostrando '+txns.length+' de '+state.transactions.length+' movimientos');if(cfv)parts.push(cfv);if(thirdPartyCount>0)parts.push(thirdPartyCount+' gastos compartidos');detailEl.textContent=parts.join(' · ');}
 
@@ -1664,8 +1664,8 @@ function renderMobileTransactions(txns, meta) {
   const monthTxns = currFilter === 'all' ? periodTxns
     : periodTxns.filter(t => (t.currency || 'ARS') === currFilter);
 
-  const arsTotal  = periodTxns.filter(t => (t.currency || 'ARS') === 'ARS').reduce((s, t) => s + Math.abs(Number(t.amount) || 0), 0);
-  const usdTotal  = periodTxns.filter(t => (t.currency || 'ARS') === 'USD').reduce((s, t) => s + Math.abs(Number(t.amount) || 0), 0);
+  const arsTotal  = periodTxns.filter(t => (t.currency || 'ARS') === 'ARS').reduce((s, t) => s + Math.abs(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0), 0);
+  const usdTotal  = periodTxns.filter(t => (t.currency || 'ARS') === 'USD').reduce((s, t) => s + Math.abs(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0), 0);
   const grandTotal = arsTotal + usdTotal * (window.USD_TO_ARS || 1);
 
   const fmtN = (n) => Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
