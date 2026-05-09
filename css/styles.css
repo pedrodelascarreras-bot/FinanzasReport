@@ -28124,6 +28124,49 @@ body.light-mode .tdp-gc-eq-step { background: rgba(36,124,255,0.1); color: #1d6a
 .mob-gc-badge.cobrado { background: rgba(52,199,89,0.15); color: #34C759; }
 .mob-gc-pending-total { font-size: 12px; font-weight: 700; color: #FF9500; }
 
+/* ── GC Summary view ── */
+.tdp-gc-summary { display: flex; flex-direction: column; gap: 0; }
+.tdp-gc-sum-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.tdp-gc-sum-mine { opacity: .8; }
+.tdp-gc-sum-avatar { font-size: 16px; flex-shrink: 0; width: 22px; text-align: center; }
+.tdp-gc-sum-name { flex: 1; font-size: 13px; font-weight: 600; color: var(--text); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tdp-gc-sum-amt { font-size: 13px; font-weight: 700; color: var(--text); flex-shrink: 0; }
+.tdp-gc-sum-status-mine { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+.tdp-gc-sum-toggle { flex-shrink: 0; padding: 5px 9px; font-size: 11px; }
+.tdp-gc-sum-footer {
+  margin-top: 10px; padding: 8px 10px; border-radius: 10px;
+  font-size: 11px; color: var(--text3); background: rgba(0,0,0,0.04);
+}
+.tdp-gc-sum-footer.ok { background: rgba(52,199,89,0.08); color: #34C759; }
+.tdp-gc-sum-footer.warn { background: rgba(255,149,0,0.08); color: #FF9500; }
+.tdp-gc-edit-dist-btn {
+  width: 100%; margin-top: 10px; padding: 10px;
+  border-radius: 12px; border: 1.5px solid rgba(124,77,255,0.3);
+  background: rgba(124,77,255,0.07); color: #A67AFF;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: all .15s;
+}
+.tdp-gc-edit-dist-btn:hover { background: rgba(124,77,255,0.14); }
+
+/* ── Save button ── */
+.tdp-gc-save-btn {
+  width: 100%; margin-top: 12px; padding: 11px;
+  border-radius: 12px; border: 1.5px solid rgba(52,199,89,0.3);
+  background: rgba(52,199,89,0.1); color: #34C759;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: all .15s;
+}
+.tdp-gc-save-btn:hover { background: rgba(52,199,89,0.18); }
+
+/* Light mode */
+body.light-mode .tdp-gc-sum-row { border-bottom-color: rgba(0,0,0,0.06); }
+body.light-mode .tdp-gc-sum-name { color: #1a1535; }
+body.light-mode .tdp-gc-sum-amt { color: #1a1535; }
+body.light-mode .tdp-gc-sum-footer { background: rgba(0,0,0,0.03); }
+body.light-mode .tdp-gc-sum-footer.ok { background: rgba(52,199,89,0.07); }
+body.light-mode .tdp-gc-edit-dist-btn { background: rgba(93,53,243,0.06); }
+
 /* ── Split mode tabs ── */
 .tdp-gc-mode-tabs { display: flex; gap: 6px; margin-bottom: 4px; }
 .tdp-gc-mode-tab {
