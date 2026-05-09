@@ -28124,6 +28124,18 @@ body.light-mode .tdp-gc-eq-step { background: rgba(36,124,255,0.1); color: #1d6a
 .mob-gc-badge.cobrado { background: rgba(52,199,89,0.15); color: #34C759; }
 .mob-gc-pending-total { font-size: 12px; font-weight: 700; color: #FF9500; }
 
+/* ── Movement row shared-expense badge (mv-row layout) ── */
+.mv-amount-shared {
+  font-size: 11px;
+  font-weight: 700;
+  color: #A67AFF;
+  margin-top: 2px;
+  text-align: right;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+body.light-mode .mv-amount-shared { color: #5d35f3; }
+
 /* ── GC Summary view ── */
 .tdp-gc-summary { display: flex; flex-direction: column; gap: 0; }
 .tdp-gc-sum-row {

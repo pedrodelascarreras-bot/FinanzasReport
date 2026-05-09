@@ -4115,43 +4115,36 @@ function renderDb2DueStrip(timelineData){
   };
   const palette = ['#5B3BFF','#2D6BFF','#F97316','#14B8A6','#E11D48','#7C3AED'];
 
+  // ── New shared-expense system: one item per pending split (per-person) ──
   const pendingItems = (state.transactions || [])
-    .filter(t =>
-      !!t.isThirdParty &&
-      !t.isPendingCuota &&
-      !t.isPendingSubscription &&
-      Number(t.amount) > 0
-    )
-    .map(t => {
-      const recoverBase = Number(t.thirdPartyAmount) || Number(t.amount) || 0;
-      const settledBase = Number(t.thirdPartySettledAmount) || 0;
-      const status = t.thirdPartyStatus || 'pending';
-      const recoveredAmount = status === 'settled'
-        ? (settledBase > 0 ? Math.min(settledBase, recoverBase) : recoverBase)
-        : (status === 'partial' ? Math.min(settledBase, recoverBase) : 0);
-      const pendingAmount = Math.max(0, recoverBase - recoveredAmount);
-      return {
-        id: t.id,
-        name: t.thirdPartyNote || t.description || 'Gasto de tercero',
-        date: dateToYMD(t.date),
-        currency: t.currency || 'ARS',
-        pendingAmount,
-        recoveredAmount,
-        recoverBase,
-        status,
-        pendingArs: toArs(pendingAmount, t.currency),
-        totalArs: toArs(recoverBase, t.currency)
-      };
+    .filter(t => t.sharedExpense && t.sharedExpense.enabled && !t.isPendingCuota && !t.isPendingSubscription)
+    .flatMap(t => {
+      const splits = t.sharedExpense.splits || [];
+      return splits
+        .filter(s => s.status !== 'cobrado')
+        .map(s => {
+          const splitAmt = Number(s.amount) || 0;
+          return {
+            id: t.id + '-' + s.id,
+            txnId: t.id,
+            name: (s.name || '').trim() || '(sin nombre)',
+            txnDesc: t.description || 'Gasto compartido',
+            date: dateToYMD(t.date),
+            currency: t.currency || 'ARS',
+            pendingAmount: splitAmt,
+            recoveredAmount: 0,
+            recoverBase: splitAmt,
+            status: 'pending',
+            pendingArs: toArs(splitAmt, t.currency),
+            totalArs: toArs(splitAmt, t.currency)
+          };
+        });
     })
-    .filter(item => item.pendingAmount > 0 && item.status !== 'settled')
-    .sort((a, b) => {
-      if(a.status !== b.status) return a.status === 'partial' ? -1 : 1;
-      return new Date(a.date) - new Date(b.date);
-    });
+    .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   const totalOpenArs = pendingItems.reduce((s, item) => s + item.pendingArs, 0);
-  const partialCount = pendingItems.filter(item => item.status === 'partial').length;
-  const pendingCount = pendingItems.filter(item => item.status === 'pending').length;
+  const partialCount = 0;
+  const pendingCount = pendingItems.length;
 
   if(summary){
     if(pendingItems.length){
@@ -4183,23 +4176,21 @@ function renderDb2DueStrip(timelineData){
   if(!pendingItems.length){
     grid.innerHTML = `
       <div class="db2-third-empty">
-        No tenés gastos de terceros pendientes. Cuando marques uno en Movimientos, aparece acá como recordatorio.
+        No tenés gastos compartidos pendientes. Cuando dividas un gasto en Movimientos, aparece acá como recordatorio.
       </div>
     `;
     return;
   }
 
   grid.innerHTML = pendingItems.slice(0, 3).map((item, i) => {
-    const tone = item.status === 'partial' ? 'partial' : 'pending';
-    const statusLabel = item.status === 'partial' ? 'Cobro parcial' : 'Pendiente';
     const since = shortDate(item.date);
     const age = getAgeLabel(item.date);
     const color = palette[i % palette.length];
-    return `<button class="db2-third-item ${tone}" onclick="openThirdPartyTransactions()" title="Abrir terceros en Movimientos">
+    return `<button class="db2-third-item pending" onclick="openTxnDetail('${item.txnId}')" title="Ver gasto compartido">
       <div class="db2-third-avatar" style="background:${color}">${initials(item.name)}</div>
       <div class="db2-third-body">
         <div class="db2-third-name">${esc(item.name)}</div>
-        <div class="db2-third-meta">${statusLabel} · desde ${since}</div>
+        <div class="db2-third-meta">Pendiente · ${esc(item.txnDesc)} · ${since}</div>
       </div>
       <div class="db2-third-amount">${isMasked() ? (item.currency === 'USD' ? 'U$D ••••' : '$••••••') : toDisplayAmount(item.pendingAmount, item.currency)}</div>
       <div class="db2-third-chip">${age}</div>

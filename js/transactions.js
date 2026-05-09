@@ -1498,11 +1498,15 @@ function renderTransactions(){
                 +group.items.map(tx=>{
                   const cat=txnCategoryName(tx);
                   const amountClass=(tx.currency==='USD'?' usd':'');
+                  const _gcEnabled = tx.sharedExpense && tx.sharedExpense.enabled;
+                  const _gcMyAmt = _gcEnabled ? Number(tx.sharedExpense.myAmount||0) : 0;
+                  const _gcPrefix = (tx.currency==='USD' ? 'U$D ' : '$');
+                  const _gcSharedHtml = _gcEnabled ? '<div class="mv-amount-shared">🤝 tuyo: '+_gcPrefix+fmtN(_gcMyAmt)+'</div>' : '';
                   return '<div class="mv-row" onclick="openTxnDetail(\''+tx.id+'\')">'
                     +txnMerchantAvatar(tx)
                     +'<div class="mv-time">'+txnTimeLabel(tx)+'</div>'
                     +'<div><div class="mv-merchant">'+esc(txnMerchantName(tx))+'</div><div class="mv-meta"><button class="mv-cat" style="background:'+catColor(cat)+'18;color:'+catColor(cat)+';" onclick="event.stopPropagation();openAssignModal(\''+tx.id+'\',this)" title="Cambiar categoría"><span style="font-size:7px;">◆</span>'+esc(cat)+'</button>'+(txnNoteText(tx)?'<span class="mv-note">↪ '+esc(txnNoteText(tx))+'</span>':'')+'</div></div>'
-                    +'<div class="mv-amount"><div class="mv-amount-main'+amountClass+'">'+txnAmountLabel(tx)+'</div>'+(((tx.currency||'ARS')==='USD')?'<div class="mv-amount-sub">'+txnEquivalentLabel(tx)+'</div>':'')+'</div>'
+                    +'<div class="mv-amount"><div class="mv-amount-main'+amountClass+'">'+txnAmountLabel(tx)+'</div>'+(((tx.currency||'ARS')==='USD')?'<div class="mv-amount-sub">'+txnEquivalentLabel(tx)+'</div>':'')+_gcSharedHtml+'</div>'
                     +'<div style="position:relative;"><button class="mv-menu-btn" onclick="event.stopPropagation();toggleTxnActionMenu(\''+tx.id+'\')">⋮</button>'+menuForTxn(tx.id)+'</div>'
                   +'</div>';
                 }).join('')
