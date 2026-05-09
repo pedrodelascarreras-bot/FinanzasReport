@@ -9,8 +9,9 @@ let state={
   _selectedTxns:new Set(),
   cuotas:[],autoCuotaConfig:{},subscriptions:[],fixedExpenses:[],
   // NEW
-  incomeSources:[],      // [{id,name,type,currency,base,color}]
-  incomeMonths:[],       // [{id,month:'2025-03',sources:{srcId:amount},extraArs,extraUsd,note}]
+  incomeSources:[],      // [{id,name,type,currency,base,color}] — legacy
+  incomeMonths:[],       // V1: [{id,month,sources,extraArs,extraUsd}] · V2: [{id,month,schemaVersion:2,salary:{ars,usd,commissions},extras:[]}]
+  bankAccounts:[],       // [{id,name,currency,emoji,createdAt}] — for income destination tracking
   savAccounts:[],        // [{id,name,emoji,balance,currency,type,yieldPct,color}]
   savGoals:[],           // [{id,name,emoji,target,currency,current,deadline,accountId,color}]
   savDeposits:[],        // [{id,month:'2025-03',accountId,amount,currency,note,kind}] — 100% manual

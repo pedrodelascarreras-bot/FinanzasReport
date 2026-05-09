@@ -2405,15 +2405,14 @@ if(!window._globalSearchShortcutBound){
 
 function renderCatBars(monthTxns){
   const txns = monthTxns || getCurrentMonthTxns();
-  // Group by parent category
+  // Group by parent category — ARS only, matches Tendencias view
   const grouped={};
   CATEGORY_GROUPS.forEach(g=>{grouped[g.group]={total:0,color:g.color,emoji:g.emoji};});
-  txns.filter(t=>t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized').forEach(t=>{
+  txns.filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized').forEach(t=>{
     const _pa=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount;
-    const amt=t.currency==='USD'?_pa*USD_TO_ARS:_pa;
     const parent=catGroup(t.category);
     if(!grouped[parent])grouped[parent]={total:0,color:'#888',emoji:''};
-    grouped[parent].total+=amt;
+    grouped[parent].total+=_pa;
   });
   const sorted=Object.entries(grouped).filter(([,d])=>d.total>0).sort((a,b)=>b[1].total-a[1].total);
   const total=sorted.reduce((s,[,d])=>s+d.total,0);
@@ -3873,12 +3872,12 @@ function renderDb2CatDonut(monthTxns){
 
   const txns = monthTxns || getCurrentMonthTxns();
   const grouped = {};
-  txns.filter(t => t.category && t.category !== 'Procesando...' && t.category !== 'Uncategorized').forEach(t => {
+  // ARS only — matches Tendencias view
+  txns.filter(t => t.currency === 'ARS' && t.category && t.category !== 'Procesando...' && t.category !== 'Uncategorized').forEach(t => {
     const _pa=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount;
-    const amt = t.currency === 'USD' ? _pa * (USD_TO_ARS||1420) : _pa;
     const parent = typeof catGroup === 'function' ? catGroup(t.category) : t.category;
     if(!grouped[parent]) grouped[parent] = {total: 0, color: typeof catColor === 'function' ? catColor(t.category) : '#666', emoji: ''};
-    grouped[parent].total += amt;
+    grouped[parent].total += _pa;
   });
 
   const allSorted = Object.entries(grouped).filter(([,d]) => d.total > 0).sort((a,b) => b[1].total - a[1].total);
