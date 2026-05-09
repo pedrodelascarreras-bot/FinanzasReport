@@ -28025,3 +28025,107 @@ body.light-mode .mob-drawer-lock-icon svg { stroke: #5d35f3; }
 body.light-mode .mob-drawer-lock-title { color: #1a1a2e; }
 body.light-mode .mob-drawer-lock-sub { color: #9EA6C7; }
 body.light-mode .mob-drawer-lock-arrow { stroke: #c0c8e0; }
+
+/* ═══════════════════════════════════════════════════
+   GASTO COMPARTIDO — Transaction Detail Panel
+   ═══════════════════════════════════════════════════ */
+/* Equal-split shortcut row */
+.tdp-gc-eq-row {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 12px; margin-bottom: 12px;
+  background: rgba(36,124,255,0.07);
+  border: 1px solid rgba(36,124,255,0.18);
+  border-radius: 14px;
+}
+.tdp-gc-eq-label { font-size: 12px; font-weight: 700; color: #7ab4ff; white-space: nowrap; flex-shrink: 0; }
+.tdp-gc-eq-ctrl { display: flex; align-items: center; gap: 6px; background: rgba(255,255,255,0.07); border-radius: 10px; padding: 4px 6px; }
+.tdp-gc-eq-step { width: 28px; height: 28px; border-radius: 8px; background: rgba(36,124,255,0.2); color: #7ab4ff; border: none; font-size: 16px; font-weight: 700; cursor: pointer; line-height: 1; transition: background 0.12s; }
+.tdp-gc-eq-step:active { background: rgba(36,124,255,0.4); }
+.tdp-gc-eq-n { font-size: 18px; font-weight: 900; color: #eef2ff; min-width: 22px; text-align: center; }
+.tdp-gc-eq-unit { font-size: 11px; color: #6B7399; white-space: nowrap; }
+.tdp-gc-eq-preview { font-size: 12px; font-weight: 700; color: #7ab4ff; flex: 1; text-align: right; white-space: nowrap; }
+.tdp-gc-eq-apply { padding: 7px 14px; border-radius: 10px; background: rgba(36,124,255,0.22); color: #7ab4ff; border: 1px solid rgba(36,124,255,0.35); font-size: 12px; font-weight: 700; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.tdp-gc-eq-apply:active { background: rgba(36,124,255,0.4); }
+body.light-mode .tdp-gc-eq-row { background: rgba(36,124,255,0.06); border-color: rgba(36,124,255,0.2); }
+body.light-mode .tdp-gc-eq-label,
+body.light-mode .tdp-gc-eq-preview { color: #1d6abf; }
+body.light-mode .tdp-gc-eq-n { color: #1a1535; }
+body.light-mode .tdp-gc-eq-apply,
+body.light-mode .tdp-gc-eq-step { background: rgba(36,124,255,0.1); color: #1d6abf; border-color: rgba(36,124,255,0.25); }
+
+.tdp-gc-splits-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+.tdp-gc-split-row { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; background: rgba(124,77,255,0.05); border-radius: 14px; border: 1px solid rgba(124,77,255,0.12); }
+.tdp-gc-split-inputs { display: flex; gap: 8px; }
+.tdp-gc-name-inp { flex: 1; }
+.tdp-gc-amt-inp { width: 110px; }
+.tdp-gc-split-actions { display: flex; gap: 6px; }
+.tdp-gc-cobrado-btn {
+  flex: 1; padding: 7px 10px; border-radius: 10px;
+  font-size: 12px; font-weight: 700; cursor: pointer;
+  background: rgba(255,149,0,0.12); color: #FF9500;
+  border: 1px solid rgba(255,149,0,0.25); transition: all 0.15s;
+}
+.tdp-gc-cobrado-btn.cobrado {
+  background: rgba(52,199,89,0.12); color: #34C759;
+  border-color: rgba(52,199,89,0.25);
+}
+.tdp-gc-remove-btn {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: rgba(255,59,48,0.08); color: #FF3B30;
+  border: 1px solid rgba(255,59,48,0.15); cursor: pointer;
+  font-size: 14px; font-weight: 700;
+}
+.tdp-gc-add-btn {
+  width: 100%; padding: 10px; border-radius: 12px; margin-top: 4px;
+  background: rgba(124,77,255,0.08); color: #A67AFF;
+  border: 1.5px dashed rgba(124,77,255,0.3); cursor: pointer;
+  font-size: 13px; font-weight: 700; transition: all 0.15s;
+}
+.tdp-gc-add-btn:hover { background: rgba(124,77,255,0.14); }
+.tdp-gc-total-wrap { margin-top: 10px; }
+.tdp-gc-total-row { display: flex; align-items: center; gap: 8px; font-size: 12px; color: #8a85a0; flex-wrap: wrap; padding: 8px 10px; border-radius: 10px; background: rgba(0,0,0,0.03); }
+.tdp-gc-total-row.ok { background: rgba(52,199,89,0.08); }
+.tdp-gc-total-row.warn { background: rgba(255,149,0,0.08); }
+.tdp-gc-diff { color: #FF9500; font-weight: 700; }
+.tdp-gc-ok { color: #34C759; font-weight: 700; }
+
+/* ── Mobile transaction shared badge ── */
+.mob-txn-amt-wrap { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+.mob-txn-shared-badge {
+  font-size: 10px; font-weight: 700; color: #A67AFF;
+  background: rgba(124,77,255,0.12); border-radius: 6px;
+  padding: 1px 6px; white-space: nowrap;
+}
+
+/* ── Mobile Gastos Compartidos card ── */
+.mob-gc-card { overflow: hidden; }
+.mob-gc-list { display: flex; flex-direction: column; gap: 0; }
+.mob-gc-person-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+.mob-gc-person-row:last-child { border-bottom: none; }
+.mob-gc-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: linear-gradient(135deg, #7C4DFF, #247CFF);
+  color: #fff; font-size: 13px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.mob-gc-info { flex: 1; min-width: 0; }
+.mob-gc-name { font-size: 14px; font-weight: 700; color: #eef2ff; }
+.mob-gc-meta { font-size: 11px; color: #6B7399; margin-top: 1px; }
+.mob-gc-right { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; flex-shrink: 0; }
+.mob-gc-amount { font-size: 14px; font-weight: 800; }
+.mob-gc-amount.pending { color: #FF9500; }
+.mob-gc-amount.cobrado { color: #34C759; }
+.mob-gc-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
+.mob-gc-badge.pending { background: rgba(255,149,0,0.15); color: #FF9500; }
+.mob-gc-badge.cobrado { background: rgba(52,199,89,0.15); color: #34C759; }
+.mob-gc-pending-total { font-size: 12px; font-weight: 700; color: #FF9500; }
+
+/* Light mode overrides */
+body.light-mode .tdp-gc-split-row { background: rgba(93,53,243,0.04); border-color: rgba(93,53,243,0.1); }
+body.light-mode .mob-gc-name { color: #1a1535; }
+body.light-mode .mob-gc-person-row { border-bottom-color: rgba(0,0,0,0.06); }
+body.light-mode .mob-txn-shared-badge { background: rgba(93,53,243,0.1); color: #5d35f3; }

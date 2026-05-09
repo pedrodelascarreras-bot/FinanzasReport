@@ -1302,13 +1302,13 @@ function renderDashboard(){
     return _hasReachedChargeDate(expense.date);
   };
   const _allBillable=monthTxns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription&&(_tcModeActive?!_isNonCC(t):true));
-  const billableTxns=_allBillable.filter(t=>!t.isThirdParty);
-  const thirdPartyTxns=_allBillable.filter(t=>!!t.isThirdParty);
+  const billableTxns=_allBillable; // sharedExpense replaces isThirdParty
+  const thirdPartyTxns=_allBillable.filter(t=>!!t.sharedExpense&&!!t.sharedExpense.enabled);
   const tpSettled=thirdPartyTxns.filter(t=>t.thirdPartyStatus==='settled');
   const tpSettledArs=tpSettled.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   const tpSettledUsd=tpSettled.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-  let arsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  let usdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+  let arsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
+  let usdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
   let cntMonth=_allBillable.length;
   const projectedMonthRange=(()=>{
     if(_tcModeActive&&activeTcCycle){
@@ -1599,8 +1599,8 @@ function renderDashboard(){
   if(isTcView&&dashboardCards.length){
     cntMonth=dashboardCardsCount||cntMonth;
   }
-  const rawPeriodArsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticARS:projectedMonthTotals.ars);
-  const rawPeriodUsdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0) + (_tcModeActive?syntheticUSD:projectedMonthTotals.usd);
+  const rawPeriodArsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0) + (_tcModeActive?syntheticARS:projectedMonthTotals.ars);
+  const rawPeriodUsdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0) + (_tcModeActive?syntheticUSD:projectedMonthTotals.usd);
   const rawPeriodCntMonth=_allBillable.length + (_tcModeActive?syntheticCount:projectedMonthTotals.count);
   const operationalArsMonth=dashboardSummaryTotals.ars||rawPeriodArsMonth;
   const operationalUsdMonth=dashboardSummaryTotals.usd||rawPeriodUsdMonth;
@@ -2405,7 +2405,8 @@ function renderCatBars(monthTxns){
   const grouped={};
   CATEGORY_GROUPS.forEach(g=>{grouped[g.group]={total:0,color:g.color,emoji:g.emoji};});
   txns.filter(t=>t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized').forEach(t=>{
-    const amt=t.currency==='USD'?t.amount*USD_TO_ARS:t.amount;
+    const _pa=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount;
+    const amt=t.currency==='USD'?_pa*USD_TO_ARS:_pa;
     const parent=catGroup(t.category);
     if(!grouped[parent])grouped[parent]={total:0,color:'#888',emoji:''};
     grouped[parent].total+=amt;
@@ -2474,8 +2475,7 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
   ensureDashboardCustomWidgets();
   const cleanTxns = (monthTxns || []).filter(t =>
     !t.isPendingCuota &&
-    !t.isPendingSubscription &&
-    !t.isThirdParty
+    !t.isPendingSubscription
   );
   const usdSpend = cleanTxns.filter(t => t.currency === 'USD').reduce((s,t)=>s + (t.amount||0), 0);
   const usdSpendArs = usdSpend * (USD_TO_ARS || 1420);
@@ -2513,7 +2513,6 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
   const prevMk      = getMonthKey(new Date(pY, pM - 2, 1));
   const prevTxns    = getTxnsFor(prevMk).filter(t =>
     t.currency === 'ARS' &&
-    !t.isThirdParty &&
     !t.isPendingCuota &&
     !t.isPendingSubscription
   );
@@ -2635,20 +2634,20 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
       ?Math.round((thirdPartySummary.collectedArs/thirdPartySummary.totalRecoverArs)*100)
       :0;
     animateNumberText(tpPendingEl,thirdPartySummary.pendingArs,{prefix:'$',decimals:2,duration:760});
-    tpSubEl.textContent=`${thirdPartySummary.count} registro${thirdPartySummary.count!==1?'s':''} · ${openCount} abierto${openCount!==1?'s':''} · ${thirdPartySummary.settledCount} cobrado${thirdPartySummary.settledCount!==1?'s':''}`;
-    tpBadgeEl.textContent=openCount?`${openCount} por cobrar`:'Todo cobrado';
+    tpSubEl.textContent=`${thirdPartySummary.count} gasto${thirdPartySummary.count!==1?'s':''} compartido${thirdPartySummary.count!==1?'s':''} · ${openCount} pendiente${openCount!==1?'s':''} de cobro`;
+    tpBadgeEl.textContent=openCount?`${openCount} pendiente${openCount!==1?'s':''} de cobro`:'Todo cobrado';
     tpBadgeEl.className=`dash-third-party-badge ${openCount?'pending':'settled'}`;
     tpTotalEl.textContent='$'+fmtN(Math.round(thirdPartySummary.totalRecoverArs));
     tpCollectedEl.textContent='$'+fmtN(Math.round(thirdPartySummary.collectedArs));
     tpOpenEl.textContent='$'+fmtN(Math.round(thirdPartySummary.pendingArs));
-    tpFootEl.textContent=`${thirdPartySummary.pendingCount} pendiente${thirdPartySummary.pendingCount!==1?'s':''} · ${thirdPartySummary.partialCount} parcial${thirdPartySummary.partialCount!==1?'es':''} · ${thirdPartySummary.settledCount} cobrado${thirdPartySummary.settledCount!==1?'s':''}${thirdPartySummary.hasUsd?' · incluye equivalencia USD→ARS':''}`;
+    tpFootEl.textContent=`${thirdPartySummary.pendingCount} pendiente${thirdPartySummary.pendingCount!==1?'s':''} de cobro · ${thirdPartySummary.settledCount} cobrado${thirdPartySummary.settledCount!==1?'s':''}${thirdPartySummary.hasUsd?' · incluye equivalencia USD→ARS':''}`;
     animateProgressBar(tpBarEl,recoveredPct);
     tpBarEl.style.background=openCount?'#a882ff':'var(--green-sys)';
   } else {
     historyWrap&&historyWrap.classList.add('is-empty');
     historyCard&&historyCard.classList.add('is-empty');
     if(tpPendingEl)tpPendingEl.textContent='—';
-    if(tpSubEl)tpSubEl.textContent='Sin gastos de terceros por ahora';
+    if(tpSubEl)tpSubEl.textContent='Sin gastos compartidos por ahora';
     if(tpBadgeEl){
       tpBadgeEl.textContent='todo limpio';
       tpBadgeEl.className='dash-third-party-badge';
@@ -2656,7 +2655,7 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     if(tpTotalEl)tpTotalEl.textContent='—';
     if(tpCollectedEl)tpCollectedEl.textContent='—';
     if(tpOpenEl)tpOpenEl.textContent='—';
-    if(tpFootEl)tpFootEl.textContent='Cuando marques uno, esta tarjeta se expande sola con el seguimiento completo.';
+    if(tpFootEl)tpFootEl.textContent='Cuando dividas un gasto, esta tarjeta se expande con el seguimiento completo.';
     if(tpBarEl)tpBarEl.style.width='0%';
   }
   /* populate fallback avg widget (only when manually hidden, not when no terceros) */
@@ -2796,7 +2795,6 @@ function getDashboardHistoryAverages(){
     Number(t.amount)>0 &&
     !t.isPendingCuota &&
     !t.isPendingSubscription &&
-    !t.isThirdParty &&
     t.estado_revision!=='duplicado_sospechoso'
   );
   if(!historyTxns.length)return{dailyAvg:0,monthlyAvg:0,daySpan:0,monthSpan:0};
@@ -2816,40 +2814,26 @@ function getDashboardHistoryAverages(){
 }
 
 function getThirdPartyDashboardSummary(){
+  // Kept for backward compat — delegates to getSharedExpenseSummary
+  const txns=(state.transactions||[]).filter(t=>t.sharedExpense&&t.sharedExpense.enabled);
   const toArs=(amount,currency)=>((currency||'ARS')==='USD'?(Number(amount)||0)*(USD_TO_ARS||1420):(Number(amount)||0));
-  const txns=(state.transactions||[]).filter(t=>
-    !!t.isThirdParty &&
-    Number(t.amount)>0 &&
-    !t.isPendingCuota &&
-    !t.isPendingSubscription
-  );
-  const summary={
+  let pendingArs=0,collectedArs=0,count=0;
+  txns.forEach(t=>{
+    (t.sharedExpense.splits||[]).forEach(s=>{
+      const amt=toArs(s.amount,t.currency);
+      if(s.status==='cobrado') collectedArs+=amt; else { pendingArs+=amt; count++; }
+    });
+  });
+  return {
     count:txns.length,
-    pendingCount:0,
+    pendingCount:count,
     partialCount:0,
     settledCount:0,
-    totalRecoverArs:0,
-    collectedArs:0,
-    pendingArs:0,
-    hasUsd:false
+    totalRecoverArs:pendingArs+collectedArs,
+    collectedArs,
+    pendingArs,
+    hasUsd:txns.some(t=>t.currency==='USD')
   };
-  txns.forEach(t=>{
-    const recoverBase=Number(t.thirdPartyAmount)||Number(t.amount)||0;
-    const settledBase=Number(t.thirdPartySettledAmount)||0;
-    const status=t.thirdPartyStatus||'pending';
-    const recoveredAmount=status==='settled'
-      ?(settledBase>0?Math.min(settledBase,recoverBase):recoverBase)
-      :(status==='partial'?Math.min(settledBase,recoverBase):0);
-    const pendingAmount=Math.max(0,recoverBase-recoveredAmount);
-    summary.totalRecoverArs+=toArs(recoverBase,t.currency);
-    summary.collectedArs+=toArs(recoveredAmount,t.currency);
-    summary.pendingArs+=toArs(pendingAmount,t.currency);
-    if((t.currency||'ARS')==='USD') summary.hasUsd=true;
-    if(status==='settled') summary.settledCount++;
-    else if(status==='partial') summary.partialCount++;
-    else summary.pendingCount++;
-  });
-  return summary;
 }
 
 function openThirdPartyTransactions(){
@@ -3886,7 +3870,8 @@ function renderDb2CatDonut(monthTxns){
   const txns = monthTxns || getCurrentMonthTxns();
   const grouped = {};
   txns.filter(t => t.category && t.category !== 'Procesando...' && t.category !== 'Uncategorized').forEach(t => {
-    const amt = t.currency === 'USD' ? t.amount * (USD_TO_ARS||1420) : t.amount;
+    const _pa=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount;
+    const amt = t.currency === 'USD' ? _pa * (USD_TO_ARS||1420) : _pa;
     const parent = typeof catGroup === 'function' ? catGroup(t.category) : t.category;
     if(!grouped[parent]) grouped[parent] = {total: 0, color: typeof catColor === 'function' ? catColor(t.category) : '#666', emoji: ''};
     grouped[parent].total += amt;
@@ -4622,6 +4607,38 @@ function renderMobileDashboard(data) {
         `).join('')}
       </div>
     </div>`:''}
+
+    ${(()=>{
+      // Gastos Compartidos widget
+      const _gcTxns=(typeof state!=='undefined'&&state.transactions?state.transactions:[]).filter(t=>t.sharedExpense&&t.sharedExpense.enabled);
+      if(!_gcTxns.length) return '';
+      const _gcSummary=typeof getSharedExpenseSummary==='function'?getSharedExpenseSummary(_gcTxns):[];
+      const _gcPending=_gcSummary.filter(p=>p.pendingArs>0);
+      const _gcCobrado=_gcSummary.filter(p=>p.pendingArs===0&&p.cobradoArs>0);
+      const _gcTotalPendingArs=_gcPending.reduce((s,p)=>s+p.pendingArs,0);
+      const _gcEsc=(s)=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      return `
+        <div class="mob-section-card mob-gc-card">
+          <div class="mob-sec-hd">
+            <span class="mob-sec-title">GASTOS COMPARTIDOS</span>
+            ${_gcTotalPendingArs>0?`<span class="mob-gc-pending-total">$${fmtN(Math.round(_gcTotalPendingArs))} pendiente</span>`:''}
+          </div>
+          <div class="mob-gc-list">
+            ${[..._gcPending,..._gcCobrado].slice(0,6).map(p=>`
+              <div class="mob-gc-person-row">
+                <div class="mob-gc-avatar">${_gcEsc(p.name.slice(0,2).toUpperCase())}</div>
+                <div class="mob-gc-info">
+                  <div class="mob-gc-name">${_gcEsc(p.name)}</div>
+                  <div class="mob-gc-meta">${p.count>0?p.count+' gasto'+(p.count!==1?'s':''):''} ${p.cobradoCount>0?'· '+p.cobradoCount+' cobrado'+(p.cobradoCount!==1?'s':''):''}</div>
+                </div>
+                <div class="mob-gc-right">
+                  ${p.pendingArs>0?`<div class="mob-gc-amount pending">$${fmtN(Math.round(p.pendingArs))}</div><div class="mob-gc-badge pending">Pendiente</div>`:''}
+                  ${p.cobradoArs>0&&p.pendingArs===0?`<div class="mob-gc-amount cobrado">$${fmtN(Math.round(p.cobradoArs))}</div><div class="mob-gc-badge cobrado">✓ Cobrado</div>`:''}
+                </div>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    })()}
 
     ${(monthTxns||[]).length === 0 ? `
     <div class="mob-connect-cta">

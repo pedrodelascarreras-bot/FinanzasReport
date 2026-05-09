@@ -3557,19 +3557,6 @@
 
 <script>
 /* ══════════════════════════════════════════════════════════════
-   THEME — desktop only (mobile always dark)
-   The desktop sidebar buttons call setThemeMode() from ui.js.
-   On mobile we strip any saved light-mode immediately and on resize.
-   ══════════════════════════════════════════════════════════════ */
-(function _enforceMobileDark() {
-  function _stripLightIfMobile() {
-    if (window.innerWidth <= 768) document.body.classList.remove('light-mode');
-  }
-  _stripLightIfMobile();
-  window.addEventListener('resize', _stripLightIfMobile);
-})();
-
-/* ══════════════════════════════════════════════════════════════
    MOBILE DRAWER — open / close / state
    ══════════════════════════════════════════════════════════════ */
 function openMobDrawer() {

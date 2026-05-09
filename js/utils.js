@@ -362,6 +362,39 @@ function openModal(id){document.getElementById(id).classList.add('open');_iosLoc
 function closeModal(id){document.getElementById(id).classList.remove('open');_iosUnlock();}
 function chartOpts(prefix,legend){const _tt=typeof _chartTooltip==='function'?_chartTooltip():{};const _tc=typeof _chartTickColor==='function'?_chartTickColor():(_isL()?'#748096':'#566172');const _tf=typeof _chartTickFont==='function'?_chartTickFont():{size:10,weight:'500',family:'-apple-system,SF Pro Display,sans-serif'};const _gy=typeof _chartGridY==='function'?_chartGridY():{color:_isL()?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.03)',drawBorder:false};return{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:legend,labels:{color:'#8e8e93',font:{size:11},boxWidth:12}},tooltip:{..._tt,callbacks:{label:ctx=>' '+prefix+fmtN(ctx.parsed.y!=null?ctx.parsed.y:ctx.parsed)+' ARS'}}},scales:{x:{grid:{display:false},ticks:{color:_tc,font:_tf}},y:{grid:_gy,ticks:{color:_tc,font:_tf,callback:v=>'$'+fmtN(v)}}}};}
 
+// ══ SHARED EXPENSE HELPERS ══
+// Returns the personal (user's own) portion of a transaction amount.
+// For shared expenses, this is sharedExpense.myAmount.
+// For all others, this is the full t.amount.
+function getTxnPersonalAmount(t) {
+  if (t && t.sharedExpense && t.sharedExpense.enabled && typeof t.sharedExpense.myAmount === 'number') {
+    return t.sharedExpense.myAmount;
+  }
+  return Number(t && t.amount) || 0;
+}
+
+// Returns summary of who owes the user money across given transactions.
+// Groups splits by person name.
+function getSharedExpenseSummary(txns) {
+  const byPerson = {};
+  (txns || []).forEach(t => {
+    if (!t.sharedExpense || !t.sharedExpense.enabled) return;
+    (t.sharedExpense.splits || []).forEach(s => {
+      const name = s.name || 'Persona';
+      if (!byPerson[name]) byPerson[name] = { name, pendingArs: 0, cobradoArs: 0, count: 0, cobradoCount: 0 };
+      const amt = Number(s.amount) || 0;
+      if (s.status === 'cobrado') {
+        byPerson[name].cobradoArs += amt;
+        byPerson[name].cobradoCount++;
+      } else {
+        byPerson[name].pendingArs += amt;
+        byPerson[name].count++;
+      }
+    });
+  });
+  return Object.values(byPerson).sort((a, b) => b.pendingArs - a.pendingArs);
+}
+
 // ══ SIDEBAR TOGGLE ══
 function toggleMobMore(){
   const m=document.getElementById('mob-more-menu');
@@ -518,7 +551,7 @@ function setThemeMode(mode){
   else syncThemeModeButtons();
 }
 function loadTheme(){
-  const saved=localStorage.getItem('fin_theme')||'dark';
+  const saved=localStorage.getItem('fin_theme')||'light';
   if(saved==='light'){
     document.body.classList.add('light-mode');
     const themeIcon=document.getElementById('theme-icon');

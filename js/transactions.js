@@ -12,6 +12,182 @@ function clearSearch(){
   renderTransactions();
 }
 
+// ── Migrate old isThirdParty → sharedExpense ──
+function migrateThirdPartyToSharedExpense() {
+  if (state._sharedExpenseMigrated) return;
+  let migrated = 0;
+  (state.transactions || []).forEach(t => {
+    if (t.isThirdParty && !t.sharedExpense) {
+      const amount = Number(t.thirdPartyAmount) || Number(t.amount) || 0;
+      const status = t.thirdPartyStatus === 'settled' ? 'cobrado' : 'pending';
+      t.sharedExpense = {
+        enabled: true,
+        myAmount: 0,
+        splits: [{
+          id: 'mig_' + t.id,
+          name: t.thirdPartyNote || 'Persona',
+          amount: amount,
+          status: status
+        }]
+      };
+      // Keep old fields as backup but disable them
+      t._legacyThirdParty = {
+        isThirdParty: t.isThirdParty,
+        thirdPartyStatus: t.thirdPartyStatus,
+        thirdPartyAmount: t.thirdPartyAmount,
+        thirdPartyNote: t.thirdPartyNote
+      };
+      delete t.isThirdParty;
+      delete t.thirdPartyStatus;
+      delete t.thirdPartyAmount;
+      delete t.thirdPartySettledAmount;
+      delete t.thirdPartyNote;
+      migrated++;
+    }
+  });
+  state._sharedExpenseMigrated = true;
+  if (migrated > 0) {
+    saveState();
+    console.log('[SharedExpense] Migrated', migrated, 'legacy third-party transactions');
+  }
+}
+
+// ── Shared Expense CRUD ──
+function _gcGenId() { return 'gc_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+
+function _gcEnsureContacts(name) {
+  if (!name || !name.trim()) return;
+  if (!Array.isArray(state.sharedExpenseContacts)) state.sharedExpenseContacts = [];
+  const n = name.trim();
+  if (!state.sharedExpenseContacts.includes(n)) {
+    state.sharedExpenseContacts.unshift(n);
+    if (state.sharedExpenseContacts.length > 50) state.sharedExpenseContacts.length = 50;
+  }
+}
+
+function _gcToggle(txnId, enabled) {
+  const t = state.transactions.find(x => x.id === txnId); if (!t) return;
+  if (enabled) {
+    if (!t.sharedExpense) {
+      t.sharedExpense = { enabled: true, myAmount: Number(t.amount) || 0, splits: [] };
+    } else {
+      t.sharedExpense.enabled = true;
+    }
+  } else {
+    if (t.sharedExpense) t.sharedExpense.enabled = false;
+  }
+  saveState();
+  openTxnDetail(txnId);
+  renderTransactions();
+  if (typeof renderDashboard === 'function') renderDashboard();
+}
+
+function _gcSetMyAmount(txnId, val) {
+  const t = state.transactions.find(x => x.id === txnId); if (!t || !t.sharedExpense) return;
+  t.sharedExpense.myAmount = parseFloat(val) || 0;
+  saveState();
+  // Re-render totals in panel without full re-open
+  const totalEl = document.getElementById('tdp-gc-total-' + txnId);
+  if (totalEl) _gcRenderTotal(t, totalEl);
+  renderTransactions();
+  if (typeof renderDashboard === 'function') renderDashboard();
+}
+
+function _gcAddSplit(txnId) {
+  const t = state.transactions.find(x => x.id === txnId); if (!t || !t.sharedExpense) return;
+  const newSplit = { id: _gcGenId(), name: '', amount: 0, status: 'pending' };
+  t.sharedExpense.splits.push(newSplit);
+  saveState();
+  openTxnDetail(txnId);
+}
+
+function _gcUpdateSplit(txnId, splitId, field, value) {
+  const t = state.transactions.find(x => x.id === txnId); if (!t || !t.sharedExpense) return;
+  const s = t.sharedExpense.splits.find(x => x.id === splitId); if (!s) return;
+  s[field] = value;
+  if (field === 'name') _gcEnsureContacts(value);
+  if (field === 'amount') s[field] = parseFloat(value) || 0;
+  saveState();
+  const totalEl = document.getElementById('tdp-gc-total-' + txnId);
+  if (totalEl) _gcRenderTotal(t, totalEl);
+  renderTransactions();
+  if (typeof renderDashboard === 'function') renderDashboard();
+}
+
+function _gcToggleCobrado(txnId, splitId) {
+  const t = state.transactions.find(x => x.id === txnId); if (!t || !t.sharedExpense) return;
+  const s = t.sharedExpense.splits.find(x => x.id === splitId); if (!s) return;
+  s.status = s.status === 'cobrado' ? 'pending' : 'cobrado';
+  saveState();
+  openTxnDetail(txnId);
+  // Re-render dashboard widget without full re-render
+  if (typeof renderDashboard === 'function') renderDashboard();
+}
+
+function _gcRemoveSplit(txnId, splitId) {
+  const t = state.transactions.find(x => x.id === txnId); if (!t || !t.sharedExpense) return;
+  t.sharedExpense.splits = t.sharedExpense.splits.filter(s => s.id !== splitId);
+  saveState();
+  openTxnDetail(txnId);
+  renderTransactions();
+  if (typeof renderDashboard === 'function') renderDashboard();
+}
+
+// Equal-split helpers
+function _gcEqStep(txnId, delta) {
+  const nEl = document.getElementById('tdp-gc-eq-n-' + txnId);
+  const preEl = document.getElementById('tdp-gc-eq-pre-' + txnId);
+  if (!nEl) return;
+  let n = parseInt(nEl.textContent || '2', 10) + delta;
+  n = Math.max(2, Math.min(20, n));
+  nEl.textContent = String(n);
+  if (preEl) {
+    const t = state.transactions.find(x => x.id === txnId);
+    const part = t ? Math.round((Number(t.amount) || 0) / n) : 0;
+    preEl.textContent = '= $' + fmtN(part) + ' c/u';
+  }
+}
+
+function _gcEqualSplit(txnId) {
+  const t = state.transactions.find(x => x.id === txnId); if (!t || !t.sharedExpense) return;
+  const nEl = document.getElementById('tdp-gc-eq-n-' + txnId);
+  const n = Math.max(2, Math.min(20, parseInt(nEl ? nEl.textContent : '2', 10)));
+  const total = Number(t.amount) || 0;
+  // Each other-person part rounded to 2 decimals; remainder goes to user
+  const part = Math.round(total / n * 100) / 100;
+  const othersTotal = Math.round(part * (n - 1) * 100) / 100;
+  const myPart = Math.round((total - othersTotal) * 100) / 100;
+  // Preserve existing names (in order)
+  const oldNames = (t.sharedExpense.splits || []).map(s => s.name).filter(Boolean);
+  t.sharedExpense.myAmount = myPart;
+  t.sharedExpense.splits = Array.from({ length: n - 1 }, (_, i) => ({
+    id: _gcGenId(),
+    name: oldNames[i] || '',
+    amount: part,
+    status: 'pending'
+  }));
+  saveState();
+  openTxnDetail(txnId);
+  renderTransactions();
+  if (typeof renderDashboard === 'function') renderDashboard();
+}
+
+function _gcRenderTotal(t, el) {
+  if (!t || !t.sharedExpense || !el) return;
+  const myAmt = Number(t.sharedExpense.myAmount) || 0;
+  const splitsSum = (t.sharedExpense.splits || []).reduce((s, x) => s + (Number(x.amount) || 0), 0);
+  const registered = myAmt + splitsSum;
+  const total = Number(t.amount) || 0;
+  const diff = total - registered;
+  const ok = Math.abs(diff) < 1;
+  el.innerHTML = `
+    <span class="tdp-gc-total-row${ok ? ' ok' : ' warn'}">
+      Total gasto: <strong>$${fmtN(total)}</strong> &nbsp;|&nbsp;
+      Registrado: <strong>$${fmtN(registered)}</strong>
+      ${!ok ? `<span class="tdp-gc-diff">${diff > 0 ? '+' : ''}$${fmtN(diff)} sin asignar</span>` : '<span class="tdp-gc-ok">✓ Cuadra</span>'}
+    </span>`;
+}
+
 // Card filter for transactions
 if(state.txnCardFilter===undefined) state.txnCardFilter='';
 function setCardFilter(key){
@@ -695,6 +871,7 @@ function resolveDupInline(groupIdx, action){
 }
 
 function renderTransactions(){
+  migrateThirdPartyToSharedExpense();
   state.lastTransactionsRefresh = new Date().toISOString();
   const mode=normalizeViewMode(state.txnFilterMode||'visa');
   state.txnFilterMode=mode;
@@ -839,7 +1016,7 @@ function renderTransactions(){
   if(estadoF==='sin_categoria'){
     txns = txns.filter(t=>!t.category||t.category==='Procesando...'||t.category==='Uncategorized');
   } else if(estadoF==='terceros'){
-    txns = txns.filter(t=>!!t.isThirdParty);
+    txns = txns.filter(t=>!!t.sharedExpense&&!!t.sharedExpense.enabled);
   }
 
   txns.sort((a,b)=>new Date(b.date)-new Date(a.date));
@@ -876,7 +1053,7 @@ function renderTransactions(){
   const estadoCounts = {
     sin_categoria: allPeriodTxns.filter(t=>!t.category||t.category==='Procesando...'||t.category==='Uncategorized').length,
     duplicado_sospechoso: _dupKeysForCount.size>0?allPeriodTxns.filter(t=>_dupKeysForCount.has(txnDupKey(t))).length:0,
-    terceros: allPeriodTxns.filter(t=>!!t.isThirdParty).length,
+    terceros: allPeriodTxns.filter(t=>!!t.sharedExpense&&!!t.sharedExpense.enabled).length,
   };
 
   // Actualizar estado tabs
@@ -906,7 +1083,7 @@ function renderTransactions(){
 
   // ── Resumen ──
   const summaryTxns=txns;
-  const thirdPartyCount=estadoF==='terceros'?0:txns.filter(t=>!!t.isThirdParty).length;
+  const thirdPartyCount=estadoF==='terceros'?0:txns.filter(t=>!!t.sharedExpense&&!!t.sharedExpense.enabled).length;
   const displayTotals=getTxnDisplaySummaryTotals({
     mode,
     activeCycleMeta,
@@ -927,7 +1104,7 @@ function renderTransactions(){
   const arsEl=document.getElementById('txns-total-ars');const usdEl=document.getElementById('txns-total-usd');
   if(searchVal){const sArs=summaryTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);const sUsd=summaryTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);if(mainEl)mainEl.textContent=txns.length+' resultado'+(txns.length!==1?'s':'');if(arsEl)arsEl.textContent=sArs>0?'$'+fmtN(sArs):'—';if(usdEl)usdEl.textContent=sUsd>0?'U$D '+fmtN(sUsd):'—';}
   else{if(mainEl)mainEl.textContent='$'+fmtN(grandTotal);if(arsEl)arsEl.textContent='$'+fmtN(arsTotal);if(usdEl)usdEl.textContent=usdTotal>0?'U$D '+fmtN(usdTotal):'—';}
-  if(detailEl){const parts=[];if(searchVal)parts.push('"'+searchVal+'"');else parts.push(periodoLabel||'Todos');parts.push('Mostrando '+txns.length+' de '+state.transactions.length+' movimientos');if(cfv)parts.push(cfv);if(thirdPartyCount>0)parts.push(thirdPartyCount+' marcados como terceros');detailEl.textContent=parts.join(' · ');}
+  if(detailEl){const parts=[];if(searchVal)parts.push('"'+searchVal+'"');else parts.push(periodoLabel||'Todos');parts.push('Mostrando '+txns.length+' de '+state.transactions.length+' movimientos');if(cfv)parts.push(cfv);if(thirdPartyCount>0)parts.push(thirdPartyCount+' gastos compartidos');detailEl.textContent=parts.join(' · ');}
 
   // ── Helpers visuales ──
   const highlight=(text,q)=>{if(!q)return esc(text);const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');return esc(text).replace(re,'<mark style="background:rgba(200,240,96,0.2);color:var(--accent);border-radius:2px;padding:0 1px;">$1</mark>');};
@@ -1348,7 +1525,7 @@ function renderTransactions(){
               +'<span style="color:var(--border2);">·</span>'
               +'<button style="display:inline-flex;align-items:center;border:none;background:transparent;color:inherit;padding:0;cursor:pointer;font:inherit;" onclick="event.stopPropagation();openAssignModal(\''+t.id+'\',this)">'+catDot+esc(t.category||'—')+'</button>'
               +(t.isPendingCuota?'<span style="color:var(--accent3);font-weight:700;">📋 '+t.cuotaNum+'/'+t.cuotaTotal+'</span>':'')
-              +(t.isThirdParty?'<span class="tp-badge'+(t.thirdPartyStatus==='settled'?' settled':'')+'">3ro'+(t.thirdPartyStatus==='settled'?' ✓':t.thirdPartyStatus==='partial'?' ~':'')+'</span>':'')
+              +(t.sharedExpense&&t.sharedExpense.enabled?'<span class="tp-badge'+(t.sharedExpense.splits&&t.sharedExpense.splits.every(s=>s.status==='cobrado')?' settled':'')+'">🤝'+(t.sharedExpense.splits&&t.sharedExpense.splits.some(s=>s.status!=='cobrado')?' ⏳':' ✓')+'</span>':'')
             +'</div>'
           +'</div>'
           +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0;">'
@@ -1379,7 +1556,7 @@ function renderTransactions(){
           const _dupBg=state._dupFilterOn&&_dupAmtGroupMap[t.id]%2===0?'background:rgba(200,240,96,0.03);':'';
           const _isSelected=state._detailTxnId===t.id?'selected':'';
           const amtColor=t.currency==='USD'?'color:var(--accent2)':t.isPendingCuota?'color:var(--accent3)':'';
-          const _tpBadge=t.isThirdParty?'<span class="tp-badge'+(t.thirdPartyStatus==='settled'?' settled':'')+'">3ro'+(t.thirdPartyStatus==='settled'?' ✓':t.thirdPartyStatus==='partial'?' ~':'')+'</span>':'';
+          const _tpBadge=t.sharedExpense&&t.sharedExpense.enabled?'<span class="tp-badge'+(t.sharedExpense.splits&&t.sharedExpense.splits.every(s=>s.status==='cobrado')?' settled':'')+'">🤝'+(t.sharedExpense.splits&&t.sharedExpense.splits.some(s=>s.status!=='cobrado')?' ⏳':' ✓')+'</span>':'';
           const comercioHtml=t.comercio_detectado&&t.comercio_detectado.toLowerCase()!==t.description.toLowerCase()
             ?'<span class="td-desc-secondary"><span class="comercio-detected">'+esc(t.comercio_detectado)+'</span>'+_tpBadge+origenChip(t)+cuotaProjectedChip(t)+subscriptionProjectedChip(t)+sugerenciaBadge(t)+'</span>'
             :'<span class="td-desc-secondary">'+_tpBadge+origenChip(t)+cuotaProjectedChip(t)+subscriptionProjectedChip(t)+sugerenciaBadge(t)+'</span>';
@@ -1587,7 +1764,10 @@ function renderMobileTransactions(txns, meta) {
               <div class="mob-txn-cat">${esc(cat)}</div>
             </div>
             ${time ? `<div class="mob-txn-time">${esc(time)}</div>` : '<div class="mob-txn-time"></div>'}
-            <div class="mob-txn-amt${amt.positive ? ' positive' : ''}">${esc(amt.label)}</div>
+            <div class="mob-txn-amt-wrap">
+              <div class="mob-txn-amt${amt.positive ? ' positive' : ''}">${esc(amt.label)}</div>
+              ${tx.sharedExpense&&tx.sharedExpense.enabled?`<div class="mob-txn-shared-badge">tuyo: ${tx.currency==='USD'?'U$D '+fmtN(Number(tx.sharedExpense.myAmount||0)):'$'+fmtN(Number(tx.sharedExpense.myAmount||0))}</div>`:''}
+            </div>
           </div>`;
       }).join('');
       groupsHtml += `
@@ -1955,48 +2135,52 @@ function openTxnDetail(txnId){
         ${t.payMethod?'<div class="tdp-field"><div class="tdp-field-label">Tag de pago</div><div class="tdp-field-value">'+({visa:'💳 Santander VISA',amex:'💳 Santander AMEX',deb:'🏦 Santander Débito',ef:'💵 Efectivo'}[t.payMethod]||t.payMethod)+'</div></div>':''}
       </div>
 
-      <!-- Third-party / reimbursable -->
+      <!-- Gasto Compartido -->
       <div class="tdp-section">
-        <div class="tdp-section-label">Gasto de tercero</div>
-        <label class="tdp-toggle-row" style="cursor:pointer;">
-          <span style="font-size:12px;color:var(--text2);">Marcar como gasto de tercero</span>
-          <input type="checkbox" class="tdp-toggle-cb" ${t.isThirdParty?'checked':''} onchange="toggleThirdParty('${txnId}',this.checked)">
+        <div class="tdp-section-label">Gasto Compartido</div>
+        <label class="tdp-toggle-row" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;">
+          <span style="font-size:13px;color:var(--text2);font-weight:500;">Dividir este gasto entre varias personas</span>
+          <input type="checkbox" class="tdp-toggle-cb" ${t.sharedExpense&&t.sharedExpense.enabled?'checked':''} onchange="_gcToggle('${txnId}',this.checked)">
         </label>
-        <div id="tdp-tp-details-${txnId}" style="display:${t.isThirdParty?'block':'none'};margin-top:8px;">
-          <div class="tdp-field" style="margin-bottom:6px;">
-            <div class="tdp-field-label">Nota</div>
-            <input type="text" class="tdp-tp-input" placeholder="Ej: Wifi de Caro" value="${esc(t.thirdPartyNote||'')}" onchange="setThirdPartyField('${txnId}','thirdPartyNote',this.value)">
+        <div id="tdp-gc-${txnId}" style="display:${t.sharedExpense&&t.sharedExpense.enabled?'block':'none'};margin-top:12px;">
+          <!-- Equal split shortcut -->
+          <div class="tdp-gc-eq-row">
+            <span class="tdp-gc-eq-label">Dividir en partes iguales</span>
+            <div class="tdp-gc-eq-ctrl">
+              <button class="tdp-gc-eq-step" onclick="_gcEqStep('${txnId}',-1)">−</button>
+              <span class="tdp-gc-eq-n" id="tdp-gc-eq-n-${txnId}">${Math.max(2,(t.sharedExpense&&t.sharedExpense.splits?t.sharedExpense.splits.length+1:2))}</span>
+              <span class="tdp-gc-eq-unit">personas</span>
+              <button class="tdp-gc-eq-step" onclick="_gcEqStep('${txnId}',1)">+</button>
+            </div>
+            <span class="tdp-gc-eq-preview" id="tdp-gc-eq-pre-${txnId}">${(()=>{const n=Math.max(2,(t.sharedExpense&&t.sharedExpense.splits?t.sharedExpense.splits.length+1:2));return '= $'+fmtN(Math.round((Number(t.amount)||0)/n))+' c/u';})()}</span>
+            <button class="tdp-gc-eq-apply" onclick="_gcEqualSplit('${txnId}')">Aplicar</button>
           </div>
-          <div class="tdp-field" style="margin-bottom:6px;">
-            <div class="tdp-field-label">Monto a recuperar</div>
-            <input type="number" class="tdp-tp-input" placeholder="${t.amount}" value="${t.thirdPartyAmount||''}" onchange="setThirdPartyField('${txnId}','thirdPartyAmount',parseFloat(this.value)||0)">
+
+          <div class="tdp-field" style="margin-bottom:10px;margin-top:14px;">
+            <div class="tdp-field-label">Mi parte de este gasto</div>
+            <input type="number" class="tdp-tp-input" placeholder="0" value="${t.sharedExpense&&t.sharedExpense.myAmount!=null?t.sharedExpense.myAmount:''}" oninput="_gcSetMyAmount('${txnId}',this.value)" style="font-weight:700;">
           </div>
-          <div class="tdp-field" style="margin-bottom:6px;">
-            <div class="tdp-field-label">Estado del reembolso</div>
-            <select class="tdp-tp-input" onchange="setThirdPartyField('${txnId}','thirdPartyStatus',this.value)">
-              <option value="pending" ${(t.thirdPartyStatus||'pending')==='pending'?'selected':''}>Pendiente de cobro</option>
-              <option value="partial" ${t.thirdPartyStatus==='partial'?'selected':''}>Cobro parcial</option>
-              <option value="settled" ${t.thirdPartyStatus==='settled'?'selected':''}>Cobrado</option>
-            </select>
+          <div class="tdp-field-label" style="margin-bottom:6px;">Quién me debe</div>
+          <div class="tdp-gc-splits-list" id="tdp-gc-splits-${txnId}">
+            ${(t.sharedExpense&&t.sharedExpense.splits||[]).map(s=>`
+              <div class="tdp-gc-split-row" id="tdp-gc-row-${s.id}">
+                <div class="tdp-gc-split-inputs">
+                  <input type="text" class="tdp-tp-input tdp-gc-name-inp" placeholder="Nombre" value="${esc(s.name||'')}" onchange="_gcUpdateSplit('${txnId}','${s.id}','name',this.value)" list="tdp-gc-contacts-${txnId}">
+                  <input type="number" class="tdp-tp-input tdp-gc-amt-inp" placeholder="Monto" value="${s.amount||''}" oninput="_gcUpdateSplit('${txnId}','${s.id}','amount',this.value)">
+                </div>
+                <div class="tdp-gc-split-actions">
+                  <button class="tdp-gc-cobrado-btn${s.status==='cobrado'?' cobrado':''}" onclick="_gcToggleCobrado('${txnId}','${s.id}')" title="${s.status==='cobrado'?'Cobrado — tap para desmarcar':'Pendiente — tap para marcar cobrado'}">
+                    ${s.status==='cobrado'?'✓ Cobrado':'⏳ Pendiente'}
+                  </button>
+                  <button class="tdp-gc-remove-btn" onclick="_gcRemoveSplit('${txnId}','${s.id}')" title="Quitar">✕</button>
+                </div>
+              </div>`).join('')}
           </div>
-          ${t.thirdPartyStatus==='partial'||t.thirdPartyStatus==='settled'?`
-          <div class="tdp-field" style="margin-bottom:6px;">
-            <div class="tdp-field-label">Monto cobrado</div>
-            <input type="number" class="tdp-tp-input" value="${t.thirdPartySettledAmount||''}" placeholder="0" onchange="setThirdPartyField('${txnId}','thirdPartySettledAmount',parseFloat(this.value)||0)">
-          </div>
-          <div class="tdp-field" style="margin-bottom:6px;">
-            <div class="tdp-field-label">Fecha de cobro</div>
-            <input type="date" class="tdp-tp-input" value="${t.thirdPartySettledDate||''}" onchange="setThirdPartyField('${txnId}','thirdPartySettledDate',this.value)">
-          </div>
-          ${(state.savAccounts||[]).length?`
-          <div class="tdp-field" style="margin-bottom:6px;">
-            <div class="tdp-field-label">Cuenta destino</div>
-            <select class="tdp-tp-input" onchange="setThirdPartyField('${txnId}','thirdPartyAccountId',this.value)">
-              <option value="">— Sin asignar —</option>
-              ${(state.savAccounts||[]).map(a=>'<option value="'+a.id+'" '+(t.thirdPartyAccountId===a.id?'selected':'')+'>'+esc((a.emoji||'')+' '+a.name)+'</option>').join('')}
-            </select>
-          </div>`:''}
-          `:''}
+          <datalist id="tdp-gc-contacts-${txnId}">
+            ${(state.sharedExpenseContacts||[]).map(n=>`<option value="${esc(n)}">`).join('')}
+          </datalist>
+          <button class="tdp-gc-add-btn" onclick="_gcAddSplit('${txnId}')">+ Agregar persona</button>
+          <div class="tdp-gc-total-wrap" id="tdp-gc-total-${txnId}"></div>
         </div>
       </div>
 
@@ -2012,6 +2196,9 @@ function openTxnDetail(txnId){
   `;
   panel.classList.add('open');
   if(window.innerWidth<=768)_iosLock();
+  // Render shared expense total
+  const _gcTotalEl = document.getElementById('tdp-gc-total-'+txnId);
+  if (_gcTotalEl) _gcRenderTotal(t, _gcTotalEl);
   // Marcar fila seleccionada
   document.querySelectorAll('.txn-row-v2').forEach(r=>r.classList.toggle('selected',r.dataset.txnid===txnId));
   setTimeout(()=>{ document.addEventListener('click', _closePanelsOnOutside); }, 50);
