@@ -235,7 +235,7 @@ function _tend_cycleDailyData(txns,openStr,closeStr){
   txns.forEach(t=>{
     const td=t.date instanceof Date?t.date:new Date(t.date);
     const rel=Math.round((td-openD)/864e5);
-    if(rel>=0&&rel<days) byDay[rel]=(byDay[rel]||0)+t.amount;
+    if(rel>=0&&rel<days) byDay[rel]=(byDay[rel]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);
   });
   return Array.from({length:days},(_,i)=>byDay[i]||0);
 }
@@ -247,7 +247,7 @@ function _tend_monthDailyData(txns,monthKey){
   const byDay={};
   txns.forEach(t=>{
     const td=t.date instanceof Date?t.date:new Date(t.date);
-    byDay[td.getDate()]=(byDay[td.getDate()]||0)+t.amount;
+    byDay[td.getDate()]=(byDay[td.getDate()]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);
   });
   return Array.from({length:days},(_,i)=>byDay[i+1]||0);
 }
@@ -679,8 +679,8 @@ function _tend_drawInsights(currentTxns,prevTxns,sortedParents,parentDeltas,gran
   _tendInsightsArgs=[currentTxns,prevTxns,sortedParents,parentDeltas,grandTotal,totalDeltaPct,currentLabel,prevLabel,lastKey,mode];
   const el=document.getElementById('tend-insights-panel');
   if(!el) return;
-  const curTotal=currentTxns.reduce((s,t)=>s+t.amount,0);
-  const prevTotal=prevTxns.reduce((s,t)=>s+t.amount,0);
+  const curTotal=currentTxns.reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
+  const prevTotal=prevTxns.reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
 
   // Days elapsed in current period
   let daysElapsed=1;
@@ -713,7 +713,7 @@ function _tend_drawInsights(currentTxns,prevTxns,sortedParents,parentDeltas,gran
   currentTxns.forEach(t=>{
     const td=t.date instanceof Date?t.date:new Date(t.date);
     const k=td.toLocaleDateString('es-AR',{day:'numeric',month:'short'});
-    dayMap[k]=(dayMap[k]||0)+t.amount;
+    dayMap[k]=(dayMap[k]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);
   });
   const[peakDay,peakAmt]=Object.entries(dayMap).sort((a,b)=>b[1]-a[1])[0]||['—',0];
 
@@ -859,15 +859,15 @@ function renderTendencia(){
   const prevTxns=prevKey?getTxnsForTendPeriod(prevKey).filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized'):[];
   const currentLabel=getTendPeriodLabel(lastKey);
   const prevLabel=prevKey?getTendPeriodLabel(prevKey):'—';
-  const curTotal=currentTxns.reduce((s,t)=>s+t.amount,0);
-  const prevTotal=prevTxns.reduce((s,t)=>s+t.amount,0);
+  const curTotal=currentTxns.reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
+  const prevTotal=prevTxns.reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
   const totalDeltaPct=prevTotal>0?((curTotal-prevTotal)/prevTotal*100):null;
 
   // Category aggregations
   const parentTotals={},parentPrevTotals={};
   CATEGORY_GROUPS.forEach(g=>{parentTotals[g.group]=0;parentPrevTotals[g.group]=0;});
-  currentTxns.forEach(t=>{const p=catGroup(t.category);parentTotals[p]=(parentTotals[p]||0)+t.amount;});
-  prevTxns.forEach(t=>{const p=catGroup(t.category);parentPrevTotals[p]=(parentPrevTotals[p]||0)+t.amount;});
+  currentTxns.forEach(t=>{const p=catGroup(t.category);parentTotals[p]=(parentTotals[p]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
+  prevTxns.forEach(t=>{const p=catGroup(t.category);parentPrevTotals[p]=(parentPrevTotals[p]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
   const grandTotal=Object.values(parentTotals).reduce((s,v)=>s+v,0);
   const sortedParents=Object.entries(parentTotals).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
 
@@ -910,7 +910,7 @@ function renderTendencia(){
   currentTxns.forEach(t=>{
     const p=catGroup(t.category);
     if(!parentSubTotals[p]) parentSubTotals[p]={};
-    parentSubTotals[p][t.category]=(parentSubTotals[p][t.category]||0)+t.amount;
+    parentSubTotals[p][t.category]=(parentSubTotals[p][t.category]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);
   });
 
   // Store state refs
@@ -1000,8 +1000,8 @@ function renderCompare(){
   const txA=getTxnsFor(ka),txB=getTxnsFor(kb);
   const la=periodLabel(ka),lb=periodLabel(kb);
 
-  const totA=txA.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const totB=txB.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  const totA=txA.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
+  const totB=txB.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
   const diff=totB-totA;
   const pct=totA>0?((diff/totA)*100):null;
   const isDown=diff<0;
@@ -1030,8 +1030,8 @@ function renderCompare(){
 
   // ── Categorías con barras duales ──
   const catMapA={},catMapB={};
-  txA.filter(t=>t.currency==='ARS').forEach(t=>{catMapA[t.category]=(catMapA[t.category]||0)+t.amount;});
-  txB.filter(t=>t.currency==='ARS').forEach(t=>{catMapB[t.category]=(catMapB[t.category]||0)+t.amount;});
+  txA.filter(t=>t.currency==='ARS').forEach(t=>{catMapA[t.category]=(catMapA[t.category]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
+  txB.filter(t=>t.currency==='ARS').forEach(t=>{catMapB[t.category]=(catMapB[t.category]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
   const allCats=[...new Set([...Object.keys(catMapA),...Object.keys(catMapB)])]
     .sort((a,b)=>((catMapB[b]||0)+(catMapA[b]||0))-((catMapA[a]||0)+(catMapB[a]||0)));
   const maxVal=Math.max(...allCats.map(c=>Math.max(catMapA[c]||0,catMapB[c]||0)),1);
@@ -1083,7 +1083,7 @@ function renderCompareLineChart(ka,kb,la,lb){
   const maxDays=Math.max(daysA,daysB);
   // Build daily cumulative
   const buildCumulative=(txns,y,m)=>{
-    const byDay={};txns.forEach(t=>{const d=new Date(t.date).getDate();byDay[d]=(byDay[d]||0)+t.amount;});
+    const byDay={};txns.forEach(t=>{const d=new Date(t.date).getDate();byDay[d]=(byDay[d]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
     const days=new Date(y,m,0).getDate();let acc=0;return Array.from({length:days},(_, i)=>{acc+=(byDay[i+1]||0);return Math.round(acc);});
   };
   const dataA=buildCumulative(txA,yA,mA);

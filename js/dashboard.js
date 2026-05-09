@@ -2479,7 +2479,7 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     !t.isPendingCuota &&
     !t.isPendingSubscription
   );
-  const usdSpend = cleanTxns.filter(t => t.currency === 'USD').reduce((s,t)=>s + (t.amount||0), 0);
+  const usdSpend = cleanTxns.filter(t => t.currency === 'USD').reduce((s,t)=>s + (typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):(t.amount||0)), 0);
   const usdSpendArs = usdSpend * (USD_TO_ARS || 1420);
   const totalSpendArs = arsMonth + usdSpendArs;
 
@@ -2800,7 +2800,7 @@ function getDashboardHistoryAverages(){
     t.estado_revision!=='duplicado_sospechoso'
   );
   if(!historyTxns.length)return{dailyAvg:0,monthlyAvg:0,daySpan:0,monthSpan:0};
-  const totalHistoryARS=historyTxns.reduce((sum,t)=>sum+((t.currency==='USD'?t.amount*USD_TO_ARS:t.amount)||0),0);
+  const totalHistoryARS=historyTxns.reduce((sum,t)=>{const _pa=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):(t.amount||0);return sum+((t.currency==='USD'?_pa*USD_TO_ARS:_pa)||0);},0);
   const dateKeys=[...new Set(historyTxns.map(t=>dateToYMD(t.date)).filter(Boolean))].sort();
   const monthKeys=[...new Set(historyTxns.map(t=>t.month||getMonthKey(t.date)).filter(Boolean))].sort();
   const firstDate=dateKeys.length?new Date(dateKeys[0]+'T12:00:00'):null;

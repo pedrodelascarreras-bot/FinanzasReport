@@ -131,14 +131,14 @@ function _computeInsightsData() {
   const monthTxns = txns.filter(t => (t.month||getMonthKey(t.date)) === currentMonth);
   const prevTxns  = txns.filter(t => (t.month||getMonthKey(t.date)) === prevMonth);
 
-  const arsThis = monthTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const arsPrev = prevTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const usdThis = monthTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+  const arsThis = monthTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
+  const arsPrev = prevTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
+  const usdThis = monthTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
 
   // Category totals
   const catThis={}, catPrev={};
-  monthTxns.filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...').forEach(t=>{ catThis[t.category]=(catThis[t.category]||0)+t.amount; });
-  prevTxns.filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...').forEach(t=>{  catPrev[t.category]=(catPrev[t.category]||0)+t.amount;  });
+  monthTxns.filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...').forEach(t=>{ catThis[t.category]=(catThis[t.category]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount); });
+  prevTxns.filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...').forEach(t=>{  catPrev[t.category]=(catPrev[t.category]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);  });
   const topCats    = Object.entries(catThis).sort((a,b)=>b[1]-a[1]);
   const growingCats = Object.entries(catThis)
     .filter(([c,v])=>catPrev[c]>0)
@@ -148,7 +148,7 @@ function _computeInsightsData() {
   // Day-of-week spending
   const dayTotals=[0,0,0,0,0,0,0];
   const dayNames=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  monthTxns.filter(t=>t.currency==='ARS').forEach(t=>{ dayTotals[new Date(t.date).getDay()]+=t.amount; });
+  monthTxns.filter(t=>t.currency==='ARS').forEach(t=>{ dayTotals[new Date(t.date).getDay()]+=(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount); });
   const maxDayAmt=Math.max(...dayTotals);
   const topDay=maxDayAmt>0?dayTotals.indexOf(maxDayAmt):-1;
 
@@ -190,7 +190,7 @@ function _computeInsightsData() {
 
   // Cuotas (Installments) — Sum physical payments + upcoming/manual ones
   const cuotasTxns=monthTxns.filter(t=>t.cuotaNum || t.cuotaGroupId);
-  let cuotasTotal=cuotasTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  let cuotasTotal=cuotasTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
   
   // Supplement with detectable quotas not yet paid this month
   try {
@@ -244,7 +244,7 @@ function _computeInsightsData() {
   const monthlyData=allMonths.map(m=>({
     month:m,
     label:MNAMES[parseInt(m.split('-')[1])-1]+' '+m.split('-')[0].slice(2),
-    total:txns.filter(t=>(t.month||getMonthKey(t.date))===m&&t.currency==='ARS').reduce((s,t)=>s+t.amount,0)
+    total:txns.filter(t=>(t.month||getMonthKey(t.date))===m&&t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0)
   }));
   const avgMonthly=monthlyData.length>0?monthlyData.reduce((s,m)=>s+m.total,0)/monthlyData.length:0;
 
@@ -259,7 +259,7 @@ function _computeInsightsData() {
   // Pending cuotas next month
   const nextMonthKey=getMonthKey(new Date(today.getFullYear(),today.getMonth()+1,1));
   const nextMonthCuotas=(state.transactions||[]).filter(t=>t.isPendingCuota&&t.currency==='ARS'&&(t.month||getMonthKey(t.date))===nextMonthKey);
-  const nextCuotasTotal=nextMonthCuotas.reduce((s,t)=>s+t.amount,0);
+  const nextCuotasTotal=nextMonthCuotas.reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
 
   return {
     today,MNAMES,currentMonth,prevMonth,
@@ -698,7 +698,7 @@ function _buildChallenges(data) {
     const dailyBudget = Math.round(data.dayAvg * 1.15);
     const todayARS = txns
       .filter(t => t.currency==='ARS' && (dateToYMD?dateToYMD(t.date):t.date?.slice(0,10)) === todayStr)
-      .reduce((s,t)=>s+t.amount, 0);
+      .reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount), 0);
     const pct = dailyBudget > 0 ? Math.min(100, Math.round(todayARS/dailyBudget*100)) : 0;
     const status = todayARS === 0 ? 'pristine'
       : pct <= 80 ? 'done'
@@ -718,7 +718,7 @@ function _buildChallenges(data) {
     const weeklyTarget = Math.round(data.arsPrev / 4.3);
     const weekARS = txns
       .filter(t => t.currency==='ARS' && (t.date?.slice?.(0,10)||'') >= weekStartStr)
-      .reduce((s,t)=>s+t.amount, 0);
+      .reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount), 0);
     const pct = weeklyTarget > 0 ? Math.min(100, Math.round(weekARS/weeklyTarget*100)) : 0;
     const status = pct <= 80 ? 'done' : pct <= 100 ? 'warning' : 'fail';
     challenges.push({

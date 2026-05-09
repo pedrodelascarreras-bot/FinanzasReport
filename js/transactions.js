@@ -396,8 +396,15 @@ function txnDateKey(d){
   return dateToYMD(d instanceof Date?d:new Date(d));
 }
 function txnAmountArs(tx){
+  // Full transaction amount in ARS (used for displays — keep showing full charged amount)
   if((tx.currency||'ARS')==='USD') return (Number(tx.amount)||0) * (window.USD_TO_ARS||1);
   return Number(tx.amount)||0;
+}
+function txnPersonalAmountArs(tx){
+  // User's personal portion in ARS (used for spending metrics, categories, totals)
+  const personal = (typeof getTxnPersonalAmount === 'function') ? getTxnPersonalAmount(tx) : (Number(tx.amount)||0);
+  if((tx.currency||'ARS')==='USD') return personal * (window.USD_TO_ARS||1);
+  return personal;
 }
 function txnAmountLabel(tx){
   return (tx.currency==='USD'?'USD ':'$')+fmtN(Number(tx.amount)||0);
@@ -552,7 +559,7 @@ function txnCategoryBreakdown(txns){
   const map={};
   txns.forEach(tx=>{
     const cat=txnCategoryName(tx);
-    map[cat]=(map[cat]||0)+Math.abs(txnAmountArs(tx));
+    map[cat]=(map[cat]||0)+Math.abs(txnPersonalAmountArs(tx));
   });
   const total=Object.values(map).reduce((s,v)=>s+v,0)||1;
   return Object.entries(map).sort((a,b)=>b[1]-a[1]).map(([label,amount])=>({label,amount,pct:Math.round((amount/total)*100)}));
@@ -1224,10 +1231,10 @@ function renderTransactions(){
     });
     const groupedDays=Object.keys(groupedMap).sort().reverse().map(key=>{
       const items=groupedMap[key].slice().sort((a,b)=>new Date(a.date)-new Date(b.date));
-      const total=items.reduce((s,tx)=>s+Math.abs(txnAmountArs(tx)),0);
+      const total=items.reduce((s,tx)=>s+Math.abs(txnPersonalAmountArs(tx)),0);
       return {key,date:new Date(key+'T12:00:00'),items,total};
     });
-    const totalSpend=focusTxns.reduce((s,tx)=>s+Math.abs(txnAmountArs(tx)),0);
+    const totalSpend=focusTxns.reduce((s,tx)=>s+Math.abs(txnPersonalAmountArs(tx)),0);
     const dayCount=Math.max(groupedDays.length,1);
     const avgDaily=totalSpend/dayCount;
     const breakdown=txnCategoryBreakdown(focusTxns);
@@ -1239,8 +1246,8 @@ function renderTransactions(){
       (state.subscriptions||[]).some(sub=>typeof txnMatchesSubscription==='function' && txnMatchesSubscription(tx,sub))
     );
     const periodQuotaTxns=focusTxns.filter(tx=>!!tx.cuotaNum && !tx.isPendingCuota);
-    const periodSubscriptionTotal=periodSubscriptionTxns.reduce((s,tx)=>s+Math.abs(txnAmountArs(tx)),0);
-    const periodQuotaTotal=periodQuotaTxns.reduce((s,tx)=>s+Math.abs(txnAmountArs(tx)),0);
+    const periodSubscriptionTotal=periodSubscriptionTxns.reduce((s,tx)=>s+Math.abs(txnPersonalAmountArs(tx)),0);
+    const periodQuotaTotal=periodQuotaTxns.reduce((s,tx)=>s+Math.abs(txnPersonalAmountArs(tx)),0);
     const syncLabel=txnSyncLabel();
     const syncItems=txnSyncMetadata();
     const commitmentEntries=getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef);

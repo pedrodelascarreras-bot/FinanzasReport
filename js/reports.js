@@ -445,8 +445,8 @@ function buildReportHTML(txns,sections,periodLabel){
   const design=state.repDesign||'executive';
   const now=new Date().toLocaleDateString('es-AR',{day:'numeric',month:'long',year:'numeric'});
   const today=new Date();
-  const arsT=txns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const usdT=txns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+  const arsT=txns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
+  const usdT=txns.filter(t=>t.currency==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
   const income=getReportIncomeSnapshot();
   const incArs=income.ars;
   const incUsd=income.usd;
@@ -457,13 +457,13 @@ function buildReportHTML(txns,sections,periodLabel){
   const pct=incTotal>0?Math.round(totalArs/incTotal*100):null;
 
   // Categorías del período
-  const catMap={};txns.filter(t=>t.currency==='ARS').forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount;});
+  const catMap={};txns.filter(t=>t.currency==='ARS').forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
   const cats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]);
   const maxCat=cats[0]?.[1]||1;
 
   // Medios de pago
   const medios={tc:0,deb:0,ef:0,sin:0};
-  txns.filter(t=>t.currency==='ARS').forEach(t=>{medios[t.payMethod||'sin']+=t.amount;});
+  txns.filter(t=>t.currency==='ARS').forEach(t=>{medios[t.payMethod||'sin']+=(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
 
   // Top 10
   const top10=[...txns].filter(t=>t.currency==='ARS').sort((a,b)=>b.amount-a.amount).slice(0,10);
@@ -487,12 +487,12 @@ function buildReportHTML(txns,sections,periodLabel){
     const cat=String(t.category||'').trim().toLowerCase();
     return !cat || cat==='sin categoría' || cat==='uncategorized' || cat==='procesando...';
   });
-  const uncategorizedArs=uncategorizedTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  const uncategorizedArs=uncategorizedTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
   const noPayMethodTxns=txns.filter(t=>!String(t.payMethod||'').trim());
-  const noPayMethodArs=noPayMethodTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
+  const noPayMethodArs=noPayMethodTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
   const usdSharePct=totalArs>0?Math.round((usdT*usdRate)/totalArs*100):0;
   const top3CatShare=arsT>0?Math.round(cats.slice(0,3).reduce((s,[,val])=>s+val,0)/arsT*100):0;
-  const top5ExpenseShare=arsT>0?Math.round(topExpenses.reduce((s,t)=>s+t.amount,0)/arsT*100):0;
+  const top5ExpenseShare=arsT>0?Math.round(topExpenses.reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0)/arsT*100):0;
 
   // Cuotas activas
   const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
@@ -549,17 +549,17 @@ function buildReportHTML(txns,sections,periodLabel){
     prevLabel=prevMk;
     prevTxns=state.transactions.filter(t=>(t.month||getMonthKey(t.date))===prevMk);
   }
-  const prevArs=prevTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const prevCatMap={};prevTxns.filter(t=>t.currency==='ARS').forEach(t=>{prevCatMap[t.category]=(prevCatMap[t.category]||0)+t.amount;});
+  const prevArs=prevTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
+  const prevCatMap={};prevTxns.filter(t=>t.currency==='ARS').forEach(t=>{prevCatMap[t.category]=(prevCatMap[t.category]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
   const diffTotal=arsT-prevArs;
   const diffPct=prevArs>0?((diffTotal/prevArs)*100).toFixed(1):null;
 
   // Hábitos: día de semana con más gasto
   const DIAS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  const byDow={};txns.filter(t=>t.currency==='ARS').forEach(t=>{const d=new Date(t.date+'T12:00:00').getDay();byDow[d]=(byDow[d]||0)+t.amount;});
+  const byDow={};txns.filter(t=>t.currency==='ARS').forEach(t=>{const d=new Date(t.date+'T12:00:00').getDay();byDow[d]=(byDow[d]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
   const peakDow=Object.entries(byDow).sort((a,b)=>b[1]-a[1])[0];
   // Semana más cara
-  const byWeek={};txns.filter(t=>t.currency==='ARS').forEach(t=>{const w=t.week||getWeekKey(t.date);byWeek[w]=(byWeek[w]||0)+t.amount;});
+  const byWeek={};txns.filter(t=>t.currency==='ARS').forEach(t=>{const w=t.week||getWeekKey(t.date);byWeek[w]=(byWeek[w]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
   const peakWeek=Object.entries(byWeek).sort((a,b)=>b[1]-a[1])[0];
   const ticketProm=txns.filter(t=>t.currency==='ARS').length>0?arsT/txns.filter(t=>t.currency==='ARS').length:0;
 
@@ -578,7 +578,7 @@ function buildReportHTML(txns,sections,periodLabel){
   const alertas=[];
   const allMonths=getAvailableMonths();
   cats.forEach(([cat,val])=>{
-    const hist=allMonths.slice(-4).map(m=>state.transactions.filter(t=>(t.month||getMonthKey(t.date))===m&&t.currency==='ARS'&&t.category===cat).reduce((s,t)=>s+t.amount,0)).filter(v=>v>0);
+    const hist=allMonths.slice(-4).map(m=>state.transactions.filter(t=>(t.month||getMonthKey(t.date))===m&&t.currency==='ARS'&&t.category===cat).reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0)).filter(v=>v>0);
     if(hist.length>=2){const avg=hist.slice(0,-1).reduce((s,v)=>s+v,0)/Math.max(hist.length-1,1);if(avg>0&&val>avg*1.3)alertas.push({tipo:'warn',txt:cat+': $'+fmtN(val)+' ('+Math.round(val/avg*100-100)+'% sobre tu promedio histórico de $'+fmtN(avg)+')'});}
   });
   if(isCurrentMonth&&projected>incTotal&&incTotal>0)alertas.push({tipo:'danger',txt:'Al ritmo actual vas a gastar $'+fmtN(projected-incTotal)+' más de lo que ingresás este mes'});
@@ -900,7 +900,7 @@ function buildReportHTML(txns,sections,periodLabel){
       ${allMks.map(m=>{const[y,mo]=m.split('-');return`<th style="text-align:right">${MNAMES_R[+mo-1].slice(0,3)}</th>`;}).join('')}
       <th style="text-align:center">Tendencia</th></tr></thead><tbody>
       ${topCatsForTrend.map(cat=>{
-        const vals=allMks.map(m=>state.transactions.filter(t=>(t.month||getMonthKey(t.date))===m&&t.currency==='ARS'&&t.category===cat).reduce((s,t)=>s+t.amount,0));
+        const vals=allMks.map(m=>state.transactions.filter(t=>(t.month||getMonthKey(t.date))===m&&t.currency==='ARS'&&t.category===cat).reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0));
         const last=vals[vals.length-1];const prev=vals[vals.length-2]||0;
         const trend=last>prev*1.1?'↑':last<prev*0.9?'↓':'→';
         const trendColor=trend==='↑'?'#dc2626':trend==='↓'?'#16a34a':'#888';
@@ -913,7 +913,7 @@ function buildReportHTML(txns,sections,periodLabel){
   // ── VARIABILIDAD / CONSISTENCIA ──
   if(sections.includes('variabilidad')){
     const allMksFull=getAvailableMonths().sort().slice(-6);
-    const monthlyTotals=allMksFull.map(m=>state.transactions.filter(t=>(t.month||getMonthKey(t.date))===m&&t.currency==='ARS').reduce((s,t)=>s+t.amount,0)).filter(v=>v>0);
+    const monthlyTotals=allMksFull.map(m=>state.transactions.filter(t=>(t.month||getMonthKey(t.date))===m&&t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0)).filter(v=>v>0);
     if(monthlyTotals.length>=2){
       const avg=monthlyTotals.reduce((s,v)=>s+v,0)/monthlyTotals.length;
       const variance=monthlyTotals.reduce((s,v)=>s+Math.pow(v-avg,2),0)/monthlyTotals.length;
@@ -987,7 +987,7 @@ function buildReportHTML(txns,sections,periodLabel){
     // Top categorías sobre promedio histórico
     const allMksHist=getAvailableMonths().sort().slice(-4);
     cats.slice(0,8).forEach(([cat,val])=>{
-      const hist=allMksHist.slice(0,-1).map(m=>state.transactions.filter(t=>(t.month||getMonthKey(t.date))===m&&t.currency==='ARS'&&t.category===cat).reduce((s,t)=>s+t.amount,0)).filter(v=>v>0);
+      const hist=allMksHist.slice(0,-1).map(m=>state.transactions.filter(t=>(t.month||getMonthKey(t.date))===m&&t.currency==='ARS'&&t.category===cat).reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0)).filter(v=>v>0);
       if(hist.length>=1){const avg=hist.reduce((s,v)=>s+v,0)/hist.length;const diff=val-avg;if(diff>avg*0.2&&diff>5000){recs.push({icon:'✂️',prioridad:'alta',txt:`Recortá <strong>${esc(cat)}</strong> — gastaste $${fmtN(Math.round(diff))} más que tu promedio ($${fmtN(Math.round(avg))}). Volver al promedio te ahorraría <strong>$${fmtN(Math.round(diff))}/mes</strong>.`});}}
     });
     // Suscripciones acumuladas
@@ -1120,8 +1120,8 @@ function refreshRepAiPrompt(txns, periodLabel){
   const label=periodLabel||getRepPeriodLabel();
   const modeLabel=normalizeRepMode(state.repMode||'visa')==='visa'?'Vista VISA':normalizeRepMode(state.repMode||'visa')==='mes'?'Mes':'Período personalizado';
   const usdRate=getReportUsdRate();
-  const ars=txns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const usd=txns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+  const ars=txns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
+  const usd=txns.filter(t=>t.currency==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
   const totalArs=ars+(usd*usdRate);
   const incomeArs=Number(state.income.ars||0)+Number(state.income.varArs||0)+((Number(state.income.usd||0)+Number(state.income.varUsd||0))*usdRate);
   const topCats=Object.entries(txns.filter(t=>t.currency==='ARS').reduce((acc,t)=>{
@@ -1324,15 +1324,15 @@ function openResumen(){
   const periodTxns=lastImp&&lastImp.txnIds?state.transactions.filter(t=>lastImp.txnIds.includes(t.id)):state.transactions;
   const label=lastImp?lastImp.label:'Todos los datos';
   const usdRate=getReportUsdRate();
-  const ars=periodTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const usd=periodTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
+  const ars=periodTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
+  const usd=periodTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
   const income=getReportIncomeSnapshot();
   const totalArs=ars+(usd*usdRate);
   const pct=income.totalArs>0?Math.round((totalArs/income.totalArs)*100):null;
-  const catMap={};periodTxns.filter(t=>t.currency==='ARS').forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+t.amount;});
+  const catMap={};periodTxns.filter(t=>t.currency==='ARS').forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
   const topCats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
   let diffHtml='';
-  if(state.imports.length>=2){const prevImp=state.imports[1];const prevTxns=prevImp.txnIds?state.transactions.filter(t=>prevImp.txnIds.includes(t.id)):[];const prevArs=prevTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);const diff=ars-prevArs;const dp=prevArs>0?((diff/prevArs)*100).toFixed(1):null;diffHtml='<div class="resumen-block"><h4>vs período anterior ('+prevImp.label+')</h4><div class="resumen-row"><span class="rr-label">Diferencia</span><span class="rr-val" style="color:'+(diff>0?'var(--danger)':'var(--accent)')+';">'+(diff>0?'+':'')+'$'+fmtN(Math.abs(diff))+' ARS</span></div>'+(dp?'<div class="resumen-row"><span class="rr-label">Variación</span><span class="rr-val" style="color:'+(diff>0?'var(--danger)':'var(--accent)')+';">'+(diff>0?'▲':'▼')+' '+Math.abs(dp)+'%</span></div>':'')+'</div>';}
+  if(state.imports.length>=2){const prevImp=state.imports[1];const prevTxns=prevImp.txnIds?state.transactions.filter(t=>prevImp.txnIds.includes(t.id)):[];const prevArs=prevTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);const diff=ars-prevArs;const dp=prevArs>0?((diff/prevArs)*100).toFixed(1):null;diffHtml='<div class="resumen-block"><h4>vs período anterior ('+prevImp.label+')</h4><div class="resumen-row"><span class="rr-label">Diferencia</span><span class="rr-val" style="color:'+(diff>0?'var(--danger)':'var(--accent)')+';">'+(diff>0?'+':'')+'$'+fmtN(Math.abs(diff))+' ARS</span></div>'+(dp?'<div class="resumen-row"><span class="rr-label">Variación</span><span class="rr-val" style="color:'+(diff>0?'var(--danger)':'var(--accent)')+';">'+(diff>0?'▲':'▼')+' '+Math.abs(dp)+'%</span></div>':'')+'</div>';}
   document.getElementById('resumen-periodo').textContent=label;
   document.getElementById('resumen-body').innerHTML='<div class="resumen-block"><h4>💰 Gastos del período</h4><div class="resumen-row"><span class="rr-label">Total ARS</span><span class="rr-val">$'+fmtN(ars)+'</span></div>'+(usd>0?'<div class="resumen-row"><span class="rr-label">Total USD</span><span class="rr-val">U$D '+fmtN(usd)+'</span></div><div class="resumen-row"><span class="rr-label">Total equivalente</span><span class="rr-val">$'+fmtN(Math.round(totalArs))+'</span></div>':'')+(pct!==null?'<div class="resumen-row"><span class="rr-label">% del ingreso</span><span class="rr-val" style="color:'+(pct>state.alertThreshold?'var(--danger)':'var(--accent)')+';">'+pct+'%</span></div>':'')+'<div class="resumen-row"><span class="rr-label">Transacciones</span><span class="rr-val">'+periodTxns.length+'</span></div></div><div class="resumen-block"><h4>🏆 Top categorías</h4>'+topCats.map(([cat,amt])=>'<div class="resumen-row"><span class="rr-label">'+cat+'</span><span class="rr-val">$'+fmtN(amt)+'</span></div>').join('')+'</div>'+diffHtml;
   openModal('modal-resumen');
