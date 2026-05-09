@@ -1452,7 +1452,9 @@ function renderDashboard(){
         if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
       }
       const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
-      addExtra(key,t.currency,t.amount);
+      // Use personal amount so shared expenses don't double-count
+      const _pa=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount;
+      addExtra(key,t.currency,_pa);
     });
     if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
       detectAutoCuotas().forEach(g=>{
@@ -4143,8 +4145,19 @@ function renderDb2DueStrip(timelineData){
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
   const totalOpenArs = pendingItems.reduce((s, item) => s + item.pendingArs, 0);
-  const partialCount = 0;
   const pendingCount = pendingItems.length;
+  // Calculate total already collected (cobrado) across all shared expenses
+  let cobradoArs = 0, cobradoCount = 0;
+  (state.transactions || [])
+    .filter(t => t.sharedExpense && t.sharedExpense.enabled)
+    .forEach(t => {
+      (t.sharedExpense.splits || []).forEach(s => {
+        if (s.status === 'cobrado') {
+          cobradoArs += toArs(Number(s.amount) || 0, t.currency);
+          cobradoCount++;
+        }
+      });
+    });
 
   if(summary){
     if(pendingItems.length){
@@ -4158,10 +4171,11 @@ function renderDb2DueStrip(timelineData){
           <span class="db2-third-pill-label">Pendientes</span>
           <span class="db2-third-pill-value">${pendingCount}</span>
         </div>
-        <div class="db2-third-pill">
-          <span class="db2-third-pill-label">Parciales</span>
-          <span class="db2-third-pill-value">${partialCount}</span>
-        </div>
+        ${cobradoArs > 0 ? `
+        <div class="db2-third-pill is-cobrado">
+          <span class="db2-third-pill-label">Cobrado</span>
+          <span class="db2-third-pill-value">$${fmtN(Math.round(cobradoArs))}</span>
+        </div>` : ''}
       `;
     }else{
       summary.innerHTML = `
@@ -4169,6 +4183,11 @@ function renderDb2DueStrip(timelineData){
           <span class="db2-third-pill-label">Estado</span>
           <span class="db2-third-pill-value">Todo cobrado</span>
         </div>
+        ${cobradoArs > 0 ? `
+        <div class="db2-third-pill is-cobrado">
+          <span class="db2-third-pill-label">Total cobrado</span>
+          <span class="db2-third-pill-value">$${fmtN(Math.round(cobradoArs))}</span>
+        </div>` : ''}
       `;
     }
   }
@@ -4182,7 +4201,11 @@ function renderDb2DueStrip(timelineData){
     return;
   }
 
-  grid.innerHTML = pendingItems.slice(0, 3).map((item, i) => {
+  // Smart sizing: show up to 9 items inline (3 rows × 3 cols typical),
+  // overflow goes behind a "Ver X más" link. Grid uses auto-fill for responsive wrapping.
+  const VISIBLE_LIMIT = 9;
+  const visibleItems = pendingItems.slice(0, VISIBLE_LIMIT);
+  grid.innerHTML = visibleItems.map((item, i) => {
     const since = shortDate(item.date);
     const age = getAgeLabel(item.date);
     const color = palette[i % palette.length];
@@ -4197,10 +4220,11 @@ function renderDb2DueStrip(timelineData){
     </button>`;
   }).join('');
 
-  if(pendingItems.length > 3){
+  if(pendingItems.length > VISIBLE_LIMIT){
+    const remaining = pendingItems.length - VISIBLE_LIMIT;
     grid.innerHTML += `
       <button class="db2-third-more" onclick="openThirdPartyTransactions()">
-        Ver ${pendingItems.length - 3} recordatorio${pendingItems.length - 3 !== 1 ? 's' : ''} más →
+        Ver ${remaining} recordatorio${remaining !== 1 ? 's' : ''} más →
       </button>
     `;
   }
@@ -4487,7 +4511,7 @@ function renderMobileDashboard(data) {
           <div class="mob-main-icon-sq">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="3"/><path d="M2.5 10.5h19"/></svg>
           </div>
-          <span class="mob-main-kicker">GASTO TOTAL</span>
+          <span class="mob-main-kicker">GASTO PERSONAL</span>
         </div>
         <button class="mob-main-eye" onclick="event.stopPropagation();toggleHeroPrivacy()" title="Ocultar montos">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" width="18" height="18"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>

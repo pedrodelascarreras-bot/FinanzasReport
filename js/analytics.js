@@ -94,7 +94,7 @@ function getTcCycleTrendTxns(cycle, cycles){
     pushExtra(key,{
       id:`trend-pending-${key}`,
       date:t.date,
-      amount:t.amount,
+      amount:typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount,
       currency:t.currency||'ARS',
       category:t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized'?t.category:'Finanzas',
       isSyntheticCommitment:true

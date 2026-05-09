@@ -92,6 +92,7 @@ function getProjectedCommitmentEntriesForRange(opts={}){
       date:t.date,
       title:t._baseDesc||t.description,
       amount:Number(t.amount)||0,
+      personalAmount:typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):(Number(t.amount)||0),
       currency:t.currency||'ARS',
       payMethod:t.payMethod||'',
       sourceTxnId:t.id||null,
@@ -213,10 +214,13 @@ function getProjectedCommitmentEntriesForRange(opts={}){
   return entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
 }
 function sumProjectedCommitmentTotals(entries=[]){
+  // Uses personalAmount if available (so shared expenses don't double-count),
+  // falls back to full amount for synthetic entries (subs/cuotas projected w/o source txn)
   return entries.reduce((acc,entry)=>{
     if(!entry?.includeInTotal) return acc;
-    if((entry.currency||'ARS')==='USD') acc.usd+=(Number(entry.amount)||0);
-    else acc.ars+=(Number(entry.amount)||0);
+    const amt = (entry.personalAmount != null) ? Number(entry.personalAmount) : (Number(entry.amount)||0);
+    if((entry.currency||'ARS')==='USD') acc.usd+=amt;
+    else acc.ars+=amt;
     acc.count++;
     return acc;
   },{ars:0,usd:0,count:0});
