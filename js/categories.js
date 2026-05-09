@@ -141,26 +141,48 @@ function renderRulesPanel(){
     +'</div>';
 }
 
+// ── Helpers para colapso + edición ─────────────────────────
+function _isRulesCollapsed(section){
+  if(!state._rulesCollapsed) state._rulesCollapsed = { category:true, name:true, logo:true };
+  return state._rulesCollapsed[section] !== false;
+}
+
+function toggleRulesCollapse(section){
+  if(!state._rulesCollapsed) state._rulesCollapsed = { category:true, name:true, logo:true };
+  state._rulesCollapsed[section] = !state._rulesCollapsed[section];
+  renderRulesPanel();
+}
+
+function startEditRule(type, idx){
+  state._editingRule = { type, idx };
+  // Auto-expand the section if collapsed
+  if(state._rulesCollapsed) state._rulesCollapsed[type] = false;
+  renderRulesPanel();
+}
+
+function cancelEditRule(){
+  state._editingRule = null;
+  renderRulesPanel();
+}
+
+function _renderCollapseHeader(section, count){
+  const collapsed = _isRulesCollapsed(section);
+  if(!count) return '';
+  return '<button class="rules-collapse-hd" onclick="toggleRulesCollapse(\''+section+'\')" '
+    +'style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:12px;border:1px solid var(--border);background:#fafafd;font-size:11.5px;font-weight:700;color:var(--text2);cursor:pointer;font-family:var(--font);margin-bottom:'+(collapsed?'0':'10px')+';">'
+    +'<span>'+(collapsed?'▸':'▾')+'  '+count+' regla'+(count!==1?'s':'')+' creada'+(count!==1?'s':'')+'</span>'
+    +'<span style="font-size:10.5px;color:var(--text3);">'+(collapsed?'mostrar':'ocultar')+'</span>'
+  +'</button>';
+}
+
+// ── CATEGORY RULES TAB ─────────────────────────────────────
 function renderCategoryRulesTab(rules, catOptsHtml){
-  let html='';
-  if(!rules.length) html+='<div style="color:var(--text3);font-size:12.4px;padding:18px 14px;text-align:center;background:#f8f8fc;border-radius:14px;border:1px solid var(--border);font-family:var(--font);">Sin reglas de categoría.</div>';
-  html += rules.map((r,i)=>{
-    const cc=catColor(r.category);
-    const count=rulesCountMatches(r.keyword);
-    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:14px;margin-bottom:6px;border:1px solid var(--border);'+(r.active===false?'opacity:.45;':'')+'">'
-      +'<div style="flex:1;min-width:0;">'
-        +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
-          +'<span style="font-size:12.2px;font-weight:700;color:var(--text);background:#fff;padding:3px 8px;border-radius:999px;border:1px solid var(--border);font-family:var(--font);">'+esc(r.keyword)+'</span>'
-          +'<span style="font-size:10px;color:var(--text3);">→</span>'
-          +'<span style="font-size:11px;font-weight:700;color:'+cc+';background:'+cc+'12;padding:3px 8px;border-radius:999px;font-family:var(--font);">'+esc(r.category)+'</span>'
-        +'</div>'
-        +'<div style="font-size:10.5px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+count+' coincidencias</div>'
-      +'</div>'
-      +'<button style="background:none;border:none;cursor:pointer;font-size:14px;color:'+(r.active!==false?'var(--accent)':'var(--text3)')+';padding:2px 4px;" onclick="toggleRule('+i+')">'+(r.active!==false?'●':'○')+'</button>'
-      +'<button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.6;" onclick="deleteRule('+i+')">✕</button>'
-    +'</div>';
-  }).join('');
-  html += '<div style="margin-top:12px;padding:14px;background:#f8f8fc;border-radius:16px;border:1px solid var(--border);">'
+  const editing = state._editingRule && state._editingRule.type==='category' ? state._editingRule.idx : -1;
+  const collapsed = _isRulesCollapsed('category');
+  let html = '';
+
+  // Form para agregar (siempre visible arriba)
+  html += '<div style="padding:14px;background:#f8f8fc;border-radius:16px;border:1px solid var(--border);margin-bottom:12px;">'
     +'<div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:10px;font-family:var(--font);">+ Nueva regla de categoría</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">'
       +'<div style="flex:1;min-width:120px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Keyword</div><input id="rule-new-keyword" type="text" placeholder="ej: PEDIDOSYA" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);"></div>'
@@ -168,28 +190,58 @@ function renderCategoryRulesTab(rules, catOptsHtml){
       +'<button style="padding:10px 14px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="addUserRule()">Agregar</button>'
     +'</div>'
   +'</div>';
+
+  // Header colapsable
+  if(!rules.length){
+    html += '<div style="color:var(--text3);font-size:12.4px;padding:18px 14px;text-align:center;background:#f8f8fc;border-radius:14px;border:1px solid var(--border);font-family:var(--font);">Sin reglas de categoría todavía.</div>';
+    return html;
+  }
+  html += _renderCollapseHeader('category', rules.length);
+
+  // Lista de reglas (oculta por default)
+  if(!collapsed){
+    html += rules.map((r,i)=>{
+      if(i===editing){
+        // Edit mode
+        return '<div style="padding:10px 12px;background:#fff8e1;border-radius:14px;margin-bottom:6px;border:1.5px solid var(--accent);">'
+          +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px;">'
+            +'<div style="flex:1;min-width:110px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Keyword</div><input id="cat-edit-keyword" type="text" value="'+esc(r.keyword)+'" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);font-size:12.4px;font-family:var(--font);"></div>'
+            +'<div style="flex:1;min-width:110px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Categoría</div><select id="cat-edit-cat" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);font-size:12.4px;font-family:var(--font);">'+rulesCategoryOptionsHTML(r.category)+'</select></div>'
+          +'</div>'
+          +'<div style="display:flex;gap:6px;justify-content:flex-end;">'
+            +'<button style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="cancelEditRule()">Cancelar</button>'
+            +'<button style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="saveEditCatRule('+i+')">Guardar</button>'
+          +'</div>'
+        +'</div>';
+      }
+      const cc=catColor(r.category);
+      const count=rulesCountMatches(r.keyword);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:14px;margin-bottom:6px;border:1px solid var(--border);'+(r.active===false?'opacity:.45;':'')+'">'
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+            +'<span style="font-size:12.2px;font-weight:700;color:var(--text);background:#fff;padding:3px 8px;border-radius:999px;border:1px solid var(--border);font-family:var(--font);">'+esc(r.keyword)+'</span>'
+            +'<span style="font-size:10px;color:var(--text3);">→</span>'
+            +'<span style="font-size:11px;font-weight:700;color:'+cc+';background:'+cc+'12;padding:3px 8px;border-radius:999px;font-family:var(--font);">'+esc(r.category)+'</span>'
+          +'</div>'
+          +'<div style="font-size:10.5px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+count+' coincidencias</div>'
+        +'</div>'
+        +'<button title="Editar" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:3px 5px;opacity:.7;" onclick="startEditRule(\'category\','+i+')">✎</button>'
+        +'<button title="Activar/desactivar" style="background:none;border:none;cursor:pointer;font-size:14px;color:'+(r.active!==false?'var(--accent)':'var(--text3)')+';padding:2px 4px;" onclick="toggleRule('+i+')">'+(r.active!==false?'●':'○')+'</button>'
+        +'<button title="Eliminar" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.6;" onclick="deleteRule('+i+')">✕</button>'
+      +'</div>';
+    }).join('');
+  }
   return html;
 }
 
+// ── NAME RULES TAB ─────────────────────────────────────────
 function renderNameRulesTab(rules){
-  let html='';
-  if(!rules.length) html+='<div style="color:var(--text3);font-size:12.4px;padding:18px 14px;text-align:center;background:#f8f8fc;border-radius:14px;border:1px solid var(--border);font-family:var(--font);">Sin reglas de nombre.</div>';
-  html += rules.map((r,i)=>{
-    const count=rulesCountMatches(r.keyword);
-    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:14px;margin-bottom:6px;border:1px solid var(--border);'+(r.active===false?'opacity:.45;':'')+'">'
-      +'<div style="flex:1;min-width:0;">'
-        +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
-          +'<span style="font-size:12.2px;font-weight:700;color:var(--text);background:#fff;padding:3px 8px;border-radius:999px;border:1px solid var(--border);font-family:var(--font);">'+esc(r.keyword)+'</span>'
-          +'<span style="font-size:10px;color:var(--text3);">→</span>'
-          +'<span style="font-size:11px;font-weight:700;color:var(--accent);background:rgba(87,50,243,0.12);padding:3px 8px;border-radius:999px;font-family:var(--font);">'+esc(r.renameTo)+'</span>'
-        +'</div>'
-        +'<div style="font-size:10.5px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+count+' coincidencias</div>'
-      +'</div>'
-      +'<button style="background:none;border:none;cursor:pointer;font-size:14px;color:'+(r.active!==false?'var(--accent)':'var(--text3)')+';padding:2px 4px;" onclick="toggleNameRule('+i+')">'+(r.active!==false?'●':'○')+'</button>'
-      +'<button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.6;" onclick="deleteNameRule('+i+')">✕</button>'
-    +'</div>';
-  }).join('');
-  html += '<div style="margin-top:12px;padding:14px;background:#f8f8fc;border-radius:16px;border:1px solid var(--border);">'
+  const editing = state._editingRule && state._editingRule.type==='name' ? state._editingRule.idx : -1;
+  const collapsed = _isRulesCollapsed('name');
+  let html = '';
+
+  // Form siempre visible arriba
+  html += '<div style="padding:14px;background:#f8f8fc;border-radius:16px;border:1px solid var(--border);margin-bottom:12px;">'
     +'<div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:10px;font-family:var(--font);">+ Nueva regla de nombre</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">'
       +'<div style="flex:1;min-width:120px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Detectar</div><input id="name-rule-keyword" type="text" placeholder="ej: MC DONALDS" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);"></div>'
@@ -197,43 +249,132 @@ function renderNameRulesTab(rules){
       +'<button style="padding:10px 14px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="addNameRule()">Agregar</button>'
     +'</div>'
   +'</div>';
+
+  if(!rules.length){
+    html += '<div style="color:var(--text3);font-size:12.4px;padding:18px 14px;text-align:center;background:#f8f8fc;border-radius:14px;border:1px solid var(--border);font-family:var(--font);">Sin reglas de nombre todavía.</div>';
+    return html;
+  }
+  html += _renderCollapseHeader('name', rules.length);
+
+  if(!collapsed){
+    html += rules.map((r,i)=>{
+      if(i===editing){
+        return '<div style="padding:10px 12px;background:#fff8e1;border-radius:14px;margin-bottom:6px;border:1.5px solid var(--accent);">'
+          +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px;">'
+            +'<div style="flex:1;min-width:110px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Detectar</div><input id="name-edit-keyword" type="text" value="'+esc(r.keyword)+'" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);font-size:12.4px;font-family:var(--font);"></div>'
+            +'<div style="flex:1;min-width:110px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Renombrar a</div><input id="name-edit-target" type="text" value="'+esc(r.renameTo)+'" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);font-size:12.4px;font-family:var(--font);"></div>'
+          +'</div>'
+          +'<div style="display:flex;gap:6px;justify-content:flex-end;">'
+            +'<button style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="cancelEditRule()">Cancelar</button>'
+            +'<button style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="saveEditNameRule('+i+')">Guardar</button>'
+          +'</div>'
+        +'</div>';
+      }
+      const count=rulesCountMatches(r.keyword);
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:14px;margin-bottom:6px;border:1px solid var(--border);'+(r.active===false?'opacity:.45;':'')+'">'
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">'
+            +'<span style="font-size:12.2px;font-weight:700;color:var(--text);background:#fff;padding:3px 8px;border-radius:999px;border:1px solid var(--border);font-family:var(--font);">'+esc(r.keyword)+'</span>'
+            +'<span style="font-size:10px;color:var(--text3);">→</span>'
+            +'<span style="font-size:11px;font-weight:700;color:var(--accent);background:rgba(87,50,243,0.12);padding:3px 8px;border-radius:999px;font-family:var(--font);">'+esc(r.renameTo)+'</span>'
+          +'</div>'
+          +'<div style="font-size:10.5px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+count+' coincidencias</div>'
+        +'</div>'
+        +'<button title="Editar" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:3px 5px;opacity:.7;" onclick="startEditRule(\'name\','+i+')">✎</button>'
+        +'<button title="Activar/desactivar" style="background:none;border:none;cursor:pointer;font-size:14px;color:'+(r.active!==false?'var(--accent)':'var(--text3)')+';padding:2px 4px;" onclick="toggleNameRule('+i+')">'+(r.active!==false?'●':'○')+'</button>'
+        +'<button title="Eliminar" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.6;" onclick="deleteNameRule('+i+')">✕</button>'
+      +'</div>';
+    }).join('');
+  }
   return html;
 }
 
-function ruleLogoPreviewHtml(logoKey){
+// ── LOGO PREVIEW (preset o custom) ─────────────────────────
+function ruleLogoPreviewHtml(logoKey, customUrl){
+  if(customUrl){
+    return '<span style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:8px;background:#f5f5fb;overflow:hidden;border:1px solid var(--border);"><img src="'+esc(customUrl)+'" style="width:100%;height:100%;object-fit:cover;" alt=""></span>';
+  }
   const presets=(typeof getBrandLogoPresets==='function' ? getBrandLogoPresets() : {}) || {};
   const p=presets[logoKey];
   if(!p) return '<span style="font-size:10px;color:var(--text3);">Sin preset</span>';
   return '<span style="display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:8px;background:'+p.bg+';color:'+p.text+';font-size:10px;font-weight:800;">'+esc(p.label||logoKey.slice(0,2).toUpperCase())+'</span>';
 }
 
+// ── LOGO RULES TAB ─────────────────────────────────────────
 function renderLogoRulesTab(rules){
-  let html='';
-  if(!rules.length) html+='<div style="color:var(--text3);font-size:12.4px;padding:18px 14px;text-align:center;background:#f8f8fc;border-radius:14px;border:1px solid var(--border);font-family:var(--font);">Sin reglas de logo.</div>';
-  html += rules.map((r,i)=>{
-    const count=rulesCountMatches(r.keyword);
-    return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:14px;margin-bottom:6px;border:1px solid var(--border);'+(r.active===false?'opacity:.45;':'')+'">'
-      +'<div style="flex:1;min-width:0;">'
-        +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">'
-          +'<span style="font-size:12.2px;font-weight:700;color:var(--text);background:#fff;padding:3px 8px;border-radius:999px;border:1px solid var(--border);font-family:var(--font);">'+esc(r.keyword)+'</span>'
-          +'<span style="font-size:10px;color:var(--text3);">→</span>'
-          +ruleLogoPreviewHtml(r.logoKey)
-          +'<span style="font-size:11px;font-weight:700;color:var(--text);font-family:var(--font);">'+esc(r.logoKey)+'</span>'
-        +'</div>'
-        +'<div style="font-size:10.5px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+count+' coincidencias</div>'
-      +'</div>'
-      +'<button style="background:none;border:none;cursor:pointer;font-size:14px;color:'+(r.active!==false?'var(--accent)':'var(--text3)')+';padding:2px 4px;" onclick="toggleLogoRule('+i+')">'+(r.active!==false?'●':'○')+'</button>'
-      +'<button style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.6;" onclick="deleteLogoRule('+i+')">✕</button>'
-    +'</div>';
-  }).join('');
-  html += '<div style="margin-top:12px;padding:14px;background:#f8f8fc;border-radius:16px;border:1px solid var(--border);">'
+  const editing = state._editingRule && state._editingRule.type==='logo' ? state._editingRule.idx : -1;
+  const collapsed = _isRulesCollapsed('logo');
+  let html = '';
+
+  // Form siempre visible arriba (con upload custom)
+  html += '<div style="padding:14px;background:#f8f8fc;border-radius:16px;border:1px solid var(--border);margin-bottom:12px;">'
     +'<div style="font-size:12px;font-weight:800;color:var(--text);margin-bottom:10px;font-family:var(--font);">+ Nueva regla de logo</div>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;">'
-      +'<div style="flex:1;min-width:120px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Detectar</div><input id="logo-rule-keyword" type="text" placeholder="ej: RAPPI" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);"></div>'
-      +'<div style="flex:1;min-width:130px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Logo</div><select id="logo-rule-key" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);">'+rulesLogoOptionsHTML('')+'</select></div>'
-      +'<button style="padding:10px 14px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="addLogoRule()">Agregar</button>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;">'
+      +'<div style="flex:1;min-width:110px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Detectar</div><input id="logo-rule-keyword" type="text" placeholder="ej: RAPPI" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);"></div>'
+      +'<div style="flex:1;min-width:110px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Logo preset</div><select id="logo-rule-key" style="width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:12px;background:#fff;color:var(--text);font-size:12.6px;font-family:var(--font);"><option value="">— ninguno —</option>'+rulesLogoOptionsHTML('')+'</select></div>'
+    +'</div>'
+    +'<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fff;border:1px dashed var(--border);border-radius:12px;margin-bottom:10px;">'
+      +'<div id="logo-rule-custom-preview" style="width:38px;height:38px;border-radius:10px;background:#f5f5fb;display:flex;align-items:center;justify-content:center;font-size:18px;color:var(--text3);flex-shrink:0;">📷</div>'
+      +'<div style="flex:1;min-width:0;">'
+        +'<div style="font-size:11.5px;font-weight:700;color:var(--text);font-family:var(--font);">O subí una imagen propia</div>'
+        +'<div style="font-size:10.5px;color:var(--text3);font-family:var(--font);margin-top:2px;">PNG, JPG o WebP · se redimensiona a 100×100 automáticamente</div>'
+      +'</div>'
+      +'<input type="file" accept="image/*" id="logo-rule-upload" style="display:none;" onchange="_handleLogoUpload(this,\'add\')">'
+      +'<button style="padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text2);font-size:11.2px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="document.getElementById(\'logo-rule-upload\').click()">Elegir archivo</button>'
+    +'</div>'
+    +'<div style="display:flex;justify-content:flex-end;">'
+      +'<button style="padding:10px 16px;border-radius:999px;border:none;background:var(--accent);color:#fff;font-size:12px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="addLogoRule()">Agregar</button>'
     +'</div>'
   +'</div>';
+
+  if(!rules.length){
+    html += '<div style="color:var(--text3);font-size:12.4px;padding:18px 14px;text-align:center;background:#f8f8fc;border-radius:14px;border:1px solid var(--border);font-family:var(--font);">Sin reglas de logo todavía.</div>';
+    return html;
+  }
+  html += _renderCollapseHeader('logo', rules.length);
+
+  if(!collapsed){
+    html += rules.map((r,i)=>{
+      if(i===editing){
+        const presetSel = rulesLogoOptionsHTML(r.logoKey||'');
+        return '<div style="padding:10px 12px;background:#fff8e1;border-radius:14px;margin-bottom:6px;border:1.5px solid var(--accent);">'
+          +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-bottom:8px;">'
+            +'<div style="flex:1;min-width:110px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Detectar</div><input id="logo-edit-keyword" type="text" value="'+esc(r.keyword)+'" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);font-size:12.4px;font-family:var(--font);"></div>'
+            +'<div style="flex:1;min-width:110px;"><div style="font-size:9.5px;color:var(--text3);margin-bottom:4px;font-weight:700;text-transform:uppercase;">Logo preset</div><select id="logo-edit-key" style="width:100%;padding:8px 10px;border:1px solid var(--border);border-radius:10px;background:#fff;color:var(--text);font-size:12.4px;font-family:var(--font);"><option value="">— ninguno —</option>'+presetSel+'</select></div>'
+          +'</div>'
+          +'<div style="display:flex;align-items:center;gap:10px;padding:8px 10px;background:#fff;border:1px dashed var(--border);border-radius:10px;margin-bottom:8px;">'
+            +'<div id="logo-edit-custom-preview" style="width:34px;height:34px;border-radius:8px;background:#f5f5fb;display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0;">'
+              +(r.logoCustomUrl?'<img src="'+esc(r.logoCustomUrl)+'" style="width:100%;height:100%;object-fit:cover;" alt="">':'<span style="font-size:14px;color:var(--text3);">📷</span>')
+            +'</div>'
+            +'<div style="flex:1;font-size:10.5px;color:var(--text3);">'+(r.logoCustomUrl?'Imagen custom cargada':'Sin imagen custom')+'</div>'
+            +'<input type="file" accept="image/*" id="logo-edit-upload" style="display:none;" onchange="_handleLogoUpload(this,\'edit\')">'
+            +'<button style="padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="document.getElementById(\'logo-edit-upload\').click()">'+(r.logoCustomUrl?'Cambiar':'Subir')+'</button>'
+            +(r.logoCustomUrl?'<button title="Quitar imagen" style="padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--danger);font-size:11px;font-weight:700;cursor:pointer;" onclick="_clearEditCustomLogo()">✕</button>':'')
+          +'</div>'
+          +'<div style="display:flex;gap:6px;justify-content:flex-end;">'
+            +'<button style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="cancelEditRule()">Cancelar</button>'
+            +'<button style="padding:6px 12px;border-radius:8px;border:none;background:var(--accent);color:#fff;font-size:11px;font-weight:700;cursor:pointer;font-family:var(--font);" onclick="saveEditLogoRule('+i+')">Guardar</button>'
+          +'</div>'
+        +'</div>';
+      }
+      const count=rulesCountMatches(r.keyword);
+      const isCustom = !!r.logoCustomUrl;
+      return '<div style="display:flex;align-items:center;gap:10px;padding:10px 12px;background:#fcfcfe;border-radius:14px;margin-bottom:6px;border:1px solid var(--border);'+(r.active===false?'opacity:.45;':'')+'">'
+        +'<div style="flex:1;min-width:0;">'
+          +'<div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">'
+            +'<span style="font-size:12.2px;font-weight:700;color:var(--text);background:#fff;padding:3px 8px;border-radius:999px;border:1px solid var(--border);font-family:var(--font);">'+esc(r.keyword)+'</span>'
+            +'<span style="font-size:10px;color:var(--text3);">→</span>'
+            +ruleLogoPreviewHtml(r.logoKey, r.logoCustomUrl)
+            +'<span style="font-size:11px;font-weight:700;color:var(--text);font-family:var(--font);">'+(isCustom?'Custom':esc(r.logoKey||'(sin preset)'))+'</span>'
+          +'</div>'
+          +'<div style="font-size:10.5px;color:var(--text3);margin-top:4px;font-family:var(--font);">'+count+' coincidencias</div>'
+        +'</div>'
+        +'<button title="Editar" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:3px 5px;opacity:.7;" onclick="startEditRule(\'logo\','+i+')">✎</button>'
+        +'<button title="Activar/desactivar" style="background:none;border:none;cursor:pointer;font-size:14px;color:'+(r.active!==false?'var(--accent)':'var(--text3)')+';padding:2px 4px;" onclick="toggleLogoRule('+i+')">'+(r.active!==false?'●':'○')+'</button>'
+        +'<button title="Eliminar" style="background:none;border:none;cursor:pointer;font-size:13px;color:var(--text3);padding:2px 4px;opacity:.6;" onclick="deleteLogoRule('+i+')">✕</button>'
+      +'</div>';
+    }).join('');
+  }
   return html;
 }
 
@@ -359,12 +500,128 @@ function deleteNameRule(idx){
 function addLogoRule(){
   const kw=(document.getElementById('logo-rule-keyword')?.value||'').trim();
   const logoKey=(document.getElementById('logo-rule-key')?.value||'').trim();
-  if(!kw||!logoKey){showToast('Completá detectar y logo','error');return;}
+  const customUrl = window._pendingLogoDataUrl || '';
+  if(!kw){showToast('Completá la keyword','error');return;}
+  if(!logoKey && !customUrl){showToast('Elegí un preset o subí una imagen','error');return;}
   if(!state.logoRules) state.logoRules=[];
-  state.logoRules.unshift({id:Date.now().toString(36),keyword:kw,logoKey,active:true,priority:state.logoRules.length+1});
+  state.logoRules.unshift({
+    id:Date.now().toString(36),
+    keyword:kw,
+    logoKey: logoKey || null,
+    logoCustomUrl: customUrl || null,
+    active:true,
+    priority:state.logoRules.length+1
+  });
+  window._pendingLogoDataUrl = null;
   reApplySuggestionsAll(false);
   saveState();renderRulesPanel();
   showToast('✓ Regla de logo agregada','success');
+}
+
+// ── Edit-save handlers ─────────────────────────────────────
+function saveEditCatRule(idx){
+  const r = state.catRules?.[idx]; if(!r) return;
+  const kw=(document.getElementById('cat-edit-keyword')?.value||'').trim();
+  const cat=(document.getElementById('cat-edit-cat')?.value||'').trim();
+  if(!kw||!cat){showToast('Completá keyword y categoría','error');return;}
+  r.keyword = kw;
+  r.category = cat;
+  state._editingRule = null;
+  reApplySuggestionsAll(false);
+  saveState();renderRulesPanel();
+  showToast('✓ Regla actualizada','success');
+}
+
+function saveEditNameRule(idx){
+  const r = state.nameRules?.[idx]; if(!r) return;
+  const kw=(document.getElementById('name-edit-keyword')?.value||'').trim();
+  const renameTo=(document.getElementById('name-edit-target')?.value||'').trim();
+  if(!kw||!renameTo){showToast('Completá detectar y renombrar','error');return;}
+  r.keyword = kw;
+  r.renameTo = renameTo;
+  state._editingRule = null;
+  reApplySuggestionsAll(false);
+  saveState();renderRulesPanel();
+  showToast('✓ Regla actualizada','success');
+}
+
+function saveEditLogoRule(idx){
+  const r = state.logoRules?.[idx]; if(!r) return;
+  const kw=(document.getElementById('logo-edit-keyword')?.value||'').trim();
+  const logoKey=(document.getElementById('logo-edit-key')?.value||'').trim();
+  if(!kw){showToast('Completá la keyword','error');return;}
+  // logoCustomUrl might have been updated via window._pendingLogoDataUrl
+  if(window._pendingLogoEditDataUrl !== undefined){
+    r.logoCustomUrl = window._pendingLogoEditDataUrl || null;
+    window._pendingLogoEditDataUrl = undefined;
+  }
+  if(!logoKey && !r.logoCustomUrl){showToast('Elegí un preset o una imagen','error');return;}
+  r.keyword = kw;
+  r.logoKey = logoKey || null;
+  state._editingRule = null;
+  reApplySuggestionsAll(false);
+  saveState();renderRulesPanel();
+  showToast('✓ Regla actualizada','success');
+}
+
+function _clearEditCustomLogo(){
+  window._pendingLogoEditDataUrl = null; // null means "remove"
+  const preview = document.getElementById('logo-edit-custom-preview');
+  if(preview) preview.innerHTML = '<span style="font-size:14px;color:var(--text3);">📷</span>';
+}
+
+// ── Image upload handler — resize + compress to data URL ──
+function _handleLogoUpload(input, mode){
+  const file = input.files && input.files[0];
+  if(!file) return;
+  if(!file.type.startsWith('image/')){
+    showToast('Solo imágenes (PNG/JPG/WebP)','error');
+    return;
+  }
+  if(file.size > 5 * 1024 * 1024){
+    showToast('Imagen demasiado grande (máx 5MB)','error');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      const MAX_DIM = 100;
+      const ratio = Math.min(MAX_DIM/img.width, MAX_DIM/img.height, 1);
+      const w = Math.max(1, Math.round(img.width * ratio));
+      const h = Math.max(1, Math.round(img.height * ratio));
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
+      ctx.drawImage(img, 0, 0, w, h);
+      // Try WebP first (smallest), fall back to PNG if not supported
+      let dataUrl;
+      try {
+        dataUrl = canvas.toDataURL('image/webp', 0.85);
+        if(!dataUrl.startsWith('data:image/webp')) dataUrl = canvas.toDataURL('image/png');
+      } catch(_) {
+        dataUrl = canvas.toDataURL('image/png');
+      }
+      // Store + show preview based on mode
+      if(mode === 'edit'){
+        window._pendingLogoEditDataUrl = dataUrl;
+        const preview = document.getElementById('logo-edit-custom-preview');
+        if(preview) preview.innerHTML = '<img src="'+esc(dataUrl)+'" style="width:100%;height:100%;object-fit:cover;" alt="">';
+      } else {
+        window._pendingLogoDataUrl = dataUrl;
+        const preview = document.getElementById('logo-rule-custom-preview');
+        if(preview) preview.innerHTML = '<img src="'+esc(dataUrl)+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" alt="">';
+      }
+      const sizeKb = Math.round(dataUrl.length * 0.75 / 1024);
+      showToast('✓ Imagen lista (' + sizeKb + ' KB · ' + w + '×' + h + ')','success');
+    };
+    img.onerror = () => showToast('No se pudo leer la imagen','error');
+    img.src = e.target.result;
+  };
+  reader.onerror = () => showToast('Error leyendo el archivo','error');
+  reader.readAsDataURL(file);
 }
 
 function acceptLogoSuggestion(keyword, logoKey){

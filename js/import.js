@@ -793,18 +793,27 @@ function detectBuiltinLogoKey(t){
 }
 
 function applyLogoRulesToTransaction(t){
-  const hasCustomLogo = !!(t.customLogoUrl || t.logoUrl || t.merchantLogoUrl);
-  if(hasCustomLogo) return false;
   const haystack = txnRuleHaystack(t);
-  if(!haystack) return false;
   const logoRules = getLogoRulesSorted();
   for(const rule of logoRules){
     const keyword = normalizeRuleKeyword(rule.keyword);
-    if(!keyword || !haystack.includes(keyword)) continue;
-    t.logoKey = rule.logoKey;
+    if(!keyword || !haystack || !haystack.includes(keyword)) continue;
+    if(rule.logoCustomUrl){
+      // Custom uploaded image takes priority — overrides any existing logo
+      t.customLogoUrl = rule.logoCustomUrl;
+      t.logoKey = null;
+    } else if(rule.logoKey){
+      t.logoKey = rule.logoKey;
+      // Clear custom logo only if it came from another rule (not user-set per-txn)
+      if(t.customLogoUrl && t._customLogoFromRule) t.customLogoUrl = null;
+    }
     t.appliedLogoRuleId = rule.id || null;
+    t._customLogoFromRule = !!rule.logoCustomUrl;
     return true;
   }
+  // No rule matched — fall back to built-in detection only if no logo present
+  const hasCustomLogo = !!(t.customLogoUrl || t.logoUrl || t.merchantLogoUrl);
+  if(hasCustomLogo) return false;
   const builtin = detectBuiltinLogoKey(t);
   if(builtin){
     t.logoKey = builtin;
