@@ -735,7 +735,7 @@ function saveSueldo(){
   saveState();
   closeIncModal();
   renderIncomePage();
-  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof refreshAll === 'function') refreshAll(); else if (typeof renderDashboard === 'function') renderDashboard();
   showToast('✓ Sueldo guardado', 'success');
 }
 
@@ -882,7 +882,7 @@ function saveExtra(extraId){
   saveState();
   closeIncModal();
   renderIncomePage();
-  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof refreshAll === 'function') refreshAll(); else if (typeof renderDashboard === 'function') renderDashboard();
   showToast(extraId ? '✓ Extra actualizado' : '✓ Extra registrado', 'success');
 }
 
@@ -893,7 +893,7 @@ function deleteExtra(monthKey, extraId){
   saveState();
   closeIncModal();
   renderIncomePage();
-  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof refreshAll === 'function') refreshAll(); else if (typeof renderDashboard === 'function') renderDashboard();
   showToast('Extra eliminado', 'success');
 }
 
@@ -1010,7 +1010,7 @@ function deleteIncomeMonth(monthKey){
   state.incomeMonths = (state.incomeMonths||[]).filter(m => m.month !== monthKey);
   saveState();
   renderIncomePage();
-  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof refreshAll === 'function') refreshAll(); else if (typeof renderDashboard === 'function') renderDashboard();
   showToast('Mes eliminado', 'success');
 }
 
@@ -1018,7 +1018,7 @@ function saveIncMargenConfig(val){
   const pct = Math.max(0, Math.min(100, parseInt(val || 70)));
   state.spendPct = pct;
   saveState();
-  if (typeof renderDashboard === 'function') renderDashboard();
+  if (typeof refreshAll === 'function') refreshAll(); else if (typeof renderDashboard === 'function') renderDashboard();
 }
 
 // ═══════════════════════════════════════════════════════════

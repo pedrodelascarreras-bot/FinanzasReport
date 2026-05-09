@@ -42,14 +42,18 @@
 
   function balanceMonthKeys(){
     const months=new Set();
-    const currentMonth=getMonthKey(new Date());
+    // Include ALL months that have transactions or income (current month included)
     (state.transactions||[]).forEach(t=>{
       const month=t.month||getMonthKey(t.date);
-      if(month&&month<currentMonth) months.add(month);
+      if(month) months.add(month);
     });
     (state.incomeMonths||[]).forEach(m=>{
-      if(!m?.month||m.month>=currentMonth) return;
-      const hasIncome=(Number(m.extraArs)||0)>0 || (Number(m.extraUsd)||0)>0 || Object.values(m.sources||{}).some(v=>(Number(v)||0)>0);
+      if(!m?.month) return;
+      // V2 schema-aware
+      const isV2 = m && m.schemaVersion === 2;
+      const hasIncome = isV2
+        ? ((Number(m.salary?.ars?.amount)||0)>0 || (Number(m.salary?.usd?.amount)||0)>0 || (Number(m.salary?.commissions?.amount)||0)>0 || (m.extras||[]).some(e=>(Number(e.amount)||0)>0))
+        : ((Number(m.extraArs)||0)>0 || (Number(m.extraUsd)||0)>0 || Object.values(m.sources||{}).some(v=>(Number(v)||0)>0));
       if(hasIncome) months.add(m.month);
     });
     return [...months].filter(Boolean).sort().reverse();
@@ -92,22 +96,34 @@
     let extraUsd=0;
 
     if(monthEntry){
-      Object.entries(monthEntry.sources||{}).forEach(([srcId,amount])=>{
-        const source=(state.incomeSources||[]).find(s=>s.id===srcId);
-        if(!source) return;
-        const numeric=Number(amount)||0;
-        const target=(source.type==='fijo') ? 'fixed' : 'variable';
-        if(source.currency==='USD'){
-          if(target==='fixed') fixedUsd+=numeric;
-          else variableUsd+=numeric;
-        }else{
-          if(target==='fixed') fixedArs+=numeric;
-          else variableArs+=numeric;
-        }
-      });
-      // In the monthly logging modal these fields are the main salary in ARS/USD.
-      fixedArs+=Number(monthEntry.extraArs)||0;
-      fixedUsd+=Number(monthEntry.extraUsd)||0;
+      // V2 schema: salary (fixed), commissions (variable), extras (extras)
+      if (monthEntry.schemaVersion === 2) {
+        fixedArs += Number(monthEntry.salary?.ars?.amount) || 0;
+        fixedUsd += Number(monthEntry.salary?.usd?.amount) || 0;
+        variableUsd += Number(monthEntry.salary?.commissions?.amount) || 0;
+        (monthEntry.extras || []).forEach(e => {
+          const amt = Number(e.amount) || 0;
+          if ((e.currency || 'ARS') === 'USD') extraUsd += amt;
+          else extraArs += amt;
+        });
+      } else {
+        // V1 legacy
+        Object.entries(monthEntry.sources||{}).forEach(([srcId,amount])=>{
+          const source=(state.incomeSources||[]).find(s=>s.id===srcId);
+          if(!source) return;
+          const numeric=Number(amount)||0;
+          const target=(source.type==='fijo') ? 'fixed' : 'variable';
+          if(source.currency==='USD'){
+            if(target==='fixed') fixedUsd+=numeric;
+            else variableUsd+=numeric;
+          }else{
+            if(target==='fixed') fixedArs+=numeric;
+            else variableArs+=numeric;
+          }
+        });
+        fixedArs+=Number(monthEntry.extraArs)||0;
+        fixedUsd+=Number(monthEntry.extraUsd)||0;
+      }
     }else if((state.incomeSources||[]).length){
       (state.incomeSources||[]).forEach(source=>{
         if(source.active===false) return;
