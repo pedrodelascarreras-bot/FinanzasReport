@@ -28124,8 +28124,32 @@ body.light-mode .tdp-gc-eq-step { background: rgba(36,124,255,0.1); color: #1d6a
 .mob-gc-badge.cobrado { background: rgba(52,199,89,0.15); color: #34C759; }
 .mob-gc-pending-total { font-size: 12px; font-weight: 700; color: #FF9500; }
 
+/* ── Split mode tabs ── */
+.tdp-gc-mode-tabs { display: flex; gap: 6px; margin-bottom: 4px; }
+.tdp-gc-mode-tab {
+  flex: 1; padding: 8px 10px; border-radius: 10px;
+  font-size: 12px; font-weight: 700; cursor: pointer; transition: all .15s;
+  background: rgba(255,255,255,0.04); color: var(--text3);
+  border: 1.5px solid rgba(255,255,255,0.08);
+}
+.tdp-gc-mode-tab.active {
+  background: rgba(124,77,255,0.14); color: #A67AFF;
+  border-color: rgba(124,77,255,0.3);
+}
+.tdp-gc-mode-tab:hover:not(.active) { background: rgba(255,255,255,0.07); color: var(--text2); }
+
+/* ── Split card (replaces split-row with clearer layout) ── */
+.tdp-gc-split-card {
+  padding: 12px; background: rgba(124,77,255,0.05);
+  border-radius: 14px; border: 1px solid rgba(124,77,255,0.12);
+}
+.tdp-gc-split-card + .tdp-gc-split-card { margin-top: 8px; }
+
 /* Light mode overrides */
 body.light-mode .tdp-gc-split-row { background: rgba(93,53,243,0.04); border-color: rgba(93,53,243,0.1); }
+body.light-mode .tdp-gc-split-card { background: rgba(93,53,243,0.04); border-color: rgba(93,53,243,0.1); }
+body.light-mode .tdp-gc-mode-tab { background: rgba(0,0,0,0.03); border-color: rgba(0,0,0,0.08); color: #6B7399; }
+body.light-mode .tdp-gc-mode-tab.active { background: rgba(93,53,243,0.08); color: #5d35f3; border-color: rgba(93,53,243,0.25); }
 body.light-mode .mob-gc-name { color: #1a1535; }
 body.light-mode .mob-gc-person-row { border-bottom-color: rgba(0,0,0,0.06); }
 body.light-mode .mob-txn-shared-badge { background: rgba(93,53,243,0.1); color: #5d35f3; }

@@ -30,6 +30,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
+<script>(function(){const t=localStorage.getItem('fin_theme')||'light';if(t==='light')document.body.classList.add('light-mode');})();</script>
 
 <!-- ═══ DAILY BRIEFING SPLASH ═══ -->
 <div id="splash" style="display:none;" onclick="if(event.target===this)dismissSplash()">
@@ -728,7 +729,7 @@
       <!-- ROW 4: Recordatorios de terceros -->
       <div class="db2-w db2-third-card">
         <div class="db2-hd">
-          <span class="db2-title">Gastos de terceros</span>
+          <span class="db2-title">Gastos Compartidos</span>
           <button class="db2-link" onclick="openThirdPartyTransactions()">Ver en movimientos →</button>
         </div>
         <div class="db2-third-summary" id="db2-third-summary"><!-- populated by JS --></div>

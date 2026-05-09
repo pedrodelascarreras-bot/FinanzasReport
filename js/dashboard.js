@@ -4616,8 +4616,8 @@ function renderMobileDashboard(data) {
       const _gcTxns=(typeof state!=='undefined'&&state.transactions?state.transactions:[]).filter(t=>t.sharedExpense&&t.sharedExpense.enabled);
       if(!_gcTxns.length) return '';
       const _gcSummary=typeof getSharedExpenseSummary==='function'?getSharedExpenseSummary(_gcTxns):[];
-      const _gcPending=_gcSummary.filter(p=>p.pendingArs>0);
-      const _gcCobrado=_gcSummary.filter(p=>p.pendingArs===0&&p.cobradoArs>0);
+      const _gcPending=_gcSummary.filter(p=>p.count>0);
+      const _gcCobrado=_gcSummary.filter(p=>p.count===0&&p.cobradoCount>0);
       const _gcTotalPendingArs=_gcPending.reduce((s,p)=>s+p.pendingArs,0);
       const _gcEsc=(s)=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       return `
@@ -4635,8 +4635,8 @@ function renderMobileDashboard(data) {
                   <div class="mob-gc-meta">${p.count>0?p.count+' gasto'+(p.count!==1?'s':''):''} ${p.cobradoCount>0?'· '+p.cobradoCount+' cobrado'+(p.cobradoCount!==1?'s':''):''}</div>
                 </div>
                 <div class="mob-gc-right">
-                  ${p.pendingArs>0?`<div class="mob-gc-amount pending">$${fmtN(Math.round(p.pendingArs))}</div><div class="mob-gc-badge pending">Pendiente</div>`:''}
-                  ${p.cobradoArs>0&&p.pendingArs===0?`<div class="mob-gc-amount cobrado">$${fmtN(Math.round(p.cobradoArs))}</div><div class="mob-gc-badge cobrado">✓ Cobrado</div>`:''}
+                  ${p.count>0?`<div class="mob-gc-amount pending">${p.pendingArs>0?'$'+fmtN(Math.round(p.pendingArs)):'Pendiente'}</div><div class="mob-gc-badge pending">⏳ Pendiente</div>`:''}
+                  ${p.count===0&&p.cobradoCount>0?`<div class="mob-gc-amount cobrado">$${fmtN(Math.round(p.cobradoArs))}</div><div class="mob-gc-badge cobrado">✓ Cobrado</div>`:''}
                 </div>
               </div>`).join('')}
           </div>
