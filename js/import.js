@@ -744,7 +744,7 @@ function getNameRulesSorted(){
 function getLogoRulesSorted(){
   const rules = Array.isArray(state.logoRules) ? state.logoRules : [];
   return [...rules]
-    .filter(r=>r && r.active!==false && normalizeRuleKeyword(r.keyword) && r.logoKey)
+    .filter(r => r && r.active !== false && normalizeRuleKeyword(r.keyword) && (r.logoKey || r.logoCustomUrl))
     .sort((a,b)=>(b.priority||0)-(a.priority||0));
 }
 
