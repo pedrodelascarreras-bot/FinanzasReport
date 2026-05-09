@@ -843,8 +843,12 @@ function getTxnDisplaySummaryTotals(opts){
   const hasCardFilter=!!opts?.hasCardFilter;
   const estadoFilter=opts?.estadoFilter||'all';
 
+  // Personal amounts (user's actual share)
   let arsTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0),0);
   let usdTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0),0);
+  // Full amounts (what the card actually charges) — for TC view display
+  let arsFullTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='ARS').reduce((s,t)=>s+(Number(t.amount)||0),0);
+  let usdFullTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
 
   const canUseProjectedTotals=
     !searchVal &&
@@ -861,6 +865,8 @@ function getTxnDisplaySummaryTotals(opts){
     );
     arsTotal=billableActualTxns.filter(t=>(t.currency||'ARS')!=='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0),0);
     usdTotal=billableActualTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0),0);
+    arsFullTotal=billableActualTxns.filter(t=>(t.currency||'ARS')!=='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
+    usdFullTotal=billableActualTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
   }
 
   if(canUseProjectedTotals){
@@ -894,13 +900,26 @@ function getTxnDisplaySummaryTotals(opts){
       const projectedTotals=sumProjectedCommitmentTotals(projectedEntries);
       arsTotal+=projectedTotals.ars;
       usdTotal+=projectedTotals.usd;
+      // For full totals, sum entry.amount (full) instead of personalAmount
+      const projectedFullTotals=projectedEntries.reduce((acc,entry)=>{
+        if(!entry?.includeInTotal) return acc;
+        if((entry.currency||'ARS')==='USD') acc.usd+=(Number(entry.amount)||0);
+        else acc.ars+=(Number(entry.amount)||0);
+        return acc;
+      },{ars:0,usd:0});
+      arsFullTotal+=projectedFullTotals.ars;
+      usdFullTotal+=projectedFullTotals.usd;
     }
   }
 
+  const _rate=window.USD_TO_ARS||USD_TO_ARS||1;
   return {
     ars:arsTotal,
     usd:usdTotal,
-    grand:arsTotal+(usdTotal*(window.USD_TO_ARS||USD_TO_ARS||1))
+    grand:arsTotal+(usdTotal*_rate),
+    arsFull:arsFullTotal,
+    usdFull:usdFullTotal,
+    grandFull:arsFullTotal+(usdFullTotal*_rate)
   };
 }
 
@@ -1135,7 +1154,7 @@ function renderTransactions(){
       {k:'all',label:'Todos',cls:''},
       {k:'sin_categoria',label:'⏳ Sin categoría',cls:'pendiente'},
       {k:'duplicado_sospechoso',label:'⊘ Duplicados',cls:'duplicado'},
-      ...(estadoCounts.terceros>0?[{k:'terceros',label:'👤 De terceros',cls:'terceros'}]:[]),
+      ...(estadoCounts.terceros>0?[{k:'terceros',label:'🤝 Gastos Compartidos',cls:'terceros'}]:[]),
     ].map(tab=>{
       const cnt=tab.k==='all'?allPeriodTxns.length:(estadoCounts[tab.k]||0);
       const act=estadoF===tab.k;
@@ -1172,6 +1191,32 @@ function renderTransactions(){
   const arsTotal=displayTotals.ars;
   const usdTotal=displayTotals.usd;
   const grandTotal=displayTotals.grand;
+  const arsFullTotal=displayTotals.arsFull!=null?displayTotals.arsFull:arsTotal;
+  const usdFullTotal=displayTotals.usdFull!=null?displayTotals.usdFull:usdTotal;
+  const grandFullTotal=displayTotals.grandFull!=null?displayTotals.grandFull:grandTotal;
+  const _isTcMode=mode!=='mes';
+  // ── Shared expense aggregates for chip + insights panel ──
+  const _shTxns=txns.filter(t=>!!t.sharedExpense&&!!t.sharedExpense.enabled);
+  const _shCount=_shTxns.length;
+  const _USD_TO_ARS=window.USD_TO_ARS||USD_TO_ARS||1;
+  let _shFullArs=0,_shPersonalArs=0,_shPendingArs=0,_shCobradoArs=0,_shPendingCount=0,_shCobradoCount=0;
+  const _shByPerson={};
+  _shTxns.forEach(t=>{
+    const isUSD=(t.currency||'ARS')==='USD';
+    const fullAmt=Number(t.amount)||0;
+    const myAmt=Number(t.sharedExpense?.myAmount)||0;
+    _shFullArs+=isUSD?fullAmt*_USD_TO_ARS:fullAmt;
+    _shPersonalArs+=isUSD?myAmt*_USD_TO_ARS:myAmt;
+    (t.sharedExpense.splits||[]).forEach(s=>{
+      const sAmt=Number(s.amount)||0;
+      const sAmtArs=isUSD?sAmt*_USD_TO_ARS:sAmt;
+      const name=(s.name||'').trim()||'(sin nombre)';
+      if(!_shByPerson[name])_shByPerson[name]={name,pendingArs:0,cobradoArs:0,pendingCount:0,cobradoCount:0};
+      if(s.status==='cobrado'){_shCobradoArs+=sAmtArs;_shCobradoCount++;_shByPerson[name].cobradoArs+=sAmtArs;_shByPerson[name].cobradoCount++;}
+      else{_shPendingArs+=sAmtArs;_shPendingCount++;_shByPerson[name].pendingArs+=sAmtArs;_shByPerson[name].pendingCount++;}
+    });
+  });
+  const _shPeople=Object.values(_shByPerson).sort((a,b)=>b.pendingArs-a.pendingArs);
   const mainEl=document.getElementById('txns-main');const detailEl=document.getElementById('txns-detail');
   const arsEl=document.getElementById('txns-total-ars');const usdEl=document.getElementById('txns-total-usd');
   if(searchVal){const sArs=summaryTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);const sUsd=summaryTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);if(mainEl)mainEl.textContent=txns.length+' resultado'+(txns.length!==1?'s':'');if(arsEl)arsEl.textContent=sArs>0?'$'+fmtN(sArs):'—';if(usdEl)usdEl.textContent=sUsd>0?'U$D '+fmtN(sUsd):'—';}
@@ -1264,7 +1309,7 @@ function renderTransactions(){
       {key:'all',label:'Todos',count:allPeriodTxns.length},
       {key:'sin_categoria',label:'Sin categoría',count:estadoCounts.sin_categoria},
       {key:'duplicado_sospechoso',label:'Duplicadas',count:estadoCounts.duplicado_sospechoso},
-      {key:'terceros',label:'De terceros',count:estadoCounts.terceros},
+      {key:'terceros',label:'🤝 Gastos Compartidos',count:estadoCounts.terceros},
     ].filter(item=>item.count>0 || item.key==='all');
     const chips=[
       {key:'todos',label:'Todos',active:quickFilter==='todos' && !activeCur && !activeCat},
@@ -1326,6 +1371,41 @@ function renderTransactions(){
         +'.mv-summary-icon{width:30px;height:30px;border-radius:11px;background:var(--mv-tone-soft);color:var(--mv-tone);display:flex;align-items:center;justify-content:center;font-size:14px;box-shadow:inset 0 1px 0 rgba(255,255,255,.78);}'
         +'.mv-summary-card .v{font-size:21.5px;font-weight:850;letter-spacing:-.035em;color:#1f1a33;font-family:var(--font);position:relative;z-index:1;}'
         +'.mv-summary-card .s{margin-top:7px;font:700 11px var(--font);color:#8b86a1;position:relative;z-index:1;}'
+        +'.mv-summary-tuparte{margin-top:6px;font-size:12.5px;font-weight:600;color:#5d35f3;font-family:var(--font);position:relative;z-index:1;letter-spacing:-0.005em;}'
+        +'.mv-summary-tuparte strong{font-weight:800;color:#4a28d9;}'
+        +'.mv-shared-chip{display:flex;align-items:center;gap:9px;flex-wrap:wrap;padding:11px 16px;margin-bottom:12px;border-radius:14px;background:linear-gradient(90deg,rgba(124,77,255,0.06),rgba(93,53,243,0.04));border:1px solid rgba(124,77,255,0.18);font-family:var(--font);}'
+        +'.mv-shared-chip-emoji{font-size:16px;}'
+        +'.mv-shared-chip-main{font-size:12.5px;font-weight:700;color:#4a28d9;}'
+        +'.mv-shared-chip-main strong{font-weight:800;}'
+        +'.mv-shared-chip-sep{color:rgba(74,40,217,0.3);font-size:12px;}'
+        +'.mv-shared-chip-item{font-size:12px;font-weight:600;color:#615b79;}'
+        +'.mv-shared-chip-item strong{font-weight:800;color:#1f1a33;}'
+        +'.mv-shared-chip-item.pending{color:#ea580c;}'
+        +'.mv-shared-chip-item.pending strong{color:#c2410c;}'
+        +'.mv-shared-chip-item.cobrado{color:#16a34a;}'
+        +'.mv-shared-chip-item.cobrado strong{color:#15803d;}'
+        +'.mv-shared-insights{margin-bottom:14px;padding:18px 20px;border-radius:18px;background:#fff;border:1px solid rgba(97,89,139,.12);box-shadow:0 4px 14px rgba(43,37,68,.04);font-family:var(--font);}'
+        +'.mv-shared-insights-head{margin-bottom:14px;}'
+        +'.mv-shared-insights-title{font-size:14px;font-weight:800;color:#1f1a33;margin-bottom:3px;}'
+        +'.mv-shared-insights-sub{font-size:11.5px;color:#7c7791;font-weight:600;}'
+        +'.mv-shared-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;}'
+        +'.mv-shared-stat{padding:12px 14px;border-radius:12px;background:#f7f6fc;border:1px solid rgba(97,89,139,.08);}'
+        +'.mv-shared-stat.pending{background:rgba(255,149,0,0.06);border-color:rgba(255,149,0,0.18);}'
+        +'.mv-shared-stat.cobrado{background:rgba(52,199,89,0.06);border-color:rgba(52,199,89,0.18);}'
+        +'.mv-shared-stat .ms-label{font-size:10.5px;font-weight:800;letter-spacing:0.04em;color:#7d7894;text-transform:uppercase;margin-bottom:5px;}'
+        +'.mv-shared-stat .ms-value{font-size:18px;font-weight:850;letter-spacing:-0.025em;color:#1f1a33;}'
+        +'.mv-shared-stat .ms-sub{font-size:10.5px;color:#8b86a1;font-weight:600;margin-top:2px;}'
+        +'.mv-shared-stat.pending .ms-value{color:#c2410c;}'
+        +'.mv-shared-stat.cobrado .ms-value{color:#15803d;}'
+        +'.mv-shared-people-title{font-size:11.5px;font-weight:800;color:#615b79;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px;}'
+        +'.mv-shared-people-list{display:flex;flex-direction:column;gap:8px;}'
+        +'.mv-shared-person{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:11px;align-items:center;padding:10px 12px;border-radius:12px;background:#fbfbfe;border:1px solid rgba(97,89,139,.07);}'
+        +'.mv-shared-person-avatar{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:11.5px;font-weight:800;}'
+        +'.mv-shared-person-name{font-size:13px;font-weight:700;color:#1f1a33;line-height:1.2;}'
+        +'.mv-shared-person-meta{font-size:10.5px;color:#7c7791;font-weight:600;margin-top:2px;}'
+        +'.mv-shared-person-amounts{display:flex;flex-direction:column;align-items:flex-end;gap:3px;}'
+        +'.mv-shared-person-pending{font-size:12.5px;font-weight:800;color:#c2410c;}'
+        +'.mv-shared-person-cobrado{font-size:12.5px;font-weight:800;color:#15803d;}'
         +'.mv-summary-card.ars{--mv-tone:#2563eb;--mv-tone-2:#38bdf8;--mv-tone-soft:rgba(37,99,235,.11);border-color:rgba(37,99,235,.14);}'
         +'.mv-summary-card.usd{--mv-tone:#10b981;--mv-tone-2:#84cc16;--mv-tone-soft:rgba(16,185,129,.12);border-color:rgba(16,185,129,.16);}'
         +'.mv-summary-card.total{--mv-tone:#5d35f3;--mv-tone-2:#ec4899;--mv-tone-soft:rgba(93,53,243,.12);border-color:rgba(93,53,243,.18);}'
@@ -1483,14 +1563,70 @@ function renderTransactions(){
               +'<button class="mv-chip'+((state.txnCardFilter||'')==='visa'?' active':'')+'" onclick="txnSetCardChip(\'visa\')">Solo VISA</button>'
               +'<button class="mv-chip'+((state.txnCardFilter||'')==='amex'?' active':'')+'" onclick="txnSetCardChip(\'amex\')">Solo AMEX</button>'
             +'</div>')
-          +'<div class="mv-summary">'
-            +'<div class="mv-card mv-summary-card ars"><div class="mv-summary-head"><div class="k">SALDO EN ARS</div><div class="mv-summary-icon">$</div></div><div class="v">$'+fmtN(arsTotal)+'</div><div class="s">Gasto local del período</div></div>'
-            +'<div class="mv-card mv-summary-card usd"><div class="mv-summary-head"><div class="k">EN USD</div><div class="mv-summary-icon">US</div></div><div class="v usd">'+(usdTotal>0?'USD '+fmtN(usdTotal):'—')+'</div><div class="s">Consumos dolarizados</div></div>'
-            +'<div class="mv-card mv-summary-card total"><div class="mv-summary-head"><div class="k">TOTAL DEL PERÍODO</div><div class="mv-summary-icon">Σ</div></div><div class="v total">$'+fmtN(grandTotal)+'</div><div class="s">ARS + USD convertido</div></div>'
-          +'</div>'
+          +(()=>{
+            // Smart contextual: in TC mode show FULL (what card bills) + sublinea personal.
+            // In mes mode show PERSONAL (your actual spending).
+            const arsBig=_isTcMode?arsFullTotal:arsTotal;
+            const usdBig=_isTcMode?usdFullTotal:usdTotal;
+            const grandBig=_isTcMode?grandFullTotal:grandTotal;
+            const arsSubLine=_isTcMode&&Math.abs(arsFullTotal-arsTotal)>0.5
+              ? '<div class="mv-summary-tuparte">🤝 Tu parte: <strong>$'+fmtN(arsTotal)+'</strong></div>' : '';
+            const usdSubLine=_isTcMode&&Math.abs(usdFullTotal-usdTotal)>0.005
+              ? '<div class="mv-summary-tuparte">🤝 Tu parte: <strong>USD '+fmtN(usdTotal)+'</strong></div>' : '';
+            const grandSubLine=_isTcMode&&Math.abs(grandFullTotal-grandTotal)>0.5
+              ? '<div class="mv-summary-tuparte">🤝 Tu parte: <strong>$'+fmtN(grandTotal)+'</strong></div>' : '';
+            const arsSubText=_isTcMode?'Lo que cobra la tarjeta':'Tu gasto personal del mes';
+            const usdSubText=_isTcMode?'Lo que cobra la tarjeta':'Tu gasto personal del mes';
+            const grandSubText=_isTcMode?'ARS + USD convertido':'ARS + USD convertido (personal)';
+            return '<div class="mv-summary">'
+              +'<div class="mv-card mv-summary-card ars"><div class="mv-summary-head"><div class="k">SALDO EN ARS</div><div class="mv-summary-icon">$</div></div><div class="v">$'+fmtN(arsBig)+'</div>'+arsSubLine+'<div class="s">'+arsSubText+'</div></div>'
+              +'<div class="mv-card mv-summary-card usd"><div class="mv-summary-head"><div class="k">EN USD</div><div class="mv-summary-icon">US</div></div><div class="v usd">'+(usdBig>0?'USD '+fmtN(usdBig):'—')+'</div>'+usdSubLine+'<div class="s">'+usdSubText+'</div></div>'
+              +'<div class="mv-card mv-summary-card total"><div class="mv-summary-head"><div class="k">TOTAL DEL PERÍODO</div><div class="mv-summary-icon">Σ</div></div><div class="v total">$'+fmtN(grandBig)+'</div>'+grandSubLine+'<div class="s">'+grandSubText+'</div></div>'
+            +'</div>';
+          })()
+          +(_shCount>0?'<div class="mv-shared-chip" title="Resumen de gastos compartidos del período">'
+            +'<span class="mv-shared-chip-emoji">🤝</span>'
+            +'<span class="mv-shared-chip-main"><strong>'+_shCount+'</strong> gasto'+(_shCount!==1?'s':'')+' compartido'+(_shCount!==1?'s':'')+'</span>'
+            +'<span class="mv-shared-chip-sep">·</span>'
+            +'<span class="mv-shared-chip-item">Total <strong>$'+fmtN(Math.round(_shFullArs))+'</strong></span>'
+            +'<span class="mv-shared-chip-sep">·</span>'
+            +'<span class="mv-shared-chip-item">Tu parte <strong>$'+fmtN(Math.round(_shPersonalArs))+'</strong></span>'
+            +(_shPendingArs>0?'<span class="mv-shared-chip-sep">·</span><span class="mv-shared-chip-item pending">Por cobrar <strong>$'+fmtN(Math.round(_shPendingArs))+'</strong></span>':'')
+            +(_shCobradoArs>0?'<span class="mv-shared-chip-sep">·</span><span class="mv-shared-chip-item cobrado">Cobrado <strong>$'+fmtN(Math.round(_shCobradoArs))+'</strong></span>':'')
+          +'</div>':'')
           +'<div class="mv-status-pills">'
             +statusChips.map(ch=>'<button class="mv-status-pill'+(activeEstado===ch.key?' active':'')+'" onclick="txnSetEstadoChip(\''+ch.key+'\')">'+esc(ch.label)+' <span>'+ch.count+'</span></button>').join('')
           +'</div>'
+          +(activeEstado==='terceros'&&_shCount>0?'<div class="mv-shared-insights">'
+            +'<div class="mv-shared-insights-head">'
+              +'<div class="mv-shared-insights-title">🤝 Resumen de gastos compartidos</div>'
+              +'<div class="mv-shared-insights-sub">Vista detallada de cuánto te debe cada persona en este período</div>'
+            +'</div>'
+            +'<div class="mv-shared-stats">'
+              +'<div class="mv-shared-stat"><div class="ms-label">Total registrado</div><div class="ms-value">$'+fmtN(Math.round(_shFullArs))+'</div><div class="ms-sub">'+_shCount+' gasto'+(_shCount!==1?'s':'')+'</div></div>'
+              +'<div class="mv-shared-stat"><div class="ms-label">Tu parte</div><div class="ms-value">$'+fmtN(Math.round(_shPersonalArs))+'</div><div class="ms-sub">lo que pusiste de tu bolsillo</div></div>'
+              +'<div class="mv-shared-stat pending"><div class="ms-label">Plata por cobrar</div><div class="ms-value">$'+fmtN(Math.round(_shPendingArs))+'</div><div class="ms-sub">'+_shPendingCount+' pendiente'+(_shPendingCount!==1?'s':'')+'</div></div>'
+              +'<div class="mv-shared-stat cobrado"><div class="ms-label">Plata cobrada</div><div class="ms-value">$'+fmtN(Math.round(_shCobradoArs))+'</div><div class="ms-sub">'+_shCobradoCount+' split'+(_shCobradoCount!==1?'s':'')+' cobrados</div></div>'
+            +'</div>'
+            +(_shPeople.length?'<div class="mv-shared-people-title">Quién te debe</div>'
+              +'<div class="mv-shared-people-list">'
+                +_shPeople.map(p=>{
+                  const initials=(p.name||'?').trim().split(/\s+/).slice(0,2).map(w=>(w[0]||'').toUpperCase()).join('')||'?';
+                  const hue=[...initials].reduce((a,c)=>a+c.charCodeAt(0),0)%360;
+                  return '<div class="mv-shared-person">'
+                    +'<div class="mv-shared-person-avatar" style="background:hsl('+hue+',55%,50%);">'+esc(initials)+'</div>'
+                    +'<div class="mv-shared-person-info">'
+                      +'<div class="mv-shared-person-name">'+esc(p.name)+'</div>'
+                      +'<div class="mv-shared-person-meta">'+(p.pendingCount>0?p.pendingCount+' pendiente'+(p.pendingCount!==1?'s':''):'')+(p.pendingCount>0&&p.cobradoCount>0?' · ':'')+(p.cobradoCount>0?p.cobradoCount+' cobrado'+(p.cobradoCount!==1?'s':''):'')+'</div>'
+                    +'</div>'
+                    +'<div class="mv-shared-person-amounts">'
+                      +(p.pendingArs>0?'<span class="mv-shared-person-pending">⏳ $'+fmtN(Math.round(p.pendingArs))+'</span>':'')
+                      +(p.cobradoArs>0?'<span class="mv-shared-person-cobrado">✓ $'+fmtN(Math.round(p.cobradoArs))+'</span>':'')
+                    +'</div>'
+                  +'</div>';
+                }).join('')
+              +'</div>':'')
+          +'</div>':'')
           +(groupedDays.length?groupedDays.map((group,idx)=>{
             const delta=avgDaily?Math.round(((group.total-avgDaily)/avgDaily)*100):0;
             const deltaCls=delta>=0?'up':'down';
