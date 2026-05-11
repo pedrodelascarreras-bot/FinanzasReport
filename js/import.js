@@ -246,6 +246,13 @@ function parsePasteTextWithReview(text){
         const prev=txns[txns.length-1];
         prev.cuotaNum=num;
         prev.cuotaTotal=total;
+        // Generate stable cuotaGroupId so auto-projection of remaining cuotas works
+        // (same logic as Gmail import in init.js line 1540) — based on comercio + per-cuota amount + total.
+        // All cuotas of the same plan share the same groupId regardless of import source.
+        if(!prev.cuotaGroupId){
+          const _slug = String(prev._baseDesc||prev.description||'').toLowerCase().replace(/[^a-z0-9]/g,'').substring(0,15);
+          prev.cuotaGroupId = 'cg_' + _slug + '_' + (Number(prev.amount)||0) + '_' + total;
+        }
         prev.description=prev._baseDesc+' (Cuota '+num+'/'+total+')';
         // Si la fecha del gasto es de un mes anterior al período del resumen,
         // corregirla: la cuota corresponde al período actual, no al inicio de la cuota.
@@ -424,7 +431,15 @@ function cancelImportReview(){
   window._pendingImportTxns=[];
 }
 function autoCreateGmailCuotas(txns){
-  // For each imported Gmail cuota transaction, generate projected installment transactions
+  // For each imported cuota transaction (any source), generate projected installment transactions.
+  // Defensive: derive cuotaGroupId on the fly if a parser didn't set one.
+  txns.forEach(t=>{
+    if(!t.cuotaGroupId && t.cuotaTotal>=2 && !t.isPendingCuota){
+      const _base=String(t._baseDesc||t.description||'').replace(/\s*\(?(?:Cuota\s+\d+\s+de\s+\d+|\d+\/\d+)\)?\s*$/i,'').trim();
+      const _slug=_base.toLowerCase().replace(/[^a-z0-9]/g,'').substring(0,15);
+      t.cuotaGroupId='cg_'+_slug+'_'+(Number(t.amount)||0)+'_'+t.cuotaTotal;
+    }
+  });
   const cuotaTxns=txns.filter(t=>t.cuotaGroupId&&t.cuotaTotal>=2&&!t.isPendingCuota);
   if(!cuotaTxns.length) return;
   const toAdd=[];
@@ -512,8 +527,10 @@ function finishImport(txns,source,origen){
   const existingIds=new Set(state.transactions.map(t=>t.id));
   state.transactions=[...state.transactions,...txns];
   deduplicateTransactions();
-  // Auto-generate projected installment transactions for Gmail cuota purchases
-  if(isGmail) autoCreateGmailCuotas(txns);
+  // Auto-generate projected installment transactions for ANY import with cuota info
+  // (Gmail, paste, CSV, manual). The function internally filters to txns with
+  // cuotaGroupId && cuotaTotal >= 2, so it's a no-op when there are no qualifying cuotas.
+  autoCreateGmailCuotas(txns);
   if(importedSubscriptions.length && typeof syncProjectedSubscriptionTransactions === 'function') syncProjectedSubscriptionTransactions();
   const added=state.transactions.length-before;
   const duplicates=txns.length-added;
@@ -571,7 +588,14 @@ function parseSantander(rows){
     // detect installment info from description (e.g. "FRAVEGA CTA 3/12")
     const cuotaMatch=ds.match(/(\d+)\/(\d+)\s*$/)||ds.match(/cuota\s+(\d+)\s+de\s+(\d+)/i);
     const cuotaNum=cuotaMatch?parseInt(cuotaMatch[1]):null;const cuotaTotal=cuotaMatch?parseInt(cuotaMatch[2]):null;
-    txns.push({id,date:new Date(lastDate),description:ds,amount,currency,category:'Procesando...',week:getWeekKey(lastDate),month:getMonthKey(lastDate),cuotaNum,cuotaTotal});
+    // Generate stable cuotaGroupId for auto-projection
+    let cuotaGroupId=null;
+    if(cuotaTotal && cuotaTotal>=2){
+      const _baseDesc=ds.replace(/\s*\(?(?:Cuota\s+\d+\s+de\s+\d+|\d+\/\d+)\)?\s*$/i,'').trim();
+      const _slug=_baseDesc.toLowerCase().replace(/[^a-z0-9]/g,'').substring(0,15);
+      cuotaGroupId='cg_'+_slug+'_'+amount+'_'+cuotaTotal;
+    }
+    txns.push({id,date:new Date(lastDate),description:ds,amount,currency,category:'Procesando...',week:getWeekKey(lastDate),month:getMonthKey(lastDate),cuotaNum,cuotaTotal,cuotaGroupId});
   }
   return txns;
 }
