@@ -392,6 +392,12 @@ function getImportedSubscriptionByKey(key, ruleId){
 }
 function upsertImportedSubscriptionFromTxn(txn){
   if(!txn||!txn.isAutoDebit||!txn.subscriptionName)return null;
+  // Skip credit card payment debits — they're not real "subscriptions",
+  // they're the recurring TC payment itself (which is tracked by the TC cycle system).
+  // Avoids fake "Pago Visa Santander" / "Pago AMEX" entries showing up as overdue commitments.
+  const _sname = String(txn.subscriptionName || '').toLowerCase();
+  const _looksLikeCcPayment = /\bvisa\b|\bamex\b|\bmastercard\b|\bmaestro\b|\btarjeta\b|pago.*tarjeta|tarjeta.*cr[eé]dito|santander\s*(visa|amex|r[íi]o)/i.test(_sname);
+  if (_looksLikeCcPayment) return null;
   if(!state.subscriptions)state.subscriptions=[];
   const txnMonthKey=getMonthKey(txn.date);
   state.transactions=(state.transactions||[]).filter(existing=>

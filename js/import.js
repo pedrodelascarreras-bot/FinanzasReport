@@ -444,11 +444,14 @@ function autoCreateGmailCuotas(txns){
   if(!cuotaTxns.length) return;
   const toAdd=[];
   for(const t of cuotaTxns){
-    // Eliminar cualquier cuota proyectada para la misma posición (este pago real la reemplaza)
+    // Limpiar TODAS las cuotas proyectadas viejas del mismo grupo (cualquier número, no solo el actual).
+    // Antes solo borrábamos las que tenían el mismo cuotaNum, lo que dejaba huérfanas las proyecciones
+    // de cuotas futuras de un import anterior. Resultado: al re-importar, el chequeo "alreadyExists"
+    // las detectaba y no generaba proyecciones nuevas.
     state.transactions=state.transactions.filter(x=>
       !(
-        (x.isPendingCuota&&x.cuotaGroupId===t.cuotaGroupId&&x.cuotaNum===t.cuotaNum)||
-        (x.isMaterializedCommitment&&x.cuotaGroupId===t.cuotaGroupId&&x.cuotaNum===t.cuotaNum)
+        (x.isPendingCuota && x.cuotaGroupId===t.cuotaGroupId) ||
+        (x.isMaterializedCommitment && x.cuotaGroupId===t.cuotaGroupId && x.cuotaNum===t.cuotaNum)
       )
     );
     // Generar proyecciones para las cuotas restantes (a partir de la siguiente)
