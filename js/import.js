@@ -440,6 +440,19 @@ function autoCreateGmailCuotas(txns){
       t.cuotaGroupId='cg_'+_slug+'_'+(Number(t.amount)||0)+'_'+t.cuotaTotal;
     }
   });
+  // Debug helper — exposes diagnostic info so user can console-log autoCreateGmailCuotas behavior
+  window._lastAutoCuotaDebug = {
+    timestamp: new Date().toISOString(),
+    inputCount: txns.length,
+    withCuotaTotal: txns.filter(t=>t.cuotaTotal>=2).length,
+    withCuotaGroupId: txns.filter(t=>t.cuotaGroupId).length,
+    qualified: txns.filter(t=>t.cuotaGroupId&&t.cuotaTotal>=2&&!t.isPendingCuota).length,
+    samples: txns.slice(0,3).map(t=>({
+      desc: t.description, amount: t.amount, cuotaNum: t.cuotaNum,
+      cuotaTotal: t.cuotaTotal, cuotaGroupId: t.cuotaGroupId,
+      isPendingCuota: !!t.isPendingCuota, isAnulacion: !!t.isAnulacion
+    }))
+  };
   const cuotaTxns=txns.filter(t=>t.cuotaGroupId&&t.cuotaTotal>=2&&!t.isPendingCuota);
   if(!cuotaTxns.length) return;
   const toAdd=[];

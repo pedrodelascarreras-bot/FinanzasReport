@@ -1512,22 +1512,29 @@ function parseSantanderEmail(email, currentBatch, rule) {
       hora = String(headerDate.getHours()).padStart(2,'0') + ':' + String(headerDate.getMinutes()).padStart(2,'0');
     }
 
-    // Detect Cuotas (installments) from email body
+    // Detect Cuotas (installments) — try multiple patterns since Santander varies the format
     let cuotaTotal = null;
-    const cuotasHtmlMatch = body.match(/Cuotas[\s\S]{0,200}?<strong[^>]*>\s*(\d+)\s*<\/strong>/i)
-                         || body.match(/Cuotas[\s\S]{0,200}?<td[^>]*>\s*<strong[^>]*>\s*(\d+)\s*<\/strong>/i)
-                         || body.match(/Cuotas[\s\S]{0,200}?<\/td>[\s\S]{0,50}?<td[^>]*>\s*(\d+)\s*<\/td>/i);
-    if (!cuotasHtmlMatch) {
-      // Plain text fallback
-      const cuotasPtMatch = body.replace(/<[^>]+>/g, '\n').match(/Cuotas\s*\n+(\d+)/i);
-      if (cuotasPtMatch) {
-        const n = parseInt(cuotasPtMatch[1]);
-        if (n >= 2 && n <= 72) cuotaTotal = n;
-      }
-    } else {
-      const n = parseInt(cuotasHtmlMatch[1]);
-      if (n >= 2 && n <= 72) cuotaTotal = n;
-    }
+    const _setIfValid = (v) => {
+      const n = parseInt(v);
+      if (n >= 2 && n <= 72 && cuotaTotal === null) cuotaTotal = n;
+    };
+    // 1) HTML patterns with explicit "Cuotas" label
+    let m;
+    if ((m = body.match(/Cuotas[\s\S]{0,200}?<strong[^>]*>\s*(\d+)\s*<\/strong>/i))) _setIfValid(m[1]);
+    if (cuotaTotal === null && (m = body.match(/Cuotas[\s\S]{0,200}?<td[^>]*>\s*<strong[^>]*>\s*(\d+)\s*<\/strong>/i))) _setIfValid(m[1]);
+    if (cuotaTotal === null && (m = body.match(/Cuotas[\s\S]{0,200}?<\/td>[\s\S]{0,50}?<td[^>]*>\s*(\d+)\s*<\/td>/i))) _setIfValid(m[1]);
+    // 2) Plain text fallback (strip tags first)
+    const plainBody = body.replace(/<[^>]+>/g, '\n').replace(/&nbsp;/g, ' ').replace(/\n\s*\n/g, '\n');
+    if (cuotaTotal === null && (m = plainBody.match(/Cuotas\s*\n+\s*(\d+)/i))) _setIfValid(m[1]);
+    if (cuotaTotal === null && (m = plainBody.match(/Cuotas\s*[:\-]?\s+(\d+)\b/i))) _setIfValid(m[1]);
+    // 3) "en N cuotas" / "N cuotas de" / "Cantidad de cuotas: N" patterns in plain body
+    if (cuotaTotal === null && (m = plainBody.match(/\ben\s+(\d+)\s+cuotas?\b/i))) _setIfValid(m[1]);
+    if (cuotaTotal === null && (m = plainBody.match(/\b(\d+)\s+cuotas?\s+(?:de|sin\s+inter[eé]s|fijas)/i))) _setIfValid(m[1]);
+    if (cuotaTotal === null && (m = plainBody.match(/Cantidad\s+de\s+cuotas?\s*[:.]?\s*(\d+)/i))) _setIfValid(m[1]);
+    if (cuotaTotal === null && (m = plainBody.match(/Plan\s+de\s+cuotas?\s*[:.]?\s*(\d+)/i))) _setIfValid(m[1]);
+    // 4) From subject as last resort
+    if (cuotaTotal === null && (m = subject.match(/\ben\s+(\d+)\s+cuotas?\b/i))) _setIfValid(m[1]);
+    if (cuotaTotal === null && (m = subject.match(/\b(\d+)\s+cuotas?\b/i))) _setIfValid(m[1]);
 
     const totalAmount = amount;
     let cuotaNum = null;
