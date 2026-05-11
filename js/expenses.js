@@ -543,7 +543,7 @@ function commitmentsSyncStatus(){
   return best.label+' · '+best.date.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' '+best.date.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
 }
 function commitmentsDueMeta(day){
-  if(!day) return {status:'active',label:'Sin vencimiento',nextDate:null,currentDate:null,sortDays:999};
+  if(!day) return {status:'active',label:'Sin vencimiento',nextDate:null,currentDate:null,sortDays:999,daysOverdue:0};
   const now=new Date();
   const today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
   const maxDay=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
@@ -552,11 +552,14 @@ function commitmentsDueMeta(day){
   const nextDate=currentDate<today?new Date(today.getFullYear(),today.getMonth()+1,Math.min(day,new Date(today.getFullYear(),today.getMonth()+2,0).getDate())):currentDate;
   const diffCurrent=Math.round((currentDate-today)/86400000);
   const diffNext=Math.round((nextDate-today)/86400000);
-  if(diffCurrent<0) return {status:'overdue',label:'Vencido · día '+day,nextDate,currentDate,sortDays:diffCurrent};
-  if(diffCurrent===0) return {status:'soon',label:'Vence hoy',nextDate,currentDate,sortDays:0};
-  if(diffCurrent===1) return {status:'soon',label:'Vence mañana',nextDate,currentDate,sortDays:1};
-  if(diffCurrent<=7) return {status:'soon',label:'Vence en '+diffCurrent+' días',nextDate,currentDate,sortDays:diffCurrent};
-  return {status:'active',label:'Próximo '+commitmentsFmtMonthDay(nextDate),nextDate,currentDate,sortDays:diffNext};
+  // For overdue items, sortDays now reflects time until the NEXT charge (positive)
+  // instead of how-overdue (negative). This prevents widgets from showing "Hoy"
+  // for overdue items and keeps the "next" sorting consistent.
+  if(diffCurrent<0) return {status:'overdue',label:'Vencido · día '+day,nextDate,currentDate,sortDays:diffNext,daysOverdue:Math.abs(diffCurrent)};
+  if(diffCurrent===0) return {status:'soon',label:'Vence hoy',nextDate,currentDate,sortDays:0,daysOverdue:0};
+  if(diffCurrent===1) return {status:'soon',label:'Vence mañana',nextDate,currentDate,sortDays:1,daysOverdue:0};
+  if(diffCurrent<=7) return {status:'soon',label:'Vence en '+diffCurrent+' días',nextDate,currentDate,sortDays:diffCurrent,daysOverdue:0};
+  return {status:'active',label:'Próximo '+commitmentsFmtMonthDay(nextDate),nextDate,currentDate,sortDays:diffNext,daysOverdue:0};
 }
 function commitmentsKnownLogo(name=''){
   const key=String(name||'').toLowerCase();
