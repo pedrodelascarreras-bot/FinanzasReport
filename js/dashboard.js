@@ -1399,10 +1399,29 @@ function renderDashboard(){
       });
     }
     (state.cuotas||[]).forEach(c=>{
-      if(c.paid>=c.total||!c.day) return;
-      _getRecurringDatesInRange(c.day,openDate,closeDate).forEach(dueDate=>{
+      const remaining = Math.max(0, (Number(c.total)||0) - (Number(c.paid)||0));
+      if(remaining <= 0 || !c.day) return;
+      // CAP: never emit more dates than unpaid cuotas left
+      const allDates = _getRecurringDatesInRange(c.day, openDate, closeDate);
+      const cappedDates = allDates.slice(0, remaining);
+      const cuotaNameNorm = String(c.name||'').toLowerCase().trim();
+      const cuotaAmt = Number(c.amount)||0;
+      const matchingRealInMonth = (monthKey)=>{
+        if(!cuotaNameNorm) return false;
+        return (state.transactions||[]).some(t=>{
+          if(t.isPendingCuota || t.isPendingSubscription) return false;
+          const tMonth = t.month || getMonthKey(t.date);
+          if(tMonth !== monthKey) return false;
+          const desc = String(t.description||t._baseDesc||'').toLowerCase();
+          if(!desc.includes(cuotaNameNorm) && !cuotaNameNorm.includes(desc.split(' ')[0]||'__')) return false;
+          const amt = Math.abs(Number(t.amount)||0);
+          return cuotaAmt>0 && Math.abs(amt - cuotaAmt) / cuotaAmt < 0.05;
+        });
+      };
+      cappedDates.forEach(dueDate=>{
         if(!_hasReachedChargeDate(dueDate)) return;
-        add(`manual-${c.id}-${dateToYMD(dueDate)}`,'ARS',c.amount);
+        if(matchingRealInMonth(getMonthKey(dueDate))) return;
+        add(`manual-${c.id}-${dateToYMD(dueDate)}`, 'ARS', cuotaAmt);
       });
     });
     (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{

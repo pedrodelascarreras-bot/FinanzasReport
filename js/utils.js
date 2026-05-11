@@ -142,14 +142,40 @@ function getProjectedCommitmentEntriesForRange(opts={}){
   }
 
   (state.cuotas||[]).forEach(c=>{
-    if((c.paid||0)>=(c.total||0) || !c.day) return;
-    getRecurringDatesInRange(c.day,start,end).forEach(dueDate=>{
+    const remaining = Math.max(0, (Number(c.total)||0) - (Number(c.paid)||0));
+    if(remaining <= 0 || !c.day) return;
+    // CAP: never emit more dates than there are unpaid cuotas left.
+    // Protects against ranges that span > remaining months (or weird date math).
+    const allDates = getRecurringDatesInRange(c.day, start, end);
+    const cappedDates = allDates.slice(0, remaining);
+    // Helper: skip if a real (non-pending) cuota transaction already exists in this month
+    // with a matching name substring (prevents double-counting when user manually added
+    // a cuota that's ALSO present as an imported real transaction).
+    const cuotaNameNorm = String(c.name||'').toLowerCase().trim();
+    const cuotaAmt = Number(c.amount)||0;
+    const matchingRealInMonth = (monthKey)=>{
+      if(!cuotaNameNorm) return false;
+      return sourceTxns.some(t=>{
+        if(t.isPendingCuota || t.isPendingSubscription) return false;
+        const tMonth = t.month || getMonthKey(t.date);
+        if(tMonth !== monthKey) return false;
+        const desc = String(t.description||t._baseDesc||t.comercio_detectado||'').toLowerCase();
+        if(!desc.includes(cuotaNameNorm) && !cuotaNameNorm.includes(desc.split(' ')[0]||'__')) return false;
+        const amt = Math.abs(Number(t.amount)||0);
+        // Tolerate 5% diff for rounding/interest variations
+        return cuotaAmt>0 && Math.abs(amt - cuotaAmt) / cuotaAmt < 0.05;
+      });
+    };
+    cappedDates.forEach((dueDate, dateIdx)=>{
+      const monthKey = getMonthKey(dueDate);
+      // Skip if there's already a real cuota transaction recorded for this month
+      if(matchingRealInMonth(monthKey)) return;
       const matured=hasReachedEffectiveChargeDate(dueDate,todayRef);
-      const cuotaIndex=Math.min(c.total, Math.max(1, matured ? c.paid : c.paid+1));
+      const cuotaIndex = Math.min(c.total, (Number(c.paid)||0) + dateIdx + 1);
       addEntry(`manual-${c.id}-${dateToYMD(dueDate)}`,{
         date:dueDate,
         title:c.name,
-        amount:Number(c.amount)||0,
+        amount:cuotaAmt,
         currency:c.currency||'ARS',
         payMethod:c.payMethod||'',
         sourceManualCuotaId:c.id,
