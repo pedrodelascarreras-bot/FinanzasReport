@@ -4135,13 +4135,14 @@ function renderDb2DueStrip(timelineData){
   };
   const palette = ['#5B3BFF','#2D6BFF','#F97316','#14B8A6','#E11D48','#7C3AED'];
 
-  // ── New shared-expense system: one item per pending split (per-person) ──
-  const pendingItems = (state.transactions || [])
+  // ── New shared-expense system: items per split (per-person) ──
+  // Build BOTH pending and cobrado lists so the pills can act as filter tabs.
+  const buildItems = (statusFilter) => (state.transactions || [])
     .filter(t => t.sharedExpense && t.sharedExpense.enabled && !t.isPendingCuota && !t.isPendingSubscription)
     .flatMap(t => {
       const splits = t.sharedExpense.splits || [];
       return splits
-        .filter(s => s.status !== 'cobrado')
+        .filter(s => statusFilter(s.status))
         .map(s => {
           const splitAmt = Number(s.amount) || 0;
           return {
@@ -4152,9 +4153,9 @@ function renderDb2DueStrip(timelineData){
             date: dateToYMD(t.date),
             currency: t.currency || 'ARS',
             pendingAmount: splitAmt,
-            recoveredAmount: 0,
+            recoveredAmount: s.status === 'cobrado' ? splitAmt : 0,
             recoverBase: splitAmt,
-            status: 'pending',
+            status: s.status === 'cobrado' ? 'cobrado' : 'pending',
             pendingArs: toArs(splitAmt, t.currency),
             totalArs: toArs(splitAmt, t.currency)
           };
@@ -4162,90 +4163,101 @@ function renderDb2DueStrip(timelineData){
     })
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
+  const pendingItems = buildItems(status => status !== 'cobrado');
+  const cobradoItems = buildItems(status => status === 'cobrado');
+
   const totalOpenArs = pendingItems.reduce((s, item) => s + item.pendingArs, 0);
+  const totalCobradoArs = cobradoItems.reduce((s, item) => s + item.pendingArs, 0);
   const pendingCount = pendingItems.length;
-  // Calculate total already collected (cobrado) across all shared expenses
-  let cobradoArs = 0, cobradoCount = 0;
-  (state.transactions || [])
-    .filter(t => t.sharedExpense && t.sharedExpense.enabled)
-    .forEach(t => {
-      (t.sharedExpense.splits || []).forEach(s => {
-        if (s.status === 'cobrado') {
-          cobradoArs += toArs(Number(s.amount) || 0, t.currency);
-          cobradoCount++;
-        }
-      });
-    });
+  const cobradoCount = cobradoItems.length;
+
+  // Active view: 'pending' (default) or 'cobrado'
+  if (!state._dueStripView) state._dueStripView = 'pending';
+  // Auto-fallback: if user is on pending view but there's nothing pending, stay on pending
+  // (empty state will display). If on cobrado but no cobrado items, switch back to pending.
+  if (state._dueStripView === 'cobrado' && cobradoCount === 0 && pendingCount > 0) {
+    state._dueStripView = 'pending';
+  }
+  const activeView = state._dueStripView;
 
   if(summary){
-    if(pendingItems.length){
-      const maskedSum = isMasked() ? '$••••••' : `$${fmtN(Math.round(totalOpenArs))}`;
+    if (pendingCount === 0 && cobradoCount === 0) {
       summary.innerHTML = `
-        <div class="db2-third-pill">
+        <div class="db2-third-pill is-ok">
+          <span class="db2-third-pill-label">Estado</span>
+          <span class="db2-third-pill-value">Sin gastos compartidos</span>
+        </div>`;
+    } else {
+      const maskedPending = isMasked() ? '$••••••' : `$${fmtN(Math.round(totalOpenArs))}`;
+      const maskedCobrado = isMasked() ? '$••••••' : `$${fmtN(Math.round(totalCobradoArs))}`;
+      summary.innerHTML = `
+        <button type="button" class="db2-third-pill is-clickable${activeView === 'pending' ? ' is-active' : ''}" onclick="setDueStripView('pending')" title="Ver pendientes">
           <span class="db2-third-pill-label">Por cobrar</span>
-          <span class="db2-third-pill-value">${maskedSum}</span>
-        </div>
+          <span class="db2-third-pill-value">${maskedPending}</span>
+        </button>
         <div class="db2-third-pill">
           <span class="db2-third-pill-label">Pendientes</span>
           <span class="db2-third-pill-value">${pendingCount}</span>
         </div>
-        ${cobradoArs > 0 ? `
-        <div class="db2-third-pill is-cobrado">
+        ${cobradoCount > 0 ? `
+        <button type="button" class="db2-third-pill is-cobrado is-clickable${activeView === 'cobrado' ? ' is-active' : ''}" onclick="setDueStripView('cobrado')" title="Ver cobrados">
           <span class="db2-third-pill-label">Cobrado</span>
-          <span class="db2-third-pill-value">$${fmtN(Math.round(cobradoArs))}</span>
-        </div>` : ''}
-      `;
-    }else{
-      summary.innerHTML = `
-        <div class="db2-third-pill is-ok">
-          <span class="db2-third-pill-label">Estado</span>
-          <span class="db2-third-pill-value">Todo cobrado</span>
-        </div>
-        ${cobradoArs > 0 ? `
-        <div class="db2-third-pill is-cobrado">
-          <span class="db2-third-pill-label">Total cobrado</span>
-          <span class="db2-third-pill-value">$${fmtN(Math.round(cobradoArs))}</span>
-        </div>` : ''}
+          <span class="db2-third-pill-value">$${fmtN(Math.round(totalCobradoArs))}</span>
+        </button>` : ''}
       `;
     }
   }
 
-  if(!pendingItems.length){
+  // Pick which list to render based on the active view
+  const itemsToRender = activeView === 'cobrado' ? cobradoItems : pendingItems;
+  const isCobradoView = activeView === 'cobrado';
+
+  if (!itemsToRender.length) {
     grid.innerHTML = `
       <div class="db2-third-empty">
-        No tenés gastos compartidos pendientes. Cuando dividas un gasto en Movimientos, aparece acá como recordatorio.
-      </div>
-    `;
+        ${isCobradoView
+          ? 'Todavía no marcaste ninguna parte como cobrada. Cuando lo hagas, aparece acá.'
+          : 'No tenés gastos compartidos pendientes. Cuando dividas un gasto en Movimientos, aparece acá como recordatorio.'}
+      </div>`;
     return;
   }
 
-  // Smart sizing: show up to 9 items inline (3 rows × 3 cols typical),
-  // overflow goes behind a "Ver X más" link. Grid uses auto-fill for responsive wrapping.
+  // Smart sizing: show up to 9 items inline
   const VISIBLE_LIMIT = 9;
-  const visibleItems = pendingItems.slice(0, VISIBLE_LIMIT);
+  const visibleItems = itemsToRender.slice(0, VISIBLE_LIMIT);
   grid.innerHTML = visibleItems.map((item, i) => {
     const since = shortDate(item.date);
     const age = getAgeLabel(item.date);
     const color = palette[i % palette.length];
-    return `<button class="db2-third-item pending" onclick="openTxnDetail('${item.txnId}')" title="Ver gasto compartido">
+    const statusLabel = isCobradoView ? 'Cobrado' : 'Pendiente';
+    const itemClass = isCobradoView ? 'cobrado' : 'pending';
+    return `<button class="db2-third-item ${itemClass}" onclick="openTxnDetail('${item.txnId}')" title="Ver gasto compartido">
       <div class="db2-third-avatar" style="background:${color}">${initials(item.name)}</div>
       <div class="db2-third-body">
         <div class="db2-third-name">${esc(item.name)}</div>
-        <div class="db2-third-meta">Pendiente · ${esc(item.txnDesc)} · ${since}</div>
+        <div class="db2-third-meta">${statusLabel} · ${esc(item.txnDesc)} · ${since}</div>
       </div>
       <div class="db2-third-amount">${isMasked() ? (item.currency === 'USD' ? 'U$D ••••' : '$••••••') : toDisplayAmount(item.pendingAmount, item.currency)}</div>
       <div class="db2-third-chip">${age}</div>
     </button>`;
   }).join('');
 
-  if(pendingItems.length > VISIBLE_LIMIT){
-    const remaining = pendingItems.length - VISIBLE_LIMIT;
+  if (itemsToRender.length > VISIBLE_LIMIT) {
+    const remaining = itemsToRender.length - VISIBLE_LIMIT;
     grid.innerHTML += `
       <button class="db2-third-more" onclick="openThirdPartyTransactions()">
-        Ver ${remaining} recordatorio${remaining !== 1 ? 's' : ''} más →
-      </button>
-    `;
+        Ver ${remaining} ${isCobradoView ? 'cobrado' : 'recordatorio'}${remaining !== 1 ? 's' : ''} más →
+      </button>`;
   }
+}
+
+// Toggle view in the dashboard "Gastos Compartidos" widget
+function setDueStripView(view){
+  state._dueStripView = view === 'cobrado' ? 'cobrado' : 'pending';
+  saveState();
+  // Re-render just this widget — the calling context provides the data.
+  // The cheapest reliable path is to re-render the whole dashboard.
+  if(typeof renderDashboard === 'function') renderDashboard();
 }
 
 // ── Dollar sparkline ──
