@@ -999,13 +999,21 @@ function enrichTransaction(t, origen){
   }
   if(!t.description) t.description = t._baseDesc || t.gmailMerchantRaw || 'Movimiento';
   if(!t._baseDesc) t._baseDesc = t.gmailMerchantRaw || t.description;
-  if(_isGmailSource) restoreGmailOriginalMerchantName(t);
-  const nameRuleApplied = applyNameRulesToTransaction(t);
-  if(_isGmailSource && !nameRuleApplied){
+  // RESPECT manual edits: if the user has explicitly renamed the description,
+  // don't auto-restore the original Gmail merchant name or apply rename rules.
+  // This flag is set by confirmEditTxn / confirmEditMerchant when the user
+  // manually edits, and it survives saveState/loadState cycles.
+  const _userEdited = t._descEditedByUser === true;
+  if(_isGmailSource && !_userEdited) restoreGmailOriginalMerchantName(t);
+  const nameRuleApplied = !_userEdited && applyNameRulesToTransaction(t);
+  if(_isGmailSource && !nameRuleApplied && !_userEdited){
     t.appliedNameRuleId = null;
     restoreGmailOriginalMerchantName(t);
   }
-  t.comercio_detectado = detectComercio(t.gmailMerchantRaw || t.description) || t.comercio_detectado || null;
+  // Respect manual comercio edits: only auto-detect if the user hasn't set it explicitly
+  if (!t._comercioEditedByUser) {
+    t.comercio_detectado = detectComercio(t.gmailMerchantRaw || t.description) || t.comercio_detectado || null;
+  }
   applyLogoRulesToTransaction(t);
   if(!t.cat_sugerida || !t.cat_motivo){
     const sug = suggestCategory(t.description);

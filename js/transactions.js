@@ -688,21 +688,25 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
     return acc;
   },{});
 
+  // Helper: an entry "belongs to" a group if its primary group matches OR
+  // it was merged from that group (e.g., a compartido that also is a cuota).
+  // This makes merged entries appear in both relevant tabs.
+  const hasGroup = (e, g) => e.group === g || ((e._mergedFrom||[]).includes(g));
   const groupTabs=[
     {key:'all', label:'Todo'},
-    ...(entries.some(e=>e.group==='cuotas') ? [{key:'cuotas', label:'Cuotas'}] : []),
-    ...(entries.some(e=>e.group==='suscripciones') ? [{key:'suscripciones', label:'Suscripciones'}] : []),
-    ...(entries.some(e=>e.group==='fijos') ? [{key:'fijos', label:'Gastos Fijos'}] : []),
-    ...(entries.some(e=>e.group==='compartidos') ? [{key:'compartidos', label:'Compartidos 🤝'}] : [])
+    ...(entries.some(e=>hasGroup(e,'cuotas')) ? [{key:'cuotas', label:'Cuotas'}] : []),
+    ...(entries.some(e=>hasGroup(e,'suscripciones')) ? [{key:'suscripciones', label:'Suscripciones'}] : []),
+    ...(entries.some(e=>hasGroup(e,'fijos')) ? [{key:'fijos', label:'Gastos Fijos'}] : []),
+    ...(entries.some(e=>hasGroup(e,'compartidos')) ? [{key:'compartidos', label:'Compartidos 🤝'}] : [])
   ];
   const activeTab=getTxnCycleCommitmentsTab();
   const tabs=groupTabs;
   const counts=tabs.reduce((acc,tab)=>{
-    acc[tab.key]=tab.key==='all'?entries.length:entries.filter(e=>e.group===tab.key).length;
+    acc[tab.key]=tab.key==='all'?entries.length:entries.filter(e=>hasGroup(e,tab.key)).length;
     return acc;
   },{});
   const effectiveTab=tabs.some(tab=>tab.key===activeTab)?activeTab:'all';
-  const visible=effectiveTab==='all'?entries:entries.filter(e=>e.group===effectiveTab);
+  const visible=effectiveTab==='all'?entries:entries.filter(e=>hasGroup(e,effectiveTab));
   const panel=document.createElement('div');
   panel.id='txn-cycle-commitments';
   panel.className='txn-cycle-panel';
@@ -724,17 +728,17 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
             const list='<div class="txn-cycle-list">'+visible.map(item=>{
               const amount=(item.currency==='USD'?'U$D ':'$')+fmtN(item.amount);
               const settled=item.isSettled===true || item.includeInTotal===true;
-              const gm=effectiveTab==='all'?GROUP_META[item.group]:null;
+              // Badges: always show the primary group + any merged groups.
+              // Useful especially when filtering a tab — you still see if the item
+              // is also (e.g.) a Cuota even when looking at Compartidos.
               const mkBadge=(g,meta)=>`<span style="font-size:9px;font-weight:700;letter-spacing:.04em;padding:1px 6px;border-radius:4px;background:${meta.bg};color:${meta.color};text-transform:uppercase;flex-shrink:0;">${meta.label}</span>`;
               let badge='';
-              if(gm){
-                badge=mkBadge(item.group,gm);
-                // Show extra badges for merged entries (e.g., "Compartido + Cuota")
-                (item._mergedFrom||[]).forEach(g=>{
-                  const meta=GROUP_META[g];
-                  if(meta) badge+='&nbsp;'+mkBadge(g,meta);
-                });
-              }
+              const primaryMeta=GROUP_META[item.group];
+              if(primaryMeta) badge=mkBadge(item.group,primaryMeta);
+              (item._mergedFrom||[]).forEach(g=>{
+                const meta=GROUP_META[g];
+                if(meta) badge+='&nbsp;'+mkBadge(g,meta);
+              });
               const actions=item.group==='compartidos'
                 ?`<button class="calendar-item-link" onclick="event.stopPropagation();openTxnDetail('${item.sourceTxnId}')">Ver gasto</button>`
                 :`<button class="calendar-item-link" onclick="event.stopPropagation();editTxnCycleCommitment('${item._key}')">Editar</button>`
@@ -831,6 +835,20 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
       if(isSettled) meta=cobradoNames?'Cobrado: '+cobradoNames:'Todo cobrado';
       else meta=pendingNames?'Pendiente: '+pendingNames:'Pendiente de cobro';
     }
+    // Enrich with cuota progress if this real txn is also tracked as a manual cuota
+    // (linked via cuotaGroupId). Prepends "Cuota X/Y" to the meta so the user sees
+    // the installment progress without needing a duplicate entry.
+    let mergedFrom = undefined;
+    if (t.cuotaGroupId) {
+      const mc = (state.cuotas||[]).find(c => c.cuotaGroupId === t.cuotaGroupId);
+      if (mc && Number(mc.total) > 1) {
+        // The just-paid cuota number = paid (since we only count it as paid AFTER charge)
+        // For the entry shown in this period, the relevant cuota number is `paid` itself.
+        const paidNum = Math.min(Number(mc.total)||0, Math.max(0, Number(mc.paid)||0));
+        meta = `Cuota ${paidNum}/${mc.total} · ${meta}`;
+        mergedFrom = ['cuotas'];   // also makes the entry appear in the Cuotas tab + show CUOTA badge
+      }
+    }
     const key=`shared-exp-${t.id}`;
     if(seenKeys.has(key)) return;
     seenKeys.add(key);
@@ -848,7 +866,8 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
       includeInTotal:false,
       isSettled,
       synthetic:false,
-      tone:isSettled?'#34c759':'#a882ff'
+      tone:isSettled?'#34c759':'#a882ff',
+      _mergedFrom: mergedFrom
     });
   });
 
@@ -2697,7 +2716,15 @@ function confirmEditTxn(){
   const date=document.getElementById('modal-edit-date').value;
   // const cat removed — category edited via badge
   if(!desc||isNaN(amt)||amt<=0){showToast('Completá todos los campos');return;}
+  // Detect if user changed the description — if so, mark as user-edited so
+  // enrichTransaction respects it across reloads (won't restore Gmail original name).
+  const _origDesc = String(t.description||'').trim();
+  if (desc !== _origDesc) {
+    t._descEditedByUser = true;
+    t._baseDesc = desc;  // keep base in sync so future suffix logic works
+  }
   t.description=desc;t.amount=amt;t.currency=cur;
+  t.estado_revision = 'confirmado_por_usuario';
   if(date){
     // Store as Date object at noon local time to avoid timezone wraparound on re-parse.
     // Plain "YYYY-MM-DD" parses as UTC midnight, which in ART (UTC-3) becomes the previous day.
@@ -2734,6 +2761,8 @@ function confirmEditMerchant(){
   const t=state.transactions.find(x=>x.id===id);if(!t)return;
   const merchant=document.getElementById('modal-edit-merchant-name').value.trim();
   t.comercio_detectado=merchant||null;
+  // Mark as user-edited so enrichTransaction doesn't auto-detect over this manual value
+  t._comercioEditedByUser = true;
   t.estado_revision='confirmado_por_usuario';
   saveState();
   closeModal('modal-edit-merchant');
