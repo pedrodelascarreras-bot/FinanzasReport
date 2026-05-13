@@ -2625,7 +2625,19 @@ function openEditTxnModal(txnId){
   document.getElementById('modal-edit-description').value=t.description||'';
   document.getElementById('modal-edit-amount').value=t.amount||'';
   document.getElementById('modal-edit-currency').value=t.currency||'ARS';
-  const _editDateStr=t.date?(t.date instanceof Date?t.date.toISOString():String(t.date)).slice(0,10):'';
+  // Use LOCAL date components (not toISOString which converts to UTC).
+  // Bug fix: a txn on May 12 21:16 ART (UTC-3) becomes May 13 00:16 in UTC,
+  // and toISOString().slice(0,10) returned "2026-05-13" — shifting the day.
+  let _editDateStr = '';
+  if (t.date) {
+    const d = t.date instanceof Date ? t.date : new Date(String(t.date).includes('T') ? t.date : (String(t.date) + 'T12:00:00'));
+    if (!Number.isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      _editDateStr = y + '-' + m + '-' + dd;
+    }
+  }
   document.getElementById('modal-edit-date').value=_editDateStr;
   // Category select removed from edit modal
   openModal('modal-edit-txn');
@@ -2640,7 +2652,23 @@ function confirmEditTxn(){
   // const cat removed — category edited via badge
   if(!desc||isNaN(amt)||amt<=0){showToast('Completá todos los campos');return;}
   t.description=desc;t.amount=amt;t.currency=cur;
-  if(date){t.date=date;t.month=date.slice(0,7);}
+  if(date){
+    // Store as Date object at noon local time to avoid timezone wraparound on re-parse.
+    // Plain "YYYY-MM-DD" parses as UTC midnight, which in ART (UTC-3) becomes the previous day.
+    const [_y, _m, _dd] = date.split('-').map(Number);
+    if (_y && _m && _dd) {
+      // Preserve original time-of-day if t.date was a Date with time info
+      let hh = 12, mm = 0;
+      if (t.date) {
+        const prev = t.date instanceof Date ? t.date : new Date(String(t.date).includes('T') ? t.date : String(t.date) + 'T12:00:00');
+        if (!Number.isNaN(prev.getTime())) { hh = prev.getHours(); mm = prev.getMinutes(); }
+      }
+      t.date = new Date(_y, _m - 1, _dd, hh, mm, 0, 0);
+    } else {
+      t.date = date;
+    }
+    t.month = date.slice(0,7);
+  }
   // t.category preserved
   saveState();closeModal('modal-edit-txn');
   renderTransactions();renderDashboard();
