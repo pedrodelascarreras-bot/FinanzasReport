@@ -20,8 +20,16 @@ function getAutoCuotaConfig(group){
 
 function getAutoCuotaGroups(includeDismissed=false){
   if(!state.dismissedAutoCuotas) state.dismissedAutoCuotas=[];
+  // Dedup: if a manual cuota entry tracks the same cuotaGroupId, the auto-detector skips it.
+  // Otherwise the Compromisos panel would show the cuota twice (manual + auto).
+  const trackedGroupIds = new Set(
+    (state.cuotas||[])
+      .map(c => c.cuotaGroupId)
+      .filter(Boolean)
+  );
   const groups={};
   state.transactions.filter(t=>t.cuotaNum&&t.cuotaTotal).forEach(t=>{
+    if (t.cuotaGroupId && trackedGroupIds.has(t.cuotaGroupId)) return;
     const baseName=t.description.replace(/\s*\d+\/\d+\s*$/,'').replace(/cuota\s+\d+\s+de\s+\d+/i,'').trim();
     const key=getAutoCuotaKey(t,baseName);
     const legacyKey=getLegacyAutoCuotaKey(baseName);
