@@ -145,15 +145,37 @@ function getProjectedCommitmentEntriesForRange(opts={}){
     const remaining = Math.max(0, (Number(c.total)||0) - (Number(c.paid)||0));
     if(remaining <= 0 || !c.day) return;
     // CAP: never emit more dates than there are unpaid cuotas left.
-    // Protects against ranges that span > remaining months (or weird date math).
     const allDates = getRecurringDatesInRange(c.day, start, end);
     const cappedDates = allDates.slice(0, remaining);
-    // Helper: skip if a real (non-pending) cuota transaction already exists in this month
-    // with a matching name substring (prevents double-counting when user manually added
-    // a cuota that's ALSO present as an imported real transaction).
+    // Helper: skip if a real (non-pending) txn already covers this cuota for the month.
+    // 3 strategies tried in order — first to match wins:
+    //   1) cuotaGroupId (most reliable — auto-import linked the manual cuota to the txn)
+    //   2) sourceTxnId (explicit link in the manual cuota record)
+    //   3) name + amount (fuzzy fallback for legacy cases)
     const cuotaNameNorm = String(c.name||'').toLowerCase().trim();
     const cuotaAmt = Number(c.amount)||0;
     const matchingRealInMonth = (monthKey)=>{
+      // Strategy 1: cuotaGroupId match
+      if (c.cuotaGroupId) {
+        const groupMatch = sourceTxns.some(t=>{
+          if(t.isPendingCuota || t.isPendingSubscription) return false;
+          const tMonth = t.month || getMonthKey(t.date);
+          if(tMonth !== monthKey) return false;
+          return t.cuotaGroupId === c.cuotaGroupId;
+        });
+        if (groupMatch) return true;
+      }
+      // Strategy 2: explicit sourceTxnId on manual cuota
+      if (c.sourceTxnId) {
+        const idMatch = sourceTxns.some(t=>{
+          if(t.isPendingCuota || t.isPendingSubscription) return false;
+          if (t.id !== c.sourceTxnId) return false;
+          const tMonth = t.month || getMonthKey(t.date);
+          return tMonth === monthKey;
+        });
+        if (idMatch) return true;
+      }
+      // Strategy 3: name + amount fuzzy match (fallback)
       if(!cuotaNameNorm) return false;
       return sourceTxns.some(t=>{
         if(t.isPendingCuota || t.isPendingSubscription) return false;
@@ -162,13 +184,11 @@ function getProjectedCommitmentEntriesForRange(opts={}){
         const desc = String(t.description||t._baseDesc||t.comercio_detectado||'').toLowerCase();
         if(!desc.includes(cuotaNameNorm) && !cuotaNameNorm.includes(desc.split(' ')[0]||'__')) return false;
         const amt = Math.abs(Number(t.amount)||0);
-        // Tolerate 5% diff for rounding/interest variations
         return cuotaAmt>0 && Math.abs(amt - cuotaAmt) / cuotaAmt < 0.05;
       });
     };
     cappedDates.forEach((dueDate, dateIdx)=>{
       const monthKey = getMonthKey(dueDate);
-      // Skip if there's already a real cuota transaction recorded for this month
       if(matchingRealInMonth(monthKey)) return;
       const matured=hasReachedEffectiveChargeDate(dueDate,todayRef);
       const cuotaIndex = Math.min(c.total, (Number(c.paid)||0) + dateIdx + 1);
@@ -179,6 +199,7 @@ function getProjectedCommitmentEntriesForRange(opts={}){
         currency:c.currency||'ARS',
         payMethod:c.payMethod||'',
         sourceManualCuotaId:c.id,
+        cuotaGroupId:c.cuotaGroupId||null,   // expose for downstream dedup
         group:'cuotas',
         kind:'Cuota manual',
         meta:`Cuota ${cuotaIndex}/${c.total}`,

@@ -725,7 +725,16 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
               const amount=(item.currency==='USD'?'U$D ':'$')+fmtN(item.amount);
               const settled=item.isSettled===true || item.includeInTotal===true;
               const gm=effectiveTab==='all'?GROUP_META[item.group]:null;
-              const badge=gm?`<span style="font-size:9px;font-weight:700;letter-spacing:.04em;padding:1px 6px;border-radius:4px;background:${gm.bg};color:${gm.color};text-transform:uppercase;flex-shrink:0;">${gm.label}</span>`:'';
+              const mkBadge=(g,meta)=>`<span style="font-size:9px;font-weight:700;letter-spacing:.04em;padding:1px 6px;border-radius:4px;background:${meta.bg};color:${meta.color};text-transform:uppercase;flex-shrink:0;">${meta.label}</span>`;
+              let badge='';
+              if(gm){
+                badge=mkBadge(item.group,gm);
+                // Show extra badges for merged entries (e.g., "Compartido + Cuota")
+                (item._mergedFrom||[]).forEach(g=>{
+                  const meta=GROUP_META[g];
+                  if(meta) badge+='&nbsp;'+mkBadge(g,meta);
+                });
+              }
               const actions=item.group==='compartidos'
                 ?`<button class="calendar-item-link" onclick="event.stopPropagation();openTxnDetail('${item.sourceTxnId}')">Ver gasto</button>`
                 :`<button class="calendar-item-link" onclick="event.stopPropagation();editTxnCycleCommitment('${item._key}')">Editar</button>`
@@ -832,6 +841,7 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
       amount:totalSplitsAmt,
       currency:t.currency||'ARS',
       sourceTxnId:t.id,
+      cuotaGroupId:t.cuotaGroupId||null,   // expose for dedup
       group:'compartidos',
       kind:'Gasto compartido',
       meta,
@@ -842,8 +852,44 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
     });
   });
 
-  entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
-  return entries;
+  // ── DEDUP: merge entries that refer to the same underlying purchase ──
+  // Problem cases:
+  //   • CLAUDEAI = both 'suscripciones' + 'compartidos' (same sourceTxnId)
+  //   • Pantuflas Belen (manual cuota) ↔ MERPAGO*MARTINVAQUERO (shared expense) — same cuotaGroupId
+  // Preference order when keeping ONE entry: compartidos > cuotas > suscripciones > others
+  // (compartido is most informative — tells you who paid you back)
+  const groupRank = {compartidos: 4, cuotas: 3, suscripciones: 2, fijos: 1};
+  const byLink = new Map();   // key (txnId or groupId) → kept entry
+  const finalEntries = [];
+  entries.forEach(e => {
+    // Find the "link key" — sourceTxnId first, then cuotaGroupId
+    const linkKey = e.sourceTxnId
+      ? ('txn:' + e.sourceTxnId)
+      : (e.cuotaGroupId ? ('grp:' + e.cuotaGroupId) : null);
+    if (!linkKey) { finalEntries.push(e); return; }
+    const existing = byLink.get(linkKey);
+    if (!existing) {
+      byLink.set(linkKey, e);
+      finalEntries.push(e);
+      return;
+    }
+    // Conflict — choose by group priority
+    const eRank = groupRank[e.group] || 0;
+    const exRank = groupRank[existing.group] || 0;
+    if (eRank > exRank) {
+      // Replace: keep new e, attach extra tags from old
+      e._mergedFrom = [...(existing._mergedFrom||[]), existing.group].filter(g => g !== e.group);
+      const idx = finalEntries.indexOf(existing);
+      if (idx >= 0) finalEntries[idx] = e;
+      byLink.set(linkKey, e);
+    } else {
+      // Keep existing, just record the merge tag
+      existing._mergedFrom = [...(existing._mergedFrom||[]), e.group].filter(g => g !== existing.group);
+    }
+  });
+
+  finalEntries.sort((a,b)=>new Date(a.date)-new Date(b.date));
+  return finalEntries;
 }
 
 function getTxnDisplaySummaryTotals(opts){
