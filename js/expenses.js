@@ -550,6 +550,108 @@ function commitmentsSyncStatus(){
   if(!best) return 'Sin actividad reciente';
   return best.label+' · '+best.date.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' '+best.date.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
 }
+// ── One-shot migration: backfill `lastPaidDate` for cuotas auto-importadas ─
+// Las cuotas creadas antes del fix de "vencido" no tenían `lastPaidDate`,
+// así que el cálculo de "próxima fecha" caía al fallback (día del mes) y las
+// marcaba como vencidas. Esta migración corre 1 vez al cargar la app y
+// busca la transacción real más reciente del mismo cuotaGroupId para hidratar
+// el campo. Idempotente — sólo toca cuotas que les falta el campo.
+function migrateCuotaLastPaidDate(){
+  if (state._cuotaLastPaidDateMigrated) return;
+  let touched = 0;
+  const cuotaNameLower = name => String(name||'').toLowerCase().trim();
+  (state.cuotas || []).forEach(c => {
+    if (c.lastPaidDate) return;
+    let latest = null;
+    // Strategy 1: match by cuotaGroupId (most reliable)
+    if (c.cuotaGroupId) {
+      const matches = (state.transactions || [])
+        .filter(t => t.cuotaGroupId === c.cuotaGroupId && !t.isPendingCuota)
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      latest = matches[0] || null;
+    }
+    // Strategy 2: match by name substring + amount (for cuotas without cuotaGroupId)
+    if (!latest && c.name) {
+      const nameNorm = cuotaNameLower(c.name);
+      const amt = Number(c.amount) || 0;
+      const matches = (state.transactions || [])
+        .filter(t => {
+          if (t.isPendingCuota || t.isPendingSubscription) return false;
+          const desc = cuotaNameLower(t.description || t._baseDesc || '');
+          if (!desc.includes(nameNorm) && !nameNorm.includes(desc.split(' ')[0]||'__')) return false;
+          if (amt <= 0) return true;
+          const tAmt = Math.abs(Number(t.amount) || 0);
+          return Math.abs(tAmt - amt) / amt < 0.05;  // ±5% match
+        })
+        .sort((a, b) => new Date(b.date) - new Date(a.date));
+      latest = matches[0] || null;
+    }
+    let isoDate = null;
+    if (latest) {
+      const d = latest.date instanceof Date ? latest.date : new Date(latest.date);
+      if (!Number.isNaN(d.getTime())) isoDate = d.toISOString().slice(0, 10);
+    }
+    // Strategy 3: fallback to createdAt if available
+    if (!isoDate && c.createdAt) {
+      const d = new Date(c.createdAt);
+      if (!Number.isNaN(d.getTime())) isoDate = d.toISOString().slice(0, 10);
+    }
+    // Strategy 4: ultimate fallback — only if paid > 0 (i.e. user marked at least one
+    // installment as paid). For paid=0 cuotas, "vencido" is the correct interpretation.
+    if (!isoDate && c.day && (Number(c.paid)||0) > 0) {
+      const today = new Date();
+      const maxDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+      const synth = new Date(today.getFullYear(), today.getMonth(), Math.min(Number(c.day)||1, maxDay));
+      isoDate = synth.toISOString().slice(0, 10);
+    }
+    if (isoDate) {
+      c.lastPaidDate = isoDate;
+      touched++;
+    }
+  });
+  state._cuotaLastPaidDateMigrated = true;
+  if (touched > 0) {
+    saveState();
+    console.info('[cuotas] migrateCuotaLastPaidDate — backfilled', touched, 'cuotas');
+  }
+}
+
+// Smart due-meta for cuotas: uses lastPaidDate to compute the ACTUAL next charge.
+// A cuota with lastPaidDate=2026-05-13 and day=11 has its next charge on 2026-06-11
+// (not "vencido día 11 of this month" — that was already paid).
+function commitmentsDueMetaForCuota(c){
+  const day = parseInt(c?.day, 10) || null;
+  if (!day) return {status:'active', label:'Sin vencimiento', nextDate:null, currentDate:null, sortDays:999, daysOverdue:0};
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const lastPaid = c.lastPaidDate
+    ? new Date(String(c.lastPaidDate).includes('T') ? c.lastPaidDate : (c.lastPaidDate + 'T12:00:00'))
+    : null;
+  let nextDate;
+  if (lastPaid && !Number.isNaN(lastPaid.getTime())) {
+    // Next charge = the month AFTER lastPaidDate, on `day` (clamped to month-end)
+    const baseMonth = new Date(lastPaid.getFullYear(), lastPaid.getMonth() + 1, 1);
+    const maxDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 1, 0).getDate();
+    nextDate = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), Math.min(day, maxDay));
+  } else {
+    // Fallback: use this month's day if not yet passed, else next month
+    const maxDayThis = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+    const thisDate = new Date(today.getFullYear(), today.getMonth(), Math.min(day, maxDayThis));
+    if (thisDate >= today) {
+      nextDate = thisDate;
+    } else {
+      const maxDayNext = new Date(today.getFullYear(), today.getMonth() + 2, 0).getDate();
+      nextDate = new Date(today.getFullYear(), today.getMonth() + 1, Math.min(day, maxDayNext));
+    }
+  }
+  const diff = Math.round((nextDate - today) / 86400000);
+  if (diff < 0) return {status:'overdue', label:'Vencido · día '+day, nextDate, currentDate:nextDate, sortDays:diff, daysOverdue:Math.abs(diff)};
+  if (diff === 0) return {status:'soon', label:'Vence hoy', nextDate, currentDate:nextDate, sortDays:0, daysOverdue:0};
+  if (diff === 1) return {status:'soon', label:'Vence mañana', nextDate, currentDate:nextDate, sortDays:1, daysOverdue:0};
+  if (diff <= 7) return {status:'soon', label:'Vence en '+diff+' días', nextDate, currentDate:nextDate, sortDays:diff, daysOverdue:0};
+  return {status:'active', label:'Próximo '+commitmentsFmtMonthDay(nextDate), nextDate, currentDate:nextDate, sortDays:diff, daysOverdue:0};
+}
+
 function commitmentsDueMeta(day){
   if(!day) return {status:'active',label:'Sin vencimiento',nextDate:null,currentDate:null,sortDays:999,daysOverdue:0};
   const now=new Date();
@@ -601,6 +703,8 @@ function commitmentsMoneyHtml(amount,currency,suffix=''){
   return '<span class="cp-money '+cls+'">'+prefix+fmtN(Number(amount)||0)+(suffix||'')+'</span>';
 }
 function commitmentsBuildData(){
+  // Run one-shot migration to backfill lastPaidDate for legacy auto-imported cuotas
+  migrateCuotaLastPaidDate();
   const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
   const fixedItems=(state.fixedExpenses||[]).map(f=>{
     const due=commitmentsDueMeta(parseInt(f.day,10)||null);
@@ -673,7 +777,9 @@ function commitmentsBuildData(){
     };
   }).filter(item=>item.remaining>0);
   const manualCuotas=(state.cuotas||[]).map(c=>{
-    const due=commitmentsDueMeta(parseInt(c.day,10)||null);
+    // Use smart due calculation: if we know when the last installment was paid,
+    // the next charge is one month after that. Otherwise fall back to day-of-month logic.
+    const due=commitmentsDueMetaForCuota(c);
     const remaining=Math.max(0,(Number(c.total)||0)-(Number(c.paid)||0));
     const pct=Math.round(((Number(c.paid)||0)/Math.max(Number(c.total)||1,1))*100);
     const start=new Date();

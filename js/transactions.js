@@ -336,6 +336,21 @@ function toggleTxnAdvancedFilters(){
 function toggleTxnActionMenu(id){
   state._txnActionMenuId=state._txnActionMenuId===id?'':id;
   renderTransactions();
+  // Attach a one-shot outside-click listener that closes the menu.
+  // We defer attachment by a tick so the click that OPENED the menu doesn't
+  // immediately trigger this and close it.
+  if (state._txnActionMenuId) {
+    const closer = (ev) => {
+      // Ignore clicks on the toggle button (it has its own handler) and
+      // on the menu itself (so item clicks register normally).
+      if (ev.target.closest('.mv-menu-btn') || ev.target.closest('.mv-menu')) return;
+      state._txnActionMenuId = '';
+      document.removeEventListener('click', closer, true);
+      renderTransactions();
+    };
+    // Use capture phase so we fire before the click bubbles up
+    setTimeout(() => document.addEventListener('click', closer, true), 0);
+  }
 }
 function txnSetSearch(val){
   const inp=document.getElementById('f-search');
@@ -1423,7 +1438,9 @@ function renderTransactions(){
         +'.mv-day-head .delta.down{background:rgba(30,173,104,.12);color:#1ead68;}'
         +'.mv-day-head .count{margin-left:auto;font-size:11.5px;font-weight:700;color:#6d6784;font-family:var(--font);}'
         +'.mv-day-bar{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-radius:14px;background:#eef0ff;margin-bottom:5px;font-size:12.6px;font-weight:700;color:#4a4463;font-family:var(--font);}'
-        +'.mv-list{background:#fff;border:1px solid rgba(97,89,139,.1);border-radius:18px;box-shadow:0 3px 10px rgba(43,37,68,.025);overflow:hidden;}'
+        +'.mv-list{background:#fff;border:1px solid rgba(97,89,139,.1);border-radius:18px;box-shadow:0 3px 10px rgba(43,37,68,.025);overflow:visible;position:relative;}'
+        +'.mv-list .mv-row:first-child{border-top-left-radius:17px;border-top-right-radius:17px;}'
+        +'.mv-list .mv-row:last-child{border-bottom-left-radius:17px;border-bottom-right-radius:17px;}'
         +'.mv-row{display:grid;grid-template-columns:42px 48px minmax(0,1fr) auto 20px;gap:11px;align-items:center;padding:11px 15px 11px 13px;min-height:66px;border-bottom:1px solid rgba(83,74,119,.062);position:relative;cursor:pointer;}'
         +'.mv-row:last-child{border-bottom:none;}'
         +'.mv-row:hover{background:#fbfbfe;}'

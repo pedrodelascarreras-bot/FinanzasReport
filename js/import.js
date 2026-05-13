@@ -462,6 +462,7 @@ function autoCreateOrUpdateCuotaEntries(txns){
       .replace(/\s*\(?\d+\/\d+\)?\s*$/, '')
       .trim() || 'Cuota';
     const existing = state.cuotas.find(c => c.cuotaGroupId === t.cuotaGroupId);
+    const lastPaidISO = !Number.isNaN(txDate.getTime()) ? txDate.toISOString().slice(0,10) : null;
     if (existing) {
       // Sync paid counter with newer installments
       const newPaid = Math.min(cuotaTotal, Math.max(Number(existing.paid)||0, cuotaNum));
@@ -469,6 +470,11 @@ function autoCreateOrUpdateCuotaEntries(txns){
       if (!existing.day) existing.day = dueDay;
       if (!existing.amount) existing.amount = Number(t.amount) || 0;
       if (!existing.name || existing.name === 'Cuota') existing.name = cleanName;
+      // Track the most recent paid installment date — used by Compromisos to compute
+      // "next charge" correctly (avoids marking as overdue when this month is already paid).
+      if (lastPaidISO && (!existing.lastPaidDate || lastPaidISO > existing.lastPaidDate)) {
+        existing.lastPaidDate = lastPaidISO;
+      }
     } else {
       state.cuotas.push({
         id: 'auto_' + t.cuotaGroupId,
@@ -478,6 +484,7 @@ function autoCreateOrUpdateCuotaEntries(txns){
         total: cuotaTotal,
         paid: cuotaNum,                 // current cuota = already paid
         day: dueDay,
+        lastPaidDate: lastPaidISO,      // date of the most recent paid installment
         emoji: '🛒',
         color: '#8c5cff',
         currency: t.currency || 'ARS',
