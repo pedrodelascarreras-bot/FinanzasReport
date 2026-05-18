@@ -4222,33 +4222,100 @@ function renderDb2DueStrip(timelineData){
     return;
   }
 
-  // Smart sizing: show up to 9 items inline
+  // ── Group items by person (same name = same person) ──
+  // If a person owes/paid from multiple txns, group them under one card.
+  // Click expands to show the breakdown of each individual transaction.
+  const groupedByPerson = new Map();
+  itemsToRender.forEach(item => {
+    const key = item.name.toLowerCase().trim();
+    if (!groupedByPerson.has(key)) {
+      groupedByPerson.set(key, {
+        name: item.name,
+        items: [],
+        totalArs: 0,
+        // We track per-currency totals so the display can be honest
+        // when amounts span ARS and USD.
+        totalsByCurrency: {}
+      });
+    }
+    const g = groupedByPerson.get(key);
+    g.items.push(item);
+    g.totalArs += item.pendingArs;
+    const cur = item.currency || 'ARS';
+    g.totalsByCurrency[cur] = (g.totalsByCurrency[cur] || 0) + (Number(item.pendingAmount) || 0);
+  });
+  const personGroups = Array.from(groupedByPerson.values())
+    .sort((a, b) => b.totalArs - a.totalArs);
+
+  // Track which person rows are expanded — persist across re-renders
+  if (!state._dueStripExpanded) state._dueStripExpanded = {};
+
+  // Helper: render currency totals for a person ("$50.000  +  USD 30")
+  const formatPersonTotal = g => {
+    const parts = Object.entries(g.totalsByCurrency)
+      .filter(([, v]) => v > 0)
+      .map(([cur, v]) => isMasked()
+        ? (cur === 'USD' ? 'U$D ••••' : '$••••••')
+        : toDisplayAmount(v, cur));
+    return parts.join('  +  ') || '—';
+  };
+
   const VISIBLE_LIMIT = 9;
-  const visibleItems = itemsToRender.slice(0, VISIBLE_LIMIT);
-  grid.innerHTML = visibleItems.map((item, i) => {
-    const since = shortDate(item.date);
-    const age = getAgeLabel(item.date);
+  const visiblePersons = personGroups.slice(0, VISIBLE_LIMIT);
+
+  grid.innerHTML = visiblePersons.map((g, i) => {
     const color = palette[i % palette.length];
-    const statusLabel = isCobradoView ? 'Cobrado' : 'Pendiente';
     const itemClass = isCobradoView ? 'cobrado' : 'pending';
-    return `<button class="db2-third-item ${itemClass}" onclick="openTxnDetail('${item.txnId}')" title="Ver gasto compartido">
-      <div class="db2-third-avatar" style="background:${color}">${initials(item.name)}</div>
-      <div class="db2-third-body">
-        <div class="db2-third-name">${esc(item.name)}</div>
-        <div class="db2-third-meta">${statusLabel} · ${esc(item.txnDesc)} · ${since}</div>
-      </div>
-      <div class="db2-third-amount">${isMasked() ? (item.currency === 'USD' ? 'U$D ••••' : '$••••••') : toDisplayAmount(item.pendingAmount, item.currency)}</div>
-      <div class="db2-third-chip">${age}</div>
-    </button>`;
+    const personKey = g.name.toLowerCase().trim() + '::' + activeView;
+    const isExpanded = !!state._dueStripExpanded[personKey];
+    const totalDisplay = formatPersonTotal(g);
+    const txnCount = g.items.length;
+    const metaLabel = isCobradoView ? 'cobrado' : 'pendiente';
+    const metaText = txnCount === 1
+      ? `${esc(g.items[0].txnDesc)}`
+      : `${txnCount} movimientos · ${metaLabel}${txnCount !== 1 ? 's' : ''}`;
+
+    // Breakdown rows (only rendered when expanded)
+    const breakdown = isExpanded
+      ? `<div class="db2-third-breakdown">${g.items.map(item => `
+          <button class="db2-third-bd-row" onclick="event.stopPropagation();openTxnDetail('${item.txnId}')" title="Ver gasto compartido">
+            <div class="db2-third-bd-info">
+              <div class="db2-third-bd-desc">${esc(item.txnDesc)}</div>
+              <div class="db2-third-bd-date">${shortDate(item.date)} · ${getAgeLabel(item.date)}</div>
+            </div>
+            <div class="db2-third-bd-amount">${isMasked() ? (item.currency === 'USD' ? 'U$D ••••' : '$••••••') : toDisplayAmount(item.pendingAmount, item.currency)}</div>
+          </button>`).join('')}</div>`
+      : '';
+
+    return `<div class="db2-third-item-wrap">
+      <button class="db2-third-item ${itemClass} ${isExpanded ? 'is-expanded' : ''}" onclick="toggleDueStripPerson('${personKey}')" title="${txnCount > 1 ? 'Click para ver el desglose' : 'Click para expandir'}">
+        <div class="db2-third-avatar" style="background:${color}">${initials(g.name)}</div>
+        <div class="db2-third-body">
+          <div class="db2-third-name">${esc(g.name)}</div>
+          <div class="db2-third-meta">${metaText}</div>
+        </div>
+        <div class="db2-third-amount">${totalDisplay}</div>
+        <div class="db2-third-chip">${txnCount > 1 ? `${txnCount} ${isExpanded ? '▴' : '▾'}` : ''}</div>
+      </button>
+      ${breakdown}
+    </div>`;
   }).join('');
 
-  if (itemsToRender.length > VISIBLE_LIMIT) {
-    const remaining = itemsToRender.length - VISIBLE_LIMIT;
+  if (personGroups.length > VISIBLE_LIMIT) {
+    const remaining = personGroups.length - VISIBLE_LIMIT;
     grid.innerHTML += `
       <button class="db2-third-more" onclick="openThirdPartyTransactions()">
-        Ver ${remaining} ${isCobradoView ? 'cobrado' : 'recordatorio'}${remaining !== 1 ? 's' : ''} más →
+        Ver ${remaining} persona${remaining !== 1 ? 's' : ''} más →
       </button>`;
   }
+}
+
+// Toggle expand/collapse of a person row in the Gastos Compartidos widget
+function toggleDueStripPerson(personKey){
+  if (!state._dueStripExpanded) state._dueStripExpanded = {};
+  state._dueStripExpanded[personKey] = !state._dueStripExpanded[personKey];
+  // No saveState — this is UI-only ephemeral state. Re-render the widget.
+  if (typeof renderDashboard === 'function') renderDashboard();
 }
 
 // Toggle view in the dashboard "Gastos Compartidos" widget

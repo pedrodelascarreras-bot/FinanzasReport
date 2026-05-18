@@ -333,6 +333,20 @@ function toggleTxnAdvancedFilters(){
   state._txnAdvancedFiltersOpen=!state._txnAdvancedFiltersOpen;
   renderTransactions();
 }
+function toggleTxnMarked(txnId){
+  const t = state.transactions.find(x => x.id === txnId);
+  if(!t) return;
+  t._marked = !t._marked;
+  if (t._marked) {
+    t._markedAt = new Date().toISOString();
+  } else {
+    delete t._markedAt;
+  }
+  saveState();
+  refreshAll();
+  showToast(t._marked ? '🚩 Marcado para revisar' : 'Desmarcado', 'success');
+}
+
 function toggleTxnActionMenu(id){
   state._txnActionMenuId=state._txnActionMenuId===id?'':id;
   renderTransactions();
@@ -1405,15 +1419,19 @@ function renderTransactions(){
       return catColor(item.label)+' '+start+'% '+donutCursor+'%';
     }).join(', '):'#E8E6F2 0 100%');
 
-    const menuForTxn=id=>state._txnActionMenuId===id?(
-      '<div class="mv-menu">'
+    const menuForTxn=id=>{
+      if(state._txnActionMenuId!==id) return '';
+      const _t = state.transactions.find(x=>x.id===id);
+      const isMarked = _t && _t._marked === true;
+      return '<div class="mv-menu">'
         +'<button onclick="openEditTxnModal(\''+id+'\');event.stopPropagation();state._txnActionMenuId=\'\';">Editar monto y fecha</button>'
         +'<button onclick="openEditMerchantModal(\''+id+'\');event.stopPropagation();state._txnActionMenuId=\'\';">Editar comercio</button>'
         +'<button onclick="openAssignModal(\''+id+'\',this);event.stopPropagation();state._txnActionMenuId=\'\';">Cambiar categoría</button>'
         +'<button onclick="openEditNoteModal(\''+id+'\');event.stopPropagation();state._txnActionMenuId=\'\';">Agregar nota</button>'
+        +'<button onclick="toggleTxnMarked(\''+id+'\');event.stopPropagation();state._txnActionMenuId=\'\';" style="'+(isMarked?'color:#ec4899;font-weight:800;':'color:#ec4899;')+'">'+(isMarked?'🚩 Desmarcar':'🚩 Marcar para revisar')+'</button>'
         +'<button class="danger" onclick="deleteTxn(\''+id+'\');event.stopPropagation();state._txnActionMenuId=\'\';">Eliminar movimiento</button>'
-      +'</div>'
-    ):'';
+      +'</div>';
+    };
 
     nativeRoot.innerHTML=
       '<style>'
@@ -1509,6 +1527,11 @@ function renderTransactions(){
         +'.mv-row{display:grid;grid-template-columns:42px 48px minmax(0,1fr) auto 20px;gap:11px;align-items:center;padding:11px 15px 11px 13px;min-height:66px;border-bottom:1px solid rgba(83,74,119,.062);position:relative;cursor:pointer;}'
         +'.mv-row:last-child{border-bottom:none;}'
         +'.mv-row:hover{background:#fbfbfe;}'
+        +'.mv-row-marked{background:linear-gradient(90deg,rgba(236,72,153,0.10) 0%,rgba(244,114,182,0.06) 60%,rgba(248,180,217,0.04) 100%) !important;border-left:4px solid #ec4899;padding-left:9px;position:relative;}'
+        +'.mv-row-marked::after{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,#ec4899,#f43f5e);box-shadow:0 0 12px rgba(236,72,153,0.55);}'
+        +'.mv-row-marked:hover{background:linear-gradient(90deg,rgba(236,72,153,0.14) 0%,rgba(244,114,182,0.08) 100%) !important;}'
+        +'.mv-marked-flag{display:inline-block;font-size:13px;margin-right:6px;vertical-align:middle;animation:mvMarkedPulse 1.6s ease-in-out infinite;}'
+        +'@keyframes mvMarkedPulse{0%,100%{transform:scale(1);opacity:.95;}50%{transform:scale(1.15);opacity:1;}}'
         +'.mv-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:1px solid rgba(0,0,0,.04);background:#17131f;color:#fff;font-size:12px;font-weight:800;box-shadow:inset 0 1px 0 rgba(255,255,255,.75),0 2px 8px rgba(23,19,31,.06);overflow:hidden;}'
         +'.mv-avatar img{width:100%;height:100%;object-fit:contain;}'
         +'.mv-avatar-cat{background:#f6f3ff;font-size:15px;font-weight:700;}'
@@ -1727,10 +1750,13 @@ function renderTransactions(){
                   const _gcMyAmt = _gcEnabled ? Number(tx.sharedExpense.myAmount||0) : 0;
                   const _gcPrefix = (tx.currency==='USD' ? 'U$D ' : '$');
                   const _gcSharedHtml = _gcEnabled ? '<div class="mv-amount-shared">🤝 tuyo: '+_gcPrefix+fmtN(_gcMyAmt)+'</div>' : '';
-                  return '<div class="mv-row" onclick="openTxnDetail(\''+tx.id+'\')">'
+                  const _isMarked = tx._marked === true;
+                  const _markedClass = _isMarked ? ' mv-row-marked' : '';
+                  const _markedFlag = _isMarked ? '<span class="mv-marked-flag" title="Marcado para revisar">🚩</span>' : '';
+                  return '<div class="mv-row'+_markedClass+'" onclick="openTxnDetail(\''+tx.id+'\')">'
                     +txnMerchantAvatar(tx)
                     +'<div class="mv-time">'+txnTimeLabel(tx)+'</div>'
-                    +'<div><div class="mv-merchant">'+esc(txnMerchantName(tx))+'</div><div class="mv-meta"><button class="mv-cat" style="background:'+catColor(cat)+'18;color:'+catColor(cat)+';" onclick="event.stopPropagation();openAssignModal(\''+tx.id+'\',this)" title="Cambiar categoría"><span style="font-size:7px;">◆</span>'+esc(cat)+'</button>'+(txnNoteText(tx)?'<span class="mv-note">↪ '+esc(txnNoteText(tx))+'</span>':'')+'</div></div>'
+                    +'<div><div class="mv-merchant">'+_markedFlag+esc(txnMerchantName(tx))+'</div><div class="mv-meta"><button class="mv-cat" style="background:'+catColor(cat)+'18;color:'+catColor(cat)+';" onclick="event.stopPropagation();openAssignModal(\''+tx.id+'\',this)" title="Cambiar categoría"><span style="font-size:7px;">◆</span>'+esc(cat)+'</button>'+(txnNoteText(tx)?'<span class="mv-note">↪ '+esc(txnNoteText(tx))+'</span>':'')+'</div></div>'
                     +'<div class="mv-amount"><div class="mv-amount-main'+amountClass+'">'+txnAmountLabel(tx)+'</div>'+(((tx.currency||'ARS')==='USD')?'<div class="mv-amount-sub">'+txnEquivalentLabel(tx)+'</div>':'')+_gcSharedHtml+'</div>'
                     +'<div style="position:relative;"><button class="mv-menu-btn" onclick="event.stopPropagation();toggleTxnActionMenu(\''+tx.id+'\')">⋮</button>'+menuForTxn(tx.id)+'</div>'
                   +'</div>';
@@ -2874,20 +2900,26 @@ function _closeCipOnOutside(e){
 // confirmAssign removed — legacy, modal-assign-cat element no longer exists
 function confirmAssignInline(txnId, catName){
   const t=state.transactions.find(x=>x.id===txnId);
-  if(t){
-    t.category=catName;
-    t.estado_revision='confirmado_por_usuario';
+  if(!t) return;
+  // Re-click on already-assigned category → un-assign (toggle off)
+  const isReclick = t.category === catName;
+  if (isReclick) {
+    t.category = 'Procesando...';
+    t.estado_revision = 'pendiente_de_revision';
+  } else {
+    t.category = catName;
+    t.estado_revision = 'confirmado_por_usuario';
     learnFromConfirmation(t, catName);
-    saveState();refreshAll();
-    updateQrBadge();
-    const picker=document.getElementById('cat-inline-picker');
-    if(picker){
-      picker.style.display='none';
-      picker.style.transform='none';
-    }
-    if(state._detailTxnId===txnId) openTxnDetail(txnId);
-    showToast('✓ '+catName,'success');
   }
+  saveState();refreshAll();
+  updateQrBadge();
+  const picker=document.getElementById('cat-inline-picker');
+  if(picker){
+    picker.style.display='none';
+    picker.style.transform='none';
+  }
+  if(state._detailTxnId===txnId) openTxnDetail(txnId);
+  showToast(isReclick ? 'Categoría removida' : '✓ '+catName, isReclick ? 'info' : 'success');
 }
 
 // ══ SMART DUPLICATE REVIEW ══
