@@ -2428,6 +2428,7 @@ function acceptTxnSuggestion(txnId){
 // ══ PANEL DETALLE TRANSACCIÓN ══
 function openTxnDetail(txnId){
   const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
+  document.removeEventListener('click', _closePanelsOnOutside);
   state._detailTxnId=txnId;
   const panel=document.getElementById('txn-detail-panel');
   if(!panel)return;
