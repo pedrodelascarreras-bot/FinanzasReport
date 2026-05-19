@@ -17122,31 +17122,120 @@ body.light-mode .tdp-tp-input {
   .ccw-focus-amt { font-size:24px; }
 }
 
-/* ── keep old class stubs for masked state ── */
+/* ── Compact CC Card Layout ── */
+.db2-cc-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.db2-cc-item {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background: #fff;
+  border: 1px solid rgba(107,114,128,0.08);
+}
+.db2-cc-item-amex { border-color: rgba(59,130,246,0.1); }
+.db2-cc-name {
+  font-size: 10px;
+  font-weight: 800;
+  color: #8B8AA8;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-bottom: 10px;
+}
+.db2-cc-name-visa { color: #5B3BFF; }
+.db2-cc-name-amex { color: #1D4ED8; }
+.db2-cc-cycle-main {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.db2-cc-dates-and-bar {
+  flex: 1;
+  min-width: 0;
+}
+.db2-cc-dates-row {
+  display: flex;
+  gap: 12px;
+}
+.db2-cc-date-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.db2-cc-date-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: #8B8AA8;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+}
+.db2-cc-date-label svg {
+  width: 11px;
+  height: 11px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.db2-cc-date-val {
+  font-size: 13px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: .01em;
+}
 .db2-cc-bar-track {
-  height: 5px; border-radius: 999px;
+  height: 5px;
+  border-radius: 999px;
   background: #ECECF5;
   overflow: hidden;
   margin-top: 12px;
 }
 .db2-cc-bar-fill {
-  height: 100%; border-radius: 999px;
+  height: 100%;
+  border-radius: 999px;
   background: linear-gradient(90deg, #7B5CFF, #5A3DF0);
   transition: width 0.8s var(--ease-premium);
 }
 .db2-cc-item-amex .db2-cc-bar-track { background: #E7EEF9; }
 .db2-cc-item-amex .db2-cc-bar-fill { background: linear-gradient(90deg, #3B82F6, #1D4ED8); }
-.db2-cc-days {
-  font-size: clamp(11px, 0.92vw, 14px);
+.db2-cc-amount-side {
+  flex-shrink: 0;
+  text-align: right;
+  min-width: 120px;
+}
+.db2-cc-amt {
+  font-size: clamp(18px, 1.6vw, 24px);
+  font-weight: 900;
+  color: #111827;
+  letter-spacing: -.03em;
+  line-height: 1.1;
+}
+.db2-cc-amt-usd {
+  font-size: 12px;
   font-weight: 650;
   color: #7b7f98;
-  margin-top: 8px;
-  padding-top: 0;
+  margin-top: 3px;
+}
+.db2-cc-days {
+  font-size: 11px;
+  font-weight: 650;
+  color: #7b7f98;
+  margin-top: 6px;
   white-space: nowrap;
 }
 .db2-cc-amount-side.is-masked .db2-cc-amt,
 .db2-cc-amount-side.is-masked .db2-cc-amt-usd {
   visibility: hidden;
+}
+@media (max-width: 480px) {
+  .db2-cc-cycle-main { flex-direction: column; }
+  .db2-cc-amount-side { text-align: left; min-width: 0; }
+  .db2-cc-dates-row { flex-wrap: wrap; }
 }
 
 /* ═══ PROYECCIÓN AL CIERRE ═══ */
@@ -18900,6 +18989,14 @@ body:not(.light-mode) .db2-cc-card{
   background: linear-gradient(180deg, rgba(27,31,52,0.98) 0%, rgba(22,27,45,0.96) 100%);
   border-color: rgba(150, 164, 220, 0.12);
 }
+body:not(.light-mode) .db2-cc-item { background:rgba(12,18,32,0.72); border-color:rgba(117,102,204,0.15); }
+body:not(.light-mode) .db2-cc-item-amex { border-color:rgba(82,130,225,0.15); }
+body:not(.light-mode) .db2-cc-date-val { color:#f4f7ff; }
+body:not(.light-mode) .db2-cc-amt { color:#f4f7ff; }
+body:not(.light-mode) .db2-cc-amt-usd { color:#aab4d0; }
+body:not(.light-mode) .db2-cc-days { color:#9da8c8; }
+body:not(.light-mode) .db2-cc-date-label { color:#9da8c8; }
+body:not(.light-mode) .db2-cc-bar-track { background:rgba(138,149,202,0.18); }
 body:not(.light-mode) .ccw-title,
 body:not(.light-mode) .ccw-focus-amt,
 body:not(.light-mode) .ccw-compare-amt,
