@@ -239,8 +239,9 @@ function renderCreditCards(){
 function renderCcCardTabs(){
   const el=document.getElementById('cc-card-tabs');if(!el)return;
   const cycles=getTcCycles();
+  const todayYmd=dateToYMD(new Date());
   el.innerHTML=state.ccCards.map(card=>{
-    const isActive=state.ccActiveCard===card.id;
+    const isSelected=state.ccActiveCard===card.id;
     const cycle=cycles.find(c=>((c.cardId||state.ccCards[0]?.id)===card.id));
     const totals=cycle?ccGetTotals(ccGetCycleExpenses(card.id,cycle.id)):{ars:0,usd:0,count:0};
     const status=cycle?state.ccCycles.find(s=>s.cardId===card.id&&s.tcCycleId===cycle.id):null;
@@ -248,14 +249,21 @@ function renderCcCardTabs(){
     const last=card.last4||card.digits||card.lastDigits||'••••';
     const brandText=ccCardBrandLabel(card);
     const brandClass=brandText==='AMEX'?'is-amex':'is-visa';
-    return `<button class="cc-card-switch ${isActive?'is-active':''} ${brandClass}" onclick="ccSelectCard('${card.id}')" style="--cc-card-color:${card.color};">
+    // Check if card has a currently active cycle (today falls within open–close)
+    const hasActiveCycle=cycle && (()=>{
+      const idx=cycles.findIndex(c=>c.id===cycle.id);
+      const open=cycle.openDate||getTcCycleOpen(cycles,idx)||cycle.closeDate;
+      return open<=todayYmd && todayYmd<=cycle.closeDate;
+    })();
+    return `<button class="cc-card-switch ${isSelected?'is-active':''} ${brandClass} ${hasActiveCycle?'has-active-cycle':''}" onclick="ccSelectCard('${card.id}')" style="--cc-card-color:${card.color};">
       <span class="cc-card-switch-dot"></span>
       <span class="cc-card-switch-main">
         <strong>${esc(card.name)}</strong>
         <small>${esc(last)} · ${cycle?esc(cycle.label):'Sin ciclo'} · ${statusText}</small>
+        ${hasActiveCycle?'<span class="cc-card-switch-cycle-active">● Activo</span>':''}
       </span>
       <span class="cc-card-switch-total">${totals.ars>0?'$'+fmtN(Math.round(totals.ars)):'—'}</span>
-      ${isActive?'<span class="cc-card-switch-active-label">Viendo ahora</span>':''}
+      ${isSelected?'<span class="cc-card-switch-active-label">Viendo ahora</span>':''}
       <span class="cc-card-switch-brand">${brandText}</span>
     </button>`;
   }).join('')+`
@@ -733,7 +741,7 @@ function ccSyncCloseDayFromDate(){
   }
 }
 
-// ── Render Apple-style Configuración panel ──
+// ── Render Configuración panel — multi-card dashboard ──
 function renderCcConfigPanel(){
   const el=document.getElementById('cc-config-panel-body');if(!el)return;
   const cycles=getTcCycles();
@@ -741,272 +749,165 @@ function renderCcConfigPanel(){
   const editingId=window._tcCycleEditId||'';
   const editingCycle=editingId ? cycles.find(c=>c.id===editingId) : null;
   const draftCardId=window._ccConfigDraftCardId||editingCycle?.cardId||state.ccActiveCard||cards[0]?.id||'';
-  state.ccActiveCard=draftCardId||state.ccActiveCard;
-  const activeCard=cards.find(card=>card.id===draftCardId)||cards[0]||null;
-  const cardOptions=cards.map(card=>`<option value="${esc(card.id)}" ${card.id===draftCardId?'selected':''}>${esc(card.name)}</option>`).join('');
-  const fmtD=s=>s?new Date(s+'T12:00:00').toLocaleDateString('es-AR',{day:'2-digit',month:'short',year:'numeric'}):'—';
-  const fmtShort=s=>s?new Date(s+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short',year:'numeric'}):'—';
-  const fmtPeriod=s=>s?new Date(s+'T12:00:00').toLocaleDateString('es-AR',{month:'short',year:'numeric'}).replace('.',''):'Sin período';
   const todayYmd=dateToYMD(new Date());
-  const cycleGroups=cards.map(card=>{
-    const items=cycles
-      .map((cycle, idx)=>({cycle, idx}))
-      .filter(({cycle})=>((cycle.cardId||cards[0]?.id)===card.id));
-    return { card, items };
-  });
-  const activeGroup=cycleGroups.find(group=>group.card.id===draftCardId)||cycleGroups[0]||{items:[]};
-  const visibleCycles=[...activeGroup.items]
-    .filter(({cycle})=>(cycle.openDate||getTcCycleOpen(cycles,cycles.findIndex(c=>c.id===cycle.id))||'')<=todayYmd)
-    .sort((a,b)=>(b.cycle.closeDate||'').localeCompare(a.cycle.closeDate||''));
-  const currentCycle=(editingCycle&&editingCycle.cardId===draftCardId?{cycle:editingCycle,idx:cycles.findIndex(c=>c.id===editingCycle.id)}:null)
-    || visibleCycles.find(({cycle,idx})=>{
-      const open=cycle.openDate||getTcCycleOpen(cycles,idx)||cycle.closeDate;
-      return open<=todayYmd&&todayYmd<=cycle.closeDate;
-    })
-    || visibleCycles[0]
-    || activeGroup.items[0]
-    || null;
-  const currentOpen=currentCycle?(currentCycle.cycle.openDate||getTcCycleOpen(cycles,currentCycle.idx)||currentCycle.cycle.closeDate):'';
-  const currentClose=currentCycle?.cycle?.closeDate||'';
-  const currentDue=currentCycle?.cycle?.dueDate||'';
-  const currentDay=currentClose?String(new Date(currentClose+'T12:00:00').getDate()):'—';
+  const today=new Date();today.setHours(0,0,0,0);
+  const fmtShort=s=>{if(!s)return'—';const d=new Date(s+'T12:00:00');return d.toLocaleDateString('es-AR',{day:'numeric',month:'short'});};
+  const daysFrom=s=>{if(!s)return null;const d=new Date(s+'T12:00:00');d.setHours(0,0,0,0);return Math.round((d-today)/86400000);};
+  const cardOptions=cards.map(card=>`<option value="${esc(card.id)}" ${card.id===draftCardId?'selected':''}>${esc(card.name)}</option>`).join('');
+
+  const actionsEl=document.getElementById('cc-page-actions');
+  if(actionsEl) actionsEl.innerHTML='';
+
+  // Build per-card status cards
+  const cardStatusHtml=cards.map(card=>{
+    const cardCycles=cycles
+      .filter(c=>(c.cardId||cards[0]?.id)===card.id)
+      .sort((a,b)=>(b.closeDate||'').localeCompare(a.closeDate||''));
+    const activeCycle=cardCycles.find(c=>{
+      const open=c.openDate||getTcCycleOpen(cycles,cycles.findIndex(x=>x.id===c.id))||c.closeDate;
+      return open<=todayYmd&&todayYmd<=c.closeDate;
+    })||cardCycles[0]||null;
+    const hasActiveCycle=!!activeCycle;
+    const open=activeCycle?(activeCycle.openDate||getTcCycleOpen(cycles,cycles.findIndex(x=>x.id===activeCycle.id))||activeCycle.closeDate):'';
+    const totals=activeCycle?ccGetTotals(ccGetCycleExpenses(card.id,activeCycle.id)):{ars:0,usd:0};
+    const statusEntry=activeCycle?state.ccCycles.find(x=>x.tcCycleId===activeCycle.id&&x.cardId===card.id):null;
+    const isPaid=statusEntry?.status==='paid';
+    const isCurrentlyActive=activeCycle&&open<=todayYmd&&todayYmd<=activeCycle.closeDate;
+    const brand=ccCardBrandLabel(card);
+    const isEditing=editingCycle?.cardId===card.id;
+    const dueDateStr=statusEntry?.dueDate||activeCycle?.dueDate||'';
+    const daysToClose=activeCycle?daysFrom(activeCycle.closeDate):null;
+    const daysToDue=dueDateStr?daysFrom(dueDateStr):null;
+
+    const statusBadgeClass=isPaid?'ccr-badge-paid':isCurrentlyActive?'ccfg-badge-active':'ccr-badge-pending';
+    const statusBadgeText=isPaid?'Pagado':isCurrentlyActive?'Activo':'Pendiente';
+
+    const fmtDays=(n,label)=>{
+      if(n===null)return'';
+      if(n<0)return`<span class="ccfg-countdown-chip is-overdue"><b>${label}</b>Vencido</span>`;
+      if(n===0)return`<span class="ccfg-countdown-chip is-urgent"><b>${label}</b>Hoy</span>`;
+      return`<span class="ccfg-countdown-chip ${n<=5?'is-urgent':''}"><b>${label}</b>${n} día${n===1?'':'s'}</span>`;
+    };
+
+    // Past cycles for history
+    const pastCycles=cardCycles.filter(c=>c.id!==activeCycle?.id&&c.closeDate<todayYmd).slice(0,8);
+    const historyHtml=pastCycles.length?pastCycles.map(c=>{
+      const ps=state.ccCycles.find(x=>x.tcCycleId===c.id&&x.cardId===card.id);
+      const pp=ps?.status==='paid';
+      const pt=ccGetTotals(ccGetCycleExpenses(card.id,c.id));
+      return`<div class="ccfg-hist-row">
+        <span class="ccr-status-dot ${pp?'is-paid':'is-pending'}"></span>
+        <span class="ccfg-hist-label">${esc(c.label)}</span>
+        <span class="ccfg-hist-total">${pt.ars>0?'$'+fmtN(Math.round(pt.ars)):'$0'}</span>
+        <button class="ccfg-hist-edit" onclick="editTcCycle('${c.id}')">✎</button>
+      </div>`;
+    }).join(''):'<div class="ccfg-hist-empty">Sin ciclos anteriores</div>';
+
+    if(!hasActiveCycle){
+      return`<article class="ccfg-card ccfg-card-empty" style="--cc-card-color:${card.color};">
+        <div class="ccfg-card-head">
+          <span class="ccfg-card-dot" style="background:${card.color};"></span>
+          <strong>${esc(card.name)}</strong>
+          <span class="ccfg-card-brand">${brand}</span>
+        </div>
+        <div class="ccfg-card-empty-msg">Sin ciclo activo</div>
+        <button class="ccfg-card-action" onclick="ccOpenCycleComposer('${card.id}')">+ Configurar ciclo</button>
+      </article>`;
+    }
+
+    return`<article class="ccfg-card ${isPaid?'is-paid':''} ${isEditing?'is-editing':''}" style="--cc-card-color:${card.color};">
+      <div class="ccfg-card-head">
+        <span class="ccfg-card-dot" style="background:${card.color};"></span>
+        <strong>${esc(card.name)}</strong>
+        <span class="ccfg-card-brand">${brand}</span>
+        <span class="ccr-badge ${statusBadgeClass}">${statusBadgeText}</span>
+      </div>
+      <div class="ccfg-card-label">${esc(activeCycle.label)}</div>
+      <div class="ccfg-card-dates">
+        <div><b>Apertura</b><span>${esc(fmtShort(open))}</span></div>
+        <div><b>Cierre</b><span>${esc(fmtShort(activeCycle.closeDate))}</span></div>
+        <div><b>Vencimiento</b><span>${dueDateStr?esc(fmtShort(dueDateStr)):'—'}</span></div>
+      </div>
+      <div class="ccfg-card-countdown">
+        ${fmtDays(daysToClose,'Cierre')}
+        ${fmtDays(daysToDue,'Vence')}
+      </div>
+      <div class="ccfg-card-total">
+        <span>Total</span>
+        <strong>${totals.ars>0?'$'+fmtN(Math.round(totals.ars)):'$0'}</strong>
+        ${totals.usd>0?`<small>USD ${fmtN(totals.usd)}</small>`:''}
+      </div>
+      <div class="ccfg-card-actions">
+        <button onclick="editTcCycle('${activeCycle.id}')">Editar ciclo</button>
+        <button onclick="ccOpenCycleComposer('${card.id}')">Nuevo ciclo</button>
+      </div>
+      ${pastCycles.length?`
+      <details class="ccfg-history">
+        <summary>Historial · ${pastCycles.length} ciclo${pastCycles.length===1?'':'s'} anterior${pastCycles.length===1?'':'es'}</summary>
+        <div class="ccfg-hist-list">${historyHtml}</div>
+      </details>`:''}
+    </article>`;
+  }).join('');
+
+  // Close day select for form
   const selectedCloseDay=editingCycle?.closeDate
     ? String(new Date(editingCycle.closeDate+'T12:00:00').getDate())
-    : (currentClose?String(new Date(currentClose+'T12:00:00').getDate()):'1');
+    : '1';
   const closeDayOptions=Array.from({length:31},(_,i)=>String(i+1))
     .map(day=>`<option value="${day}" ${day===selectedCloseDay?'selected':''}>${day}</option>`)
     .join('');
-  const currentTotals=currentCycle&&activeCard?ccGetTotals(ccGetCycleExpenses(activeCard.id,currentCycle.cycle.id)):{ars:0,usd:0};
-  const currentStatus=currentCycle&&activeCard?state.ccCycles.find(x=>x.tcCycleId===currentCycle.cycle.id&&x.cardId===activeCard.id):null;
-  const statusText=currentStatus?.status==='paid'?'pagado':'pendiente';
-  const last4=activeCard?.last4||activeCard?.digits||activeCard?.lastDigits||'••••';
-  const activeBrand=ccCardBrandLabel(activeCard);
-
-  const actionsEl=document.getElementById('cc-page-actions');
-  if(actionsEl){
-    actionsEl.innerHTML=activeCard?`
-      <div class="cc-period-picker cc-config-period-pill">
-        <span class="cc-period-picker-label">Período</span>
-        <strong>${esc(activeCard.name.replace(/^Santander\s+/i,''))} · ${esc(fmtPeriod(currentClose))}</strong>
-      </div>
-    `:'';
-  }
-
-  const quickCardsHtml=cards.map(card=>{
-    const cardCycles=(cycleGroups.find(group=>group.card.id===card.id)?.items||[])
-      .filter(({cycle})=>(cycle.openDate||cycle.closeDate)<=todayYmd)
-      .sort((a,b)=>(b.cycle.closeDate||'').localeCompare(a.cycle.closeDate||''));
-    const activeCycle=cardCycles[0]?.cycle||null;
-    const totals=activeCycle?ccGetTotals(ccGetCycleExpenses(card.id,activeCycle.id)):{ars:0,usd:0};
-    const status=activeCycle?state.ccCycles.find(s=>s.cardId===card.id&&s.tcCycleId===activeCycle.id):null;
-    const last=card.last4||card.digits||card.lastDigits||'••••';
-    return `
-      <button class="cc-config-top-card ${card.id===draftCardId?'is-active':''}" onclick="ccSelectConfigCard('${card.id}')">
-        <span class="cc-config-card-icon" style="--cc-color:${card.color};"></span>
-        <span class="cc-config-quick-copy">
-          <strong>${esc(card.name)}</strong>
-          <small>${activeCycle?esc(activeCycle.label)+' · ':''}${status?.status==='paid'?'pagado':'pendiente'}</small>
-          <small>${esc(last)}</small>
-        </span>
-        <span class="cc-config-top-total">${totals.ars>0?'$'+fmtN(Math.round(totals.ars)):'—'}</span>
-        <span class="cc-config-top-arrow">›</span>
-      </button>
-    `;
-  }).join('')+`
-    <button class="cc-config-add-card" onclick="ccCreateCardPrompt()">
-      <span>+</span>
-      <strong>Nueva tarjeta</strong>
-    </button>
-  `;
-
-  const timelineSteps=[
-    {icon:'▶',label:'Apertura del ciclo',value:fmtShort(currentOpen),sub:'Inicio del ciclo',tone:'violet'},
-    {icon:'□',label:'Cierre del resumen',value:fmtShort(currentClose),sub:'Cierre del período',tone:'red'},
-    {icon:'□',label:'Vencimiento',value:fmtShort(currentDue),sub:'Fecha de pago',tone:'blue'},
-    {icon:'↻',label:'Día de cierre',value:currentDay,sub:'de cada mes',tone:'green'}
-  ].map((step,idx)=>`
-    <div class="cc-config-time-step ${step.tone}">
-      <div class="cc-config-time-icon">${step.icon}</div>
-      <div>
-        <span>${step.label}</span>
-        <strong>${esc(step.value)}</strong>
-        <small>${step.sub}</small>
-      </div>
-      ${idx<3?'<i></i>':''}
-    </div>
-  `).join('');
-
-  // ── Build records: dedup auto+manual pairs and only show the newest cycles ──
-  const recordsHtml=cycleGroups.map((group)=>{
-    const { card, items } = group;
-
-    // Dedup: if a manual cycle and an auto cycle share the same closeDate, keep only the manual one
-    const dedupedItems=[];
-    const seenClose=new Set();
-    // manual first so they win the dedup
-    const sorted=[...items].sort((a,b)=>{
-      const aM=(a.cycle.source||'manual')!=='auto'?0:1;
-      const bM=(b.cycle.source||'manual')!=='auto'?0:1;
-      return aM-bM || b.cycle.closeDate.localeCompare(a.cycle.closeDate);
-    });
-    sorted.forEach(item=>{
-      const key=item.cycle.closeDate;
-      if(!seenClose.has(key)){ seenClose.add(key); dedupedItems.push(item); }
-    });
-    // newest first
-    dedupedItems.sort((a,b)=>b.cycle.closeDate.localeCompare(a.cycle.closeDate));
-
-    const historyOpen=window._ccRecordsExpanded?.[card.id]===true;
-    const VISIBLE=2;
-    const visibleItems=historyOpen?dedupedItems:dedupedItems.slice(0,VISIBLE);
-    const oldCount=Math.max(dedupedItems.length-VISIBLE,0);
-
-    const pendingCount=dedupedItems.filter(({cycle})=>{
-      const statusEntry=state.ccCycles.find(x=>x.tcCycleId===cycle.id&&x.cardId===card.id);
-      return statusEntry?.status!=='paid';
-    }).length;
-
-    // Short date: "30 abr"
-    const shortD=s=>{
-      if(!s)return'—';
-      const d=new Date(s+'T12:00:00');
-      return d.toLocaleDateString('es-AR',{day:'numeric',month:'short'});
-    };
-
-    const rowsHtml=visibleItems.length ? visibleItems.map(({cycle},rowIdx)=>{
-      const open=cycle.openDate||getTcCycleOpen(cycles,cycles.findIndex(c=>c.id===cycle.id));
-      const totals=ccGetTotals(ccGetCycleExpenses(card.id, cycle.id));
-      const statusEntry=state.ccCycles.find(x=>x.tcCycleId===cycle.id&&x.cardId===card.id);
-      const isPaid=statusEntry?.status==='paid';
-      const isManual=(cycle.source||'manual')!=='auto';
-      const isCurrent=rowIdx===0;
-      const arsStr=totals.ars>0?'$'+fmtN(Math.round(totals.ars)):'Sin gastos';
-      const usdStr=totals.usd>0?'U$D '+fmtN(totals.usd):'';
-      return `
-        <article class="ccr-cycle ${isCurrent?'is-current':''}">
-          <div class="ccr-cycle-main">
-            <span class="ccr-status-dot ${isPaid?'is-paid':'is-pending'}"></span>
-            <div>
-              <div class="ccr-cycle-title">
-                <span>${isCurrent?'Ciclo actual':'Anterior'}</span>
-                ${isPaid?'<b class="ccr-badge ccr-badge-paid">Pagado</b>':'<b class="ccr-badge ccr-badge-pending">Pendiente</b>'}
-                ${isManual?'<b class="ccr-badge ccr-badge-manual">Editado</b>':''}
-              </div>
-              <div class="ccr-cycle-period">${esc(cycle.label)}</div>
-              <div class="ccr-cycle-dates">
-                <span><b>Apertura</b>${esc(shortD(open))}</span>
-                <span><b>Cierre</b>${esc(shortD(cycle.closeDate))}</span>
-                <span><b>Vence</b>${cycle.dueDate?esc(shortD(cycle.dueDate)):'—'}</span>
-              </div>
-            </div>
-          </div>
-          <div class="ccr-cycle-money">
-            <strong>${arsStr}</strong>
-            ${usdStr?`<small>${usdStr}</small>`:''}
-          </div>
-          <div class="ccr-cycle-actions">
-            <button class="ccr-btn-edit" onclick="editTcCycle('${cycle.id}')" title="Editar ciclo">Editar</button>
-            <button class="ccr-btn-del" onclick="deleteTcCycle('${cycle.id}')" title="Borrar ciclo">Borrar</button>
-          </div>
-        </article>
-      `;
-    }).join('') : `
-      <div class="cc-config-empty-card">
-        <div class="cc-config-empty-title">Sin ciclos para ${esc(card.name)}</div>
-        <button class="btn btn-primary btn-sm" onclick="ccOpenCycleComposer('${card.id}')">Agregar ciclo</button>
-      </div>
-    `;
-
-    const historyBtn=oldCount>0?`
-      <button class="ccr-history-btn" onclick="ccToggleRecordsExpanded('${card.id}')">
-        ${historyOpen?'Ocultar historial':'Ver historial'}
-      </button>`:'';
-    const bulkBtn=oldCount>0?`
-      <button class="ccr-clean-btn" onclick="ccDeleteOldCycles('${card.id}')">
-        Borrar ${oldCount} antiguo${oldCount===1?'':'s'}
-      </button>`:'';
-
-    return `
-      <div class="ccr-card">
-        <div class="ccr-card-header">
-          <div class="ccr-card-title">
-            <span class="cc-config-accordion-dot" style="background:${card.color};"></span>
-            <strong>${esc(card.name)}</strong>
-            <span class="ccr-card-meta">${pendingCount} pendiente${pendingCount===1?'':'s'}${oldCount>0?' · '+oldCount+' antiguo'+(oldCount===1?'':'s'):''}</span>
-          </div>
-          <div class="ccr-card-actions">${historyBtn}${bulkBtn}</div>
-        </div>
-        <div class="ccr-rows">${rowsHtml}</div>
-      </div>
-    `;
-  }).join('');
 
   el.innerHTML=`
     <div class="cc-config-shell cc-config-modern-shell">
-      <section class="cc-active-card-banner cc-active-card-banner-config fade-up d1" style="--cc-card-color:${activeCard?.color||'#6d4aff'};">
-        <div class="cc-active-card-mark">${esc(activeBrand)}</div>
-        <div class="cc-active-card-copy">
-          <span>Configurando</span>
-          <strong>${esc(activeCard?.name||'Tarjeta')}</strong>
-          <small>${esc(last4)} · ${currentCycle?esc(currentCycle.cycle.label):'Sin ciclo actual'} · ${statusText}</small>
+      <section class="ccfg-dashboard fade-up d1">
+        <div class="ccfg-dashboard-head">
+          <h3>Estado de tus tarjetas</h3>
+          <small>${cards.length} tarjeta${cards.length===1?'':'s'} configurada${cards.length===1?'':'s'}</small>
         </div>
-        <button onclick="document.getElementById('cc-card-tabs')?.scrollIntoView({behavior:'smooth',block:'center'});">Cambiar tarjeta</button>
+        <div class="ccfg-cards-grid">
+          ${cardStatusHtml}
+        </div>
       </section>
-      <section class="cc-config-modern-grid fade-up d2">
-        <div class="cc-config-left-stack">
-          <article class="cc-config-modern-card cc-config-dates-card">
-            <div class="cc-config-card-head">
-              <h3>Fechas del ciclo actual</h3>
-              <button onclick="${currentCycle?`editTcCycle('${currentCycle.cycle.id}')`:`ccOpenCycleComposer('${draftCardId}')`}">✎ Editar</button>
-            </div>
-            <div class="cc-config-timeline">${timelineSteps}</div>
-            <div class="cc-config-ok">✓ Tu ciclo está configurado correctamente.</div>
-          </article>
 
-          <article class="cc-config-modern-card">
-            <div class="cc-config-card-head"><h3>Acciones rápidas</h3></div>
-            <div class="cc-config-actions-grid">
-              <button onclick="ccOpenHistoryPanel('${draftCardId}')"><span>□</span><div class="cc-config-action-copy"><strong>Ver historial de ciclos</strong><small>Consultá todos los ciclos anteriores y actuales.</small></div><b>›</b></button>
-              <button onclick="ccDownloadConfig('${draftCardId}')"><span>↓</span><div class="cc-config-action-copy"><strong>Descargar configuración</strong><small>Descargá la configuración actual de tu ciclo.</small></div><b>›</b></button>
+      <section class="ccfg-form-section fade-up d2">
+        <div class="cc-config-modern-card ccfg-form-card">
+          <div class="ccfg-form-header">
+            <div>
+              <h3>${editingCycle?'Editar ciclo':'Nuevo ciclo'}</h3>
+              <p>${editingCycle?'Modificá las fechas de este ciclo.':'Elegí la tarjeta y definí las fechas del nuevo período.'}</p>
             </div>
-          </article>
-
-          <article class="cc-config-modern-card cc-config-helper-card">
-            <div class="cc-config-card-head"><h3>Información del ciclo</h3></div>
-            <p>La apertura define desde cuándo entran consumos, el cierre arma el resumen y el vencimiento marca la fecha límite de pago.</p>
-          </article>
+            ${editingCycle?`<div class="cc-config-edit-banner">Editando: ${esc(editingCycle.label||'ciclo')}</div>`:''}
+          </div>
+          <div class="ccfg-form-grid">
+            <label class="cc-config-field ccfg-field-card">
+              <span>Tarjeta</span>
+              <select class="cc-cfg-input" id="tc-cycle-card-cc">${cardOptions}</select>
+            </label>
+            <label class="cc-config-field">
+              <span>Apertura del ciclo</span>
+              <input type="date" class="cc-cfg-input" id="tc-cycle-open-cc">
+            </label>
+            <label class="cc-config-field">
+              <span>Cierre del resumen</span>
+              <input type="date" class="cc-cfg-input" id="tc-cycle-close-cc" onchange="ccSyncCloseDayFromDate()">
+            </label>
+            <label class="cc-config-field">
+              <span>Vencimiento</span>
+              <input type="date" class="cc-cfg-input" id="tc-cycle-due-cc">
+            </label>
+            <label class="cc-config-field ccfg-field-day">
+              <span>Día de cierre</span>
+              <select class="cc-cfg-input" id="tc-cycle-day-cc" onchange="ccApplyCloseDayFromConfig(this.value)">
+                ${closeDayOptions}
+              </select>
+            </label>
+            <div class="ccfg-form-actions">
+              <input type="hidden" id="tc-cycle-label-cc" value="${editingCycle?esc(editingCycle.label||''):''}">
+              <button class="cc-config-save-btn" onclick="addTcCycleFromCC()">${editingCycle?'Guardar cambios':'Guardar ciclo'}</button>
+              ${editingCycle?'<button class="cc-config-cancel-btn" onclick="cancelTcCycleEdit()">Cancelar</button>':''}
+            </div>
+          </div>
         </div>
-
-        <aside class="cc-config-modern-card cc-config-new-cycle">
-          <h3>Configurar nuevo ciclo</h3>
-          <p>Definí las fechas de tu nuevo ciclo de tarjeta.</p>
-          ${editingCycle?`<div class="cc-config-edit-banner">Estás editando ${esc(editingCycle.label||'este ciclo')}.</div>`:''}
-          <label class="cc-config-field">
-            <span>Tarjeta</span>
-            <select class="cc-cfg-input" id="tc-cycle-card-cc">${cardOptions}</select>
-          </label>
-          <label class="cc-config-field">
-            <span>Apertura del ciclo</span>
-            <input type="date" class="cc-cfg-input" id="tc-cycle-open-cc">
-          </label>
-          <label class="cc-config-field">
-            <span>Cierre del resumen</span>
-            <input type="date" class="cc-cfg-input" id="tc-cycle-close-cc" onchange="ccSyncCloseDayFromDate()">
-          </label>
-          <label class="cc-config-field">
-            <span>Vencimiento</span>
-            <input type="date" class="cc-cfg-input" id="tc-cycle-due-cc">
-          </label>
-          <label class="cc-config-field">
-            <span>Día de cierre</span>
-            <select class="cc-cfg-input" id="tc-cycle-day-cc" onchange="ccApplyCloseDayFromConfig(this.value)">
-              ${closeDayOptions}
-            </select>
-          </label>
-          <input type="hidden" id="tc-cycle-label-cc" value="${editingCycle?esc(editingCycle.label||''):''}">
-          <button class="cc-config-save-btn" onclick="addTcCycleFromCC()">⊕ ${editingCycle?'Guardar cambios':'Guardar nuevo ciclo'}</button>
-          ${editingCycle?'<button class="cc-config-cancel-btn" onclick="cancelTcCycleEdit()">Cancelar edición</button>':''}
-        </aside>
       </section>
     </div>
   `;
@@ -1197,3 +1098,251 @@ function ccToggleTcConfig(){
 }
 
 window.checkCreditCardAlerts = checkCreditCardAlerts;
+
+// ══ MOBILE CREDIT CARDS RENDER ══
+function renderMobileCreditCards() {
+  const shell = document.getElementById('mob-cc-shell');
+  if (!shell || window.innerWidth > 768) return;
+
+  ccInit();
+  const cards = state.ccCards || [];
+  if (!cards.length) {
+    shell.innerHTML = '<div style="padding:32px;text-align:center;color:#9EA6C7;">Sin tarjetas configuradas</div>';
+    return;
+  }
+
+  const activeCardId = state.ccActiveCard || cards[0]?.id;
+  const cycles = getTcCycles();
+
+  const _esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const _fmtN = (n) => Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+  // ── Card selector HTML ──
+  const cardsHtml = cards.map(card => {
+    const isActive = card.id === activeCardId;
+    const brand = ccCardBrandLabel(card);
+    const brandLc = brand.toLowerCase();
+    const last = card.last4 || card.digits || card.lastDigits || '••••';
+    const activeClass = isActive ? (brandLc === 'amex' ? 'active-amex' : 'active-visa') : '';
+    const badgeClass = brandLc === 'amex' ? 'mob-cc-badge-active mob-cc-badge-amex-active' : 'mob-cc-badge-active';
+    return `
+      <button class="mob-cc-card-btn ${activeClass}" onclick="ccSelectCard('${_esc(card.id)}')">
+        <div class="mob-cc-card-name">${_esc(card.name)}</div>
+        <div class="mob-cc-card-digits">•••• ${_esc(last)}</div>
+        <div class="mob-cc-card-footer">
+          ${isActive ? `<span class="${badgeClass}">ACTIVA</span>` : '<span></span>'}
+          <span class="mob-cc-brand-pill ${brandLc}">${_esc(brand)}</span>
+        </div>
+      </button>`;
+  }).join('');
+
+  // ── Active cycle data ──
+  const activeCard = cards.find(c => c.id === activeCardId);
+  const brand = activeCard ? ccCardBrandLabel(activeCard) : 'VISA';
+  const brandLc = brand.toLowerCase();
+  const cycle = ccFindDefaultCycleForCard(activeCardId, cycles);
+  const expenses = cycle ? ccGetCycleExpenses(activeCardId, cycle.id) : [];
+  const totals = ccGetTotals(expenses);
+  const catSummary = ccGetCatSummary(expenses);
+
+  // ── Cycle card HTML ──
+  let cycleHtml;
+  if (!cycle) {
+    cycleHtml = `
+      <div class="mob-cc-empty-state">
+        <div class="mob-cc-empty-icon">💳</div>
+        <div class="mob-cc-empty-text">Sin ciclo configurado para esta tarjeta</div>
+        <button class="mob-cc-empty-cta" onclick="ccSelectPageTab('config')">+ Configurar ciclo</button>
+      </div>`;
+  } else {
+    const totalARS = totals.ars + totals.usd * (window.USD_TO_ARS || 1);
+
+    // Progress: days elapsed in cycle / total cycle days
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const todayYmd = dateToYMD(today);
+    const idx = cycles.findIndex(c => c.id === cycle.id);
+    const openDate = cycle.openDate || getTcCycleOpen(cycles, idx) || cycle.closeDate;
+    const open = new Date(openDate + 'T12:00:00');
+    const close = new Date((cycle.closeDate || openDate) + 'T12:00:00');
+    const totalDays = Math.max(1, Math.round((close - open) / 86400000));
+    const elapsed = Math.max(0, Math.min(totalDays, Math.round((today - open) / 86400000)));
+    const pct = Math.round((elapsed / totalDays) * 100);
+
+    // Due date
+    const dueInfo = cycle.dueDate ? ccCountdown(cycle.dueDate) : null;
+    const dueText = dueInfo ? dueInfo.text : (cycle.closeDate ? 'Cierra ' + ccFmtDate(cycle.closeDate) : '—');
+    const dueClass = dueInfo?.overdue ? 'overdue' : dueInfo?.urgent ? 'urgent' : '';
+
+    // Donut SVG (r=30, circumference ~188.5)
+    const r = 30, cx = 36, cy = 36;
+    const circ = 2 * Math.PI * r;
+    const dash = circ;
+    const offset = circ * (1 - pct / 100);
+
+    cycleHtml = `
+      <div class="mob-cc-cycle-top">
+        <div class="mob-cc-cycle-left">
+          <div class="mob-cc-cycle-label">Gasto del ciclo</div>
+          <div class="mob-cc-cycle-amount">$${_fmtN(Math.round(totalARS))}</div>
+          <div class="mob-cc-cycle-due ${dueClass}">${_esc(dueText)}</div>
+        </div>
+        <div class="mob-cc-donut-wrap">
+          <svg class="mob-cc-donut" viewBox="0 0 72 72">
+            <circle class="mob-cc-donut-bg" cx="${cx}" cy="${cy}" r="${r}"/>
+            <circle class="mob-cc-donut-fill ${brandLc}" cx="${cx}" cy="${cy}" r="${r}"
+              stroke-dasharray="${dash.toFixed(1)}"
+              stroke-dashoffset="${offset.toFixed(1)}"/>
+            <text x="36" y="36" text-anchor="middle" dominant-baseline="central"
+              transform="rotate(90,36,36)"
+              style="font-size:10px;font-weight:700;fill:#F4F6FF;">${pct}%</text>
+            <text x="36" y="46" text-anchor="middle"
+              transform="rotate(90,36,36)"
+              style="font-size:6px;font-weight:500;fill:#9EA6C7;">del ciclo</text>
+          </svg>
+        </div>
+      </div>
+      <div class="mob-cc-prog-bar">
+        <div class="mob-cc-prog-fill ${brandLc}" style="width:${pct}%"></div>
+      </div>`;
+  }
+
+  // ── Top categorías HTML ──
+  const topCats = catSummary.slice(0, 5);
+  const totalCatARS = topCats.reduce((s, c) => s + c.ars, 0) || 1;
+  const catIconBg = (cat) => {
+    const n = String(cat || '').toLowerCase();
+    if (n.includes('super') || n.includes('aliment')) return '#1a4a1a';
+    if (n.includes('restaurant') || n.includes('comida') || n.includes('delivery')) return '#3a2010';
+    if (n.includes('uber') || n.includes('transporte') || n.includes('cabify')) return '#1a1a3a';
+    if (n.includes('salud') || n.includes('farmacia')) return '#1a3020';
+    if (n.includes('regalo')) return '#3a1a30';
+    if (n.includes('entreten') || n.includes('stream')) return '#2a1540';
+    return '#1a1a2a';
+  };
+
+  let catsHtml;
+  if (topCats.length === 0) {
+    catsHtml = '<div style="text-align:center;padding:16px;color:#9EA6C7;font-size:13px;">Sin categorías este ciclo</div>';
+  } else {
+    const topTotal = topCats.reduce((s, c) => s + c.ars, 0) || 1;
+    catsHtml = topCats.map(c => {
+      const pctCat = Math.round((c.ars / topTotal) * 100);
+      const barWidth = Math.max(4, Math.round((c.ars / topCats[0].ars) * 100));
+      const icon = ccCategoryIcon(c.cat);
+      return `
+        <div class="mob-cc-cat-row">
+          <div class="mob-cc-cat-icon" style="background:${catIconBg(c.cat)}">${icon}</div>
+          <div class="mob-cc-cat-info">
+            <div class="mob-cc-cat-name">${_esc(c.cat)}</div>
+            <div class="mob-cc-cat-bar-track">
+              <div class="mob-cc-cat-bar-fill ${brandLc}" style="width:${barWidth}%"></div>
+            </div>
+          </div>
+          <div class="mob-cc-cat-right">
+            <div class="mob-cc-cat-amt">$${_fmtN(Math.round(c.ars))}</div>
+            <div class="mob-cc-cat-pct">${pctCat}%</div>
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Últimos movimientos HTML ──
+  const logoMap = [
+    { match: ['netflix'], bg: '#141414', text: '#E30C18', label: 'N' },
+    { match: ['spotify'], bg: '#1DB954', text: '#fff', label: '♫' },
+    { match: ['mercadopago', 'merpago', 'mercado pago'], bg: '#009EE3', text: '#fff', label: 'MP' },
+    { match: ['shell'], bg: '#F7C331', text: '#D31710', label: '⛽' },
+    { match: ['carrefour'], bg: '#004899', text: '#fff', label: 'C' },
+    { match: ['rappi'], bg: '#20BFA9', text: '#fff', label: 'R' },
+    { match: ['mcdo', 'mcdonald'], bg: '#DA1E2A', text: '#FFC928', label: 'M' },
+    { match: ['uber'], bg: '#1a1a2a', text: '#fff', label: 'U' },
+  ];
+  function mobCcAvatar(desc) {
+    const name = (desc || '').toLowerCase();
+    const match = logoMap.find(item => item.match.some(m => name.includes(m)));
+    if (match) return `<div class="mob-cc-txn-avatar" style="background:${match.bg};color:${match.text};">${_esc(match.label)}</div>`;
+    const initials = (desc || 'M').trim().split(/\s+/).slice(0, 2).map(p => p[0] || '').join('').toUpperCase().slice(0, 2);
+    const hue = [...initials].reduce((acc, c) => acc + c.charCodeAt(0), 0) % 360;
+    return `<div class="mob-cc-txn-avatar" style="background:hsl(${hue},45%,22%);color:hsl(${hue},60%,70%);">${_esc(initials)}</div>`;
+  }
+
+  const lastTxns = expenses.slice(0, 6);
+  let txnsHtml;
+  if (lastTxns.length === 0) {
+    txnsHtml = '<div style="text-align:center;padding:16px;color:#9EA6C7;font-size:13px;">Sin movimientos en este ciclo</div>';
+  } else {
+    txnsHtml = lastTxns.map(tx => {
+      const isPositive = tx.amountARS < 0;
+      const sign = isPositive ? '+' : '';
+      const amt = Math.abs(tx.amountARS || tx.amountUSD || 0);
+      const prefix = tx.amountUSD && !tx.amountARS ? 'U$D ' : '$';
+      const amtStr = `${sign}${prefix}${_fmtN(Math.round(amt))}`;
+      const cat = tx.category && tx.category !== 'Procesando...' ? tx.category : 'Sin categoría';
+      // Time from date string
+      let timeStr = '';
+      const txDate = tx.date ? new Date(tx.date + 'T12:00:00') : null;
+      if (tx.txnTime) timeStr = tx.txnTime.slice(0, 5);
+      return `
+        <div class="mob-cc-txn-row">
+          ${mobCcAvatar(tx.description)}
+          <div class="mob-cc-txn-info">
+            <div class="mob-cc-txn-name">${_esc(tx.description || 'Movimiento')}</div>
+            <div class="mob-cc-txn-cat">${_esc(cat)}</div>
+          </div>
+          ${timeStr ? `<div class="mob-cc-txn-time">${_esc(timeStr)}</div>` : ''}
+          <div class="mob-cc-txn-amt${isPositive ? ' positive' : ''}">${_esc(amtStr)}</div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Assemble page ──
+  shell.innerHTML = `
+    <div class="mob-cc-page">
+
+      <div class="mob-cc-header">
+        <button class="mob-cc-ham" onclick="openMobDrawer()" aria-label="Menú">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen">
+        <div class="mob-cc-hdr-right"></div>
+      </div>
+
+      <div class="mob-cc-title-block">
+        <h1 class="mob-cc-title">Tarjetas de Crédito</h1>
+        <p class="mob-cc-subtitle">Vas bien, llevás controlado tu dinero</p>
+      </div>
+
+      <div class="mob-cc-cards-row">${cardsHtml}</div>
+
+      <div class="mob-cc-cycle-card">${cycleHtml}</div>
+
+      <div class="mob-cc-cats-card">
+        <div class="mob-cc-section-hd">
+          <div class="mob-cc-section-title">Top categorías</div>
+          <button class="mob-cc-section-link" onclick="nav('tendencia')">Ver todas →</button>
+        </div>
+        ${catsHtml}
+      </div>
+
+      <div class="mob-cc-txns-card">
+        <div class="mob-cc-section-hd">
+          <div class="mob-cc-section-title">Últimos movimientos</div>
+          <button class="mob-cc-section-link" onclick="nav('transactions')">Ver todos</button>
+        </div>
+        ${txnsHtml}
+      </div>
+
+    </div>`;
+}
+
+// ── External wrapper: call renderMobileCreditCards after every desktop render ──
+(function() {
+  const _origRenderCreditCards = window.renderCreditCards;
+  if (typeof _origRenderCreditCards !== 'function') return;
+  window.renderCreditCards = function() {
+    _origRenderCreditCards.apply(this, arguments);
+    if (window.innerWidth <= 768) {
+      try { renderMobileCreditCards(); } catch(e) { console.error('renderMobileCreditCards error', e); }
+    }
+  };
+})();

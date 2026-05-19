@@ -1613,20 +1613,27 @@ function renderTransactions(){
         +'.txn-cycle-footer-breakdown{display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;}'
         +'.txn-cycle-footer-item{font-size:11px;font-weight:700;padding:5px 8px;border-radius:999px;background:#f7f7fb;}'
         +'.txn-cycle-empty{padding:18px 0 8px;color:#7c7791;font-size:12.2px;font-weight:600;text-align:center;}'
-        +'#txn-detail-panel,#rules-panel{background:#fff;border:1px solid rgba(97,89,139,.1);border-radius:24px;box-shadow:0 24px 60px rgba(34,26,61,.18),0 8px 18px rgba(34,26,61,.08);font-family:var(--font);}'
-        +'#txn-detail-panel .tdp-header,#rules-panel .rp-header{padding:20px 20px 16px;border-bottom:1px solid rgba(97,89,139,.08);}'
-        +'#txn-detail-panel .tdp-body,#rules-panel .rp-body{padding:18px 20px 20px;}'
-        +'#txn-detail-panel .tdp-section{padding:14px 0;border-bottom:1px solid rgba(97,89,139,.07);}'
-        +'#txn-detail-panel .tdp-section:last-child{border-bottom:none;padding-bottom:4px;}'
-        +'#txn-detail-panel .tdp-section-label{font-size:11.5px;font-weight:800;color:#7b7594;letter-spacing:.04em;text-transform:uppercase;margin-bottom:10px;}'
-        +'#txn-detail-panel .tdp-field{margin-bottom:9px;}'
-        +'#txn-detail-panel .tdp-field-label{font-size:11px;color:#8a85a0;font-weight:700;margin-bottom:3px;}'
-        +'#txn-detail-panel .tdp-field-value{font-size:13.2px;color:#241e3b;font-weight:600;line-height:1.4;}'
-        +'#txn-detail-panel .tdp-amount-big{font-size:22px;font-weight:800;color:#221c38;}'
-        +'#txn-detail-panel .tdp-amount-big.usd{color:#1ead68;}'
-        +'#txn-detail-panel .tdp-tp-input,#rules-panel input,#rules-panel select{width:100%;padding:11px 12px;border:1px solid rgba(97,89,139,.12);border-radius:14px;background:#fbfbfe;color:#241e3b;font-size:13px;font-family:var(--font);}'
-        +'#txn-detail-panel .tdp-close,#rules-panel .tdp-close{width:34px;height:34px;border:none;border-radius:12px;background:#f4f4fa;color:#655f7f;font-size:14px;cursor:pointer;}'
+        +'#txn-detail-panel{background:#F8F9FF;border:none;border-left:1px solid rgba(108,92,231,.1);box-shadow:-24px 0 60px rgba(30,27,75,.08),-4px 0 16px rgba(30,27,75,.04);font-family:var(--font);}'
+        +'#txn-detail-panel .tdp-header{padding:0;border-bottom:none;}'
+        +'#txn-detail-panel .tdp-body{padding:0;}'
+        +'#txn-detail-panel .tdp-section{margin:0 16px 12px;padding:18px 20px;background:#fff;border:1px solid rgba(108,92,231,.08);border-radius:20px;box-shadow:0 1px 3px rgba(30,27,75,.03);}'
+        +'#txn-detail-panel .tdp-section:last-child{border-bottom:none;}'
+        +'#txn-detail-panel .tdp-section-label{font-size:13px;font-weight:700;color:#1E1B4B;letter-spacing:-.01em;text-transform:none;margin-bottom:16px;}'
+        +'#txn-detail-panel .tdp-info-row{border-bottom-color:rgba(108,92,231,.06);}'
+        +'#txn-detail-panel .tdp-info-label{color:#7b879d;}'
+        +'#txn-detail-panel .tdp-info-value{color:#1E1B4B;}'
+        +'#txn-detail-panel .tdp-hero-amount{font-size:34px;font-weight:800;color:#1E1B4B;}'
+        +'#txn-detail-panel .tdp-hero-amount.usd{color:#1ead68;}'
+        +'#txn-detail-panel .tdp-tp-input,#rules-panel input,#rules-panel select{width:100%;padding:11px 12px;border:1px solid rgba(108,92,231,.12);border-radius:14px;background:#fbfbfe;color:#1E1B4B;font-size:13px;font-family:var(--font);}'
+        +'#txn-detail-panel .tdp-close{width:32px;height:32px;border:1px solid rgba(30,27,75,.08);border-radius:12px;background:rgba(30,27,75,.04);color:#7b879d;font-size:13px;cursor:pointer;}'
+        +'#txn-detail-panel .tdp-close:hover{background:rgba(30,27,75,.08);color:#1E1B4B;}'
+        +'#txn-detail-panel .tdp-qa-btn{background:#fff;border:1px solid rgba(108,92,231,.1);color:#4a4668;box-shadow:0 1px 3px rgba(30,27,75,.04);}'
+        +'#txn-detail-panel .tdp-qa-btn:hover{border-color:rgba(108,92,231,.25);color:#6C5CE7;}'
+        +'#txn-detail-panel .tdp-hero-logo{background:#fff;border-color:rgba(108,92,231,.12);box-shadow:0 4px 16px rgba(30,27,75,.06);}'
         +'#txn-detail-panel .btn,#rules-panel .btn{border-radius:999px;font-family:var(--font);font-weight:700;}'
+        +'#rules-panel{background:#fff;border:1px solid rgba(97,89,139,.1);border-radius:24px;box-shadow:0 24px 60px rgba(34,26,61,.18),0 8px 18px rgba(34,26,61,.08);font-family:var(--font);}'
+        +'#rules-panel .rp-header{padding:20px 20px 16px;border-bottom:1px solid rgba(97,89,139,.08);}'
+        +'#rules-panel .rp-body{padding:18px 20px 20px;}'
         +'#rules-panel .rp-title{font-size:19px;font-weight:800;color:#221c38;letter-spacing:-.02em;}'
         +'#rules-panel .rp-header > div > div:last-child{font-size:12px !important;color:#7c7791 !important;margin-top:4px !important;}'
         +'#rules-panel .rp-body{display:flex;flex-direction:column;gap:14px;}'
@@ -2431,41 +2438,89 @@ function openTxnDetail(txnId){
     ?'background:'+cc+'18;border:1.5px solid '+cc+'44;color:'+cc
     :'background:var(--surface3);border:1.5px solid var(--border);color:var(--text3)';
 
+  const PAY_LABELS={visa:'💳 Santander VISA',amex:'💳 Santander AMEX',deb:'🏦 Santander Débito',ef:'💵 Efectivo'};
+  const _comercio = t.comercio_detectado || t.description || '';
+  const _logo = _comercio.charAt(0).toUpperCase() || '?';
+  const _heroDate = (()=>{
+    if(!t.date) return '—';
+    const d = t.date instanceof Date ? t.date : new Date(String(t.date).includes('T') ? t.date : (String(t.date) + 'T12:00:00'));
+    if(isNaN(d.getTime())) return '—';
+    const months = ['ENE','FEB','MAR','ABR','MAY','JUN','JUL','AGO','SEP','OCT','NOV','DIC'];
+    return d.getDate() + ' ' + months[d.getMonth()] + ' ' + d.getFullYear() + ' · ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+  })();
+
+  const estadoLabel = (s) => {
+    if(s==='confirmado_por_usuario') return '<span class="tdp-status-dot confirmed"></span> Confirmado';
+    if(s==='pendiente_de_revision') return '<span class="tdp-status-dot pending"></span> Pendiente';
+    if(s==='duplicado_sospechoso') return '<span class="tdp-status-dot duplicate"></span> Posible duplicado';
+    if(s==='detectado_automaticamente') return '<span class="tdp-status-dot pending"></span> Detectado';
+    return esc(s||'—');
+  };
+
   panel.innerHTML=`
     <div class="tdp-header">
-      <div style="flex:1;">
-        <div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-bottom:5px;">${fmtDate(t.date)}</div>
-        <div style="font-size:16px;font-weight:700;color:var(--text);line-height:1.3;margin-bottom:7px;font-family:var(--font);">${esc(t.description)}</div>
-        <div class="tdp-amount-big${t.currency==='USD'?' usd':''}">${t.currency==='USD'?'U$D ':'$'}${fmtN(t.amount)}</div>
+      <div class="tdp-header-top">
+        <button class="tdp-close" onclick="closeTxnDetail()">✕</button>
       </div>
-      <button class="tdp-close" onclick="closeTxnDetail()">✕</button>
-    </div>
-    <div class="tdp-body">
-      <!-- Category badge — click to change via inline picker -->
-      <div class="tdp-section">
-        <div class="tdp-section-label">Categoría</div>
-        <button style="display:inline-flex;align-items:center;gap:6px;padding:9px 16px;border-radius:14px;${catBadgeStyle};font-size:13px;font-weight:700;font-family:var(--font);cursor:pointer;transition:all .13s;" onclick="event.stopPropagation();openAssignModal('${txnId}',this)">
+      <div class="tdp-hero">
+        <div class="tdp-hero-logo">
+          ${esc(_logo)}
+          <span class="tdp-hero-edit-icon" onclick="event.stopPropagation();openEditTxnModal('${txnId}');closeTxnDetail();">✎</span>
+        </div>
+        <div class="tdp-hero-date">${_heroDate}</div>
+        <div class="tdp-hero-desc">${esc(t.description)}</div>
+        <div class="tdp-hero-amount${t.currency==='USD'?' usd':''}">${t.currency==='USD'?'U$D ':'$'}${fmtN(t.amount)}</div>
+        <button class="tdp-hero-cat-pill" style="${catBadgeStyle}" onclick="event.stopPropagation();openAssignModal('${txnId}',this)">
           ${catLabel} <span style="font-size:10px;opacity:.5;">✎</span>
         </button>
       </div>
+    </div>
 
-      <!-- Info fields -->
+    <!-- Quick Actions -->
+    <div class="tdp-quick-actions">
+      <button class="tdp-qa-btn" onclick="event.stopPropagation();_gcToggle('${txnId}',true);openTxnDetail('${txnId}');">
+        <span class="tdp-qa-icon">⊞</span><span class="tdp-qa-label">Dividir</span>
+      </button>
+      <button class="tdp-qa-btn" onclick="event.stopPropagation();">
+        <span class="tdp-qa-icon">🧾</span><span class="tdp-qa-label">Recibo</span>
+      </button>
+      <button class="tdp-qa-btn" onclick="event.stopPropagation();openAssignModal('${txnId}');">
+        <span class="tdp-qa-icon">♡</span><span class="tdp-qa-label">Categoría</span>
+      </button>
+      <button class="tdp-qa-btn" onclick="event.stopPropagation();_showTxnActions('${txnId}');">
+        <span class="tdp-qa-icon">···</span><span class="tdp-qa-label">Más</span>
+      </button>
+    </div>
+
+    <div class="tdp-body">
+      <!-- Información -->
       <div class="tdp-section">
         <div class="tdp-section-label">Información</div>
-        ${t.comercio_detectado?'<div class="tdp-field"><div class="tdp-field-label">Comercio detectado</div><div class="tdp-field-value" style="font-weight:700;">'+esc(t.comercio_detectado)+'</div></div>':''}
-        ${txnNoteText(t)?'<div class="tdp-field"><div class="tdp-field-label">Nota</div><div class="tdp-field-value">'+esc(txnNoteText(t))+'</div></div>':''}
-        <div class="tdp-field"><div class="tdp-field-label">Origen</div><div class="tdp-field-value">${esc(ORIGEN_LABELS[t.origen_del_movimiento]||t.origen_del_movimiento||'—')}</div></div>
-        <div class="tdp-field"><div class="tdp-field-label">Estado</div><div class="tdp-field-value">${esc(ESTADO_LABELS[t.estado_revision]||t.estado_revision||'—')}</div></div>
-        ${t.payMethod?'<div class="tdp-field"><div class="tdp-field-label">Tag de pago</div><div class="tdp-field-value">'+({visa:'💳 Santander VISA',amex:'💳 Santander AMEX',deb:'🏦 Santander Débito',ef:'💵 Efectivo'}[t.payMethod]||t.payMethod)+'</div></div>':''}
+        ${t.comercio_detectado?'<div class="tdp-info-row"><span class="tdp-info-label">Comercio</span><span class="tdp-info-value">'+esc(t.comercio_detectado)+'</span></div>':''}
+        <div class="tdp-info-row">
+          <span class="tdp-info-label">Origen</span>
+          <span class="tdp-info-value"><span class="tdp-info-icon">${t.origen_del_movimiento==='importado_desde_gmail'?'✉':'📄'}</span> ${esc({importado_desde_resumen:'Resumen bancario',pegado_manualmente:'Manual',paste:'Pegado',importado_desde_gmail:'Gmail'}[t.origen_del_movimiento]||t.origen_del_movimiento||'—')}</span>
+        </div>
+        <div class="tdp-info-row">
+          <span class="tdp-info-label">Estado</span>
+          <span class="tdp-info-value">${estadoLabel(t.estado_revision)}</span>
+        </div>
+        ${t.payMethod?'<div class="tdp-info-row"><span class="tdp-info-label">Tag de pago</span><span class="tdp-info-value">'+(PAY_LABELS[t.payMethod]||t.payMethod)+'</span></div>':''}
+        <div class="tdp-info-row">
+          <span class="tdp-info-label">ID de transacción</span>
+          <span class="tdp-info-value" style="font-family:var(--font);font-size:12px;letter-spacing:.01em;">#${esc(txnId.slice(0,14))} <button class="tdp-info-copy" onclick="event.stopPropagation();navigator.clipboard.writeText('${esc(txnId)}');showToast('ID copiado','success');">📋</button></span>
+        </div>
       </div>
 
       <!-- Gasto Compartido -->
       <div class="tdp-section">
-        <div class="tdp-section-label">Gasto Compartido</div>
-        <label class="tdp-toggle-row" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;gap:8px;">
-          <span style="font-size:13px;color:var(--text2);font-weight:500;">Dividir este gasto entre varias personas</span>
+        <div class="tdp-gc-header">
+          <div class="tdp-gc-header-text">
+            <div class="tdp-gc-title">Gasto compartido</div>
+            <div class="tdp-gc-subtitle">Divide este gasto entre varias personas</div>
+          </div>
           <input type="checkbox" class="tdp-toggle-cb" ${t.sharedExpense&&t.sharedExpense.enabled?'checked':''} onchange="_gcToggle('${txnId}',this.checked)">
-        </label>
+        </div>
         <div id="tdp-gc-${txnId}" style="display:${t.sharedExpense&&t.sharedExpense.enabled?'block':'none'};margin-top:14px;">
         ${(()=>{
           if (!t.sharedExpense || !t.sharedExpense.enabled) return '';
@@ -2565,14 +2620,27 @@ function openTxnDetail(txnId){
         </div>
       </div>
 
-      <!-- Actions -->
+      <!-- Nota personal -->
       <div class="tdp-section">
-        <div style="display:flex;gap:10px;">
-          <button class="btn btn-ghost btn-sm" style="flex:1;" onclick="openEditTxnModal('${txnId}');closeTxnDetail();">✎ Editar</button>
-          <button class="btn btn-ghost btn-sm" style="flex:1;color:var(--danger);" onclick="if(confirm('¿Eliminar?')){deleteTxn('${txnId}');closeTxnDetail();}">✕ Eliminar</button>
+        <div class="tdp-note-header">
+          <div class="tdp-section-label" style="margin-bottom:0;">Nota personal</div>
+          <button class="tdp-note-edit-icon" onclick="event.stopPropagation();openEditNoteModal&&openEditNoteModal('${txnId}');">✎</button>
         </div>
-        ${t.comercio_detectado?'<button class="btn btn-ghost btn-sm" style="width:100%;margin-top:6px;" onclick="openAddRuleFromTxn(\''+txnId+'\')">＋ Crear regla para "'+esc(t.comercio_detectado)+'"</button>':''}
+        <div style="margin-top:10px;font-size:13px;color:var(--text3);font-style:${txnNoteText(t)?'normal':'italic'};">
+          ${txnNoteText(t) ? esc(txnNoteText(t)) : 'Escribe una nota personal...'}
+        </div>
       </div>
+    </div>
+
+    <!-- Footer Actions -->
+    <div class="tdp-footer">
+      <button class="tdp-btn-primary" onclick="openEditTxnModal('${txnId}');closeTxnDetail();">
+        ✎ Editar gasto
+      </button>
+      ${t.comercio_detectado?'<button class="tdp-btn-rule" onclick="openAddRuleFromTxn(\''+txnId+'\')">＋ Crear regla para "'+esc(t.comercio_detectado)+'"</button>':''}
+      <button class="tdp-btn-delete" onclick="if(confirm('¿Eliminar este gasto?')){deleteTxn('${txnId}');closeTxnDetail();}">
+        🗑 Eliminar gasto
+      </button>
     </div>
   `;
   panel.classList.add('open');
@@ -2623,6 +2691,23 @@ function closeTxnDetail(){
   }
   document.querySelectorAll('.txn-row-v2').forEach(r=>r.classList.remove('selected'));
   document.removeEventListener('click', _closePanelsOnOutside);
+}
+
+function _showTxnActions(txnId){
+  const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
+  const isMarked=!!t._marked;
+  const existing=document.getElementById('tdp-actions-menu');
+  if(existing){existing.remove();return;}
+  const menu=document.createElement('div');
+  menu.id='tdp-actions-menu';
+  menu.style.cssText='position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:999;background:#fff;border-radius:20px;padding:8px;min-width:240px;box-shadow:0 24px 60px rgba(30,27,75,.18),0 8px 18px rgba(30,27,75,.08);border:1px solid rgba(108,92,231,.1);font-family:var(--font);';
+  const btnStyle='display:block;width:100%;text-align:left;padding:12px 16px;border:none;background:none;font-size:13px;font-weight:600;cursor:pointer;border-radius:12px;color:#1E1B4B;font-family:var(--font);transition:background .12s;';
+  menu.innerHTML=
+    '<button style="'+btnStyle+'" onmouseover="this.style.background=\'rgba(108,92,231,.06)\'" onmouseout="this.style.background=\'none\'" onclick="openEditMerchantModal(\''+txnId+'\');document.getElementById(\'tdp-actions-menu\').remove();">✎ Editar comercio</button>'
+    +'<button style="'+btnStyle+'" onmouseover="this.style.background=\'rgba(108,92,231,.06)\'" onmouseout="this.style.background=\'none\'" onclick="openEditNoteModal(\''+txnId+'\');document.getElementById(\'tdp-actions-menu\').remove();">📝 Agregar nota</button>'
+    +'<button style="'+btnStyle+'" onmouseover="this.style.background=\'rgba(108,92,231,.06)\'" onmouseout="this.style.background=\'none\'" onclick="toggleTxnMarked(\''+txnId+'\');document.getElementById(\'tdp-actions-menu\').remove();">'+(isMarked?'🚩 Desmarcar':'🚩 Marcar para revisar')+'</button>';
+  document.body.appendChild(menu);
+  setTimeout(()=>{const cl=(e)=>{if(!menu.contains(e.target)){menu.remove();document.removeEventListener('click',cl);}};document.addEventListener('click',cl);},0);
 }
 
 function setDetailCat(txnId, catName){

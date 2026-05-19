@@ -234,6 +234,16 @@ function syncActivePageState(page){
 }
 
 function nav(page){
+  // ── Safety: reset any stuck iOS scroll lock (body overflow:hidden / position:fixed) ──
+  // This protects against modals or panels that were opened but not properly closed.
+  if(typeof _iosOvCnt !== 'undefined') _iosOvCnt = 0;
+  document.body.style.overflow   = '';
+  document.body.style.position   = '';
+  document.body.style.top        = '';
+  document.body.style.width      = '';
+  // Also close mobile theme picker if open
+  if(typeof closeMobileThemePicker === 'function') closeMobileThemePicker();
+
   closeMobMore();
   if(typeof closeNotifPanel === 'function') closeNotifPanel();
   if(typeof closeImportHistoryMenu === 'function') closeImportHistoryMenu();
