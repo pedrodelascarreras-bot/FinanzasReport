@@ -1161,6 +1161,7 @@ function renderTransactions(){
   if(cufv)txns=txns.filter(t=>t.currency===cufv);
   const cardFv=state.txnCardFilter||'';
   if(cardFv)txns=txns.filter(t=>t.payMethod===cardFv);
+  if(state.txnTagFilter)txns=txns.filter(t=>t.tags&&t.tags.includes(state.txnTagFilter));
   // Sync card filter button states
   document.getElementById('tcf-all')?.classList.toggle('active',!cardFv);
   document.getElementById('tcf-visa')?.classList.toggle('active',cardFv==='visa');
@@ -1176,9 +1177,10 @@ function renderTransactions(){
       const amtStr=fmtN(t.amount);
       const amtRaw=String(t.amount);
       const cur=t.currency.toLowerCase();
+      const tagStr=(t.tags||[]).join(' ').toLowerCase();
       return desc.includes(sv)||cat.includes(sv)||comercio.includes(sv)||
         parentCat.includes(sv)||dateStr.includes(sv)||
-        amtStr.includes(sv)||amtRaw.includes(sv)||cur.includes(sv);
+        amtStr.includes(sv)||amtRaw.includes(sv)||cur.includes(sv)||tagStr.includes(sv);
     });
     // Sort by relevance: exact description match first, then by date desc
     txns.sort((a,b)=>{
@@ -1677,6 +1679,19 @@ function renderTransactions(){
               +'<button class="mv-chip'+((state.txnCardFilter||'')==='amex'?' active':'')+'" onclick="txnSetCardChip(\'amex\')">Solo AMEX</button>'
             +'</div>')
           +(()=>{
+            const usedTags=_allUsedTags();
+            if(!usedTags.length)return'';
+            return '<div class="mv-card mv-filter-surface" style="padding:10px 14px;gap:6px;align-items:center;">'
+              +'<span style="font-size:11px;font-weight:700;color:var(--text3);margin-right:4px;">🏷 Tags:</span>'
+              +'<div class="stag-filter-wrap">'
+              +usedTags.slice(0,12).map(tag=>
+                '<button class="stag-filter-chip'+(state.txnTagFilter===tag?' active':'')+'" style="--stag-color:'+_tagColor(tag)+'" onclick="txnSetTagFilter(\''+esc(tag)+'\')">'
+                +esc(tag)+'</button>'
+              ).join('')
+              +(state.txnTagFilter?'<button class="stag-filter-chip" onclick="txnSetTagFilter(\'\');" style="opacity:.6;">✕ Limpiar</button>':'')
+              +'</div></div>';
+          })()
+          +(()=>{
             // Smart contextual: in TC mode show FULL (what card bills) + sublinea personal.
             // In mes mode show PERSONAL (your actual spending).
             const arsBig=_isTcMode?arsFullTotal:arsTotal;
@@ -1889,8 +1904,8 @@ function renderTransactions(){
           const amtColor=t.currency==='USD'?'color:var(--accent2)':t.isPendingCuota?'color:var(--accent3)':'';
           const _tpBadge=t.sharedExpense&&t.sharedExpense.enabled?'<span class="tp-badge'+(t.sharedExpense.splits&&t.sharedExpense.splits.every(s=>s.status==='cobrado')?' settled':'')+'">🤝'+(t.sharedExpense.splits&&t.sharedExpense.splits.some(s=>s.status!=='cobrado')?' ⏳':' ✓')+'</span>':'';
           const comercioHtml=t.comercio_detectado&&t.comercio_detectado.toLowerCase()!==t.description.toLowerCase()
-            ?'<span class="td-desc-secondary"><span class="comercio-detected">'+esc(t.comercio_detectado)+'</span>'+_tpBadge+origenChip(t)+cuotaProjectedChip(t)+subscriptionProjectedChip(t)+sugerenciaBadge(t)+'</span>'
-            :'<span class="td-desc-secondary">'+_tpBadge+origenChip(t)+cuotaProjectedChip(t)+subscriptionProjectedChip(t)+sugerenciaBadge(t)+'</span>';
+            ?'<span class="td-desc-secondary"><span class="comercio-detected">'+esc(t.comercio_detectado)+'</span>'+_tpBadge+origenChip(t)+cuotaProjectedChip(t)+subscriptionProjectedChip(t)+sugerenciaBadge(t)+_renderTagChips(t.tags)+'</span>'
+            :'<span class="td-desc-secondary">'+_tpBadge+origenChip(t)+cuotaProjectedChip(t)+subscriptionProjectedChip(t)+sugerenciaBadge(t)+_renderTagChips(t.tags)+'</span>';
           const _checked=state._selectedTxns&&state._selectedTxns.has(t.id)?' checked':'';
           const _projStyle=t.isPendingCuota?'border-left:3px solid var(--accent3);':'';
           return '<tr class="txn-row-v2 '+_isSelected+(_checked?' multi-selected':'')+'" data-txnid="'+t.id+'" style="'+_dupBg+_projStyle+'">'
@@ -2092,7 +2107,7 @@ function renderMobileTransactions(txns, meta) {
             ${mobAvatar(tx)}
             <div class="mob-txn-row-info">
               <div class="mob-txn-name">${esc(tx.comercio_detectado || tx._baseDesc || tx.description || 'Movimiento')}</div>
-              <div class="mob-txn-cat">${esc(cat)}</div>
+              <div class="mob-txn-cat">${esc(cat)}${_renderTagChips(tx.tags)}</div>
             </div>
             ${time ? `<div class="mob-txn-time">${esc(time)}</div>` : '<div class="mob-txn-time"></div>'}
             <div class="mob-txn-amt-wrap">
@@ -2473,6 +2488,7 @@ function openTxnDetail(txnId){
         <button class="tdp-hero-cat-pill" style="${catBadgeStyle}" onclick="event.stopPropagation();openAssignModal('${txnId}',this)">
           ${catLabel} <span style="font-size:10px;opacity:.5;">✎</span>
         </button>
+        ${(t.tags&&t.tags.length)?'<div style="display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;justify-content:center;">'+t.tags.map(tag=>'<span class="stag-chip" style="--stag-color:'+_tagColor(tag)+'">'+esc(tag)+'</span>').join('')+'</div>':''}
       </div>
     </div>
 
@@ -2481,8 +2497,8 @@ function openTxnDetail(txnId){
       <button class="tdp-qa-btn" onclick="event.stopPropagation();_gcToggle('${txnId}',true);openTxnDetail('${txnId}');">
         <span class="tdp-qa-icon">⊞</span><span class="tdp-qa-label">Dividir</span>
       </button>
-      <button class="tdp-qa-btn" onclick="event.stopPropagation();">
-        <span class="tdp-qa-icon">🧾</span><span class="tdp-qa-label">Recibo</span>
+      <button class="tdp-qa-btn" onclick="event.stopPropagation();var el=document.getElementById('tdp-tags-section-${txnId}');if(el)el.classList.toggle('open');">
+        <span class="tdp-qa-icon">🏷</span><span class="tdp-qa-label">Tags</span>
       </button>
       <button class="tdp-qa-btn" onclick="event.stopPropagation();openAssignModal('${txnId}');">
         <span class="tdp-qa-icon">♡</span><span class="tdp-qa-label">Categoría</span>
@@ -2510,6 +2526,12 @@ function openTxnDetail(txnId){
           <span class="tdp-info-label">ID de transacción</span>
           <span class="tdp-info-value" style="font-family:var(--font);font-size:12px;letter-spacing:.01em;">#${esc(txnId.slice(0,14))} <button class="tdp-info-copy" onclick="event.stopPropagation();navigator.clipboard.writeText('${esc(txnId)}');showToast('ID copiado','success');">📋</button></span>
         </div>
+      </div>
+
+      <!-- Smart Tags -->
+      <div class="tdp-section tdp-tags-toggle${(t.tags&&t.tags.length)?' open':''}" id="tdp-tags-section-${txnId}">
+        <div class="tdp-section-label">🏷 Smart Tags</div>
+        ${_renderTagPicker(txnId)}
       </div>
 
       <!-- Gasto Compartido -->
@@ -2792,6 +2814,95 @@ function openAddRuleFromTxn(txnId){
     if(kw)kw.value=t.comercio_detectado||t.description;
     if(cat)cat.value=t.category||'';
   },300);
+}
+
+// ══ SMART TAGS ══
+const TAG_COLORS = [
+  '#6C5CE7','#00B894','#E17055','#0984E3','#FDCB6E','#E84393','#00CEC9','#636E72',
+  '#A29BFE','#55EFC4','#FAB1A0','#74B9FF','#FFEAA7','#FD79A8','#81ECEC','#B2BEC3',
+];
+function _tagColor(tag){
+  let h=0;for(let i=0;i<tag.length;i++)h=tag.charCodeAt(i)+((h<<5)-h);
+  return TAG_COLORS[Math.abs(h)%TAG_COLORS.length];
+}
+function _allUsedTags(){
+  const counts={};
+  state.transactions.forEach(t=>(t.tags||[]).forEach(tag=>{counts[tag]=(counts[tag]||0)+1;}));
+  return Object.entries(counts).sort((a,b)=>b[1]-a[1]).map(e=>e[0]);
+}
+function _ensureSmartTag(tag){
+  if(!state.smartTags.includes(tag)){state.smartTags.push(tag);}
+}
+function addTagToTxn(txnId, tag){
+  const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
+  if(!t.tags)t.tags=[];
+  const trimmed=tag.trim();if(!trimmed||t.tags.includes(trimmed))return;
+  t.tags.push(trimmed);
+  _ensureSmartTag(trimmed);
+  saveState();
+  openTxnDetail(txnId);
+  renderTransactions();
+}
+function removeTagFromTxn(txnId, tag){
+  const t=state.transactions.find(x=>x.id===txnId);if(!t||!t.tags)return;
+  t.tags=t.tags.filter(x=>x!==tag);
+  saveState();
+  openTxnDetail(txnId);
+  renderTransactions();
+}
+function _renderTagPicker(txnId){
+  const t=state.transactions.find(x=>x.id===txnId);if(!t)return'';
+  const tags=t.tags||[];
+  const all=_allUsedTags();
+  const suggestions=state.smartTags.filter(s=>!tags.includes(s)).slice(0,8);
+  return `
+    <div class="stag-picker" id="stag-picker-${txnId}">
+      <div class="stag-active-tags">
+        ${tags.map(tag=>`
+          <span class="stag-chip active" style="--stag-color:${_tagColor(tag)}">
+            ${esc(tag)}
+            <button class="stag-chip-remove" onclick="event.stopPropagation();removeTagFromTxn('${esc(txnId)}','${esc(tag)}')">✕</button>
+          </span>
+        `).join('')}
+      </div>
+      <div class="stag-input-row">
+        <input type="text" class="stag-input" id="stag-input-${txnId}" placeholder="Agregar tag..." autocomplete="off"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();addTagToTxn('${esc(txnId)}',this.value);}"
+          oninput="_stagFilterSuggestions('${esc(txnId)}',this.value)">
+      </div>
+      ${suggestions.length?`
+        <div class="stag-suggestions" id="stag-suggestions-${txnId}">
+          ${suggestions.map(s=>`
+            <button class="stag-suggestion" style="--stag-color:${_tagColor(s)}" onclick="event.stopPropagation();addTagToTxn('${esc(txnId)}','${esc(s)}')">
+              ${esc(s)}
+            </button>
+          `).join('')}
+        </div>
+      `:''}
+    </div>`;
+}
+function _stagFilterSuggestions(txnId, query){
+  const el=document.getElementById('stag-suggestions-'+txnId);
+  if(!el)return;
+  const t=state.transactions.find(x=>x.id===txnId);
+  const current=t&&t.tags?t.tags:[];
+  const q=query.toLowerCase().trim();
+  const matches=state.smartTags.filter(s=>!current.includes(s)&&(!q||s.toLowerCase().includes(q))).slice(0,8);
+  el.innerHTML=matches.map(s=>`
+    <button class="stag-suggestion" style="--stag-color:${_tagColor(s)}" onclick="event.stopPropagation();addTagToTxn('${esc(txnId)}','${esc(s)}')">
+      ${esc(s)}
+    </button>
+  `).join('');
+}
+function _renderTagChips(tags){
+  if(!tags||!tags.length)return'';
+  return '<span class="stag-inline-wrap">'+tags.map(tag=>
+    '<span class="stag-chip-mini" style="--stag-color:'+_tagColor(tag)+'">'+esc(tag)+'</span>'
+  ).join('')+'</span>';
+}
+function txnSetTagFilter(tag){
+  state.txnTagFilter=state.txnTagFilter===tag?'':tag;
+  renderTransactions();
 }
 
 // ══ EDIT TRANSACTION MODAL ══

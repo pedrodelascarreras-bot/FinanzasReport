@@ -44,6 +44,8 @@ let state={
   decisionCenterCollapsed:false,
   dismissedAutoCuotas:[], // keys of auto-cuotas permanently dismissed
   dismissedCommitmentEntries:[], // projected commitment entries manually hidden by the user
+  smartTags: [],         // string[] — all known tag names, ordered by usage
+  txnTagFilter: '',      // '' or tag name for filtering movimientos by tag
   tasks: [],             // [{id,text,done,createdAt,doneAt}]
   ccCards: [],           // [{id,name,type,color,...}]
   ccCycles: [],          // [{id,cardId,tcCycleId,status,manualExpenses,excludedIds,...}]
@@ -109,7 +111,8 @@ function getStateSnapshot(){
     dismissedAutoCuotas:state.dismissedAutoCuotas||[],
     dismissedCommitmentEntries:state.dismissedCommitmentEntries||[],
     tasks:state.tasks||[],
-    txnCardFilter:state.txnCardFilter||''
+    txnCardFilter:state.txnCardFilter||'',
+    smartTags:state.smartTags||[]
   };
 }
 function saveState(){
@@ -369,6 +372,7 @@ async function loadFromDrive(){
     state.dismissedCommitmentEntries=s.dismissedCommitmentEntries||[];
     state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';
+    state.smartTags=s.smartTags||[];
     state.txnFilterMode=_normalizeViewMode(s.txnFilterMode||state.txnFilterMode||'visa');
     state.tendMode=_normalizeViewMode(s.tendMode||state.tendMode||'visa');
     state.dashView=_normalizeViewMode(s.dashView||state.dashView||'visa');
@@ -376,7 +380,7 @@ async function loadFromDrive(){
     if(typeof normalizeCategoryState === 'function'){
       try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
     }
-    state.transactions.forEach(t=>{if(!t.week)t.week=getWeekKey(t.date);if(!t.month)t.month=getMonthKey(t.date);});
+    state.transactions.forEach(t=>{if(!t.tags)t.tags=[];if(!t.week)t.week=getWeekKey(t.date);if(!t.month)t.month=getMonthKey(t.date);});
     // Migración retroactiva de payMethod con valores legacy del formulario manual
     const _pmMig={'Efectivo':'ef','Débito':'deb','Tarjeta de Crédito':'tc','USD':'ef'};
     state.transactions.forEach(t=>{if(t.payMethod&&_pmMig[t.payMethod])t.payMethod=_pmMig[t.payMethod];});
@@ -466,6 +470,7 @@ function loadState(){
     state.dismissedCommitmentEntries=s.dismissedCommitmentEntries||[];
     state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';
+    state.smartTags=s.smartTags||[];
     state.txnFilterMode=_normalizeViewMode(s.txnFilterMode||state.txnFilterMode||'visa');
     state.tendMode=_normalizeViewMode(s.tendMode||state.tendMode||'visa');
     state.dashView=_normalizeViewMode(s.dashView||state.dashView||'visa');
@@ -474,7 +479,7 @@ function loadState(){
     if(typeof normalizeCategoryState === 'function'){
       try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
     }
-    state.transactions.forEach(t=>{if(!t.week)t.week=getWeekKey(t.date);if(!t.month)t.month=getMonthKey(t.date);});
+    state.transactions.forEach(t=>{if(!t.tags)t.tags=[];if(!t.week)t.week=getWeekKey(t.date);if(!t.month)t.month=getMonthKey(t.date);});
     // Migración retroactiva de payMethod con valores legacy del formulario manual
     const _pmMigMap={'Efectivo':'ef','Débito':'deb','Tarjeta de Crédito':'tc','USD':'ef'};
     state.transactions.forEach(t=>{if(t.payMethod&&_pmMigMap[t.payMethod])t.payMethod=_pmMigMap[t.payMethod];});

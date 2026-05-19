@@ -944,6 +944,7 @@ function renderTendencia(){
   _tend_drawInsights(currentTxns,prevTxns,sortedParents,parentDeltas,grandTotal,totalDeltaPct,currentLabel,prevLabel,lastKey,mode);
 
   document.getElementById('tend-sub-title').textContent=(mode==='mes'?'Vista mes':'Vista VISA')+' · '+sortedParents.length+' categorías activas';
+  if(typeof renderTagAnalytics==='function')try{renderTagAnalytics();}catch(e){console.warn('tag analytics error',e);}
 }
 
 // ══ COMPARE ══
@@ -1128,4 +1129,157 @@ function renderCompareLineChart(ka,kb,la,lb){
     options:{...chartOpts('$',false),animation:tendChartAnim(),plugins:{...chartOpts('$',false).plugins,legend:{display:false}}}
   });
   animateTendCanvas(ctx);
+}
+
+// ══ SMART TAG ANALYTICS ══
+function renderTagAnalytics(){
+  const el=document.getElementById('tag-analytics-section');
+  if(!el)return;
+  const txns=state.transactions.filter(t=>t.tags&&t.tags.length>0&&t.currency==='ARS');
+  if(!txns.length){el.style.display='none';return;}
+  el.style.display='block';
+
+  const tagTotals={},tagCounts={},tagMonthly={};
+  txns.forEach(t=>{
+    const amt=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount;
+    const mk=t.month||getMonthKey(t.date);
+    (t.tags||[]).forEach(tag=>{
+      tagTotals[tag]=(tagTotals[tag]||0)+amt;
+      tagCounts[tag]=(tagCounts[tag]||0)+1;
+      if(!tagMonthly[tag])tagMonthly[tag]={};
+      tagMonthly[tag][mk]=(tagMonthly[tag][mk]||0)+amt;
+    });
+  });
+  const ranked=Object.entries(tagTotals).sort((a,b)=>b[1]-a[1]);
+  const maxAmt=ranked.length?ranked[0][1]:1;
+
+  // Top tags ranking
+  const rankHtml=ranked.slice(0,8).map(([tag,total],i)=>{
+    const pct=Math.round(total/maxAmt*100);
+    const col=typeof _tagColor==='function'?_tagColor(tag):'#6C5CE7';
+    return `<div class="tag-rank-item">
+      <span class="tag-rank-pos">${i+1}</span>
+      <span class="tag-rank-chip" style="--stag-color:${col}">${esc(tag)}</span>
+      <div class="tag-rank-bar-wrap"><div class="tag-rank-bar" style="width:${pct}%;background:${col};"></div></div>
+      <span class="tag-rank-amount">$${fmtN(total)}</span>
+    </div>`;
+  }).join('');
+
+  // Tag comparisons (top pairs)
+  let compareHtml='';
+  if(ranked.length>=2){
+    const pairs=[];
+    for(let i=0;i<Math.min(ranked.length,4);i++){
+      for(let j=i+1;j<Math.min(ranked.length,5);j++){
+        pairs.push([ranked[i],ranked[j]]);
+      }
+    }
+    compareHtml=pairs.slice(0,4).map(([a,b])=>{
+      const colA=typeof _tagColor==='function'?_tagColor(a[0]):'#6C5CE7';
+      const colB=typeof _tagColor==='function'?_tagColor(b[0]):'#00B894';
+      const sum=a[1]+b[1];
+      const pctA=sum>0?Math.round(a[1]/sum*100):50;
+      return `<div class="tag-compare-row">
+        <span class="tag-rank-chip" style="--stag-color:${colA};min-width:60px;text-align:center;">${esc(a[0])}</span>
+        <div class="tag-compare-bar-wrap" style="flex:1;">
+          <div class="tag-compare-bar-a" style="width:${pctA}%;background:${colA};border-radius:4px 0 0 4px;"></div>
+          <div class="tag-compare-bar-b" style="width:${100-pctA}%;background:${colB};border-radius:0 4px 4px 0;"></div>
+        </div>
+        <span class="tag-rank-chip" style="--stag-color:${colB};min-width:60px;text-align:center;">${esc(b[0])}</span>
+      </div>`;
+    }).join('');
+  }
+
+  // Smart insights
+  const allArs=state.transactions.filter(t=>t.currency==='ARS');
+  const totalSpend=allArs.reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
+  const insightsArr=[];
+
+  ranked.slice(0,5).forEach(([tag,total])=>{
+    const pctOfTotal=totalSpend>0?Math.round(total/totalSpend*100):0;
+    if(pctOfTotal>=5){
+      insightsArr.push(`<strong>${esc(tag)}</strong> representa el <strong>${pctOfTotal}%</strong> de tus gastos totales`);
+    }
+  });
+
+  // Month-over-month change for top tags
+  const months=Object.keys(tagMonthly[ranked[0]?ranked[0][0]:'']||{}).sort();
+  if(months.length>=2){
+    const lastM=months[months.length-1],prevM=months[months.length-2];
+    ranked.slice(0,3).forEach(([tag])=>{
+      const cur=tagMonthly[tag]?.[lastM]||0;
+      const prev=tagMonthly[tag]?.[prevM]||0;
+      if(prev>0){
+        const change=Math.round((cur-prev)/prev*100);
+        if(Math.abs(change)>=15){
+          insightsArr.push(`Tus gastos en <strong>${esc(tag)}</strong> ${change>0?'aumentaron':'bajaron'} <strong>${Math.abs(change)}%</strong> este período`);
+        }
+      }
+    });
+  }
+
+  // Most tagged category combo
+  const catTagCombo={};
+  txns.forEach(t=>{
+    (t.tags||[]).forEach(tag=>{
+      const k=t.category+'→'+tag;
+      catTagCombo[k]=(catTagCombo[k]||0)+1;
+    });
+  });
+  const topCombo=Object.entries(catTagCombo).sort((a,b)=>b[1]-a[1])[0];
+  if(topCombo&&topCombo[1]>=3){
+    const [combo,count]=topCombo;
+    const [cat,tag]=combo.split('→');
+    insightsArr.push(`La combinación más frecuente es <strong>${esc(cat)}</strong> + <strong>${esc(tag)}</strong> (${count} veces)`);
+  }
+
+  const insightsHtml=insightsArr.slice(0,4).map(text=>`<div class="tag-insight-card"><div class="tag-insight-text">💡 ${text}</div></div>`).join('');
+
+  // Monthly evolution chart (rendered as simple HTML bars)
+  let evoHtml='';
+  if(months.length>=2&&ranked.length){
+    const topTags=ranked.slice(0,4).map(r=>r[0]);
+    evoHtml='<div style="margin-top:4px;">';
+    const lastMonths=months.slice(-6);
+    evoHtml+=lastMonths.map(m=>{
+      const mLabel=m.slice(5)+'/'+m.slice(2,4);
+      const bars=topTags.map(tag=>{
+        const v=tagMonthly[tag]?.[m]||0;
+        const col=typeof _tagColor==='function'?_tagColor(tag):'#6C5CE7';
+        const h=maxAmt>0?Math.max(2,Math.round(v/maxAmt*48)):2;
+        return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;">
+          <div style="width:100%;height:${h}px;background:${col};border-radius:4px;opacity:.7;"></div>
+        </div>`;
+      }).join('');
+      return `<div style="display:flex;flex-direction:column;gap:4px;flex:1;min-width:40px;">
+        <div style="display:flex;gap:3px;align-items:flex-end;height:52px;">${bars}</div>
+        <div style="font-size:9px;color:var(--text3);text-align:center;font-weight:600;">${mLabel}</div>
+      </div>`;
+    }).join('');
+    evoHtml+='<div style="display:flex;gap:8px;margin-top:8px;">'+topTags.map(tag=>{
+      const col=typeof _tagColor==='function'?_tagColor(tag):'#6C5CE7';
+      return `<span style="font-size:10px;font-weight:700;color:${col};">● ${esc(tag)}</span>`;
+    }).join('')+'</div>';
+    evoHtml+='</div>';
+  }
+
+  el.innerHTML=`
+    <div class="tag-analytics-title">🏷 Análisis por Tags</div>
+    <div class="tag-analytics-sub">Insights contextuales y emocionales de tus gastos</div>
+    ${insightsHtml?'<div style="margin-bottom:20px;">'+insightsHtml+'</div>':''}
+    <div class="tag-analytics-grid">
+      <div class="tag-analytics-card">
+        <div class="tag-analytics-card-title">Top tags por gasto total</div>
+        ${rankHtml}
+      </div>
+      ${evoHtml?`<div class="tag-analytics-card">
+        <div class="tag-analytics-card-title">Evolución mensual</div>
+        <div style="display:flex;gap:6px;">${evoHtml}</div>
+      </div>`:''}
+      ${compareHtml?`<div class="tag-analytics-card">
+        <div class="tag-analytics-card-title">Comparativas</div>
+        ${compareHtml}
+      </div>`:''}
+    </div>
+  `;
 }
