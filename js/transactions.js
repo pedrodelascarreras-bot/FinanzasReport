@@ -351,19 +351,20 @@ function toggleTxnActionMenu(id){
   state._txnActionMenuId=state._txnActionMenuId===id?'':id;
   renderTransactions();
   // Attach a one-shot outside-click listener that closes the menu.
-  // We defer attachment by a tick so the click that OPENED the menu doesn't
-  // immediately trigger this and close it.
+  // BUBBLE phase (not capture) — capture phase intercepts the click on .mv-row
+  // BEFORE its inline onclick="openTxnDetail(...)" can run, and then re-rendering
+  // the list destroys the row's handler, so the detail panel never opened.
+  // Bubble lets the row's handler run first, then we close the menu.
   if (state._txnActionMenuId) {
     const closer = (ev) => {
       // Ignore clicks on the toggle button (it has its own handler) and
       // on the menu itself (so item clicks register normally).
       if (ev.target.closest('.mv-menu-btn') || ev.target.closest('.mv-menu')) return;
       state._txnActionMenuId = '';
-      document.removeEventListener('click', closer, true);
+      document.removeEventListener('click', closer);
       renderTransactions();
     };
-    // Use capture phase so we fire before the click bubbles up
-    setTimeout(() => document.addEventListener('click', closer, true), 0);
+    setTimeout(() => document.addEventListener('click', closer), 0);
   }
 }
 function txnSetSearch(val){
