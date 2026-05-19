@@ -3059,7 +3059,7 @@ function getDashMonthIncome() {
 ═══════════════════════════════════════════════════════════ */
 
 // ── Evolution chart state ──
-let db2EvoMode = 'daily'; // 'daily' | 'month'
+let db2EvoMode = 'month'; // 'daily' | 'month'
 let _db2EvolutionState = null;
 function _applyDb2CcPrivacy(prefix, hasUsdValue=false){
   const arsEl=document.getElementById(`kpi-${prefix}-ars`);
@@ -3091,8 +3091,8 @@ function setDb2EvoMode(mode){
   renderDb2EvolutionChart();
 }
 
-// ── CC Cycle widget ──
-function renderDb2CcCycles(data){
+// ── Smart CC Cycle Widget ──
+function _ccwGetCardData(key, data){
   const today = new Date();
   const todayYmd = dateToYMD(today);
   const cards = state.ccCards || [];
@@ -3102,148 +3102,236 @@ function renderDb2CcCycles(data){
   const isMesMode = !!data?.isMesMode;
   const mesMonthKey = data?.mesMonthKey || getMonthKey(today);
 
-  const fmt = ymd => {
-    if(!ymd) return '—';
-    try {
-      const d = new Date(ymd + 'T12:00:00');
-      return d.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}).replace('.','').toUpperCase();
-    } catch(e){ return ymd; }
-  };
+  const card = cards.find(c => (c.payMethodKey||'').toLowerCase() === key) || cards.find(c => (c.name||'').toLowerCase().includes(key));
+  if(!card) return null;
 
-  // Determine which cards to show (visa + amex by payMethodKey)
-  const cardKeys = ['visa','amex'];
-  cardKeys.forEach(key => {
-    const card = cards.find(c => (c.payMethodKey||'').toLowerCase() === key) || cards.find(c => (c.name||'').toLowerCase().includes(key));
-    const prefix = key; // visa / amex
+  const cardCycles = allCycles.filter(c => c.cardId === card.id);
+  let activeCycle = cycleByKey[key] || cardCycles.find(c => {
+    const idx = allCycles.findIndex(x => x.id === c.id);
+    const open = getTcCycleOpen(allCycles, idx);
+    return open && todayYmd >= open && todayYmd <= c.closeDate;
+  }) || cardCycles[0];
 
-    const openEl   = document.getElementById(`db2-${prefix}-open`);
-    const closeEl  = document.getElementById(`db2-${prefix}-close`);
-    const dueEl    = document.getElementById(`db2-${prefix}-due`);
-    const barEl    = document.getElementById(`db2-${prefix}-bar`);
-    const daysEl   = document.getElementById(`db2-${prefix}-days`);
-    const itemEl   = document.getElementById(`db2-cc-${prefix}-item`);
-
-    if(!card){ if(itemEl) itemEl.style.opacity='0.4'; return; }
-    if(itemEl) itemEl.style.opacity='1';
-
-    // Prefer dashboard-scoped cycle (keeps widget aligned with selected period),
-    // then fallback to active/first card cycle.
-    const cardCycles = allCycles.filter(c => c.cardId === card.id);
-    let activeCycle = cycleByKey[prefix] || cardCycles.find(c => {
-      const idx = allCycles.findIndex(x => x.id === c.id);
-      const open = getTcCycleOpen(allCycles, idx);
-      return open && todayYmd >= open && todayYmd <= c.closeDate;
-    }) || cardCycles[0];
-
-    if(!activeCycle && allCycles.length){
-      // fallback: try any cycle matching close day
-      activeCycle = allCycles[0];
-    }
-
-    if(isMesMode){
-      // Vista Mes: show calendar month period
-      const [mY, mM] = mesMonthKey.split('-').map(Number);
-      const monthFirstYmd = `${mesMonthKey}-01`;
-      const monthLastD = new Date(mY, mM, 0);
-      const monthLastYmd = dateToYMD(monthLastD);
-
-      if(openEl) openEl.textContent = fmt(monthFirstYmd);
-      if(closeEl) closeEl.textContent = fmt(monthLastYmd);
-      if(dueEl) dueEl.textContent = '—';
-
-      const scopedTotals = totalsByKey[prefix] || totalsByKey[card.payMethodKey||card.id] || null;
-      const amtArsEl = document.getElementById(`kpi-${prefix}-ars`);
-      const amtUsdEl = document.getElementById(`kpi-${prefix}-usd`);
-      if(amtArsEl){
-        const arsTotal = scopedTotals ? (scopedTotals.ars||0) : 0;
-        const usdTotal = scopedTotals ? (scopedTotals.usd||0) : 0;
-        if(isMasked()){
-          _applyDb2CcPrivacy(prefix, usdTotal > 0);
-        } else {
-          _clearDb2CcPrivacy(prefix);
-          animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
-          if(amtUsdEl){
-            if(usdTotal > 0){
-              animateNumberText(amtUsdEl, usdTotal, {prefix: 'U$D ', decimals: 2, duration: 760});
-              amtUsdEl.style.display = '';
-            } else {
-              if(typeof cancelNumberTextAnimation==='function') cancelNumberTextAnimation(amtUsdEl);
-              amtUsdEl.textContent = '';
-              amtUsdEl.style.display = 'none';
-            }
-          }
-        }
-      }
-
-      // Month progress bar
-      if(barEl && daysEl){
-        const openD  = new Date(monthFirstYmd + 'T12:00:00');
-        const closeD = new Date(monthLastYmd  + 'T12:00:00');
-        const totalDays = Math.max(1, Math.round((closeD - openD) / 86400000));
-        const elapsed   = Math.max(0, Math.round((today - openD) / 86400000));
-        const daysLeft  = Math.max(0, Math.round((closeD - today) / 86400000));
-        const pct = Math.min(100, Math.round(elapsed / totalDays * 100));
-        animateProgressBar(barEl, pct);
-        daysEl.textContent = daysLeft === 0 ? 'Fin de mes' : `Cierran en ${daysLeft} día${daysLeft!==1?'s':''}`;
-      }
-      return;
-    }
-
-    if(!activeCycle){
-      if(openEl) openEl.textContent = '—';
-      if(closeEl) closeEl.textContent = '—';
-      if(dueEl)   dueEl.textContent = '—';
-      if(daysEl)  daysEl.textContent = 'Sin ciclo activo';
-      return;
-    }
-
+  let openYmd, closeYmd, dueYmd;
+  if(isMesMode){
+    const [mY,mM] = mesMonthKey.split('-').map(Number);
+    openYmd = `${mesMonthKey}-01`;
+    closeYmd = dateToYMD(new Date(mY, mM, 0));
+    dueYmd = null;
+  } else if(activeCycle){
     const cycleIdx = allCycles.findIndex(c => c.id === activeCycle.id);
-    const openYmd = typeof getTcCycleOpen === 'function' ? getTcCycleOpen(allCycles, cycleIdx) : null;
-    const closeYmd = activeCycle.closeDate;
-    const dueYmd = activeCycle.dueDate || null;
+    openYmd = typeof getTcCycleOpen === 'function' ? getTcCycleOpen(allCycles, cycleIdx) : null;
+    closeYmd = activeCycle.closeDate;
+    dueYmd = activeCycle.dueDate || null;
+  } else { return null; }
 
-    if(openEl) openEl.textContent = fmt(openYmd);
-    if(closeEl) closeEl.textContent = fmt(closeYmd);
-    if(dueEl) dueEl.textContent = fmt(dueYmd);
+  const scopedTotals = totalsByKey[key] || totalsByKey[card.payMethodKey||card.id] || null;
+  let cycleTxns = [];
+  if(!scopedTotals && !isMesMode && activeCycle && typeof getTcCycleTxns === 'function'){
+    cycleTxns = getTcCycleTxns(activeCycle, allCycles);
+  }
+  const arsTotal = scopedTotals ? (scopedTotals.ars||0) : cycleTxns.filter(t => t.currency==='ARS' && t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const usdTotal = scopedTotals ? (scopedTotals.usd||0) : cycleTxns.filter(t => t.currency==='USD' && t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const txnCount = scopedTotals ? (scopedTotals.count||0) : cycleTxns.length;
 
-    // Cycle spending amounts
-    const amtArsEl = document.getElementById(`kpi-${prefix}-ars`);
-    const amtUsdEl = document.getElementById(`kpi-${prefix}-usd`);
-    if(amtArsEl){
-      const scopedTotals = totalsByKey[prefix] || totalsByKey[card.payMethodKey||card.id] || null;
-      const cycleTxns = !scopedTotals && typeof getTcCycleTxns === 'function' ? getTcCycleTxns(activeCycle, allCycles) : [];
-      const arsTotal = scopedTotals ? (scopedTotals.ars||0) : cycleTxns.filter(t => t.currency === 'ARS' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
-      const usdTotal = scopedTotals ? (scopedTotals.usd||0) : cycleTxns.filter(t => t.currency === 'USD' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
-      if(isMasked()){
-        _applyDb2CcPrivacy(prefix, usdTotal > 0);
-      } else {
-        _clearDb2CcPrivacy(prefix);
-        animateNumberText(amtArsEl, arsTotal, {prefix: '$', decimals: 2, duration: 760});
-        if(amtUsdEl){
-          if(usdTotal > 0){
-            animateNumberText(amtUsdEl, usdTotal, {prefix: 'U$D ', decimals: 2, duration: 760});
-            amtUsdEl.style.display = '';
-          } else {
-            if(typeof cancelNumberTextAnimation==='function') cancelNumberTextAnimation(amtUsdEl);
-            amtUsdEl.textContent = '';
-            amtUsdEl.style.display = 'none';
-          }
-        }
-      }
+  const openD  = openYmd  ? new Date(openYmd+'T12:00:00')  : null;
+  const closeD = closeYmd ? new Date(closeYmd+'T12:00:00') : null;
+  const totalDays = openD && closeD ? Math.max(1, Math.round((closeD-openD)/86400000)) : 30;
+  const elapsed   = openD ? Math.max(0, Math.round((today-openD)/86400000)) : 0;
+  const daysLeft  = closeD ? Math.max(0, Math.round((closeD-today)/86400000)) : 0;
+  const pct = Math.min(100, Math.round(elapsed/totalDays*100));
+  const dailyAvg = elapsed > 0 ? arsTotal / elapsed : 0;
+  const projected = dailyAvg * totalDays;
+
+  // Previous cycle comparison
+  let prevArs = 0;
+  if(!isMesMode && activeCycle){
+    const prevCycle = cardCycles.find(c => c.closeDate < (activeCycle.closeDate||'') && c.id !== activeCycle.id);
+    if(prevCycle && typeof getTcCycleTxns === 'function'){
+      prevArs = getTcCycleTxns(prevCycle, allCycles).filter(t=>t.currency==='ARS'&&t.amount>0).reduce((s,t)=>s+t.amount,0);
     }
-
-    // Days until close
-    if(barEl && daysEl && closeYmd && openYmd){
-      const closeD = new Date(closeYmd + 'T12:00:00');
-      const openD  = new Date(openYmd  + 'T12:00:00');
-      const totalDays = Math.max(1, Math.round((closeD - openD) / 86400000));
-      const elapsed   = Math.max(0, Math.round((today - openD) / 86400000));
-      const daysLeft  = Math.max(0, Math.round((closeD - today) / 86400000));
-      const pct = Math.min(100, Math.round(elapsed / totalDays * 100));
-      animateProgressBar(barEl, pct);
-      daysEl.textContent = daysLeft === 0 ? 'Cierra hoy' : `Cierran en ${daysLeft} día${daysLeft!==1?'s':''}`;
+  } else if(isMesMode){
+    const [mY,mM] = mesMonthKey.split('-').map(Number);
+    const prevMk = (mM===1?(mY-1)+'-12':mY+'-'+String(mM-1).padStart(2,'0'));
+    if(typeof getTxnsFor==='function'){
+      prevArs = (getTxnsFor(prevMk)||[]).filter(t=>t.currency==='ARS'&&(t.payMethod||'').toLowerCase()===key&&t.amount>0&&!t.isIncome&&t.type!=='income').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
     }
+  }
+  const deltaPct = prevArs > 0 ? ((arsTotal-prevArs)/prevArs)*100 : 0;
+
+  // Last transaction time
+  const allCardTxns = (state.transactions||[]).filter(t=>(t.payMethod||'').toLowerCase()===key).sort((a,b)=>(b.date instanceof Date?b.date:new Date(b.date))-(a.date instanceof Date?a.date:new Date(a.date)));
+  const lastTxn = allCardTxns[0] || null;
+  let lastTxnAgo = '';
+  if(lastTxn){
+    const ld = lastTxn.date instanceof Date ? lastTxn.date : new Date(String(lastTxn.date).includes('T')?lastTxn.date:lastTxn.date+'T12:00:00');
+    const diffH = Math.round((today-ld)/3600000);
+    if(diffH < 1) lastTxnAgo = 'hace minutos';
+    else if(diffH < 24) lastTxnAgo = `hace ${diffH}h`;
+    else if(diffH < 48) lastTxnAgo = 'ayer';
+    else lastTxnAgo = `hace ${Math.round(diffH/24)} días`;
+  }
+
+  // Top category
+  const catTotals = {};
+  const txnPool = cycleTxns.length ? cycleTxns : allCardTxns.filter(t=>{
+    const d=dateToYMD(t.date); return openYmd&&closeYmd&&d>=openYmd&&d<=closeYmd;
   });
+  txnPool.filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...').forEach(t=>{
+    const g = typeof catGroup==='function' ? catGroup(t.category) : t.category;
+    catTotals[g] = (catTotals[g]||0) + (typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);
+  });
+  const topCat = Object.entries(catTotals).sort((a,b)=>b[1]-a[1])[0];
+  const topCatPct = topCat && arsTotal > 0 ? Math.round(topCat[1]/arsTotal*100) : 0;
+
+  return { key, card, arsTotal, usdTotal, txnCount, openYmd, closeYmd, dueYmd, totalDays, elapsed, daysLeft, pct, dailyAvg, projected, prevArs, deltaPct, lastTxnAgo, topCat: topCat?topCat[0]:null, topCatPct };
+}
+
+function _ccwFmt(ymd){
+  if(!ymd) return '—';
+  try { const d=new Date(ymd+'T12:00:00'); return d.toLocaleDateString('es-AR',{day:'2-digit',month:'short'}).replace('.','').toUpperCase(); }
+  catch(e){ return ymd; }
+}
+
+function _ccwBuildInsight(d){
+  const lines = [];
+  if(d.deltaPct !== 0 && d.prevArs > 0){
+    const dir = d.deltaPct > 0 ? 'más' : 'menos';
+    lines.push(`Tu consumo es <strong>${Math.abs(d.deltaPct).toFixed(1).replace('.',',')}% ${dir}</strong> que el ciclo anterior`);
+  }
+  if(d.projected > 0 && d.daysLeft > 2){
+    lines.push(`Si mantenés este ritmo, cerrarías en <strong>$${fmtN(Math.round(d.projected))}</strong>`);
+  }
+  if(d.topCat && d.topCatPct > 25){
+    lines.push(`El <strong>${d.topCatPct}%</strong> fue en ${d.topCat}`);
+  }
+  if(d.lastTxnAgo){
+    lines.push(`Último consumo <strong>${d.lastTxnAgo}</strong>`);
+  }
+  return lines;
+}
+
+function _ccwRenderFocus(d){
+  const k = d.key;
+  const masked = isMasked();
+  const insights = _ccwBuildInsight(d);
+  const insightHtml = insights.length ? insights.map(t=>`<div class="ccw-insight"><span class="ccw-insight-icon">✦</span><span class="ccw-insight-text">${t}</span></div>`).join('') : '';
+
+  return `
+    <div class="ccw-focus">
+      <div class="ccw-focus-hero ${k==='amex'?'is-amex':''}">
+        <div class="ccw-focus-logo ${k}">${k.toUpperCase()}</div>
+        <div class="ccw-focus-main">
+          <div class="ccw-focus-name">Santander ${k.toUpperCase()}</div>
+          <div class="ccw-focus-amt">${masked?'••••••••':'$'+fmtN(Math.round(d.arsTotal))}</div>
+          ${d.usdTotal>0?'<div class="ccw-focus-amt-usd">'+(masked?'••••':'U$D '+fmtN(d.usdTotal))+'</div>':''}
+        </div>
+        <div class="ccw-focus-right">
+          <div class="ccw-focus-days ${k}">${d.daysLeft}</div>
+          <div class="ccw-focus-days-label">días restantes</div>
+          <div class="ccw-focus-bar"><div class="ccw-focus-bar-fill ${k}" style="width:0%" id="ccw-bar-${k}"></div></div>
+        </div>
+      </div>
+
+      <div class="ccw-stats">
+        <div class="ccw-stat">
+          <div class="ccw-stat-val">${masked?'••••':'$'+fmtN(Math.round(d.dailyAvg))}</div>
+          <div class="ccw-stat-label">Prom. diario</div>
+        </div>
+        <div class="ccw-stat">
+          <div class="ccw-stat-val">${masked?'••••':'$'+fmtN(Math.round(d.projected))}</div>
+          <div class="ccw-stat-label">Proyección</div>
+        </div>
+        <div class="ccw-stat">
+          <div class="ccw-stat-val">${d.txnCount}</div>
+          <div class="ccw-stat-label">Movimientos</div>
+        </div>
+        <div class="ccw-stat">
+          <div class="ccw-stat-val">${d.deltaPct!==0&&d.prevArs>0?(d.deltaPct>0?'+':'')+d.deltaPct.toFixed(1).replace('.',',')+'%':'—'}</div>
+          <div class="ccw-stat-label">vs anterior</div>
+        </div>
+      </div>
+
+      <div class="ccw-dates">
+        <div class="ccw-date-pill"><span class="ccw-date-pill-icon">📅</span><div class="ccw-date-pill-copy"><span class="ccw-date-pill-label">Abre</span><span class="ccw-date-pill-val">${_ccwFmt(d.openYmd)}</span></div></div>
+        <div class="ccw-date-pill"><span class="ccw-date-pill-icon">🔒</span><div class="ccw-date-pill-copy"><span class="ccw-date-pill-label">Cierra</span><span class="ccw-date-pill-val">${_ccwFmt(d.closeYmd)}</span></div></div>
+        ${d.dueYmd?'<div class="ccw-date-pill"><span class="ccw-date-pill-icon">⏰</span><div class="ccw-date-pill-copy"><span class="ccw-date-pill-label">Vence</span><span class="ccw-date-pill-val">'+_ccwFmt(d.dueYmd)+'</span></div></div>':''}
+      </div>
+
+      ${insightHtml}
+    </div>`;
+}
+
+function _ccwRenderCompareCard(d){
+  if(!d) return '';
+  const k = d.key;
+  const masked = isMasked();
+  const isEmpty = d.arsTotal === 0 && d.usdTotal === 0;
+  const insight = d.deltaPct!==0 && d.prevArs>0
+    ? `<strong>${Math.abs(d.deltaPct).toFixed(1).replace('.',',')}%</strong> ${d.deltaPct>0?'más':'menos'} vs anterior`
+    : (d.lastTxnAgo ? `Último consumo <strong>${d.lastTxnAgo}</strong>` : '');
+
+  return `
+    <div class="ccw-compare-card ${k==='amex'?'is-amex':''} ${isEmpty?'is-empty':''}">
+      <div class="ccw-compare-top">
+        <div class="ccw-compare-logo ${k}">${k.toUpperCase()}</div>
+        <div style="flex:1;min-width:0;">
+          <div class="ccw-compare-name">Santander ${k.toUpperCase()}</div>
+          <div class="ccw-compare-amt">${masked?'••••••••':(isEmpty?'Sin consumos':'$'+fmtN(Math.round(d.arsTotal)))}</div>
+          ${d.usdTotal>0?'<div class="ccw-compare-usd">'+(masked?'••••':'U$D '+fmtN(d.usdTotal))+'</div>':''}
+        </div>
+      </div>
+      <div class="ccw-compare-bar"><div class="ccw-compare-bar-fill ${k}" style="width:0%" id="ccw-bar-${k}"></div></div>
+      <div class="ccw-compare-meta">
+        <span class="ccw-compare-days">${d.daysLeft} día${d.daysLeft!==1?'s':''} restantes</span>
+        <span class="ccw-compare-close">Cierra ${_ccwFmt(d.closeYmd)}</span>
+      </div>
+      ${insight?'<div class="ccw-compare-insight">'+insight+'</div>':''}
+    </div>`;
+}
+
+function renderDb2CcCycles(data){
+  const el = document.getElementById('db2-cc-smart-content');
+  if(!el) return;
+
+  const visa = _ccwGetCardData('visa', data);
+  const amex = _ccwGetCardData('amex', data);
+  const hasVisa = visa && visa.arsTotal > 0;
+  const hasAmex = amex && amex.arsTotal > 0;
+
+  // Determine mode: Focus only when one card has 100% of spend
+  const focusCard = (hasVisa && !hasAmex) ? visa
+                  : (hasAmex && !hasVisa) ? amex
+                  : null;
+  const isFocus = !!focusCard;
+
+  const headerHtml = `
+    <div class="ccw-hd">
+      <div class="ccw-hd-left">
+        <div class="ccw-hd-icon"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg></div>
+        <span class="ccw-title">${isFocus ? 'Tarjeta Principal' : 'Ciclo de Tarjetas'}</span>
+        <span class="ccw-mode-badge ${isFocus?'focus':'compare'}">${isFocus?'Focus':'Comparar'}</span>
+      </div>
+      <button class="ccw-link" onclick="nav('credit-cards')">Ver detalle →</button>
+    </div>`;
+
+  if(isFocus){
+    el.innerHTML = headerHtml + _ccwRenderFocus(focusCard);
+  } else {
+    el.innerHTML = headerHtml + `<div class="ccw-compare-grid">${_ccwRenderCompareCard(visa)}${_ccwRenderCompareCard(amex)}</div>`;
+  }
+
+  // Animate bars after DOM insert
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    if(visa){
+      const vBar = document.getElementById('ccw-bar-visa');
+      if(vBar) vBar.style.width = visa.pct + '%';
+    }
+    if(amex){
+      const aBar = document.getElementById('ccw-bar-amex');
+      if(aBar) aBar.style.width = amex.pct + '%';
+    }
+  }));
 }
 
 function isBusinessDay(date){

@@ -17034,137 +17034,93 @@ body.light-mode .tdp-tp-input {
   border-color: rgba(17,24,39,0.06);
   box-shadow: 0 14px 34px rgba(31,41,55,0.06);
 }
-.db2-cc-card .db2-hd {
-  margin-bottom: 10px;
+
+/* ── Smart CC Widget: shared ── */
+.ccw-hd { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+.ccw-hd-left { display:flex; align-items:center; gap:10px; }
+.ccw-hd-icon { width:36px; height:36px; border-radius:12px; display:flex; align-items:center; justify-content:center; background:rgba(91,59,255,0.08); color:#5B3BFF; }
+.ccw-hd-icon svg { width:16px; height:16px; stroke:currentColor; fill:none; stroke-width:2; stroke-linecap:round; stroke-linejoin:round; }
+.ccw-title { font-size:14px; font-weight:800; color:#111827; letter-spacing:-.02em; }
+.ccw-mode-badge { font-size:9.5px; font-weight:700; padding:3px 8px; border-radius:6px; letter-spacing:.03em; text-transform:uppercase; }
+.ccw-mode-badge.focus { background:rgba(91,59,255,0.1); color:#5B3BFF; }
+.ccw-mode-badge.compare { background:rgba(59,130,246,0.1); color:#1D4ED8; }
+.ccw-link { font-size:11.5px; font-weight:700; color:#5B3BFF; background:none; border:none; cursor:pointer; font-family:var(--font); }
+
+/* ── Focus Mode ── */
+.ccw-focus { display:flex; flex-direction:column; gap:14px; }
+.ccw-focus-hero { display:flex; align-items:center; gap:16px; padding:20px 22px; border-radius:24px; background:#fff; border:1px solid rgba(91,59,255,0.08); box-shadow:0 4px 20px rgba(31,41,55,0.04); }
+.ccw-focus-hero.is-amex { border-color:rgba(59,130,246,0.1); }
+.ccw-focus-logo { width:52px; height:52px; border-radius:16px; display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:900; letter-spacing:.02em; flex-shrink:0; }
+.ccw-focus-logo.visa { background:linear-gradient(135deg,rgba(91,59,255,0.12),rgba(91,59,255,0.06)); color:#5B3BFF; }
+.ccw-focus-logo.amex { background:linear-gradient(135deg,rgba(59,130,246,0.12),rgba(59,130,246,0.06)); color:#1D4ED8; }
+.ccw-focus-main { flex:1; min-width:0; }
+.ccw-focus-name { font-size:11px; font-weight:700; color:#8B8AA8; text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
+.ccw-focus-amt { font-size:clamp(26px,2.2vw,34px); font-weight:900; color:#111827; letter-spacing:-.04em; line-height:1.1; }
+.ccw-focus-amt-usd { font-size:13px; font-weight:650; color:#7b7f98; margin-top:3px; }
+.ccw-focus-right { text-align:right; flex-shrink:0; }
+.ccw-focus-days { font-size:28px; font-weight:900; color:#5B3BFF; line-height:1; }
+.ccw-focus-days.amex { color:#1D4ED8; }
+.ccw-focus-days-label { font-size:10px; font-weight:700; color:#8B8AA8; margin-top:2px; }
+.ccw-focus-bar { height:6px; border-radius:999px; background:#ECECF5; overflow:hidden; margin-top:2px; }
+.ccw-focus-bar-fill { height:100%; border-radius:999px; background:linear-gradient(90deg,#7B5CFF,#5A3DF0); transition:width .8s var(--ease-premium,cubic-bezier(.4,0,.2,1)); }
+.ccw-focus-bar-fill.amex { background:linear-gradient(90deg,#3B82F6,#1D4ED8); }
+
+/* Focus stats grid */
+.ccw-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+.ccw-stat { padding:12px 10px; border-radius:16px; background:#fff; border:1px solid rgba(107,114,128,0.07); text-align:center; }
+.ccw-stat-val { font-size:clamp(14px,1.1vw,17px); font-weight:850; color:#111827; letter-spacing:-.03em; line-height:1.15; }
+.ccw-stat-label { font-size:9px; font-weight:700; color:#8B8AA8; margin-top:4px; text-transform:uppercase; letter-spacing:.03em; }
+
+/* Focus dates row */
+.ccw-dates { display:flex; gap:6px; }
+.ccw-date-pill { flex:1; display:flex; align-items:center; gap:6px; padding:9px 12px; border-radius:14px; background:#fff; border:1px solid rgba(107,114,128,0.07); }
+.ccw-date-pill-icon { font-size:12px; opacity:.55; }
+.ccw-date-pill-copy { display:flex; flex-direction:column; }
+.ccw-date-pill-label { font-size:8.5px; font-weight:700; color:#8B8AA8; text-transform:uppercase; letter-spacing:.04em; }
+.ccw-date-pill-val { font-size:13px; font-weight:800; color:#111827; letter-spacing:.01em; }
+
+/* Focus insight */
+.ccw-insight { display:flex; align-items:flex-start; gap:10px; padding:14px 16px; border-radius:18px; background:linear-gradient(135deg,rgba(91,59,255,0.04),rgba(56,189,248,0.04)); border:1px solid rgba(91,59,255,0.06); }
+.ccw-insight-icon { width:28px; height:28px; border-radius:10px; background:rgba(91,59,255,0.08); color:#5B3BFF; display:flex; align-items:center; justify-content:center; flex-shrink:0; font-size:13px; }
+.ccw-insight-text { font-size:12.5px; font-weight:600; color:#3b3f5c; line-height:1.45; }
+.ccw-insight-text strong { font-weight:800; color:#5B3BFF; }
+
+/* ── Comparative Mode ── */
+.ccw-compare-grid { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.ccw-compare-card { padding:18px 16px; border-radius:22px; background:#fff; border:1px solid rgba(107,114,128,0.08); box-shadow:0 4px 16px rgba(31,41,55,0.03); display:flex; flex-direction:column; gap:10px; transition:box-shadow .2s, border-color .2s; }
+.ccw-compare-card:hover { border-color:rgba(91,59,255,0.15); box-shadow:0 8px 28px rgba(91,59,255,0.07); }
+.ccw-compare-card.is-amex:hover { border-color:rgba(59,130,246,0.18); box-shadow:0 8px 28px rgba(59,130,246,0.07); }
+.ccw-compare-top { display:flex; align-items:center; gap:10px; }
+.ccw-compare-logo { width:40px; height:40px; border-radius:14px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:900; letter-spacing:.02em; flex-shrink:0; }
+.ccw-compare-logo.visa { background:linear-gradient(135deg,rgba(91,59,255,0.12),rgba(91,59,255,0.06)); color:#5B3BFF; }
+.ccw-compare-logo.amex { background:linear-gradient(135deg,rgba(59,130,246,0.12),rgba(59,130,246,0.06)); color:#1D4ED8; }
+.ccw-compare-name { font-size:10px; font-weight:700; color:#8B8AA8; text-transform:uppercase; letter-spacing:.04em; }
+.ccw-compare-amt { font-size:clamp(18px,1.6vw,24px); font-weight:900; color:#111827; letter-spacing:-.04em; line-height:1.1; margin-top:2px; }
+.ccw-compare-usd { font-size:11.5px; font-weight:650; color:#7b7f98; margin-top:2px; }
+.ccw-compare-bar { height:5px; border-radius:999px; background:#ECECF5; overflow:hidden; }
+.ccw-compare-bar-fill { height:100%; border-radius:999px; transition:width .8s var(--ease-premium,cubic-bezier(.4,0,.2,1)); }
+.ccw-compare-bar-fill.visa { background:linear-gradient(90deg,#7B5CFF,#5A3DF0); }
+.ccw-compare-bar-fill.amex { background:linear-gradient(90deg,#3B82F6,#1D4ED8); }
+.ccw-compare-meta { display:flex; justify-content:space-between; align-items:center; }
+.ccw-compare-days { font-size:11px; font-weight:700; color:#7b7f98; }
+.ccw-compare-close { font-size:10.5px; font-weight:700; color:#111827; }
+.ccw-compare-insight { font-size:11px; font-weight:600; color:#5d6785; padding:2px 0 0; line-height:1.35; }
+.ccw-compare-insight strong { font-weight:800; color:#5B3BFF; }
+.ccw-compare-card.is-amex .ccw-compare-insight strong { color:#1D4ED8; }
+.ccw-compare-card.is-empty { opacity:.45; }
+
+/* ── Responsive ── */
+@media (max-width:900px) {
+  .ccw-stats { grid-template-columns:repeat(2,1fr); }
 }
-.db2-cc-grid {
-  display: grid;
-  grid-template-rows: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-  flex: 1;
-  min-height: 0;
+@media (max-width:768px) {
+  .ccw-compare-grid { grid-template-columns:1fr; }
+  .ccw-dates { flex-direction:column; }
+  .ccw-focus-hero { padding:16px; }
+  .ccw-focus-amt { font-size:24px; }
 }
-.db2-cc-item {
-  background: #FFFFFF;
-  border: 1px solid rgba(107,114,128,0.12);
-  border-radius: 20px;
-  padding: 0;
-  display: grid;
-  grid-template-columns: 96px minmax(0,1fr);
-  gap: 0;
-  min-height: 0;
-  overflow: hidden;
-  box-shadow: 0 8px 18px rgba(17,24,39,0.025);
-}
-.db2-cc-item-amex {
-  background: #FFFFFF;
-  border-color: rgba(59,130,246,0.14);
-}
-.db2-cc-name {
-  font-size: clamp(20px, 1.6vw, 26px);
-  font-weight: 900;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: #5B3BFF;
-  background: linear-gradient(135deg, rgba(123,92,255,0.11), rgba(90,61,240,0.06));
-  min-width: 0;
-}
-.db2-cc-name-visa { color: #5B3BFF; }
-.db2-cc-name-amex {
-  color: #1D4ED8;
-  background: linear-gradient(135deg, rgba(59,130,246,0.11), rgba(29,78,216,0.06));
-}
-.db2-cc-dots { color: inherit; opacity: 0.55; font-size: 12px; letter-spacing: 0.12em; font-weight: 800; }
-.db2-cc-cycle-main {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 0.72fr);
-  gap: 12px;
-  align-items: center;
-  padding: 10px 14px 10px 12px;
-  min-width: 0;
-}
-.db2-cc-dates-and-bar {
-  min-width: 0;
-}
-.db2-cc-dates-row {
-  display: grid;
-  grid-template-columns: repeat(3,minmax(0,1fr));
-  gap: 7px;
-  align-items: start;
-}
-.db2-cc-date-cell {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: flex-start;
-  padding: 0;
-  border-radius: 0;
-  background: transparent;
-  border: none;
-  box-shadow: none;
-}
-.db2-cc-item-amex .db2-cc-date-cell { background: transparent; }
-.db2-cc-date-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: 10px;
-  font-weight: 650;
-  letter-spacing: 0;
-  text-transform: capitalize; color: #8B8AA8;
-  white-space: nowrap;
-}
-.db2-cc-date-label svg {
-  width: 10px;
-  height: 10px;
-  fill: none;
-  stroke: #4a4765;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-.db2-cc-date-val {
-  font-size: clamp(14px, 1.05vw, 18px);
-  font-weight: 800;
-  color: #111827; letter-spacing: 0.015em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-.db2-cc-amount-side {
-  border-left: 1px solid rgba(107,114,128,0.15);
-  padding: 0 clamp(8px, 1.2vw, 18px);
-  min-width: 0;
-  align-self: stretch;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  overflow: hidden;
-}
-.db2-cc-amt {
-  font-size: clamp(16px, 1.55vw, 25px);
-  font-weight: 850;
-  color: #111827;
-  letter-spacing: -0.045em;
-  margin-top: 0;
-  line-height: 1.04;
-  white-space: nowrap;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.db2-cc-amt-usd {
-  font-size: clamp(11.5px, 0.95vw, 15px);
-  font-weight: 650;
-  color: #7b7f98;
-  margin-top: 7px;
-  margin-bottom: 0;
-  white-space: nowrap;
-}
+
+/* ── keep old class stubs for masked state ── */
 .db2-cc-bar-track {
   height: 5px; border-radius: 999px;
   background: #ECECF5;
@@ -18942,44 +18898,32 @@ body:not(.light-mode) .db2-cc-card{
   background: linear-gradient(180deg, rgba(27,31,52,0.98) 0%, rgba(22,27,45,0.96) 100%);
   border-color: rgba(150, 164, 220, 0.12);
 }
-body:not(.light-mode) .db2-cc-item{
-  background: rgba(12, 18, 32, 0.72);
-  border-color: rgba(117, 102, 204, 0.2);
-}
-body:not(.light-mode) .db2-cc-item-amex{
-  background: rgba(12, 18, 32, 0.72);
-  border-color: rgba(82, 130, 225, 0.2);
-}
-body:not(.light-mode) .db2-cc-name-visa{
-  background: linear-gradient(135deg, rgba(123,92,255,0.2), rgba(90,61,240,0.1));
-}
-body:not(.light-mode) .db2-cc-name-amex{
-  background: linear-gradient(135deg, rgba(59,130,246,0.2), rgba(29,78,216,0.1));
-}
-body:not(.light-mode) .db2-cc-date-cell{
-  background: transparent;
-  border-color: transparent;
-}
-body:not(.light-mode) .db2-cc-date-label{
-  color:#9da8c8;
-}
-body:not(.light-mode) .db2-cc-date-label svg{
-  stroke:#aab4d0;
-}
-body:not(.light-mode) .db2-cc-date-val,
-body:not(.light-mode) .db2-cc-amt{
-  color:#f4f7ff;
-}
-body:not(.light-mode) .db2-cc-amount-side{
-  border-left-color: rgba(150, 164, 220, 0.18);
-}
-body:not(.light-mode) .db2-cc-amt-usd,
-body:not(.light-mode) .db2-cc-days{
-  color:#aab4d0;
-}
-body:not(.light-mode) .db2-cc-bar-track{
-  background: rgba(138, 149, 202, 0.18);
-}
+body:not(.light-mode) .ccw-title,
+body:not(.light-mode) .ccw-focus-amt,
+body:not(.light-mode) .ccw-compare-amt,
+body:not(.light-mode) .ccw-stat-val,
+body:not(.light-mode) .ccw-date-pill-val,
+body:not(.light-mode) .ccw-compare-close { color:#f4f7ff; }
+body:not(.light-mode) .ccw-focus-name,
+body:not(.light-mode) .ccw-compare-name,
+body:not(.light-mode) .ccw-stat-label,
+body:not(.light-mode) .ccw-date-pill-label,
+body:not(.light-mode) .ccw-focus-days-label,
+body:not(.light-mode) .ccw-compare-days { color:#9da8c8; }
+body:not(.light-mode) .ccw-focus-amt-usd,
+body:not(.light-mode) .ccw-compare-usd { color:#aab4d0; }
+body:not(.light-mode) .ccw-focus-hero,
+body:not(.light-mode) .ccw-compare-card,
+body:not(.light-mode) .ccw-stat,
+body:not(.light-mode) .ccw-date-pill { background:rgba(12,18,32,0.72); border-color:rgba(117,102,204,0.15); }
+body:not(.light-mode) .ccw-compare-card.is-amex { border-color:rgba(82,130,225,0.15); }
+body:not(.light-mode) .ccw-focus-bar,
+body:not(.light-mode) .ccw-compare-bar { background:rgba(138,149,202,0.18); }
+body:not(.light-mode) .ccw-insight { background:linear-gradient(135deg,rgba(91,59,255,0.08),rgba(56,189,248,0.06)); border-color:rgba(91,59,255,0.12); }
+body:not(.light-mode) .ccw-insight-text { color:#c5cde8; }
+body:not(.light-mode) .ccw-compare-insight { color:#a5afc8; }
+body:not(.light-mode) .ccw-hd-icon { background:rgba(91,59,255,0.15); }
+body:not(.light-mode) .ccw-link { color:#a78bfa; }
 
 body:not(.light-mode) .db2-proj-card{
   background:
@@ -19628,7 +19572,7 @@ body:not(.light-mode) #page-dashboard .header-actions .txn-select option{
   .db2-row-2 { grid-template-columns: 1fr; }
   .db2-hero-inner { grid-template-columns: 1fr 1fr; }
   .db2-hero-sub-margen { grid-column: 1 / -1; }
-  .db2-cc-grid { grid-template-columns: 1fr; }
+  .ccw-compare-grid { grid-template-columns: 1fr; }
   .db2-proj-legend { grid-template-columns: 1fr; }
   .db2-proj-metrics { grid-template-columns: 1fr 1fr; }
   .db2-proj-metric:nth-child(odd) { border-left: 0; padding-left: 0; }
