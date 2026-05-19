@@ -2100,6 +2100,8 @@ function renderMobileTransactions(txns, meta) {
       const items = groupMap[key].slice(0, MAX_PER_DAY);
       const rowsHtml = items.map(tx => {
         const cat = tx.category && tx.category !== 'Procesando...' && tx.category !== 'Uncategorized' ? tx.category : 'Sin categoría';
+        const _group = typeof catGroup==='function' ? catGroup(tx.category) : cat;
+        const _hasSub = cat !== 'Sin categoría' && _group !== cat && _group !== 'Sin clasificar';
         const amt = mobAmount(tx);
         const time = mobTime(tx);
         return `
@@ -2107,7 +2109,7 @@ function renderMobileTransactions(txns, meta) {
             ${mobAvatar(tx)}
             <div class="mob-txn-row-info">
               <div class="mob-txn-name">${esc(tx.comercio_detectado || tx._baseDesc || tx.description || 'Movimiento')}</div>
-              <div class="mob-txn-cat">${esc(cat)}${_renderTagChips(tx.tags)}</div>
+              <div class="mob-txn-cat">${esc(cat)}${_hasSub ? '<span class="mob-txn-subcat"> · '+esc(_group)+'</span>' : ''}${_renderTagChips(tx.tags)}</div>
             </div>
             ${time ? `<div class="mob-txn-time">${esc(time)}</div>` : '<div class="mob-txn-time"></div>'}
             <div class="mob-txn-amt-wrap">
@@ -2507,8 +2509,8 @@ function openTxnDetail(txnId){
       <button class="tdp-qa-btn" onclick="event.stopPropagation();var el=document.getElementById('tdp-tags-section-${txnId}');if(el)el.classList.toggle('open');">
         <span class="tdp-qa-icon">🏷</span><span class="tdp-qa-label">Tags</span>
       </button>
-      <button class="tdp-qa-btn" onclick="event.stopPropagation();openAssignModal('${txnId}');">
-        <span class="tdp-qa-icon">♡</span><span class="tdp-qa-label">Categoría</span>
+      <button class="tdp-qa-btn${t._marked?' tdp-qa-active':''}" onclick="event.stopPropagation();toggleTxnMarked('${txnId}');openTxnDetail('${txnId}');">
+        <span class="tdp-qa-icon">🚩</span><span class="tdp-qa-label">${t._marked?'Marcado':'Revisar'}</span>
       </button>
       <button class="tdp-qa-btn" onclick="event.stopPropagation();_showTxnActions('${txnId}');">
         <span class="tdp-qa-icon">···</span><span class="tdp-qa-label">Más</span>

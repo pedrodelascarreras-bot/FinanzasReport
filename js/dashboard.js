@@ -3058,6 +3058,15 @@ function getDashMonthIncome() {
    DB2 DASHBOARD — new widget renderers
 ═══════════════════════════════════════════════════════════ */
 
+// ── Compact number formatter for metric boxes ──
+function _fmtCompact(n){
+  if(n==null||isNaN(n))return'—';
+  const abs=Math.abs(n);
+  if(abs>=1e6) return (n/1e6).toLocaleString('es-AR',{minimumFractionDigits:1,maximumFractionDigits:1})+' M';
+  if(abs>=100000) return Math.round(n).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
+  return fmtN(Math.round(n),0);
+}
+
 // ── Evolution chart state ──
 let db2EvoMode = 'month'; // 'daily' | 'month'
 let _db2EvolutionState = null;
@@ -3844,36 +3853,45 @@ function renderDb2EvolutionChart(){
   const incData = series.incomeData || [];
   const totalGastos = Number(scope?.totalExpenseArs) || (gasData[gasData.length-1] || 0);
   const totalIngresos = Number(scope?.totalIncomeArs) || (useMonthMode ? Math.max(...incData,0) : (series.totalIncome || 0));
-  if(evoIng) evoIng.textContent = isMasked() ? '••••••••' : '$' + fmtN(Math.round(totalIngresos));
-  if(evoGas) evoGas.textContent = isMasked() ? '••••••••' : '$' + fmtN(Math.round(totalGastos));
+  if(evoIng) evoIng.textContent = isMasked() ? '••••••••' : '$' + _fmtCompact(totalIngresos);
+  if(evoGas) evoGas.textContent = isMasked() ? '••••••••' : '$' + _fmtCompact(totalGastos);
 
   // Compute 12-month averages
   const evoAvgInc = document.getElementById('db2-evo-avg-income');
   const evoAvgExp = document.getElementById('db2-evo-avg-expense');
   if(evoAvgInc || evoAvgExp){
     const now = new Date();
-    const monthlyInc = {};
+    const curMk = getMonthKey(now);
+    // Income average from incomeMonths (the app's income records)
+    const incEntries = (state.incomeMonths||[]).filter(m=>{
+      if(!m.month) return false;
+      const diff = (parseInt(curMk.split('-')[0])*12+parseInt(curMk.split('-')[1])) - (parseInt(m.month.split('-')[0])*12+parseInt(m.month.split('-')[1]));
+      return diff >= 0 && diff < 12;
+    });
+    let avgInc = 0;
+    if(incEntries.length && typeof getMonthTotalARS==='function'){
+      const totalInc = incEntries.reduce((s,m)=>s+getMonthTotalARS(m)+(getMonthTotalUSD(m)*(USD_TO_ARS||1420)),0);
+      avgInc = totalInc / incEntries.length;
+    } else if((state.income?.ars||0)+(state.income?.varArs||0) > 0){
+      avgInc = (state.income.ars||0)+(state.income.varArs||0);
+    }
+    // Expense average from transactions
     const monthlyExp = {};
     (state.transactions||[]).forEach(t=>{
       if(!t.date || t.currency !== 'ARS') return;
+      if(t.isIncome || t.type==='income') return;
       const d = t.date instanceof Date ? t.date : new Date(String(t.date).includes('T') ? t.date : (String(t.date)+'T12:00:00'));
       if(isNaN(d.getTime())) return;
       const diffMs = now - d;
       if(diffMs < 0 || diffMs > 365.25*86400000) return;
       const mk = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
       const amt = typeof getTxnPersonalAmount==='function' ? getTxnPersonalAmount(t) : t.amount;
-      if(t.isIncome || t.type==='income'){
-        monthlyInc[mk] = (monthlyInc[mk]||0) + (amt||0);
-      } else if(amt > 0){
-        monthlyExp[mk] = (monthlyExp[mk]||0) + (amt||0);
-      }
+      if(amt > 0) monthlyExp[mk] = (monthlyExp[mk]||0) + amt;
     });
-    const incMonths = Object.keys(monthlyInc);
     const expMonths = Object.keys(monthlyExp);
-    const avgInc = incMonths.length ? incMonths.reduce((s,k)=>s+monthlyInc[k],0) / incMonths.length : 0;
     const avgExp = expMonths.length ? expMonths.reduce((s,k)=>s+monthlyExp[k],0) / expMonths.length : 0;
-    if(evoAvgInc) evoAvgInc.textContent = isMasked() ? '••••••••' : '$' + fmtN(Math.round(avgInc));
-    if(evoAvgExp) evoAvgExp.textContent = isMasked() ? '••••••••' : '$' + fmtN(Math.round(avgExp));
+    if(evoAvgInc) evoAvgInc.textContent = isMasked() ? '••••••••' : '$' + _fmtCompact(avgInc);
+    if(evoAvgExp) evoAvgExp.textContent = isMasked() ? '••••••••' : '$' + _fmtCompact(avgExp);
   }
   if(titleEl) titleEl.textContent = useMonthMode ? 'Evolución por período' : 'Evolución del período';
   if(subTitleEl){
@@ -4065,7 +4083,7 @@ function renderDb2CatDonut(monthTxns){
   const totalEl = document.getElementById('db2-cat-total');
   if(totalEl) {
     if(isMasked()) totalEl.textContent = '••••••••';
-    else totalEl.textContent = total > 0 ? '$' + fmtN(Math.round(total)) : '—';
+    else totalEl.textContent = total > 0 ? '$' + fmtN(Math.round(total),0) : '—';
   }
 
   const emptyMsgs = {groups:'Sin gastos categorizados', subs:'Sin gastos categorizados', tags:'Sin tags asignados'};
@@ -4117,7 +4135,7 @@ function renderDb2CatDonut(monthTxns){
       plugins: {
         legend: { display: false },
         tooltip: { ..._chartTooltip(), callbacks: {
-          label: c => ' $' + fmtN(Math.round(c.parsed)) + ' (' + Math.round(c.parsed/total*100) + '%)'
+          label: c => ' $' + fmtN(Math.round(c.parsed),0) + ' (' + Math.round(c.parsed/total*100) + '%)'
         }}
       }
     }
@@ -4139,7 +4157,7 @@ function renderDb2CatDonut(monthTxns){
           </div>
           <div class="db2-cat-copy">
             <span class="db2-cat-name">${esc(name)}</span>
-            <span class="db2-cat-amt">${isMasked() ? '••••••••' : '$' + fmtN(Math.round(d.total))}</span>
+            <span class="db2-cat-amt">${isMasked() ? '••••••••' : '$' + fmtN(Math.round(d.total),0)}</span>
           </div>
           <span class="db2-cat-pct" style="color:${tc}">${pct}%</span>
         </div>`;
@@ -4150,7 +4168,7 @@ function renderDb2CatDonut(monthTxns){
         </div>
         <div class="db2-cat-copy">
           <span class="db2-cat-name">${esc(name)}</span>
-          <span class="db2-cat-amt">${isMasked() ? '••••••••' : '$' + fmtN(Math.round(d.total))}</span>
+          <span class="db2-cat-amt">${isMasked() ? '••••••••' : '$' + fmtN(Math.round(d.total),0)}</span>
         </div>
         <span class="db2-cat-pct" style="color:${color}">${pct}%</span>
       </div>`;

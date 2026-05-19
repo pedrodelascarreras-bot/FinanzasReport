@@ -3540,6 +3540,7 @@ select.input-field { cursor: pointer; }
   cursor: pointer; transition: all .15s; color: var(--text2);
 }
 .tdp-qa-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(108,92,231,0.2); color: var(--text); }
+.tdp-qa-btn.tdp-qa-active { background: rgba(236,72,153,0.12); border-color: rgba(236,72,153,0.3); color: #ec4899; }
 .tdp-qa-icon { font-size: 20px; line-height: 1; }
 .tdp-qa-label { font-size: 11px; font-weight: 600; letter-spacing: -0.01em; }
 
@@ -3714,6 +3715,7 @@ body.light-mode .tdp-qa-btn {
   box-shadow: 0 1px 3px rgba(30,27,75,0.04);
 }
 body.light-mode .tdp-qa-btn:hover { border-color: rgba(108,92,231,0.25); color: #6C5CE7; }
+body.light-mode .tdp-qa-btn.tdp-qa-active { background: rgba(236,72,153,0.08); border-color: rgba(236,72,153,0.25); color: #ec4899; }
 body.light-mode .tdp-section {
   background: #fff; border-color: rgba(108,92,231,0.08);
   box-shadow: 0 1px 3px rgba(30,27,75,0.03);
@@ -26567,6 +26569,9 @@ body.light-mode .mob-commits-footer { border-top-color: rgba(0,0,0,0.06); }
 }
 .mob-txn-cat {
   font-size: 11px; font-weight: 500; color: #9EA6C7;
+}
+.mob-txn-subcat {
+  color: #6B7399; font-weight: 400;
 }
 
 .mob-txn-time {
