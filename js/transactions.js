@@ -1776,10 +1776,12 @@ function renderTransactions(){
                   const _isMarked = tx._marked === true;
                   const _markedClass = _isMarked ? ' mv-row-marked' : '';
                   const _markedFlag = _isMarked ? '<span class="mv-marked-flag" title="Marcado para revisar">🚩</span>' : '';
+                  const _grp = typeof catGroup==='function' ? catGroup(tx.category) : cat;
+                  const _hasSub = cat !== 'Sin categoría' && _grp !== cat && _grp !== 'Sin clasificar';
                   return '<div class="mv-row'+_markedClass+'" onclick="openTxnDetail(\''+tx.id+'\')">'
                     +txnMerchantAvatar(tx)
                     +'<div class="mv-time">'+txnTimeLabel(tx)+'</div>'
-                    +'<div><div class="mv-merchant">'+_markedFlag+esc(txnMerchantName(tx))+'</div><div class="mv-meta"><button class="mv-cat" style="background:'+catColor(cat)+'18;color:'+catColor(cat)+';" onclick="event.stopPropagation();openAssignModal(\''+tx.id+'\',this)" title="Cambiar categoría"><span style="font-size:7px;">◆</span>'+esc(cat)+'</button>'+(txnNoteText(tx)?'<span class="mv-note">↪ '+esc(txnNoteText(tx))+'</span>':'')+'</div></div>'
+                    +'<div><div class="mv-merchant">'+_markedFlag+esc(txnMerchantName(tx))+'</div><div class="mv-meta"><button class="mv-cat" style="background:'+catColor(cat)+'18;color:'+catColor(cat)+';" onclick="event.stopPropagation();openAssignModal(\''+tx.id+'\',this)" title="Cambiar categoría"><span style="font-size:7px;">◆</span>'+esc(cat)+'</button>'+(_hasSub?'<span class="mv-subcat"> · '+esc(_grp)+'</span>':'')+(txnNoteText(tx)?'<span class="mv-note">↪ '+esc(txnNoteText(tx))+'</span>':'')+'</div></div>'
                     +'<div class="mv-amount"><div class="mv-amount-main'+amountClass+'">'+txnAmountLabel(tx)+'</div>'+(((tx.currency||'ARS')==='USD')?'<div class="mv-amount-sub">'+txnEquivalentLabel(tx)+'</div>':'')+_gcSharedHtml+'</div>'
                     +'<div style="position:relative;"><button class="mv-menu-btn" onclick="event.stopPropagation();toggleTxnActionMenu(\''+tx.id+'\')">⋮</button>'+menuForTxn(tx.id)+'</div>'
                   +'</div>';

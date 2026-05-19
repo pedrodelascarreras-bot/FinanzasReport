@@ -2348,8 +2348,8 @@ function renderWeeklyChart(monthTxns){
       {type:'line',data:values.map(()=>avg),borderColor:'rgba(160,154,148,0.5)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:0}
     ]},options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y)):' $'+fmtN(c.parsed.y)}}},
-      scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont()},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}
+      plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y),0):' $'+fmtN(c.parsed.y,0)}}},
+      scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont()},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v,0)},grid:_chartGridY()}}
     }});
 
   } else if(mode==='week'){
@@ -2374,8 +2374,8 @@ function renderWeeklyChart(monthTxns){
       {type:'line',data:values.map(()=>avg),borderColor:'rgba(160,154,148,0.5)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:0}
     ]},options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y)):' $'+fmtN(c.parsed.y)}}},
-      scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxRotation:0,minRotation:0},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}
+      plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y),0):' $'+fmtN(c.parsed.y,0)}}},
+      scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxRotation:0,minRotation:0},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v,0)},grid:_chartGridY()}}
     }});
 
   } else if(mode==='daily'){
@@ -2400,8 +2400,8 @@ function renderWeeklyChart(monthTxns){
       {type:'line',data:values.map(()=>avg),borderColor:'rgba(160,154,148,0.5)',borderWidth:1.5,borderDash:[5,4],pointRadius:0,fill:false,order:0}
     ]},options:{
       responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y)):' $'+fmtN(c.parsed.y)}}},
-      scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxRotation:0},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}}
+      plugins:{legend:{display:false},tooltip:{..._chartTooltip(),callbacks:{label:c=>c.datasetIndex===1?' Promedio: $'+fmtN(Math.round(c.parsed.y),0):' $'+fmtN(c.parsed.y,0)}}},
+      scales:{x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxRotation:0},grid:{display:false}},y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v,0)},grid:_chartGridY()}}
     }});
   }
 }
@@ -3202,100 +3202,31 @@ function _ccwFmt(ymd){
   catch(e){ return ymd; }
 }
 
-function _ccwBuildInsight(d){
-  const lines = [];
-  if(d.deltaPct !== 0 && d.prevArs > 0){
-    const dir = d.deltaPct > 0 ? 'más' : 'menos';
-    lines.push(`Tu consumo es <strong>${Math.abs(d.deltaPct).toFixed(1).replace('.',',')}% ${dir}</strong> que el ciclo anterior`);
-  }
-  if(d.projected > 0 && d.daysLeft > 2){
-    lines.push(`Si mantenés este ritmo, cerrarías en <strong>$${fmtN(Math.round(d.projected))}</strong>`);
-  }
-  if(d.topCat && d.topCatPct > 25){
-    lines.push(`El <strong>${d.topCatPct}%</strong> fue en ${d.topCat}`);
-  }
-  if(d.lastTxnAgo){
-    lines.push(`Último consumo <strong>${d.lastTxnAgo}</strong>`);
-  }
-  return lines;
-}
-
-function _ccwRenderFocus(d){
-  const k = d.key;
-  const masked = isMasked();
-  const insights = _ccwBuildInsight(d);
-  const insightHtml = insights.length ? insights.map(t=>`<div class="ccw-insight"><span class="ccw-insight-icon">✦</span><span class="ccw-insight-text">${t}</span></div>`).join('') : '';
-
-  return `
-    <div class="ccw-focus">
-      <div class="ccw-focus-hero ${k==='amex'?'is-amex':''}">
-        <div class="ccw-focus-logo ${k}">${k.toUpperCase()}</div>
-        <div class="ccw-focus-main">
-          <div class="ccw-focus-name">Santander ${k.toUpperCase()}</div>
-          <div class="ccw-focus-amt">${masked?'••••••••':'$'+fmtN(Math.round(d.arsTotal))}</div>
-          ${d.usdTotal>0?'<div class="ccw-focus-amt-usd">'+(masked?'••••':'U$D '+fmtN(d.usdTotal))+'</div>':''}
-        </div>
-        <div class="ccw-focus-right">
-          <div class="ccw-focus-days ${k}">${d.daysLeft}</div>
-          <div class="ccw-focus-days-label">días restantes</div>
-          <div class="ccw-focus-bar"><div class="ccw-focus-bar-fill ${k}" style="width:0%" id="ccw-bar-${k}"></div></div>
-        </div>
-      </div>
-
-      <div class="ccw-stats">
-        <div class="ccw-stat">
-          <div class="ccw-stat-val">${masked?'••••':'$'+fmtN(Math.round(d.dailyAvg))}</div>
-          <div class="ccw-stat-label">Prom. diario</div>
-        </div>
-        <div class="ccw-stat">
-          <div class="ccw-stat-val">${masked?'••••':'$'+fmtN(Math.round(d.projected))}</div>
-          <div class="ccw-stat-label">Proyección</div>
-        </div>
-        <div class="ccw-stat">
-          <div class="ccw-stat-val">${d.txnCount}</div>
-          <div class="ccw-stat-label">Movimientos</div>
-        </div>
-        <div class="ccw-stat">
-          <div class="ccw-stat-val">${d.deltaPct!==0&&d.prevArs>0?(d.deltaPct>0?'+':'')+d.deltaPct.toFixed(1).replace('.',',')+'%':'—'}</div>
-          <div class="ccw-stat-label">vs anterior</div>
-        </div>
-      </div>
-
-      <div class="ccw-dates">
-        <div class="ccw-date-pill"><span class="ccw-date-pill-icon">📅</span><div class="ccw-date-pill-copy"><span class="ccw-date-pill-label">Abre</span><span class="ccw-date-pill-val">${_ccwFmt(d.openYmd)}</span></div></div>
-        <div class="ccw-date-pill"><span class="ccw-date-pill-icon">🔒</span><div class="ccw-date-pill-copy"><span class="ccw-date-pill-label">Cierra</span><span class="ccw-date-pill-val">${_ccwFmt(d.closeYmd)}</span></div></div>
-        ${d.dueYmd?'<div class="ccw-date-pill"><span class="ccw-date-pill-icon">⏰</span><div class="ccw-date-pill-copy"><span class="ccw-date-pill-label">Vence</span><span class="ccw-date-pill-val">'+_ccwFmt(d.dueYmd)+'</span></div></div>':''}
-      </div>
-
-      ${insightHtml}
-    </div>`;
-}
-
-function _ccwRenderCompareCard(d){
+function _ccwRenderCard(d){
   if(!d) return '';
   const k = d.key;
   const masked = isMasked();
   const isEmpty = d.arsTotal === 0 && d.usdTotal === 0;
-  const insight = d.deltaPct!==0 && d.prevArs>0
-    ? `<strong>${Math.abs(d.deltaPct).toFixed(1).replace('.',',')}%</strong> ${d.deltaPct>0?'más':'menos'} vs anterior`
-    : (d.lastTxnAgo ? `Último consumo <strong>${d.lastTxnAgo}</strong>` : '');
+  const calSvg = '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
 
   return `
-    <div class="ccw-compare-card ${k==='amex'?'is-amex':''} ${isEmpty?'is-empty':''}">
-      <div class="ccw-compare-top">
-        <div class="ccw-compare-logo ${k}">${k.toUpperCase()}</div>
-        <div style="flex:1;min-width:0;">
-          <div class="ccw-compare-name">Santander ${k.toUpperCase()}</div>
-          <div class="ccw-compare-amt">${masked?'••••••••':(isEmpty?'Sin consumos':'$'+fmtN(Math.round(d.arsTotal)))}</div>
-          ${d.usdTotal>0?'<div class="ccw-compare-usd">'+(masked?'••••':'U$D '+fmtN(d.usdTotal))+'</div>':''}
+    <div class="db2-cc-item ${k==='amex'?'db2-cc-item-amex':''}" id="db2-cc-${k}-item">
+      <div class="db2-cc-name db2-cc-name-${k}">${k.toUpperCase()}</div>
+      <div class="db2-cc-cycle-main">
+        <div class="db2-cc-dates-and-bar">
+          <div class="db2-cc-dates-row">
+            <div class="db2-cc-date-cell"><span class="db2-cc-date-label">${calSvg}Abre</span><span class="db2-cc-date-val">${_ccwFmt(d.openYmd)}</span></div>
+            <div class="db2-cc-date-cell"><span class="db2-cc-date-label">${calSvg}Cierra</span><span class="db2-cc-date-val">${_ccwFmt(d.closeYmd)}</span></div>
+            <div class="db2-cc-date-cell"><span class="db2-cc-date-label">${calSvg}Vence</span><span class="db2-cc-date-val">${_ccwFmt(d.dueYmd)}</span></div>
+          </div>
+          <div class="db2-cc-bar-track"><div class="db2-cc-bar-fill" id="ccw-bar-${k}" style="width:0%${k==='amex'?';background:#0066b2':''}"></div></div>
+        </div>
+        <div class="db2-cc-amount-side">
+          <div class="db2-cc-amt" id="kpi-${k}-ars">${masked?'••••••••':(isEmpty?'Sin consumos':'—')}</div>
+          <div class="db2-cc-amt-usd" id="kpi-${k}-usd"${d.usdTotal>0?'':' style="display:none"'}></div>
+          <div class="db2-cc-days">${d.daysLeft === 0 ? 'Cierra hoy' : d.daysLeft+' día'+(d.daysLeft!==1?'s':'')+' restantes'}</div>
         </div>
       </div>
-      <div class="ccw-compare-bar"><div class="ccw-compare-bar-fill ${k}" style="width:0%" id="ccw-bar-${k}"></div></div>
-      <div class="ccw-compare-meta">
-        <span class="ccw-compare-days">${d.daysLeft} día${d.daysLeft!==1?'s':''} restantes</span>
-        <span class="ccw-compare-close">Cierra ${_ccwFmt(d.closeYmd)}</span>
-      </div>
-      ${insight?'<div class="ccw-compare-insight">'+insight+'</div>':''}
     </div>`;
 }
 
@@ -3308,39 +3239,45 @@ function renderDb2CcCycles(data){
   const hasVisa = visa && visa.arsTotal > 0;
   const hasAmex = amex && amex.arsTotal > 0;
 
-  // Determine mode: Focus only when one card has 100% of spend
-  const focusCard = (hasVisa && !hasAmex) ? visa
-                  : (hasAmex && !hasVisa) ? amex
-                  : null;
-  const isFocus = !!focusCard;
+  const isFocus = (hasVisa && !hasAmex) || (hasAmex && !hasVisa);
 
   const headerHtml = `
-    <div class="ccw-hd">
-      <div class="ccw-hd-left">
-        <div class="ccw-hd-icon"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg></div>
-        <span class="ccw-title">${isFocus ? 'Tarjeta Principal' : 'Ciclo de Tarjetas'}</span>
-        <span class="ccw-mode-badge ${isFocus?'focus':'compare'}">${isFocus?'Focus':'Comparar'}</span>
+    <div class="db2-hd">
+      <div class="db2-hd-left">
+        <div class="db2-hd-icon" style="background:rgba(56,189,248,0.12);color:#0ea5e9;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>
+        </div>
+        <span class="db2-title">${isFocus ? 'Tarjeta Principal' : 'Ciclo de Tarjetas'}</span>
       </div>
-      <button class="ccw-link" onclick="nav('credit-cards')">Ver detalle →</button>
+      <button class="db2-link" onclick="nav('credit-cards')">Ver detalle →</button>
     </div>`;
 
   if(isFocus){
-    el.innerHTML = headerHtml + _ccwRenderFocus(focusCard);
+    const focusCard = hasVisa ? visa : amex;
+    el.innerHTML = headerHtml + '<div class="db2-cc-grid">' + _ccwRenderCard(focusCard) + '</div>';
   } else {
-    el.innerHTML = headerHtml + `<div class="ccw-compare-grid">${_ccwRenderCompareCard(visa)}${_ccwRenderCompareCard(amex)}</div>`;
+    el.innerHTML = headerHtml + '<div class="db2-cc-grid">' + _ccwRenderCard(visa) + _ccwRenderCard(amex) + '</div>';
   }
 
-  // Animate bars after DOM insert
-  requestAnimationFrame(()=>requestAnimationFrame(()=>{
-    if(visa){
-      const vBar = document.getElementById('ccw-bar-visa');
-      if(vBar) vBar.style.width = visa.pct + '%';
+  // Animate amounts and bars
+  [visa, amex].forEach(d => {
+    if(!d) return;
+    const k = d.key;
+    const masked = isMasked();
+    const arsEl = document.getElementById(`kpi-${k}-ars`);
+    const usdEl = document.getElementById(`kpi-${k}-usd`);
+    if(arsEl && !masked && d.arsTotal > 0){
+      animateNumberText(arsEl, d.arsTotal, {prefix:'$', decimals:2, duration:760});
     }
-    if(amex){
-      const aBar = document.getElementById('ccw-bar-amex');
-      if(aBar) aBar.style.width = amex.pct + '%';
+    if(usdEl && !masked && d.usdTotal > 0){
+      animateNumberText(usdEl, d.usdTotal, {prefix:'U$D ', decimals:2, duration:760});
+      usdEl.style.display = '';
     }
-  }));
+    requestAnimationFrame(()=>requestAnimationFrame(()=>{
+      const bar = document.getElementById(`ccw-bar-${k}`);
+      if(bar) bar.style.width = d.pct + '%';
+    }));
+  });
 }
 
 function isBusinessDay(date){
@@ -3962,7 +3899,7 @@ function renderDb2EvolutionChart(){
           bodyColor: '#fff',
           padding: 12,
           displayColors: true,
-          callbacks: { label: c => ' ' + c.dataset.label + ': $' + fmtN(Math.round(c.parsed.y)) }
+          callbacks: { label: c => ' ' + c.dataset.label + ': $' + fmtN(Math.round(c.parsed.y),0) }
         }
       },
       scales: {
@@ -3986,7 +3923,7 @@ function renderDb2EvolutionChart(){
             font: tickFont,
             stepSize: 50000,
             padding: 16,
-            callback: v => v === 0 ? '$0' : '$' + fmtN(v)
+            callback: v => v === 0 ? '$0' : '$' + fmtN(v,0)
           },
           grid: {
             color: gridColor,
@@ -4581,7 +4518,7 @@ function renderDb2DollarSparkline(){
           intersect: false,
           ..._chartTooltip(),
           callbacks: {
-            label: (context) => ` $${fmtN(context.parsed.y)}`
+            label: (context) => ` $${fmtN(context.parsed.y,0)}`
           }
         }
       },

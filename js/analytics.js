@@ -335,7 +335,7 @@ function _tend_renderMonthlyShare(customEl,currentLabel,grandTotal,sortedParents
     <div class="tend-share-pill">
       <span class="tend-share-pill-dot" style="background:${item.color};"></span>
       <span class="tend-share-pill-name">${item.emoji} ${esc(item.parent)}</span>
-      <strong>${_tend_pctLabel(item.pct)} · $${fmtN(item.amount)}</strong>
+      <strong>${_tend_pctLabel(item.pct)} · $${fmtN(item.amount,0)}</strong>
     </div>
   `).join('');
 
@@ -352,7 +352,7 @@ function _tend_renderMonthlyShare(customEl,currentLabel,grandTotal,sortedParents
           <div class="tend-share-subfill" style="width:${_tend_pctWidth(sub.pctOfTotal)}%;background:${item.color};"></div>
         </div>
         <div class="tend-share-substats">
-          <strong>$${fmtN(sub.amount)}</strong>
+          <strong>$${fmtN(sub.amount,0)}</strong>
           <span>${_tend_pctLabel(sub.pctOfTotal)} del total · ${_tend_pctLabel(sub.pctOfCategory)} de ${esc(item.parent)}</span>
         </div>
       </div>
@@ -365,13 +365,13 @@ function _tend_renderMonthlyShare(customEl,currentLabel,grandTotal,sortedParents
             <span class="tend-share-cat-emoji">${item.emoji}</span>
             <div class="tend-share-cat-copy">
               <div class="tend-share-cat-name">${esc(item.parent)}</div>
-              <div class="tend-share-cat-meta">${item.subEntries.length} subcategoría${item.subEntries.length!==1?'s':''} · $${fmtN(item.amount)}${hasSubEntries?' · tocar para desplegar':''}</div>
+              <div class="tend-share-cat-meta">${item.subEntries.length} subcategoría${item.subEntries.length!==1?'s':''} · $${fmtN(item.amount,0)}${hasSubEntries?' · tocar para desplegar':''}</div>
             </div>
           </div>
           <div class="tend-share-cat-side-wrap">
             <div class="tend-share-cat-side">
               <strong style="color:${item.color};">${_tend_pctLabel(item.pct)}</strong>
-              <span>$${fmtN(item.amount)} · del mes</span>
+              <span>$${fmtN(item.amount,0)} · del mes</span>
             </div>
             <span class="tend-share-cat-chevron${hasSubEntries?' is-ready':''}" id="${safeId}-chevron">›</span>
           </div>
@@ -391,7 +391,7 @@ function _tend_renderMonthlyShare(customEl,currentLabel,grandTotal,sortedParents
           <div class="tend-share-donut" style="background:${gradient};">
             <div class="tend-share-donut-hole">
               <span class="tend-share-donut-label">${esc(currentLabel)}</span>
-              <strong>$${fmtN(grandTotal)}</strong>
+              <strong>$${fmtN(grandTotal,0)}</strong>
               <span>${categories.length} categorías activas</span>
             </div>
           </div>
@@ -412,8 +412,8 @@ function _tend_renderMonthlyShare(customEl,currentLabel,grandTotal,sortedParents
           <div class="tend-share-focus-card">
             <span class="tend-share-focus-kicker">Lectura rápida</span>
             <div class="tend-share-focus-title">${topCategory.emoji} ${esc(topCategory.parent)} lidera el mes</div>
-            <div class="tend-share-focus-sub">$${fmtN(topCategory.amount)} · ${_tend_pctLabel(topCategory.pct)} del total</div>
-            ${topSub?`<div class="tend-share-focus-chip" style="--share-chip:${topCategory.color};">Subcategoría dominante: <strong>${esc(topSub.name)}</strong> · $${fmtN(topSub.amount)} · ${_tend_pctLabel(topSub.pctOfTotal)}</div>`:''}
+            <div class="tend-share-focus-sub">$${fmtN(topCategory.amount,0)} · ${_tend_pctLabel(topCategory.pct)} del total</div>
+            ${topSub?`<div class="tend-share-focus-chip" style="--share-chip:${topCategory.color};">Subcategoría dominante: <strong>${esc(topSub.name)}</strong> · $${fmtN(topSub.amount,0)} · ${_tend_pctLabel(topSub.pctOfTotal)}</div>`:''}
           </div>
           <div class="tend-share-pill-grid">${pills}</div>
         </div>
@@ -483,9 +483,9 @@ function _tend_drawChart(){
       ]},
       options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),
         plugins:{legend:{display:false},
-          tooltip:{..._chartTooltip(),callbacks:{label:ctx2=>ctx2.datasetIndex===1?' Promedio: $'+fmtN(ctx2.parsed.x):' $'+fmtN(ctx2.parsed.x)}}},
+          tooltip:{..._chartTooltip(),callbacks:{label:ctx2=>ctx2.datasetIndex===1?' Promedio: $'+fmtN(ctx2.parsed.x,0):' $'+fmtN(ctx2.parsed.x,0)}}},
         scales:{
-          x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:{color:_isL()?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.03)',drawBorder:false}},
+          x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v,0)},grid:{color:_isL()?'rgba(0,0,0,0.04)':'rgba(255,255,255,0.03)',drawBorder:false}},
           y:{ticks:{color:_chartTickColor(),font:{..._chartTickFont(),size:11,weight:'600'}},grid:{display:false}}
         }}
     });
@@ -516,10 +516,10 @@ function _tend_drawChart(){
       options:{responsive:true,maintainAspectRatio:false,animation:tendChartAnim(),
         plugins:{
           legend:{display:true,position:'bottom',labels:{color:_isL()?'#748096':'#9ca3af',font:{size:10},boxWidth:10,padding:12,usePointStyle:true}},
-          tooltip:{..._chartTooltip(),callbacks:{label:ctx2=>' '+ctx2.dataset.label+': $'+fmtN(ctx2.parsed.y)}}},
+          tooltip:{..._chartTooltip(),callbacks:{label:ctx2=>' '+ctx2.dataset.label+': $'+fmtN(ctx2.parsed.y,0)}}},
         scales:{
           x:{ticks:{color:_chartTickColor(),font:_chartTickFont(),maxRotation:40},grid:{display:false}},
-          y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v)},grid:_chartGridY()}
+          y:{ticks:{color:_chartTickColor(),font:_chartTickFont(),callback:v=>'$'+fmtN(v,0)},grid:_chartGridY()}
         }}
     });
     animateTendCanvas(ctx);
@@ -601,17 +601,17 @@ function _tend_drawRanking(){
       const dSign=d.diff>0?'+':'';
       const dPct=Math.round(d.pct);
       right=`<div style="text-align:right;flex-shrink:0;">
-        <div style="font-size:13px;font-weight:700;color:${c};font-family:var(--font);">$${fmtN(amount)}</div>
+        <div style="font-size:13px;font-weight:700;color:${c};font-family:var(--font);">$${fmtN(amount,0)}</div>
         <div style="font-size:11px;font-weight:700;color:${dColor};margin-top:2px;">${dSign}${dPct}%</div>
       </div>`;
     } else if(tab==='participacion'){
       right=`<div style="text-align:right;flex-shrink:0;">
-        <div style="font-size:13px;font-weight:700;color:${c};font-family:var(--font);">$${fmtN(amount)}</div>
+        <div style="font-size:13px;font-weight:700;color:${c};font-family:var(--font);">$${fmtN(amount,0)}</div>
         <div style="font-size:20px;font-weight:800;color:${c};opacity:0.65;line-height:1;margin-top:1px;">${pct}%</div>
       </div>`;
     } else {
       right=`<div style="text-align:right;flex-shrink:0;">
-        <div style="font-size:13px;font-weight:700;color:${c};font-family:var(--font);">$${fmtN(amount)}</div>
+        <div style="font-size:13px;font-weight:700;color:${c};font-family:var(--font);">$${fmtN(amount,0)}</div>
         <div style="display:inline-block;font-size:10px;font-weight:600;color:${c};background:${c}22;padding:2px 8px;border-radius:99px;margin-top:3px;">${pct}%</div>
       </div>`;
     }
@@ -628,7 +628,7 @@ function _tend_drawRanking(){
             <div class="tend-rank-bar-wrap"><div class="tend-rank-bar" style="width:${subW}%;background:${c};opacity:0.45;"></div></div>
           </div>
           <div style="text-align:right;flex-shrink:0;min-width:72px;">
-            <div style="font-size:12px;font-weight:600;color:${c};font-family:var(--font);">$${fmtN(amt)}</div>
+            <div style="font-size:12px;font-weight:600;color:${c};font-family:var(--font);">$${fmtN(amt,0)}</div>
             <div style="font-size:10px;color:var(--text3);">${subPct}%</div>
           </div>
         </div>`;
@@ -672,7 +672,7 @@ function _tend_drawTopCards(currentTotal,totalDeltaPct,prevLabel,topUp,topDown,c
 
   const card1=`<div class="tend-top-card" style="background:linear-gradient(135deg,rgba(124,58,237,0.14) 0%,rgba(124,58,237,0.04) 100%);border-color:rgba(124,58,237,0.25);">
     <div class="tend-top-card-label" style="color:rgba(167,139,250,0.9);">💳 GASTO DEL CICLO</div>
-    <div class="tend-top-card-value">$${fmtN(currentTotal)}</div>
+    <div class="tend-top-card-value">$${fmtN(currentTotal,0)}</div>
     <div class="tend-top-card-delta" style="color:${dColor};">${dIcon}${dStr}${prevLabel!=='—'?' vs. '+prevLabel:''}</div>
     ${closeHtml}
   </div>`;
@@ -680,14 +680,14 @@ function _tend_drawTopCards(currentTotal,totalDeltaPct,prevLabel,topUp,topDown,c
   const card2=topUp?`<div class="tend-top-card" style="background:linear-gradient(135deg,rgba(239,68,68,0.12) 0%,rgba(239,68,68,0.03) 100%);border-color:rgba(239,68,68,0.22);">
     <div class="tend-top-card-label" style="color:rgba(252,165,165,0.9);">📈 SUBIÓ MÁS</div>
     <div class="tend-top-card-cat">${catGroupEmoji(topUp[0])} ${topUp[0]}</div>
-    <div class="tend-top-card-value" style="font-size:22px;color:#ef4444;">+$${fmtN(Math.abs(topUp[1].diff))}</div>
+    <div class="tend-top-card-value" style="font-size:22px;color:#ef4444;">+$${fmtN(Math.abs(topUp[1].diff),0)}</div>
     <div class="tend-top-card-delta" style="color:#ef4444;">+${Math.round(topUp[1].pct)}% vs. ${prevLabel}</div>
   </div>`:`<div class="tend-top-card" style="opacity:0.5;"><div class="tend-top-card-label">📈 SUBIÓ MÁS</div><div style="color:var(--text3);font-size:13px;margin-top:8px;">Sin cambios</div></div>`;
 
   const card3=topDown?`<div class="tend-top-card" style="background:linear-gradient(135deg,rgba(16,185,129,0.12) 0%,rgba(16,185,129,0.03) 100%);border-color:rgba(16,185,129,0.22);">
     <div class="tend-top-card-label" style="color:rgba(110,231,183,0.9);">📉 BAJÓ MÁS</div>
     <div class="tend-top-card-cat">${catGroupEmoji(topDown[0])} ${topDown[0]}</div>
-    <div class="tend-top-card-value" style="font-size:22px;color:#10b981;">-$${fmtN(Math.abs(topDown[1].diff))}</div>
+    <div class="tend-top-card-value" style="font-size:22px;color:#10b981;">-$${fmtN(Math.abs(topDown[1].diff),0)}</div>
     <div class="tend-top-card-delta" style="color:#10b981;">${Math.round(topDown[1].pct)}% vs. ${prevLabel}</div>
   </div>`:`<div class="tend-top-card" style="opacity:0.5;"><div class="tend-top-card-label">📉 BAJÓ MÁS</div><div style="color:var(--text3);font-size:13px;margin-top:8px;">Sin cambios</div></div>`;
 
@@ -751,7 +751,7 @@ function _tend_drawInsights(currentTxns,prevTxns,sortedParents,parentDeltas,gran
   const sLabel=sDelta===null?'Sin referencia':sDelta>20?'¡Atención!':sDelta>5?'Algo elevado':'Bajo control';
   const sPct=sDelta!==null?(sDelta>0?'+':'')+Math.round(sDelta)+'%':'—';
   const sProgress=prevTotal>0?Math.min(Math.round(curTotal/prevTotal*100),200):100;
-  const sSub=sDelta!==null?(sDelta>0?`Llevás $${fmtN(Math.abs(curTotal-prevTotal))} más que ${prevLabel}.`:`Ahorrás $${fmtN(Math.abs(curTotal-prevTotal))} vs. ${prevLabel}.`):`Primer período sin comparación.`;
+  const sSub=sDelta!==null?(sDelta>0?`Llevás $${fmtN(Math.abs(curTotal-prevTotal),0)} más que ${prevLabel}.`:`Ahorrás $${fmtN(Math.abs(curTotal-prevTotal),0)} vs. ${prevLabel}.`):`Primer período sin comparación.`;
 
   let html=`<div class="tend-ins-kicker-row">
     <span class="tend-ins-kicker">INSIGHTS</span>
@@ -783,19 +783,19 @@ function _tend_drawInsights(currentTxns,prevTxns,sortedParents,parentDeltas,gran
   if(dailyAvg>0){
     const dSign=dailyDeltaPct!==null?(dailyDeltaPct>0?' ↑ +':' ↓ ')+Math.abs(Math.round(dailyDeltaPct||0))+'%':'';
     cards.push({icon:'📅',color:'#6366f1',bg:'rgba(99,102,241,0.08)',
-      title:`Promedio diario: <strong style="color:#6366f1;">$${fmtN(Math.round(dailyAvg))}</strong>${dSign}`,
+      title:`Promedio diario: <strong style="color:#6366f1;">$${fmtN(Math.round(dailyAvg),0)}</strong>${dSign}`,
       sub:`En ${daysElapsed} días transcurridos`});
   }
   if(peakDay&&peakAmt>0){
     cards.push({icon:'🔥',color:'#f97316',bg:'rgba(249,115,22,0.08)',
-      title:`Pico el <strong style="color:#f97316;">${peakDay}</strong>: $${fmtN(peakAmt)}`,
+      title:`Pico el <strong style="color:#f97316;">${peakDay}</strong>: $${fmtN(peakAmt,0)}`,
       sub:'El día de mayor gasto del período.'});
   }
   if(topCat&&topCatPct>=20){
     const grp=CATEGORY_GROUPS.find(g=>g.group===topCat[0]);
     cards.push({icon:grp?.emoji||'📌',color:grp?.color||'#888',bg:(grp?.color||'#888')+'18',
       title:`<strong style="color:${grp?.color||'#888'};">${topCat[0]}</strong> representa el ${topCatPct}% del total`,
-      sub:`$${fmtN(topCat[1])} este período.`});
+      sub:`$${fmtN(topCat[1],0)} este período.`});
   }
   if(sortedParents.length>=3){
     cards.push({icon:'🎯',color:'#8b5cf6',bg:'rgba(139,92,246,0.08)',
@@ -808,7 +808,7 @@ function _tend_drawInsights(currentTxns,prevTxns,sortedParents,parentDeltas,gran
     const grp=CATEGORY_GROUPS.find(g=>g.group===spike[0]);
     cards.push({icon:'⚡',color:'#ef4444',bg:'rgba(239,68,68,0.08)',
       title:`<strong style="color:${grp?.color||'#ef4444'};">${spike[0]}</strong> subió <strong style="color:#ef4444;">${Math.round(spike[1].pct)}%</strong>`,
-      sub:`$${fmtN(spike[1].prev)} → $${fmtN(spike[1].last)}`});
+      sub:`$${fmtN(spike[1].prev,0)} → $${fmtN(spike[1].last,0)}`});
   }
   // Biggest drop
   const drop=Object.entries(parentDeltas).filter(([,d])=>d.pct<-30&&d.prev>1000).sort((a,b)=>a[1].pct-b[1].pct)[0];
@@ -816,7 +816,7 @@ function _tend_drawInsights(currentTxns,prevTxns,sortedParents,parentDeltas,gran
     const grp=CATEGORY_GROUPS.find(g=>g.group===drop[0]);
     cards.push({icon:'💚',color:'#10b981',bg:'rgba(16,185,129,0.08)',
       title:`<strong style="color:${grp?.color||'#10b981'};">${drop[0]}</strong> bajó <strong style="color:#10b981;">${Math.abs(Math.round(drop[1].pct))}%</strong>`,
-      sub:`Ahorrás $${fmtN(Math.abs(drop[1].diff))} vs. ${prevLabel}.`});
+      sub:`Ahorrás $${fmtN(Math.abs(drop[1].diff),0)} vs. ${prevLabel}.`});
   }
 
   cards.slice(0,6).forEach(ins=>{
@@ -1035,16 +1035,16 @@ function renderCompare(){
     heroEl.innerHTML=`
       <div class="cmp-hero-period">
         <div class="cmp-hero-label">${la}</div>
-        <div class="cmp-hero-amount">$${fmtN(totA)}</div>
+        <div class="cmp-hero-amount">$${fmtN(totA,0)}</div>
         <div class="cmp-hero-sub">${txA.length} movimientos</div>
       </div>
       <div class="cmp-hero-delta">
-        <div class="cmp-delta-num" style="color:${diffColor}">${diff===0?'=':((diff>0?'+':'')+' $'+fmtN(Math.abs(diff)))}</div>
+        <div class="cmp-delta-num" style="color:${diffColor}">${diff===0?'=':((diff>0?'+':'')+' $'+fmtN(Math.abs(diff),0))}</div>
         <div class="cmp-delta-label" style="color:${diffColor}">${diff===0?'igual':(isDown?'▼ menos':'▲ más')} ${pctStr}</div>
       </div>
       <div class="cmp-hero-period b">
         <div class="cmp-hero-label">${lb}</div>
-        <div class="cmp-hero-amount" style="color:${diffColor}">$${fmtN(totB)}</div>
+        <div class="cmp-hero-amount" style="color:${diffColor}">$${fmtN(totB,0)}</div>
         <div class="cmp-hero-sub">${txB.length} movimientos</div>
       </div>`;
   }
@@ -1066,18 +1066,18 @@ function renderCompare(){
       const col=catColor(cat);
       const wA=Math.round((a/maxVal)*100),wB=Math.round((b/maxVal)*100);
       const dColor=d>0?'var(--danger)':d<0?'var(--accent)':'var(--text3)';
-      const dText=d===0?'igual':(d>0?'▲ +':'▼ ')+'$'+fmtN(Math.abs(d));
+      const dText=d===0?'igual':(d>0?'▲ +':'▼ ')+'$'+fmtN(Math.abs(d),0);
       return`<div class="cmp-cat-row">
         <div class="cmp-cat-dot" style="background:${col}"></div>
         <div class="cmp-cat-name">${esc(cat)}</div>
         <div class="cmp-cat-bars">
           <div class="cmp-bar-wrap">
             <div class="cmp-bar-track"><div class="cmp-bar-fill" style="width:${wA}%;background:${col}88;"></div></div>
-            <div class="cmp-bar-val">$${fmtN(a)}</div>
+            <div class="cmp-bar-val">$${fmtN(a,0)}</div>
           </div>
           <div class="cmp-bar-wrap">
             <div class="cmp-bar-track"><div class="cmp-bar-fill" style="width:${wB}%;background:${col};"></div></div>
-            <div class="cmp-bar-val" style="color:var(--text)">$${fmtN(b)}</div>
+            <div class="cmp-bar-val" style="color:var(--text)">$${fmtN(b,0)}</div>
           </div>
         </div>
         <div class="cmp-cat-diff-badge" style="color:${dColor}">${dText}</div>
@@ -1161,7 +1161,7 @@ function renderTagAnalytics(){
       <span class="tag-rank-pos">${i+1}</span>
       <span class="tag-rank-chip" style="--stag-color:${col}">${esc(tag)}</span>
       <div class="tag-rank-bar-wrap"><div class="tag-rank-bar" style="width:${pct}%;background:${col};"></div></div>
-      <span class="tag-rank-amount">$${fmtN(total)}</span>
+      <span class="tag-rank-amount">$${fmtN(total,0)}</span>
     </div>`;
   }).join('');
 
