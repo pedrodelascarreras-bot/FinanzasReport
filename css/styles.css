@@ -17080,7 +17080,7 @@ body.light-mode .tdp-tp-input {
 .db2-cc-dots { color: inherit; opacity: 0.55; font-size: 12px; letter-spacing: 0.12em; font-weight: 800; }
 .db2-cc-cycle-main {
   display: grid;
-  grid-template-columns: minmax(250px, 0.95fr) minmax(196px, 0.72fr);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 0.72fr);
   gap: 12px;
   align-items: center;
   padding: 10px 14px 10px 12px;
@@ -17135,7 +17135,7 @@ body.light-mode .tdp-tp-input {
 }
 .db2-cc-amount-side {
   border-left: 1px solid rgba(107,114,128,0.15);
-  padding: 0 18px;
+  padding: 0 clamp(8px, 1.2vw, 18px);
   min-width: 0;
   align-self: stretch;
   display: flex;
@@ -17143,9 +17143,10 @@ body.light-mode .tdp-tp-input {
   justify-content: center;
   align-items: center;
   text-align: center;
+  overflow: hidden;
 }
 .db2-cc-amt {
-  font-size: clamp(20px, 1.55vw, 25px);
+  font-size: clamp(16px, 1.55vw, 25px);
   font-weight: 850;
   color: #111827;
   letter-spacing: -0.045em;
@@ -17154,7 +17155,7 @@ body.light-mode .tdp-tp-input {
   white-space: nowrap;
   max-width: 100%;
   overflow: hidden;
-  text-overflow: clip;
+  text-overflow: ellipsis;
 }
 .db2-cc-amt-usd {
   font-size: clamp(11.5px, 0.95vw, 15px);
@@ -18363,12 +18364,13 @@ body.light-mode .tdp-tp-input {
 }
 .db2-evo-metrics {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-bottom: 14px;
 }
 .db2-evo-metric {
   min-width: 0;
-  flex: 0 0 248px;
+  flex: 1 1 160px;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -18430,6 +18432,28 @@ body.light-mode .tdp-tp-input {
 }
 .db2-evo-metric-expense .db2-evo-metric-value {
   color: #f36a2b;
+}
+.db2-evo-metric-avg-income {
+  background: linear-gradient(180deg, #f0faf4 0%, #e8f5ee 100%);
+  border: 1px solid rgba(82,200,135,0.15);
+}
+.db2-evo-metric-avg-income .db2-evo-metric-icon {
+  background: linear-gradient(180deg, #ddf3e7 0%, #d1eddd 100%);
+  color: #3aaa6f;
+}
+.db2-evo-metric-avg-income .db2-evo-metric-value {
+  color: #3aaa6f;
+}
+.db2-evo-metric-avg-expense {
+  background: linear-gradient(180deg, #fff5ed 0%, #ffefe4 100%);
+  border: 1px solid rgba(243,106,43,0.12);
+}
+.db2-evo-metric-avg-expense .db2-evo-metric-icon {
+  background: linear-gradient(180deg, #ffe8d6 0%, #ffe0ca 100%);
+  color: #d4592a;
+}
+.db2-evo-metric-avg-expense .db2-evo-metric-value {
+  color: #d4592a;
 }
 .db2-evo-legend {
   display: flex;
@@ -18493,10 +18517,10 @@ body.light-mode .tdp-tp-input {
 
 @media (max-width: 1180px) {
   .db2-evo-metrics {
-    gap: 12px;
+    gap: 8px;
   }
   .db2-evo-metric {
-    flex-basis: 0;
+    flex: 1 1 140px;
   }
   .db2-evo-btn {
     padding: 10px 18px;
@@ -18749,6 +18773,43 @@ body.light-mode .tdp-tp-input {
   font-weight: 600;
   color: #5a647f;
   line-height: 1.25;
+}
+.db2-cat-view-toggle {
+  display: flex;
+  background: #f8f9fe;
+  border-radius: 14px;
+  padding: 3px;
+  gap: 3px;
+  border: 1px solid rgba(215,221,238,0.9);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.85);
+}
+.db2-cat-view-btn {
+  padding: 7px 14px;
+  border-radius: 11px;
+  border: none;
+  font-size: 11px;
+  font-weight: 800;
+  cursor: pointer;
+  color: #4b5574;
+  background: transparent;
+  font-family: var(--font);
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.db2-cat-view-btn.active {
+  background: linear-gradient(180deg, #4180ff 0%, #2e6df0 100%);
+  color: #fff;
+  box-shadow: 0 8px 16px rgba(46,109,240,0.2);
+}
+body:not(.light-mode) .db2-cat-view-toggle {
+  background: rgba(45,50,80,0.7);
+  border-color: rgba(100,115,160,0.25);
+}
+body:not(.light-mode) .db2-cat-view-btn {
+  color: #9faed0;
+}
+body:not(.light-mode) .db2-cat-view-btn.active {
+  color: #fff;
 }
 
 @media (max-width: 1100px) {
@@ -19068,6 +19129,18 @@ body:not(.light-mode) .db2-evo-metric-income .db2-evo-metric-icon{
 }
 body:not(.light-mode) .db2-evo-metric-expense .db2-evo-metric-icon{
   background: linear-gradient(180deg, rgba(255, 144, 84, 0.18), rgba(233, 110, 50, 0.12));
+}
+body:not(.light-mode) .db2-evo-metric-avg-income{
+  background: linear-gradient(180deg, rgba(25,65,45,0.55) 0%, rgba(20,52,37,0.50) 100%);
+}
+body:not(.light-mode) .db2-evo-metric-avg-expense{
+  background: linear-gradient(180deg, rgba(80,45,28,0.60) 0%, rgba(63,35,18,0.55) 100%);
+}
+body:not(.light-mode) .db2-evo-metric-avg-income .db2-evo-metric-icon{
+  background: linear-gradient(180deg, rgba(70,180,110,0.15), rgba(55,150,90,0.10));
+}
+body:not(.light-mode) .db2-evo-metric-avg-expense .db2-evo-metric-icon{
+  background: linear-gradient(180deg, rgba(230,120,60,0.15), rgba(210,95,40,0.10));
 }
 body:not(.light-mode) .db2-evo-metric-label{
   color:#cfdbff;

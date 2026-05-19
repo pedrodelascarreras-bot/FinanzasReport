@@ -668,6 +668,24 @@
                 <div class="db2-evo-metric-value" id="db2-evo-gastos">—</div>
               </div>
             </div>
+            <div class="db2-evo-metric db2-evo-metric-avg-income">
+              <div class="db2-evo-metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M3 12h18"/><path d="M8 7l4-4 4 4"/><path d="M8 17l4 4 4-4"/></svg>
+              </div>
+              <div class="db2-evo-metric-copy">
+                <div class="db2-evo-metric-label">Ingreso prom.</div>
+                <div class="db2-evo-metric-value" id="db2-evo-avg-income">—</div>
+              </div>
+            </div>
+            <div class="db2-evo-metric db2-evo-metric-avg-expense">
+              <div class="db2-evo-metric-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M3 12h18"/><path d="M8 7l4-4 4 4"/><path d="M8 17l4 4 4-4"/></svg>
+              </div>
+              <div class="db2-evo-metric-copy">
+                <div class="db2-evo-metric-label">Gasto prom.</div>
+                <div class="db2-evo-metric-value" id="db2-evo-avg-expense">—</div>
+              </div>
+            </div>
           </div>
           <div class="db2-evo-legend">
             <span class="db2-evo-legend-item">
@@ -697,7 +715,11 @@
                 <div class="db2-cat-month" id="db2-cat-month">—</div>
               </div>
             </div>
-            <button class="db2-link" onclick="nav('tendencia')">Ver detalle →</button>
+            <div class="db2-cat-view-toggle">
+              <button class="db2-cat-view-btn active" id="db2-cat-view-groups" onclick="setDb2CatView('groups')">Grupos</button>
+              <button class="db2-cat-view-btn" id="db2-cat-view-subs" onclick="setDb2CatView('subs')">Subcategorías</button>
+              <button class="db2-cat-view-btn" id="db2-cat-view-tags" onclick="setDb2CatView('tags')">Tags</button>
+            </div>
           </div>
           <div class="db2-cat-body">
             <div class="db2-cat-list-panel">

@@ -3758,6 +3758,35 @@ function renderDb2EvolutionChart(){
   const totalIngresos = Number(scope?.totalIncomeArs) || (useMonthMode ? Math.max(...incData,0) : (series.totalIncome || 0));
   if(evoIng) evoIng.textContent = isMasked() ? '••••••••' : '$' + fmtN(Math.round(totalIngresos));
   if(evoGas) evoGas.textContent = isMasked() ? '••••••••' : '$' + fmtN(Math.round(totalGastos));
+
+  // Compute 12-month averages
+  const evoAvgInc = document.getElementById('db2-evo-avg-income');
+  const evoAvgExp = document.getElementById('db2-evo-avg-expense');
+  if(evoAvgInc || evoAvgExp){
+    const now = new Date();
+    const monthlyInc = {};
+    const monthlyExp = {};
+    (state.transactions||[]).forEach(t=>{
+      if(!t.date || t.currency !== 'ARS') return;
+      const d = t.date instanceof Date ? t.date : new Date(String(t.date).includes('T') ? t.date : (String(t.date)+'T12:00:00'));
+      if(isNaN(d.getTime())) return;
+      const diffMs = now - d;
+      if(diffMs < 0 || diffMs > 365.25*86400000) return;
+      const mk = d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+      const amt = typeof getTxnPersonalAmount==='function' ? getTxnPersonalAmount(t) : t.amount;
+      if(t.isIncome || t.type==='income'){
+        monthlyInc[mk] = (monthlyInc[mk]||0) + (amt||0);
+      } else if(amt > 0){
+        monthlyExp[mk] = (monthlyExp[mk]||0) + (amt||0);
+      }
+    });
+    const incMonths = Object.keys(monthlyInc);
+    const expMonths = Object.keys(monthlyExp);
+    const avgInc = incMonths.length ? incMonths.reduce((s,k)=>s+monthlyInc[k],0) / incMonths.length : 0;
+    const avgExp = expMonths.length ? expMonths.reduce((s,k)=>s+monthlyExp[k],0) / expMonths.length : 0;
+    if(evoAvgInc) evoAvgInc.textContent = isMasked() ? '••••••••' : '$' + fmtN(Math.round(avgInc));
+    if(evoAvgExp) evoAvgExp.textContent = isMasked() ? '••••••••' : '$' + fmtN(Math.round(avgExp));
+  }
   if(titleEl) titleEl.textContent = useMonthMode ? 'Evolución por período' : 'Evolución del período';
   if(subTitleEl){
     subTitleEl.textContent = useMonthMode
@@ -3884,20 +3913,47 @@ function renderDb2EvolutionChart(){
 }
 
 // ── Categories donut ──
+let _db2CatView = 'groups';
+function setDb2CatView(view){
+  _db2CatView = view;
+  document.querySelectorAll('.db2-cat-view-btn').forEach(b => b.classList.toggle('active', b.id === 'db2-cat-view-'+view));
+  renderDb2CatDonut();
+}
+
+function _db2CatBuildData(txns, view){
+  const grouped = {};
+  if(view === 'tags'){
+    txns.filter(t => t.currency === 'ARS' && t.tags && t.tags.length).forEach(t => {
+      const _pa = typeof getTxnPersonalAmount==='function' ? getTxnPersonalAmount(t) : t.amount;
+      (t.tags||[]).forEach(tag => {
+        if(!grouped[tag]) grouped[tag] = {total:0, color: typeof _tagColor==='function' ? _tagColor(tag) : '#6C5CE7'};
+        grouped[tag].total += _pa;
+      });
+    });
+  } else {
+    txns.filter(t => t.currency === 'ARS' && t.category && t.category !== 'Procesando...' && t.category !== 'Uncategorized').forEach(t => {
+      const _pa = typeof getTxnPersonalAmount==='function' ? getTxnPersonalAmount(t) : t.amount;
+      if(view === 'subs'){
+        const key = t.category;
+        if(!grouped[key]) grouped[key] = {total:0, color: typeof catColor==='function' ? catColor(key) : '#666'};
+        grouped[key].total += _pa;
+      } else {
+        const parent = typeof catGroup==='function' ? catGroup(t.category) : t.category;
+        if(!grouped[parent]) grouped[parent] = {total:0, color: typeof catColor==='function' ? catColor(t.category) : '#666'};
+        grouped[parent].total += _pa;
+      }
+    });
+  }
+  return grouped;
+}
+
 function renderDb2CatDonut(monthTxns){
   const ctx = document.getElementById('chart-cat-donut');
   if(!ctx) return;
   if(state.charts && state.charts.catDonut){ state.charts.catDonut.destroy(); state.charts.catDonut = null; }
 
   const txns = monthTxns || getCurrentMonthTxns();
-  const grouped = {};
-  // ARS only — matches Tendencias view
-  txns.filter(t => t.currency === 'ARS' && t.category && t.category !== 'Procesando...' && t.category !== 'Uncategorized').forEach(t => {
-    const _pa=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount;
-    const parent = typeof catGroup === 'function' ? catGroup(t.category) : t.category;
-    if(!grouped[parent]) grouped[parent] = {total: 0, color: typeof catColor === 'function' ? catColor(t.category) : '#666', emoji: ''};
-    grouped[parent].total += _pa;
-  });
+  const grouped = _db2CatBuildData(txns, _db2CatView);
 
   const allSorted = Object.entries(grouped).filter(([,d]) => d.total > 0).sort((a,b) => b[1].total - a[1].total);
   const sorted = allSorted.slice(0,8);
@@ -3910,6 +3966,13 @@ function renderDb2CatDonut(monthTxns){
     catMonthEl.textContent=dt.toLocaleDateString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
   }
 
+  const viewTitles = {groups:'Categorías del Mes', subs:'Subcategorías del Mes', tags:'Tags del Mes'};
+  const catTitleEl = document.querySelector('.db2-cat-card .db2-title');
+  if(catTitleEl) catTitleEl.textContent = viewTitles[_db2CatView] || viewTitles.groups;
+
+  const donutLblEl = document.querySelector('.db2-cat-donut-lbl');
+  if(donutLblEl) donutLblEl.textContent = _db2CatView === 'tags' ? 'TAGS' : 'TOTAL';
+
   // Update donut total label
   const totalEl = document.getElementById('db2-cat-total');
   if(totalEl) {
@@ -3917,9 +3980,10 @@ function renderDb2CatDonut(monthTxns){
     else totalEl.textContent = total > 0 ? '$' + fmtN(Math.round(total)) : '—';
   }
 
+  const emptyMsgs = {groups:'Sin gastos categorizados', subs:'Sin gastos categorizados', tags:'Sin tags asignados'};
   if(!sorted.length){
     const listEl = document.getElementById('db2-cat-list');
-    if(listEl) listEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">Sin gastos categorizados</div>';
+    if(listEl) listEl.innerHTML = '<div style="font-size:12px;color:var(--text3)">'+(emptyMsgs[_db2CatView]||emptyMsgs.groups)+'</div>';
     return;
   }
 
@@ -3972,13 +4036,26 @@ function renderDb2CatDonut(monthTxns){
   });
   if(state.charts) state.charts.catDonut = chart;
 
-  // Category list
+  // Category / Sub / Tag list
   const listEl = document.getElementById('db2-cat-list');
   if(listEl){
     listEl.innerHTML = sorted.slice(0,5).map(([name,d],i) => {
       const pct = total > 0 ? Math.round(d.total/total*100) : 0;
       const color = colors[i];
-      const tone=getCategoryTone(i);
+      const tone = getCategoryTone(i);
+      if(_db2CatView === 'tags'){
+        const tc = typeof _tagColor==='function' ? _tagColor(name) : color;
+        return `<div class="db2-cat-item ${i===0?'is-top':''}">
+          <div class="db2-cat-iconbox" style="background:${tc}18;color:${tc}">
+            <svg viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5-10-5Z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/></svg>
+          </div>
+          <div class="db2-cat-copy">
+            <span class="db2-cat-name">${esc(name)}</span>
+            <span class="db2-cat-amt">${isMasked() ? '••••••••' : '$' + fmtN(Math.round(d.total))}</span>
+          </div>
+          <span class="db2-cat-pct" style="color:${tc}">${pct}%</span>
+        </div>`;
+      }
       return `<div class="db2-cat-item ${i===0?'is-top':''}">
         <div class="db2-cat-iconbox" style="background:${tone.bg};color:${tone.color}">
           ${getCategoryIconSvg(name)}
@@ -3992,20 +4069,14 @@ function renderDb2CatDonut(monthTxns){
     }).join('');
   }
 
-  // Bottom note
+  // Bottom note — month-over-month comparison
   const noteEl = document.getElementById('db2-cat-note');
   if(noteEl){
     const prevTxns = typeof getTxnsFor==='function'
       ? getTxnsFor(getMonthKey(new Date(catYear, (catMonth||1)-2, 1)))
       : [];
-    const prevGrouped = {};
-    (prevTxns||[]).filter(t => t.category && t.category !== 'Procesando...' && t.category !== 'Uncategorized').forEach(t => {
-      const _pa=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount;
-      const amt = t.currency === 'USD' ? _pa * (USD_TO_ARS||1420) : _pa;
-      const parent = typeof catGroup === 'function' ? catGroup(t.category) : t.category;
-      prevGrouped[parent] = (prevGrouped[parent] || 0) + amt;
-    });
-    const prevTotal = Object.values(prevGrouped).reduce((s,v)=>s+v,0);
+    const prevGrouped = _db2CatBuildData(prevTxns||[], _db2CatView);
+    const prevTotal = Object.values(prevGrouped).reduce((s,d)=>s+d.total,0);
     const deltaPct = prevTotal>0 ? ((total-prevTotal)/prevTotal)*100 : 0;
     const deltaText = `${Math.abs(deltaPct).toFixed(1).replace('.',',')}%`;
     noteEl.innerHTML = `<div class="db2-cat-note-icon">
