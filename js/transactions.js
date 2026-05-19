@@ -2456,7 +2456,13 @@ function openTxnDetail(txnId){
 
   const PAY_LABELS={visa:'💳 Santander VISA',amex:'💳 Santander AMEX',deb:'🏦 Santander Débito',ef:'💵 Efectivo'};
   const _comercio = t.comercio_detectado || t.description || '';
-  const _logo = _comercio.charAt(0).toUpperCase() || '?';
+  const _heroLogoHtml = (()=>{
+    const customLogo = t.customLogoUrl || t.logoUrl || t.merchantLogoUrl || '';
+    if(customLogo) return '<img src="'+esc(customLogo)+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;">';
+    const namedLogo = txnMerchantLogoData(t);
+    if(namedLogo) return '<span style="display:flex;align-items:center;justify-content:center;width:100%;height:100%;border-radius:inherit;background:'+namedLogo.bg+';color:'+namedLogo.text+';font-size:22px;font-weight:800;">'+esc(namedLogo.label)+'</span>';
+    return esc(_comercio.charAt(0).toUpperCase() || '?');
+  })();
   const _heroDate = (()=>{
     if(!t.date) return '—';
     const d = t.date instanceof Date ? t.date : new Date(String(t.date).includes('T') ? t.date : (String(t.date) + 'T12:00:00'));
@@ -2480,7 +2486,7 @@ function openTxnDetail(txnId){
       </div>
       <div class="tdp-hero">
         <div class="tdp-hero-logo">
-          ${esc(_logo)}
+          ${_heroLogoHtml}
           <span class="tdp-hero-edit-icon" onclick="event.stopPropagation();openEditTxnModal('${txnId}');closeTxnDetail();">✎</span>
         </div>
         <div class="tdp-hero-date">${_heroDate}</div>
