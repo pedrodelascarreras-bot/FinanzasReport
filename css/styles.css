@@ -17232,6 +17232,33 @@ body.light-mode .tdp-tp-input {
 .db2-cc-amount-side.is-masked .db2-cc-amt-usd {
   visibility: hidden;
 }
+.db2-cc-stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(107,114,128,0.08);
+}
+.db2-cc-stat-box {
+  text-align: center;
+}
+.db2-cc-stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: #8B8AA8;
+  text-transform: uppercase;
+  letter-spacing: .03em;
+  margin-bottom: 3px;
+}
+.db2-cc-stat-value {
+  font-size: 13px;
+  font-weight: 800;
+  color: #111827;
+  letter-spacing: -.02em;
+}
+.db2-cc-stat-delta.up { color: #ef4444; }
+.db2-cc-stat-delta.down { color: #10b981; }
 @media (max-width: 480px) {
   .db2-cc-cycle-main { flex-direction: column; }
   .db2-cc-amount-side { text-align: left; min-width: 0; }
@@ -18997,6 +19024,9 @@ body:not(.light-mode) .db2-cc-amt-usd { color:#aab4d0; }
 body:not(.light-mode) .db2-cc-days { color:#9da8c8; }
 body:not(.light-mode) .db2-cc-date-label { color:#9da8c8; }
 body:not(.light-mode) .db2-cc-bar-track { background:rgba(138,149,202,0.18); }
+body:not(.light-mode) .db2-cc-stat-value { color:#f4f7ff; }
+body:not(.light-mode) .db2-cc-stat-label { color:#9da8c8; }
+body:not(.light-mode) .db2-cc-stats-row { border-top-color:rgba(138,149,202,0.15); }
 body:not(.light-mode) .ccw-title,
 body:not(.light-mode) .ccw-focus-amt,
 body:not(.light-mode) .ccw-compare-amt,

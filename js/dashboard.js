@@ -3209,6 +3209,8 @@ function _ccwRenderCard(d){
   const isEmpty = d.arsTotal === 0 && d.usdTotal === 0;
   const calSvg = '<svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
 
+  const deltaHtml = d.deltaPct !== 0 ? `<span class="db2-cc-stat-delta ${d.deltaPct>0?'up':'down'}">${d.deltaPct>0?'↑':'↓'}${Math.abs(Math.round(d.deltaPct))}%</span>` : '';
+
   return `
     <div class="db2-cc-item ${k==='amex'?'db2-cc-item-amex':''}" id="db2-cc-${k}-item">
       <div class="db2-cc-name db2-cc-name-${k}">${k.toUpperCase()}</div>
@@ -3226,6 +3228,12 @@ function _ccwRenderCard(d){
           <div class="db2-cc-amt-usd" id="kpi-${k}-usd"${d.usdTotal>0?'':' style="display:none"'}></div>
           <div class="db2-cc-days">${d.daysLeft === 0 ? 'Cierra hoy' : d.daysLeft+' día'+(d.daysLeft!==1?'s':'')+' restantes'}</div>
         </div>
+      </div>
+      <div class="db2-cc-stats-row">
+        <div class="db2-cc-stat-box"><div class="db2-cc-stat-label">Prom. diario</div><div class="db2-cc-stat-value">${masked?'••••':'$'+fmtN(Math.round(d.dailyAvg),0)}</div></div>
+        <div class="db2-cc-stat-box"><div class="db2-cc-stat-label">Proyección</div><div class="db2-cc-stat-value">${masked?'••••':'$'+fmtN(Math.round(d.projected),0)}</div></div>
+        <div class="db2-cc-stat-box"><div class="db2-cc-stat-label">Movimientos</div><div class="db2-cc-stat-value">${d.txnCount}</div></div>
+        <div class="db2-cc-stat-box"><div class="db2-cc-stat-label">vs. anterior</div><div class="db2-cc-stat-value">${deltaHtml || '—'}</div></div>
       </div>
     </div>`;
 }
