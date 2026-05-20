@@ -17073,7 +17073,7 @@ body.light-mode .tdp-tp-input {
 /* Hero: brand + ARS + USD */
 .ccf-hero {
   display:flex; align-items:center; gap:0;
-  padding:14px 20px 14px;
+  padding:18px 20px 18px;
 }
 .ccf-brand {
   font-size:clamp(30px,3vw,42px); font-weight:950;
@@ -17089,7 +17089,7 @@ body.light-mode .tdp-tp-input {
   letter-spacing:.06em; text-transform:uppercase; margin-bottom:3px;
 }
 .ccf-ars-amt {
-  font-size:clamp(28px,2.6vw,38px); font-weight:900;
+  font-size:clamp(30px,2.8vw,40px); font-weight:900;
   color:#fff; letter-spacing:-.03em; line-height:1.1;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
@@ -17107,7 +17107,7 @@ body.light-mode .tdp-tp-input {
   letter-spacing:.08em; margin-bottom:2px;
 }
 .ccf-usd-amt {
-  font-size:clamp(18px,1.6vw,24px); font-weight:900;
+  font-size:clamp(20px,1.8vw,26px); font-weight:900;
   color:#fff; letter-spacing:-.02em; line-height:1.15;
 }
 .ccf-usd-icon {
@@ -17156,17 +17156,19 @@ body.light-mode .tdp-tp-input {
   padding:10px 20px 0;
 }
 .ccf-bar-label {
-  font-size:10px; font-weight:700; color:rgba(255,255,255,0.4);
+  font-size:10px; font-weight:700; color:rgba(255,255,255,0.5);
   white-space:nowrap; min-width:72px;
 }
 .ccf-bar-track {
-  flex:1; height:5px; border-radius:999px;
-  background:rgba(255,255,255,0.08); overflow:hidden;
+  flex:1; height:6px; border-radius:999px;
+  background:rgba(255,255,255,0.15); overflow:hidden;
+  box-shadow:inset 0 1px 2px rgba(0,0,0,0.15);
 }
 .ccf-bar-fill {
   height:100%; border-radius:999px;
   background:linear-gradient(90deg,#7B61FF,#A78BFA);
   transition:width .8s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 0 8px rgba(123,97,255,0.4);
 }
 .ccf-wrap[data-card="amex"] .ccf-bar-fill {
   background:linear-gradient(90deg,#3B82F6,#60A5FA);
