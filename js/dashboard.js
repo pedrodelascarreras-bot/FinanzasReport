@@ -3238,6 +3238,69 @@ function _ccwRenderCard(d){
     </div>`;
 }
 
+function _ccwRenderFocusPremium(d){
+  if(!d) return '';
+  const k = d.key;
+  const masked = isMasked();
+  const isEmpty = d.arsTotal === 0 && d.usdTotal === 0;
+  const isAmex = k === 'amex';
+  const brandColor = isAmex ? '#1D4ED8' : '#7B61FF';
+
+  const deltaVal = Math.abs(Math.round(d.deltaPct));
+  const deltaUp = d.deltaPct > 0;
+  const deltaHtml = d.deltaPct !== 0
+    ? `<span class="ccf-stat-delta ${deltaUp?'up':'down'}">${deltaUp?'↑':'↓'} ${deltaVal}%</span>`
+    : '<span class="ccf-stat-delta neutral">—</span>';
+
+  const daysLabel = d.daysLeft === 0 ? 'Cierra hoy' : d.daysLeft + ' día' + (d.daysLeft !== 1 ? 's' : '') + ' restantes';
+
+  const calIcon = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>';
+
+  return `<div class="ccf-wrap" data-card="${k}">
+    <div class="ccf-header">
+      <div class="ccf-hd-left">
+        <div class="ccf-hd-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg></div>
+        <span class="ccf-hd-title">TARJETA PRINCIPAL</span>
+      </div>
+      <button class="ccf-hd-link" onclick="nav('credit-cards')">Ver detalle →</button>
+    </div>
+
+    <div class="ccf-hero">
+      <div class="ccf-brand">${k.toUpperCase()}</div>
+      <div class="ccf-hero-center">
+        <div class="ccf-ars-label">SALDO EN ARS</div>
+        <div class="ccf-ars-amt" id="kpi-${k}-ars">${masked ? '••••••••' : (isEmpty ? 'Sin consumos' : '—')}</div>
+      </div>
+      <div class="ccf-usd-card"${d.usdTotal > 0 || !isEmpty ? '' : ' style="visibility:hidden"'}>
+        <div class="ccf-usd-label">USD</div>
+        <div class="ccf-usd-amt" id="kpi-${k}-usd">${masked ? '••••' : '—'}</div>
+        <div class="ccf-usd-icon"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v12M8 10h8M8 14h8"/></svg></div>
+      </div>
+    </div>
+
+    <div class="ccf-dates-card">
+      <div class="ccf-dates-row">
+        <div class="ccf-date-cell">${calIcon}<span class="ccf-date-lbl">ABRE</span><span class="ccf-date-val">${_ccwFmt(d.openYmd)}</span></div>
+        <div class="ccf-date-cell">${calIcon}<span class="ccf-date-lbl">CIERRA</span><span class="ccf-date-val">${_ccwFmt(d.closeYmd)}</span></div>
+        <div class="ccf-date-cell">${calIcon}<span class="ccf-date-lbl">VENCE</span><span class="ccf-date-val">${_ccwFmt(d.dueYmd)}</span></div>
+      </div>
+      <div class="ccf-days-pill"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> ${daysLabel}</div>
+    </div>
+
+    <div class="ccf-bar-section">
+      <span class="ccf-bar-label">${d.pct}% utilizado</span>
+      <div class="ccf-bar-track"><div class="ccf-bar-fill" id="ccw-bar-${k}" style="width:0%"></div></div>
+    </div>
+
+    <div class="ccf-stats">
+      <div class="ccf-stat"><div class="ccf-stat-icon ccf-si-avg"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16 10 10l4 4 6-8"/></svg></div><div class="ccf-stat-copy"><div class="ccf-stat-lbl">PROM. DIARIO</div><div class="ccf-stat-val">${masked?'••••':'$'+fmtN(Math.round(d.dailyAvg),0)}</div></div></div>
+      <div class="ccf-stat"><div class="ccf-stat-icon ccf-si-proj"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg></div><div class="ccf-stat-copy"><div class="ccf-stat-lbl">PROYECCIÓN</div><div class="ccf-stat-val">${masked?'••••':'$'+fmtN(Math.round(d.projected),0)}</div></div></div>
+      <div class="ccf-stat"><div class="ccf-stat-icon ccf-si-count"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></div><div class="ccf-stat-copy"><div class="ccf-stat-lbl">MOVIMIENTOS</div><div class="ccf-stat-val">${d.txnCount}</div></div></div>
+      <div class="ccf-stat"><div class="ccf-stat-icon ccf-si-delta"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4M5 11l7-7 7 7"/></svg></div><div class="ccf-stat-copy"><div class="ccf-stat-lbl">VS. ANTERIOR</div><div class="ccf-stat-val">${deltaHtml}</div></div></div>
+    </div>
+  </div>`;
+}
+
 function renderDb2CcCycles(data){
   const el = document.getElementById('db2-cc-smart-content');
   if(!el) return;
@@ -3248,22 +3311,24 @@ function renderDb2CcCycles(data){
   const hasAmex = amex && amex.arsTotal > 0;
 
   const isFocus = (hasVisa && !hasAmex) || (hasAmex && !hasVisa);
-
-  const headerHtml = `
-    <div class="db2-hd">
-      <div class="db2-hd-left">
-        <div class="db2-hd-icon" style="background:rgba(56,189,248,0.12);color:#0ea5e9;">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>
-        </div>
-        <span class="db2-title">${isFocus ? 'Tarjeta Principal' : 'Ciclo de Tarjetas'}</span>
-      </div>
-      <button class="db2-link" onclick="nav('credit-cards')">Ver detalle →</button>
-    </div>`;
+  const widget = document.getElementById('db2-cc-smart-widget');
 
   if(isFocus){
     const focusCard = hasVisa ? visa : amex;
-    el.innerHTML = headerHtml + '<div class="db2-cc-grid">' + _ccwRenderCard(focusCard) + '</div>';
+    if(widget) widget.classList.add('ccf-mode');
+    el.innerHTML = _ccwRenderFocusPremium(focusCard);
   } else {
+    if(widget) widget.classList.remove('ccf-mode');
+    const headerHtml = `
+      <div class="db2-hd">
+        <div class="db2-hd-left">
+          <div class="db2-hd-icon" style="background:rgba(56,189,248,0.12);color:#0ea5e9;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><path d="M2 10h20"/></svg>
+          </div>
+          <span class="db2-title">Ciclo de Tarjetas</span>
+        </div>
+        <button class="db2-link" onclick="nav('credit-cards')">Ver detalle →</button>
+      </div>`;
     el.innerHTML = headerHtml + '<div class="db2-cc-grid">' + _ccwRenderCard(visa) + _ccwRenderCard(amex) + '</div>';
   }
 

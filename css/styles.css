@@ -17036,6 +17036,195 @@ body.light-mode .tdp-tp-input {
   border-color: rgba(17,24,39,0.06);
   box-shadow: 0 14px 34px rgba(31,41,55,0.06);
 }
+.db2-cc-card.ccf-mode {
+  background: linear-gradient(165deg, #2D1B69 0%, #1E1145 38%, #160D3A 100%);
+  border-color: rgba(123,97,255,0.18);
+  box-shadow: 0 20px 50px rgba(30,17,69,0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+  padding: 0;
+  overflow: hidden;
+}
+
+/* ── Focus Premium Card ── */
+.ccf-wrap { display:flex; flex-direction:column; height:100%; }
+
+.ccf-header {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:18px 20px 0;
+}
+.ccf-hd-left { display:flex; align-items:center; gap:9px; }
+.ccf-hd-icon {
+  width:32px; height:32px; border-radius:10px;
+  background:rgba(255,255,255,0.1); backdrop-filter:blur(8px);
+  display:flex; align-items:center; justify-content:center;
+  color:rgba(255,255,255,0.85);
+}
+.ccf-hd-icon svg { stroke:currentColor; fill:none; }
+.ccf-hd-title {
+  font-size:12px; font-weight:800; color:rgba(255,255,255,0.88);
+  letter-spacing:.06em; text-transform:uppercase;
+}
+.ccf-hd-link {
+  font-size:11px; font-weight:700; color:rgba(255,255,255,0.55);
+  background:none; border:none; cursor:pointer; font-family:var(--font);
+  transition:color .2s;
+}
+.ccf-hd-link:hover { color:rgba(255,255,255,0.9); }
+
+/* Hero: brand + ARS + USD */
+.ccf-hero {
+  display:flex; align-items:center; gap:0;
+  padding:16px 20px 14px;
+}
+.ccf-brand {
+  font-size:clamp(28px,2.8vw,38px); font-weight:950;
+  color:#fff; letter-spacing:.04em; line-height:1;
+  margin-right:18px; flex-shrink:0;
+  text-shadow:0 2px 12px rgba(123,97,255,0.3);
+}
+.ccf-hero-center { flex:1; min-width:0; }
+.ccf-ars-label {
+  font-size:9px; font-weight:700; color:rgba(255,255,255,0.45);
+  letter-spacing:.06em; text-transform:uppercase; margin-bottom:2px;
+}
+.ccf-ars-amt {
+  font-size:clamp(22px,2vw,30px); font-weight:900;
+  color:#fff; letter-spacing:-.03em; line-height:1.1;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ccf-usd-card {
+  flex-shrink:0; position:relative;
+  background:linear-gradient(135deg,rgba(123,97,255,0.25),rgba(91,61,245,0.15));
+  backdrop-filter:blur(12px);
+  border:1px solid rgba(255,255,255,0.1);
+  border-radius:14px; padding:10px 14px;
+  text-align:center; min-width:80px;
+  box-shadow:0 4px 16px rgba(0,0,0,0.15);
+}
+.ccf-usd-label {
+  font-size:9px; font-weight:800; color:rgba(255,255,255,0.5);
+  letter-spacing:.08em; margin-bottom:2px;
+}
+.ccf-usd-amt {
+  font-size:clamp(16px,1.4vw,21px); font-weight:900;
+  color:#fff; letter-spacing:-.02em; line-height:1.15;
+}
+.ccf-usd-icon {
+  position:absolute; top:-6px; right:-6px;
+  width:22px; height:22px; border-radius:50%;
+  background:linear-gradient(135deg,#7B61FF,#5B3DF5);
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; box-shadow:0 2px 8px rgba(91,61,245,0.4);
+}
+.ccf-usd-icon svg { width:12px; height:12px; stroke:#fff; fill:none; }
+
+/* Dates floating card */
+.ccf-dates-card {
+  margin:0 14px; padding:10px 14px;
+  background:rgba(255,255,255,0.06); backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:14px;
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+}
+.ccf-dates-row { display:flex; gap:14px; flex:1; }
+.ccf-date-cell {
+  display:flex; align-items:center; gap:5px;
+}
+.ccf-date-cell svg { stroke:rgba(255,255,255,0.35); fill:none; flex-shrink:0; }
+.ccf-date-lbl {
+  font-size:8px; font-weight:700; color:rgba(255,255,255,0.4);
+  letter-spacing:.04em; text-transform:uppercase;
+}
+.ccf-date-val {
+  font-size:12px; font-weight:800; color:rgba(255,255,255,0.9);
+  letter-spacing:.01em;
+}
+.ccf-days-pill {
+  display:flex; align-items:center; gap:4px;
+  padding:5px 10px; border-radius:20px;
+  background:rgba(255,79,163,0.12);
+  color:#FF6EB4; font-size:10px; font-weight:700;
+  white-space:nowrap; flex-shrink:0;
+  box-shadow:0 0 12px rgba(255,79,163,0.08);
+}
+.ccf-days-pill svg { stroke:currentColor; fill:none; }
+
+/* Progress bar */
+.ccf-bar-section {
+  display:flex; align-items:center; gap:10px;
+  padding:10px 20px 0;
+}
+.ccf-bar-label {
+  font-size:10px; font-weight:700; color:rgba(255,255,255,0.4);
+  white-space:nowrap; min-width:72px;
+}
+.ccf-bar-track {
+  flex:1; height:5px; border-radius:999px;
+  background:rgba(255,255,255,0.08); overflow:hidden;
+}
+.ccf-bar-fill {
+  height:100%; border-radius:999px;
+  background:linear-gradient(90deg,#7B61FF,#A78BFA);
+  transition:width .8s cubic-bezier(.4,0,.2,1);
+}
+.ccf-wrap[data-card="amex"] .ccf-bar-fill {
+  background:linear-gradient(90deg,#3B82F6,#60A5FA);
+}
+
+/* Stats row */
+.ccf-stats {
+  display:grid; grid-template-columns:repeat(4,1fr); gap:8px;
+  padding:10px 14px 16px; margin-top:auto;
+}
+.ccf-stat {
+  display:flex; align-items:center; gap:7px;
+  padding:8px 9px; border-radius:12px;
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.06);
+  transition:background .2s, border-color .2s;
+}
+.ccf-stat:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.1); }
+.ccf-stat-icon {
+  width:26px; height:26px; border-radius:8px;
+  display:flex; align-items:center; justify-content:center; flex-shrink:0;
+}
+.ccf-stat-icon svg { stroke:currentColor; fill:none; }
+.ccf-si-avg { background:rgba(123,97,255,0.15); color:#A78BFA; }
+.ccf-si-proj { background:rgba(59,130,246,0.15); color:#60A5FA; }
+.ccf-si-count { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.6); }
+.ccf-si-delta { background:rgba(16,185,129,0.12); color:#34D399; }
+.ccf-stat-copy { min-width:0; }
+.ccf-stat-lbl {
+  font-size:7.5px; font-weight:700; color:rgba(255,255,255,0.38);
+  letter-spacing:.04em; text-transform:uppercase; line-height:1.2;
+}
+.ccf-stat-val {
+  font-size:12px; font-weight:800; color:rgba(255,255,255,0.88);
+  letter-spacing:-.01em; line-height:1.2;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.ccf-stat-delta.up { color:#ef4444; font-weight:800; }
+.ccf-stat-delta.down { color:#34D399; font-weight:800; }
+.ccf-stat-delta.neutral { color:rgba(255,255,255,0.3); }
+
+/* AMEX color variant */
+.ccf-wrap[data-card="amex"] .ccf-brand { text-shadow:0 2px 12px rgba(29,78,216,0.3); }
+.ccf-wrap[data-card="amex"] .ccf-usd-card { background:linear-gradient(135deg,rgba(59,130,246,0.25),rgba(29,78,216,0.15)); }
+.ccf-wrap[data-card="amex"] .ccf-usd-icon { background:linear-gradient(135deg,#3B82F6,#1D4ED8); }
+.ccf-wrap[data-card="amex"] .ccf-days-pill { background:rgba(59,130,246,0.12); color:#60A5FA; }
+
+/* Light mode */
+body.light-mode .db2-cc-card.ccf-mode {
+  background: linear-gradient(165deg, #2D1B69 0%, #1E1145 38%, #160D3A 100%);
+  border-color: rgba(123,97,255,0.18);
+}
+
+@media (max-width:600px) {
+  .ccf-hero { flex-wrap:wrap; gap:10px; }
+  .ccf-brand { font-size:26px; }
+  .ccf-stats { grid-template-columns:repeat(2,1fr); }
+  .ccf-dates-card { flex-direction:column; align-items:stretch; }
+  .ccf-days-pill { align-self:flex-start; }
+}
 
 /* ── Smart CC Widget: shared ── */
 .ccw-hd { display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
