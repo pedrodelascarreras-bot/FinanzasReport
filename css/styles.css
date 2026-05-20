@@ -17073,22 +17073,23 @@ body.light-mode .tdp-tp-input {
 /* Hero: brand + ARS + USD */
 .ccf-hero {
   display:flex; align-items:center; gap:0;
-  padding:16px 20px 14px;
+  padding:14px 20px 14px;
 }
 .ccf-brand {
   font-size:clamp(30px,3vw,42px); font-weight:950;
   color:#fff; letter-spacing:.06em; line-height:1;
-  margin-right:18px; flex-shrink:0;
+  flex-shrink:0; font-style:italic;
   text-shadow:0 2px 12px rgba(123,97,255,0.3);
-  font-style:italic;
+  padding-right:18px; margin-right:18px;
+  border-right:1px solid rgba(255,255,255,0.12);
 }
 .ccf-hero-center { flex:1; min-width:0; }
 .ccf-ars-label {
   font-size:9px; font-weight:700; color:rgba(255,255,255,0.45);
-  letter-spacing:.06em; text-transform:uppercase; margin-bottom:2px;
+  letter-spacing:.06em; text-transform:uppercase; margin-bottom:3px;
 }
 .ccf-ars-amt {
-  font-size:clamp(24px,2.2vw,33px); font-weight:900;
+  font-size:clamp(28px,2.6vw,38px); font-weight:900;
   color:#fff; letter-spacing:-.03em; line-height:1.1;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
@@ -17120,9 +17121,9 @@ body.light-mode .tdp-tp-input {
 
 /* Dates floating card */
 .ccf-dates-card {
-  margin:0 14px; padding:10px 14px;
-  background:rgba(255,255,255,0.06); backdrop-filter:blur(10px);
-  border:1px solid rgba(255,255,255,0.08);
+  margin:0 14px; padding:11px 16px;
+  background:rgba(255,255,255,0.12); backdrop-filter:blur(14px);
+  border:1px solid rgba(255,255,255,0.14);
   border-radius:14px;
   display:flex; align-items:center; justify-content:space-between; gap:8px;
 }
@@ -17173,19 +17174,20 @@ body.light-mode .tdp-tp-input {
 
 /* Stats row */
 .ccf-stats {
-  display:grid; grid-template-columns:repeat(4,1fr); gap:8px;
-  padding:10px 14px 16px; margin-top:auto; flex:1; align-content:stretch;
+  display:grid; grid-template-columns:repeat(4,1fr); gap:9px;
+  padding:12px 14px 18px; margin-top:auto; flex:1;
+  align-content:center;
 }
 .ccf-stat {
-  display:flex; align-items:center; gap:8px;
-  padding:10px 10px; border-radius:12px;
-  background:rgba(255,255,255,0.05);
-  border:1px solid rgba(255,255,255,0.06);
+  display:flex; align-items:center; gap:9px;
+  padding:14px 12px; border-radius:14px;
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.07);
   transition:background .2s, border-color .2s;
 }
-.ccf-stat:hover { background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.1); }
+.ccf-stat:hover { background:rgba(255,255,255,0.1); border-color:rgba(255,255,255,0.12); }
 .ccf-stat-icon {
-  width:28px; height:28px; border-radius:9px;
+  width:32px; height:32px; border-radius:10px;
   display:flex; align-items:center; justify-content:center; flex-shrink:0;
 }
 .ccf-stat-icon svg { stroke:currentColor; fill:none; }
@@ -17195,12 +17197,12 @@ body.light-mode .tdp-tp-input {
 .ccf-si-delta { background:rgba(16,185,129,0.12); color:#34D399; }
 .ccf-stat-copy { min-width:0; }
 .ccf-stat-lbl {
-  font-size:7.5px; font-weight:700; color:rgba(255,255,255,0.38);
+  font-size:8.5px; font-weight:700; color:rgba(255,255,255,0.42);
   letter-spacing:.04em; text-transform:uppercase; line-height:1.2;
 }
 .ccf-stat-val {
-  font-size:13px; font-weight:800; color:rgba(255,255,255,0.88);
-  letter-spacing:-.01em; line-height:1.2;
+  font-size:15px; font-weight:800; color:rgba(255,255,255,0.9);
+  letter-spacing:-.01em; line-height:1.25; margin-top:1px;
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
 }
 .ccf-stat-delta.up { color:#ef4444; font-weight:800; }
