@@ -3284,7 +3284,7 @@ function _ccwRenderFocusPremium(d){
         <div class="ccf-date-cell">${calIcon}<span class="ccf-date-lbl">CIERRA</span><span class="ccf-date-val">${_ccwFmt(d.closeYmd)}</span></div>
         <div class="ccf-date-cell">${calIcon}<span class="ccf-date-lbl">VENCE</span><span class="ccf-date-val">${_ccwFmt(d.dueYmd)}</span></div>
       </div>
-      <div class="ccf-days-pill"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> ${daysLabel}</div>
+      <div class="ccf-days-pill${d.daysLeft <= 10 ? ' ccf-days-urgent' : ''}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> ${daysLabel}</div>
     </div>
 
     <div class="ccf-bar-section">
