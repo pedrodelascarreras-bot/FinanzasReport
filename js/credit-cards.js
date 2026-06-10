@@ -24,25 +24,26 @@ function ccInit(){
 }
 
 function _fixSantanderVisaJul2026(){
-  if(state._visaJul2026Fixed) return;
+  if(state._visaJul2026FixedV2) return;
   if(!Array.isArray(state.tcCycles)) state.tcCycles=[];
-  const sig='visa::card_1::2026-07-02';
-  const existing=state.tcCycles.find(c=>getTcCycleSignature(c)===sig);
-  if(existing){
-    existing.openDate='2026-05-27';
-    existing.closeDate='2026-07-02';
-    existing.dueDate='2026-07-13';
-    existing.source='manual';
-  }else{
-    const hasClose0702=state.tcCycles.some(c=>c.cardId==='card_1'&&c.closeDate==='2026-07-02');
-    if(!hasClose0702){
-      state.tcCycles.push({id:'tc_visa_jul2026',label:'VISA · jul 2026',cardId:'card_1',openDate:'2026-05-27',closeDate:'2026-07-02',dueDate:'2026-07-13',payMethodKey:'visa',viewMode:'visa',source:'manual'});
-    }
+  // Remove any wrong cycles for card_1 in the current period
+  state.tcCycles=state.tcCycles.filter(c=>{
+    if(c.cardId!=='card_1') return true;
+    if(c.closeDate==='2026-07-02'&&c.openDate==='2026-05-27'&&c.dueDate==='2026-07-14') return true;
+    if(c.closeDate>='2026-06-01'&&c.closeDate<='2026-07-31') return false;
+    return true;
+  });
+  const hasCorrect=state.tcCycles.some(c=>c.cardId==='card_1'&&c.closeDate==='2026-07-02'&&c.openDate==='2026-05-27'&&c.dueDate==='2026-07-14');
+  if(!hasCorrect){
+    state.tcCycles.push({id:'tc_visa_jul2026',label:'VISA · jul 2026',cardId:'card_1',openDate:'2026-05-27',closeDate:'2026-07-02',dueDate:'2026-07-14',payMethodKey:'visa',viewMode:'visa',source:'manual'});
   }
   if(!state.hiddenTcCycles) state.hiddenTcCycles=[];
-  const autoSigs=['visa::card_1::2026-06-25','visa::card_1::2026-06-02'];
-  autoSigs.forEach(s=>{if(!state.hiddenTcCycles.includes(s))state.hiddenTcCycles.push(s);});
-  state._visaJul2026Fixed=true;
+  ['visa::card_1::2026-06-25','visa::card_1::2026-06-02','visa::card_1::2026-07-02'].forEach(s=>{
+    if(!state.hiddenTcCycles.includes(s)) state.hiddenTcCycles.push(s);
+  });
+  // Unhide the correct manual signature so it shows
+  state.hiddenTcCycles=state.hiddenTcCycles.filter(s=>s!=='visa::card_1::2026-07-02');
+  state._visaJul2026FixedV2=true;
 }
 
 // ── Per-card: which cycle is being viewed ──
@@ -872,14 +873,6 @@ function renderCcConfigPanel(){
     </article>`;
   }).join('');
 
-  // Close day select for form
-  const selectedCloseDay=editingCycle?.closeDate
-    ? String(new Date(editingCycle.closeDate+'T12:00:00').getDate())
-    : '1';
-  const closeDayOptions=Array.from({length:31},(_,i)=>String(i+1))
-    .map(day=>`<option value="${day}" ${day===selectedCloseDay?'selected':''}>${day}</option>`)
-    .join('');
-
   el.innerHTML=`
     <div class="cc-config-shell cc-config-modern-shell">
       <section class="ccfg-dashboard fade-up d1">
@@ -917,12 +910,6 @@ function renderCcConfigPanel(){
             <label class="cc-config-field">
               <span>Vencimiento</span>
               <input type="date" class="cc-cfg-input" id="tc-cycle-due-cc" value="${editingCycle?(editingCycle.dueDate||''):''}">
-            </label>
-            <label class="cc-config-field ccfg-field-day">
-              <span>Día de cierre</span>
-              <select class="cc-cfg-input" id="tc-cycle-day-cc" onchange="ccApplyCloseDayFromConfig(this.value)">
-                ${closeDayOptions}
-              </select>
             </label>
             <div class="ccfg-form-actions">
               <input type="hidden" id="tc-cycle-label-cc" value="${editingCycle?esc(editingCycle.label||''):''}">

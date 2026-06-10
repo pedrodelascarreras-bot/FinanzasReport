@@ -66,7 +66,7 @@ function ensureViewCycleConfig(){
   state.viewCycleConfig.visa={
     openDay:Number(state.viewCycleConfig?.visa?.openDay)||27,
     closeDay:Number(state.viewCycleConfig?.visa?.closeDay)||2,
-    dueDay:Number(state.viewCycleConfig?.visa?.dueDay)||13
+    dueDay:Number(state.viewCycleConfig?.visa?.dueDay)||14
   };
   state.viewCycleConfig.amex={
     openDay:Number(state.viewCycleConfig?.amex?.openDay)||11,
@@ -107,7 +107,7 @@ function normalizeTcCyclesForConsistency(){
   const groups=new Map();
   manualCycles.forEach(cycle=>{
     const payMethod=(getTcCyclePayMethodKey(cycle)||'mes').toLowerCase();
-    const bucket=[payMethod, cycle.cardId||'', _tcCycleMonthKey(cycle.closeDate)].join('::');
+    const bucket=[payMethod, cycle.cardId||'', cycle.closeDate].join('::');
     if(!groups.has(bucket)) groups.set(bucket, []);
     groups.get(bucket).push(cycle);
   });
@@ -131,7 +131,7 @@ function normalizeTcCyclesForConsistency(){
     });
     const survivor={...sorted[sorted.length-1]};
     const monthKey=_tcCycleMonthKey(survivor.closeDate);
-    survivor.openDate=monthKey?`${monthKey}-01`:(survivor.openDate||'');
+    survivor.openDate=survivor.openDate||(monthKey?`${monthKey}-01`:'');
     survivor.dueDate=sorted.map(c=>c.dueDate).filter(Boolean).sort().pop()||survivor.dueDate||null;
     survivor.source='manual';
     survivor.label=_tcCycleLabelForCard(survivor.cardId, survivor.closeDate, survivor.label);
