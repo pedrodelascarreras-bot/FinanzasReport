@@ -20,33 +20,37 @@ function ccInit(){
   });
   if(!state.ccCycles) state.ccCycles=[];
   if(!state.ccActiveCard) state.ccActiveCard=state.ccCards[0]?.id||'card_1';
-  _fixSantanderVisaJul2026();
+  try{ _fixSantanderVisaJul2026(); }catch(e){ console.error('fixSantanderVisaJul2026:', e); }
 }
 
 function _fixSantanderVisaJul2026(){
-  if(state._visaJul2026FixedV2) return;
+  let done='';
+  try{ done=localStorage.getItem('_visaJul2026FixedV3')||''; }catch(e){}
+  if(done||state._visaJul2026FixedV3) return;
   if(!Array.isArray(state.tcCycles)) state.tcCycles=[];
-  // Remove any wrong cycles for card_1 in the current period
+  // Remove any wrong cycles for card_1 in the current period (null-safe)
   state.tcCycles=state.tcCycles.filter(c=>{
+    if(!c) return false;
     if(c.cardId!=='card_1') return true;
     if(c.closeDate==='2026-07-02'&&c.openDate==='2026-05-27'&&c.dueDate==='2026-07-14') return true;
-    if(c.closeDate>='2026-06-01'&&c.closeDate<='2026-07-31') return false;
+    if((c.closeDate||'')>='2026-06-01'&&(c.closeDate||'')<='2026-07-31') return false;
     return true;
   });
-  const hasCorrect=state.tcCycles.some(c=>c.cardId==='card_1'&&c.closeDate==='2026-07-02'&&c.openDate==='2026-05-27'&&c.dueDate==='2026-07-14');
+  const hasCorrect=state.tcCycles.some(c=>c&&c.cardId==='card_1'&&c.closeDate==='2026-07-02'&&c.openDate==='2026-05-27'&&c.dueDate==='2026-07-14');
   if(!hasCorrect){
     state.tcCycles.push({id:'tc_visa_jul2026',label:'VISA · jul 2026',cardId:'card_1',openDate:'2026-05-27',closeDate:'2026-07-02',dueDate:'2026-07-14',payMethodKey:'visa',viewMode:'visa',source:'manual'});
   }
-  if(!state.hiddenTcCycles) state.hiddenTcCycles=[];
-  ['visa::card_1::2026-06-25','visa::card_1::2026-06-02','visa::card_1::2026-07-02'].forEach(s=>{
+  if(!Array.isArray(state.hiddenTcCycles)) state.hiddenTcCycles=[];
+  ['visa::card_1::2026-06-25','visa::card_1::2026-06-02'].forEach(s=>{
     if(!state.hiddenTcCycles.includes(s)) state.hiddenTcCycles.push(s);
   });
-  // Unhide the correct manual signature so it shows
+  // Asegurar que la firma del ciclo correcto no quede oculta
   state.hiddenTcCycles=state.hiddenTcCycles.filter(s=>s!=='visa::card_1::2026-07-02');
   // Reset selecciones fijas para que la UI resuelva el ciclo actual
   state.dashTcCycle=null;
   if(window._ccViewCycle) window._ccViewCycle['card_1']=null;
-  state._visaJul2026FixedV2=true;
+  state._visaJul2026FixedV3=true;
+  try{ localStorage.setItem('_visaJul2026FixedV3','1'); }catch(e){}
 }
 
 // ── Per-card: which cycle is being viewed ──

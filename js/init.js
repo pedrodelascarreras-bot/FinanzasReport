@@ -145,6 +145,7 @@ function normalizeTcCyclesForConsistency(){
   if(removedIds.size){
     const mergedStates=[];
     state.ccCycles.forEach(entry=>{
+      if(!entry) return;
       const nextId=idRemap.get(entry.tcCycleId)||entry.tcCycleId;
       const existing=mergedStates.find(item=>item.cardId===entry.cardId&&item.tcCycleId===nextId);
       if(!existing){
@@ -302,7 +303,7 @@ function _ensureTcCycleVisible(signature){
 function getTcCycles(mode){
   normalizeTcCyclesForConsistency();
   const normalizedMode=mode?normalizeViewMode(mode):null;
-  const legacy=(state.tcCycles||[]).map(c=>{
+  const legacy=(state.tcCycles||[]).filter(c=>c&&c.closeDate).map(c=>{
     const explicitPayMethod=(c.payMethodKey||'').toLowerCase();
     const inferredMode = c.viewMode
       ? normalizeViewMode(c.viewMode)
@@ -340,7 +341,7 @@ function getTcCycles(mode){
     const inProgress=open<=range.todayYmd && close>=range.todayYmd;
     return inProgress || (close>=range.startYmd && open<=range.todayYmd && (!closeMonth || closeMonth<=range.currentMonthKey));
   });
-  return rows.slice().sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
+  return rows.slice().sort((a,b)=>(b.closeDate||'').localeCompare(a.closeDate||''));
 }
 
 function getTcCycleOpen(cycles, idx){
@@ -446,7 +447,7 @@ function addTcCycleFromCC(){
   const card=(state.ccCards||[]).find(c=>c.id===cardId);
   const payMethodKey=(card?.payMethodKey||'').toLowerCase();
 
-  const allCycles=[...(state.tcCycles||[]).map(c=>({...c,source:c.source||'manual'})),..._buildGeneratedCyclesForMode('visa',18,1),..._buildGeneratedCyclesForMode('amex',18,1)];
+  const allCycles=[...(state.tcCycles||[]).filter(c=>c).map(c=>({...c,source:c.source||'manual'})),..._buildGeneratedCyclesForMode('visa',18,1),..._buildGeneratedCyclesForMode('amex',18,1)];
   const originalCycle=editingId?allCycles.find(c=>c.id===editingId):null;
   const originalSignature=originalCycle?getTcCycleSignature(originalCycle):'';
   const isAutoEdit=editingId&&!(state.tcCycles||[]).some(c=>c.id===editingId);
