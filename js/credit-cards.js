@@ -43,6 +43,9 @@ function _fixSantanderVisaJul2026(){
   });
   // Unhide the correct manual signature so it shows
   state.hiddenTcCycles=state.hiddenTcCycles.filter(s=>s!=='visa::card_1::2026-07-02');
+  // Reset selecciones fijas para que la UI resuelva el ciclo actual
+  state.dashTcCycle=null;
+  if(window._ccViewCycle) window._ccViewCycle['card_1']=null;
   state._visaJul2026FixedV2=true;
 }
 

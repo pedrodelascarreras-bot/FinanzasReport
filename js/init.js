@@ -336,7 +336,9 @@ function getTcCycles(mode){
     const close=c.closeDate||'';
     const open=c.openDate||close;
     const closeMonth=_tcCycleMonthKey(close);
-    return close>=range.startYmd && open<=range.todayYmd && (!closeMonth || closeMonth<=range.currentMonthKey);
+    // Ciclo en curso: ya abrió y todavía no cerró — siempre visible aunque cierre el mes próximo
+    const inProgress=open<=range.todayYmd && close>=range.todayYmd;
+    return inProgress || (close>=range.startYmd && open<=range.todayYmd && (!closeMonth || closeMonth<=range.currentMonthKey));
   });
   return rows.slice().sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
 }
