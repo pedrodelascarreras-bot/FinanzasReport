@@ -50,144 +50,36 @@ function getTendPeriodLabel(k){
 }
 function getTcCycleTrendTxns(cycle, cycles){
   if(!cycle) return [];
-  const baseTxns=getTcCycleTxns(cycle,cycles);
-  const todayRef=new Date();
-  todayRef.setHours(23,59,59,999);
-  const todayYmd=dateToYMD(todayRef);
-  const hasReachedChargeDate=value=>{
-    const ymd=dateToYMD(value);
-    return !!ymd && ymd<=todayYmd;
-  };
-  const getRecurringDatesInRange=(day,start,end)=>{
-    if(!day||!start||!end) return [];
-    const dates=[];
-    const cursor=new Date(start.getFullYear(), start.getMonth(), 1);
-    const limit=new Date(end.getFullYear(), end.getMonth(), 1);
-    while(cursor<=limit){
-      const maxDay=new Date(cursor.getFullYear(), cursor.getMonth()+1, 0).getDate();
-      const date=new Date(cursor.getFullYear(), cursor.getMonth(), Math.min(day, maxDay));
-      if(date>=start&&date<=end) dates.push(date);
-      cursor.setMonth(cursor.getMonth()+1);
-    }
-    return dates;
-  };
-  const openDate=new Date((getTcCycleOpen(cycles, cycles.findIndex(c=>c.id===cycle.id))||cycle.closeDate)+'T00:00:00');
-  const closeDate=new Date(cycle.closeDate+'T23:59:59');
-  const extras=[];
-  const extraKeys=new Set();
-  const pushExtra=(key,obj)=>{
-    if(!key||extraKeys.has(key)) return;
-    extraKeys.add(key);
-    extras.push(obj);
-  };
-
-  (state.transactions||[]).filter(t=>(t.isPendingCuota||t.isPendingSubscription)).forEach(t=>{
-    if(!hasReachedChargeDate(t.date)) return;
-    const d=new Date(String(t.date).includes('T')?t.date:(String(t.date)+'T12:00:00'));
-    if(d<openDate||d>closeDate) return;
-    if(t.isPendingSubscription && t.sourceSubscriptionId){
-      const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
-      const monthKey=getMonthKey(t.date);
-      if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
-    }
-    const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
-    pushExtra(key,{
-      id:`trend-pending-${key}`,
-      date:t.date,
-      amount:typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount,
-      currency:t.currency||'ARS',
-      category:t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized'?t.category:'Finanzas',
-      isSyntheticCommitment:true
-    });
-  });
-
-  if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
-    detectAutoCuotas().forEach(g=>{
-      const snap=getAutoCuotaSnapshot(g, new Date(Math.min(todayRef.getTime(), closeDate.getTime())));
-      if(!snap || snap.rem<=0) return;
-      const dueDay=snap.cfg?.day||snap.scheduleDay||null;
-      if(!dueDay) return;
-      const fallbackCategory=g.transactions?.find(t=>t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized')?.category||'Finanzas';
-      getRecurringDatesInRange(dueDay, openDate, closeDate).forEach(dueDate=>{
-        if(!hasReachedChargeDate(dueDate)) return;
-        pushExtra(`auto-${g.key}-${dateToYMD(dueDate)}`,{
-          id:`trend-auto-${g.key}-${dateToYMD(dueDate)}`,
-          date:dueDate,
-          amount:snap.amountPerCuota,
-          currency:g.currency||'ARS',
-          category:fallbackCategory,
-          isSyntheticCommitment:true
-        });
-      });
-    });
-  }
-
-  (state.cuotas||[]).forEach(c=>{
-    const remaining = Math.max(0, (Number(c.total)||0) - (Number(c.paid)||0));
-    if(remaining <= 0 || !c.day) return;
-    // CAP: never emit more dates than unpaid cuotas left
-    const allDates = getRecurringDatesInRange(c.day, openDate, closeDate);
-    const cappedDates = allDates.slice(0, remaining);
-    // Skip if a real cuota txn for the same name+amount already exists this month
-    const cuotaNameNorm = String(c.name||'').toLowerCase().trim();
-    const cuotaAmt = Number(c.amount)||0;
-    const matchingRealInMonth = (monthKey)=>{
-      if(!cuotaNameNorm) return false;
-      return (state.transactions||[]).some(t=>{
-        if(t.isPendingCuota || t.isPendingSubscription) return false;
-        const tMonth = t.month || getMonthKey(t.date);
-        if(tMonth !== monthKey) return false;
-        const desc = String(t.description||t._baseDesc||'').toLowerCase();
-        if(!desc.includes(cuotaNameNorm) && !cuotaNameNorm.includes(desc.split(' ')[0]||'__')) return false;
-        const amt = Math.abs(Number(t.amount)||0);
-        return cuotaAmt>0 && Math.abs(amt - cuotaAmt) / cuotaAmt < 0.05;
-      });
-    };
-    cappedDates.forEach(dueDate=>{
-      if(!hasReachedChargeDate(dueDate)) return;
-      if(matchingRealInMonth(getMonthKey(dueDate))) return;
-      pushExtra(`manual-${c.id}-${dateToYMD(dueDate)}`,{
-        id:`trend-manual-${c.id}-${dateToYMD(dueDate)}`,
-        date:dueDate,
-        amount:cuotaAmt,
-        currency:'ARS',
-        category:'Finanzas',
-        isSyntheticCommitment:true
-      });
-    });
-  });
-
-  (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
-    getRecurringDatesInRange(s.day, openDate, closeDate).forEach(dueDate=>{
-      if(!hasReachedChargeDate(dueDate)) return;
-      const monthKey=getMonthKey(dueDate);
-      if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
-      pushExtra(`sub-${s.id}-${dateToYMD(dueDate)}`,{
-        id:`trend-sub-${s.id}-${dateToYMD(dueDate)}`,
-        date:dueDate,
-        amount:s.price,
-        currency:s.currency||'ARS',
-        category:'Finanzas',
-        isSyntheticCommitment:true
-      });
-    });
-  });
-
-  (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
-    getRecurringDatesInRange(f.day, openDate, closeDate).forEach(dueDate=>{
-      if(!hasReachedChargeDate(dueDate)) return;
-      pushExtra(`fixed-${f.id||f.name}-${dateToYMD(dueDate)}`,{
-        id:`trend-fixed-${f.id||f.name}-${dateToYMD(dueDate)}`,
-        date:dueDate,
-        amount:f.amount,
-        currency:f.currency||'ARS',
-        category:'Finanzas',
-        isSyntheticCommitment:true
-      });
-    });
-  });
-
-  return [...baseTxns, ...extras];
+  // Receta canónica — misma que Movimientos (getTxnDisplaySummaryTotals):
+  // reales sin pendientes + proyectados sintéticos de getProjectedCommitmentEntriesForRange
+  const baseTxns=getTcCycleTxns(cycle,cycles).filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
+  const open=getTcCycleOpen(cycles, cycles.findIndex(c=>c.id===cycle.id))||cycle.closeDate;
+  if(typeof getProjectedCommitmentEntriesForRange!=='function') return baseTxns;
+  const cyclePm=(typeof getTcCyclePayMethodKey==='function'?getTcCyclePayMethodKey(cycle):'')||'';
+  const projected=getProjectedCommitmentEntriesForRange({
+    startStr:open,
+    endStr:cycle.closeDate,
+    todayRef:new Date(),
+    txns:state.transactions||[]
+  }).filter(e=>{
+    if(!e.includeInTotal) return false;
+    if(!(e.synthetic||e.kind==='Cuota proyectada'||e.kind==='Suscripción proyectada')) return false;
+    const pm=(e.payMethod||'').toLowerCase();
+    // Igual que el resto: amex solo en ciclo amex; todo lo demás cae en visa
+    if(cyclePm==='amex') return pm==='amex';
+    if(cyclePm==='visa') return pm!=='amex';
+    return true;
+  }).map(e=>({
+    id:e._key||('trend-proj-'+dateToYMD(e.date)+'-'+(e.title||'')),
+    date:e.date,
+    description:e.title||'',
+    amount:(e.personalAmount!=null)?Number(e.personalAmount):(Number(e.amount)||0),
+    currency:e.currency||'ARS',
+    category:e.group==='cuotas'?'Cuotas':e.group==='suscripciones'?'Suscripciones':'Finanzas',
+    payMethod:e.payMethod||cyclePm||'visa',
+    isSyntheticCommitment:true
+  }));
+  return [...baseTxns,...projected];
 }
 function getTxnsForTendPeriod(k){
   const mode=normalizeViewMode(state.tendMode||'visa');
@@ -875,8 +767,10 @@ function renderTendencia(){
   const lastIdx=allKeys.indexOf(lastKey);
   const prevKey=lastIdx>0?allKeys[lastIdx-1]:null;
 
-  const currentTxns=getTxnsForTendPeriod(lastKey).filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized');
-  const prevTxns=prevKey?getTxnsForTendPeriod(prevKey).filter(t=>t.currency==='ARS'&&t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized'):[];
+  // Mismo criterio que Movimientos: bucket ARS = todo lo que no es USD, sin excluir lo no categorizado
+  const _tendArs=t=>(t.currency||'ARS')!=='USD';
+  const currentTxns=getTxnsForTendPeriod(lastKey).filter(_tendArs);
+  const prevTxns=prevKey?getTxnsForTendPeriod(prevKey).filter(_tendArs):[];
   const currentLabel=getTendPeriodLabel(lastKey);
   const prevLabel=prevKey?getTendPeriodLabel(prevKey):'—';
   const curTotal=currentTxns.reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);

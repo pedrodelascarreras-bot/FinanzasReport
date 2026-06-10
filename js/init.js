@@ -396,8 +396,12 @@ function getTcCycleTxns(cycle, cyclesArg){
   return state.transactions.filter(t=>{
     const d=dateToYMD(t.date);
     if(!(d>=open&&d<=cycle.closeDate)) return false;
-    if(cardPayMethod==='visa'||cardPayMethod==='amex'){
-      return (t.payMethod||'').toLowerCase()===cardPayMethod;
+    const pm=(t.payMethod||'').toLowerCase();
+    if(cardPayMethod==='amex') return pm==='amex';
+    if(cardPayMethod==='visa'){
+      // Regla canónica (igual que Movimientos): débito/efectivo afuera, amex afuera,
+      // y todo lo demás (visa, tc genérico, sin método) cae en el ciclo visa
+      return pm!=='deb'&&pm!=='ef'&&pm!=='amex';
     }
     return true;
   });

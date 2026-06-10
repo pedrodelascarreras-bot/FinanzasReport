@@ -1563,16 +1563,15 @@ function renderDashboard(){
     })||cardSpecificCycles[0]||null;
     dashboardCardCycleByKey[key]=cardActiveCycle||null;
   });
-  const dashboardCardBaseTxns=(monthTxns||[]).filter(t=>{
-    if(t.isPendingCuota||t.isPendingSubscription) return false;
-    const key=(t.payMethod||'').toLowerCase();
-    return key==='visa'||key==='amex';
-  });
+  // Receta canónica — misma que Movimientos: monto personal, tc/vacío cuenta como visa
+  const dashboardCardBaseTxns=(monthTxns||[]).filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
   dashboardCardBaseTxns.forEach(t=>{
-    const key=(t.payMethod||'').toLowerCase();
+    const pm=(t.payMethod||'').toLowerCase();
+    const key=pm==='amex'?'amex':'visa'; // monthTxns ya excluye deb/ef
+    const amt=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):(Number(t.amount)||0);
     if(!dashboardCardTotals[key]) dashboardCardTotals[key]={ars:0,usd:0,count:0};
-    if((t.currency||'ARS')==='USD') dashboardCardTotals[key].usd+=(Number(t.amount)||0);
-    else dashboardCardTotals[key].ars+=(Number(t.amount)||0);
+    if((t.currency||'ARS')==='USD') dashboardCardTotals[key].usd+=amt;
+    else dashboardCardTotals[key].ars+=amt;
     dashboardCardTotals[key].count++;
   });
   const dashboardProjectedEntries=(dashboardRangeMeta&&typeof getProjectedCommitmentEntriesForRange==='function')
@@ -1581,13 +1580,14 @@ function renderDashboard(){
         endStr:dashboardRangeMeta.closeStr,
         todayRef:today,
         txns:state.transactions||[]
-      }).filter(entry=>entry.includeInTotal)
+      }).filter(entry=>entry.includeInTotal&&(entry.synthetic||entry.kind==='Cuota proyectada'||entry.kind==='Suscripción proyectada'))
     : [];
   dashboardProjectedEntries.forEach(entry=>{
     const ownerKey=(entry.payMethod||'').toLowerCase()==='amex'?'amex':'visa';
+    const amt=(entry.personalAmount!=null)?Number(entry.personalAmount):(Number(entry.amount)||0);
     if(!dashboardCardDisplayTotals[ownerKey]) dashboardCardDisplayTotals[ownerKey]={ars:0,usd:0,count:0};
-    if((entry.currency||'ARS')==='USD') dashboardCardDisplayTotals[ownerKey].usd+=(Number(entry.amount)||0);
-    else dashboardCardDisplayTotals[ownerKey].ars+=(Number(entry.amount)||0);
+    if((entry.currency||'ARS')==='USD') dashboardCardDisplayTotals[ownerKey].usd+=amt;
+    else dashboardCardDisplayTotals[ownerKey].ars+=amt;
     dashboardCardDisplayTotals[ownerKey].count++;
   });
   Object.keys(dashboardCardTotals).forEach(key=>{
