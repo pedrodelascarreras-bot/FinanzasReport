@@ -64,9 +64,9 @@ function ensureViewCycleConfig(){
     state.viewCycleConfig={};
   }
   state.viewCycleConfig.visa={
-    openDay:Number(state.viewCycleConfig?.visa?.openDay)||26,
-    closeDay:Number(state.viewCycleConfig?.visa?.closeDay)||25,
-    dueDay:Number(state.viewCycleConfig?.visa?.dueDay)||10
+    openDay:Number(state.viewCycleConfig?.visa?.openDay)||27,
+    closeDay:Number(state.viewCycleConfig?.visa?.closeDay)||2,
+    dueDay:Number(state.viewCycleConfig?.visa?.dueDay)||13
   };
   state.viewCycleConfig.amex={
     openDay:Number(state.viewCycleConfig?.amex?.openDay)||11,
@@ -443,12 +443,26 @@ function addTcCycleFromCC(){
   if(!state.hiddenTcCycles) state.hiddenTcCycles=[];
   const card=(state.ccCards||[]).find(c=>c.id===cardId);
   const payMethodKey=(card?.payMethodKey||'').toLowerCase();
-  const nextCycle={id:editingId||('tc_'+Date.now().toString(36)),label,cardId,openDate,closeDate,dueDate,payMethodKey,viewMode:payMethodKey||'mes',source:'manual'};
+
+  const allCycles=[...(state.tcCycles||[]).map(c=>({...c,source:c.source||'manual'})),..._buildGeneratedCyclesForMode('visa',18,1),..._buildGeneratedCyclesForMode('amex',18,1)];
+  const originalCycle=editingId?allCycles.find(c=>c.id===editingId):null;
+  const originalSignature=originalCycle?getTcCycleSignature(originalCycle):'';
+  const isAutoEdit=editingId&&!(state.tcCycles||[]).some(c=>c.id===editingId);
+  const resolvedId=isAutoEdit?('tc_'+Date.now().toString(36)):(editingId||('tc_'+Date.now().toString(36)));
+
+  const nextCycle={id:resolvedId,label,cardId,openDate,closeDate,dueDate,payMethodKey,viewMode:payMethodKey||'mes',source:'manual'};
   const nextSignature=getTcCycleSignature(nextCycle);
-  const duplicate=(getTcCycles()||[]).find(c=>c.id!==editingId && getTcCycleSignature(c)===nextSignature);
+  const duplicate=(getTcCycles()||[]).find(c=>{
+    if(c.id===editingId) return false;
+    if(originalSignature&&getTcCycleSignature(c)===originalSignature) return false;
+    return getTcCycleSignature(c)===nextSignature;
+  });
   if(duplicate){showToast('⚠️ Ya existe un ciclo para esa tarjeta con esa fecha de cierre','error');return;}
   _ensureTcCycleVisible(nextSignature);
-  const existingIdx=(state.tcCycles||[]).findIndex(c=>c.id===editingId);
+  if(isAutoEdit&&originalSignature){
+    if(!state.hiddenTcCycles.includes(originalSignature)) state.hiddenTcCycles.push(originalSignature);
+  }
+  const existingIdx=(state.tcCycles||[]).findIndex(c=>c.id===resolvedId);
   if(existingIdx>=0){
     state.tcCycles[existingIdx]={...state.tcCycles[existingIdx],...nextCycle};
   }else{

@@ -20,6 +20,29 @@ function ccInit(){
   });
   if(!state.ccCycles) state.ccCycles=[];
   if(!state.ccActiveCard) state.ccActiveCard=state.ccCards[0]?.id||'card_1';
+  _fixSantanderVisaJul2026();
+}
+
+function _fixSantanderVisaJul2026(){
+  if(state._visaJul2026Fixed) return;
+  if(!Array.isArray(state.tcCycles)) state.tcCycles=[];
+  const sig='visa::card_1::2026-07-02';
+  const existing=state.tcCycles.find(c=>getTcCycleSignature(c)===sig);
+  if(existing){
+    existing.openDate='2026-05-27';
+    existing.closeDate='2026-07-02';
+    existing.dueDate='2026-07-13';
+    existing.source='manual';
+  }else{
+    const hasClose0702=state.tcCycles.some(c=>c.cardId==='card_1'&&c.closeDate==='2026-07-02');
+    if(!hasClose0702){
+      state.tcCycles.push({id:'tc_visa_jul2026',label:'VISA · jul 2026',cardId:'card_1',openDate:'2026-05-27',closeDate:'2026-07-02',dueDate:'2026-07-13',payMethodKey:'visa',viewMode:'visa',source:'manual'});
+    }
+  }
+  if(!state.hiddenTcCycles) state.hiddenTcCycles=[];
+  const autoSigs=['visa::card_1::2026-06-25','visa::card_1::2026-06-02'];
+  autoSigs.forEach(s=>{if(!state.hiddenTcCycles.includes(s))state.hiddenTcCycles.push(s);});
+  state._visaJul2026Fixed=true;
 }
 
 // ── Per-card: which cycle is being viewed ──
@@ -885,15 +908,15 @@ function renderCcConfigPanel(){
             </label>
             <label class="cc-config-field">
               <span>Apertura del ciclo</span>
-              <input type="date" class="cc-cfg-input" id="tc-cycle-open-cc">
+              <input type="date" class="cc-cfg-input" id="tc-cycle-open-cc" value="${editingCycle?(editingCycle.openDate||getTcCycleOpen(cycles,cycles.findIndex(x=>x.id===editingCycle.id))||''):''}">
             </label>
             <label class="cc-config-field">
               <span>Cierre del resumen</span>
-              <input type="date" class="cc-cfg-input" id="tc-cycle-close-cc" onchange="ccSyncCloseDayFromDate()">
+              <input type="date" class="cc-cfg-input" id="tc-cycle-close-cc" onchange="ccSyncCloseDayFromDate()" value="${editingCycle?(editingCycle.closeDate||''):''}">
             </label>
             <label class="cc-config-field">
               <span>Vencimiento</span>
-              <input type="date" class="cc-cfg-input" id="tc-cycle-due-cc">
+              <input type="date" class="cc-cfg-input" id="tc-cycle-due-cc" value="${editingCycle?(editingCycle.dueDate||''):''}">
             </label>
             <label class="cc-config-field ccfg-field-day">
               <span>Día de cierre</span>
