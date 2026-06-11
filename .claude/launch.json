@@ -2,11 +2,10 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "FinanzasApp",
+      "name": "finanzas",
       "runtimeExecutable": "npx",
-      "runtimeArgs": ["serve", "-l", "3000", "--no-clipboard"],
-      "port": 3000,
-      "autoPort": true
+      "runtimeArgs": ["--yes", "http-server", "-p", "8742", "-c-1"],
+      "port": 8742
     }
   ]
 }
