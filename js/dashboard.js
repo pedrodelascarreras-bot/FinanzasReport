@@ -4722,7 +4722,7 @@ function renderMobileDashboard(data) {
   const projPct = projLimitArs>0 ? Math.min(100,Math.round((projected||0)/projLimitArs*100)) : 0;
 
   // Totals display
-  const totalDisplay = arsMonth + (usdMonth*(window.USD_TO_ARS||1));
+  const totalDisplay = arsMonth + (usdMonth*(USD_TO_ARS||1));
   const margenPct = incTotalARS>0 ? Math.round((margen/incTotalARS)*100) : 0;
 
   // Mini-calendar data

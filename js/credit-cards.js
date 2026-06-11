@@ -1172,7 +1172,7 @@ function renderMobileCreditCards() {
         <button class="mob-cc-empty-cta" onclick="ccSelectPageTab('config')">+ Configurar ciclo</button>
       </div>`;
   } else {
-    const totalARS = totals.ars + totals.usd * (window.USD_TO_ARS || 1);
+    const totalARS = totals.ars + totals.usd * (USD_TO_ARS || 1);
 
     // Progress: days elapsed in cycle / total cycle days
     const today = new Date(); today.setHours(0, 0, 0, 0);

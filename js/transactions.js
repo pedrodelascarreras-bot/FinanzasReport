@@ -427,13 +427,13 @@ function txnDateKey(d){
 }
 function txnAmountArs(tx){
   // Full transaction amount in ARS (used for displays — keep showing full charged amount)
-  if((tx.currency||'ARS')==='USD') return (Number(tx.amount)||0) * (window.USD_TO_ARS||1);
+  if((tx.currency||'ARS')==='USD') return (Number(tx.amount)||0) * (USD_TO_ARS||1);
   return Number(tx.amount)||0;
 }
 function txnPersonalAmountArs(tx){
   // User's personal portion in ARS (used for spending metrics, categories, totals)
   const personal = (typeof getTxnPersonalAmount === 'function') ? getTxnPersonalAmount(tx) : (Number(tx.amount)||0);
-  if((tx.currency||'ARS')==='USD') return personal * (window.USD_TO_ARS||1);
+  if((tx.currency||'ARS')==='USD') return personal * (USD_TO_ARS||1);
   return personal;
 }
 function txnAmountLabel(tx){
@@ -2051,7 +2051,7 @@ function renderMobileTransactions(txns, meta) {
 
   const arsTotal  = periodTxns.filter(t => (t.currency || 'ARS') === 'ARS').reduce((s, t) => s + Math.abs(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0), 0);
   const usdTotal  = periodTxns.filter(t => (t.currency || 'ARS') === 'USD').reduce((s, t) => s + Math.abs(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0), 0);
-  const grandTotal = arsTotal + usdTotal * (window.USD_TO_ARS || 1);
+  const grandTotal = arsTotal + usdTotal * (USD_TO_ARS || 1);
 
   const fmtN = (n) => Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const esc = (s) => String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
