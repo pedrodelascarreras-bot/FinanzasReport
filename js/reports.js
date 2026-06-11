@@ -440,8 +440,6 @@ function getReportStyleSheet(s){
 }
 
 function buildReportHTML(txns,sections,periodLabel){
-  // Excluir gastos de tercero de los cálculos del reporte
-  txns=txns.filter(t=>!t.isThirdParty);
   const design=state.repDesign||'executive';
   const now=new Date().toLocaleDateString('es-AR',{day:'numeric',month:'long',year:'numeric'});
   const today=new Date();

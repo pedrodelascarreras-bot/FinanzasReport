@@ -55,16 +55,20 @@
     return [...months].filter(Boolean).sort().reverse();
   }
 
+  // Monto oficial: la parte personal del dueño (gastos compartidos cuentan solo myAmount)
+  function _bPersonalAmount(t){
+    return typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):(Number(t.amount)||0);
+  }
+
   function balanceHistoricalSummary(){
     const months=balanceMonthKeys();
     const txns=(state.transactions||[]).filter(t=>
       Number(t.amount)>0 &&
       !t.isPendingCuota &&
       !t.isPendingSubscription &&
-      !t.isThirdParty &&
       t.estado_revision!=='duplicado_sospechoso'
     );
-    const totalHistory=txns.reduce((sum,t)=>sum+balanceConvert(t.amount,t.currency),0);
+    const totalHistory=txns.reduce((sum,t)=>sum+balanceConvert(_bPersonalAmount(t),t.currency),0);
     const dateKeys=[...new Set(txns.map(t=>dateToYMD(t.date)).filter(Boolean))].sort();
     const firstDate=dateKeys.length?new Date(dateKeys[0]+'T12:00:00'):null;
     const lastDate=dateKeys.length?new Date(dateKeys[dateKeys.length-1]+'T12:00:00'):null;
@@ -149,9 +153,9 @@
     if(!months.length) return 0;
     const values=months.map(month=>{
       return (state.transactions||[])
-        .filter(t=>(t.month||getMonthKey(t.date))===month && !t.isPendingCuota && !t.isPendingSubscription && !t.isThirdParty)
+        .filter(t=>(t.month||getMonthKey(t.date))===month && !t.isPendingCuota && !t.isPendingSubscription)
         .filter(t=>t.category===category)
-        .reduce((sum,t)=>sum+balanceConvert(t.amount,t.currency),0);
+        .reduce((sum,t)=>sum+balanceConvert(_bPersonalAmount(t),t.currency),0);
     });
     return values.reduce((sum,v)=>sum+v,0)/values.length;
   }
@@ -159,19 +163,19 @@
   function balanceMonthData(monthKey){
     const txns=(state.transactions||[])
       .filter(t=>(t.month||getMonthKey(t.date))===monthKey)
-      .filter(t=>!t.isPendingCuota&&!t.isPendingSubscription&&!t.isThirdParty);
+      .filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
     const prevMonth=balanceMonthKeys().find(m=>m<monthKey)||null;
     const prevTxns=prevMonth
       ? (state.transactions||[])
           .filter(t=>(t.month||getMonthKey(t.date))===prevMonth)
-          .filter(t=>!t.isPendingCuota&&!t.isPendingSubscription&&!t.isThirdParty)
+          .filter(t=>!t.isPendingCuota&&!t.isPendingSubscription)
       : [];
     const income=balanceIncomeBreakdown(monthKey);
     const prevIncome=prevMonth?balanceIncomeBreakdown(prevMonth):{total:0};
-    const arsExpenses=txns.filter(t=>t.currency!=='USD').reduce((sum,t)=>sum+(Number(t.amount)||0),0);
-    const usdExpenses=txns.filter(t=>t.currency==='USD').reduce((sum,t)=>sum+(Number(t.amount)||0),0);
+    const arsExpenses=txns.filter(t=>t.currency!=='USD').reduce((sum,t)=>sum+_bPersonalAmount(t),0);
+    const usdExpenses=txns.filter(t=>t.currency==='USD').reduce((sum,t)=>sum+_bPersonalAmount(t),0);
     const totalExpenses=arsExpenses+(usdExpenses*(USD_TO_ARS||state.usdRate||1420));
-    const prevTotalExpenses=prevTxns.reduce((sum,t)=>sum+balanceConvert(t.amount,t.currency),0);
+    const prevTotalExpenses=prevTxns.reduce((sum,t)=>sum+balanceConvert(_bPersonalAmount(t),t.currency),0);
 
     const savingsMovements=(state.savDeposits||[]).filter(d=>d.month===monthKey);
     const savingsNet=savingsMovements.reduce((sum,d)=>sum+balanceConvert(savSignedAmount(d),d.currency),0);
@@ -182,7 +186,7 @@
       .reduce((sum,item)=>sum+balanceConvert(balanceMonthlyAmount(item),item.currency),0);
 
     const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
-    const cuotaActual=(txns.filter(t=>t.cuotaNum||t.cuotaGroupId).reduce((sum,t)=>sum+balanceConvert(t.amount,t.currency),0));
+    const cuotaActual=(txns.filter(t=>t.cuotaNum||t.cuotaGroupId).reduce((sum,t)=>sum+balanceConvert(_bPersonalAmount(t),t.currency),0));
     const cuotaProxima=autoGroups.reduce((sum,g)=>{
       const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(g):null;
       if(!snap||snap.paid>=snap.total) return sum;
@@ -195,7 +199,7 @@
     const categoryTotals={};
     txns.forEach(t=>{
       const key=t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized'?t.category:'Sin clasificar';
-      categoryTotals[key]=(categoryTotals[key]||0)+balanceConvert(t.amount,t.currency);
+      categoryTotals[key]=(categoryTotals[key]||0)+balanceConvert(_bPersonalAmount(t),t.currency);
     });
     const topCategories=Object.entries(categoryTotals)
       .map(([name,total])=>{
