@@ -115,10 +115,40 @@ function getStateSnapshot(){
     smartTags:state.smartTags||[]
   };
 }
+// ── Blindaje: un snapshot vacío no debe pisar datos buenos ──
+function isStateMeaningful(s){
+  return !!(s && (
+    (s.transactions&&s.transactions.length) ||
+    (s.incomeMonths&&s.incomeMonths.length) ||
+    (s.incomeSources&&s.incomeSources.length) ||
+    (s.cuotas&&s.cuotas.length) ||
+    (s.subscriptions&&s.subscriptions.length) ||
+    (s.fixedExpenses&&s.fixedExpenses.length) ||
+    (s.savDeposits&&s.savDeposits.length)
+  ));
+}
+// Escribe fin_state salvo que el snapshot esté vacío y el guardado previo tenga datos
+function safePersistLocalSnapshot(snapshot){
+  try{
+    if(!isStateMeaningful(snapshot)){
+      const raw=localStorage.getItem('fin_state');
+      if(raw){
+        let prev=null;
+        try{ prev=JSON.parse(raw); }catch(_){}
+        if(prev===null || isStateMeaningful(prev)){
+          console.warn('[guard] escritura a localStorage bloqueada: snapshot vacío sobre datos existentes');
+          return false;
+        }
+      }
+    }
+    localStorage.setItem('fin_state',JSON.stringify(snapshot));
+    return true;
+  }catch(e){console.warn('localStorage error',e);return false;}
+}
 function saveState(){
   const snapshot = getStateSnapshot();
   // Always save to localStorage as backup
-  try{localStorage.setItem('fin_state',JSON.stringify(snapshot));}catch(e){console.warn('localStorage error',e);}
+  safePersistLocalSnapshot(snapshot);
   // Save to Drive silently in background (debounced)
   scheduleDriveSave(snapshot);
 }
@@ -134,6 +164,8 @@ let driveAccessToken = null;
 let driveSaveTimer = null;
 let driveTokenClient = null;
 let driveReady = false;
+// true SOLO cuando sabemos con certeza qué hay en Drive (carga exitosa o archivo confirmado inexistente)
+let initialLoadComplete = false;
 
 // `let state` no crea window.state — exponerlo para shell.js, splash.js y todo código que usa window.state
 window.state = state;
@@ -156,6 +188,7 @@ function initDriveClient(autoSync){
   const clientId = getGmailClientId();
   if(!clientId) return;
   _syncT0 = 0; window._syncTrace = [];
+  initialLoadComplete = false; // reconexión = volver a verificar qué hay en Drive
   _syncMark('inicio conexión Google');
   loadGoogleScript(()=>{
     _syncMark('script de Google cargado');
@@ -168,7 +201,7 @@ function initDriveClient(autoSync){
         driveAccessToken = resp.access_token;
         gmailAccessToken = resp.access_token;
         state.onboardingState = { ...(state.onboardingState || {}), google: true };
-        try{localStorage.setItem('fin_state',JSON.stringify(getStateSnapshot()));}catch(e){console.warn('localStorage save error:',e);}
+        safePersistLocalSnapshot(getStateSnapshot());
         _syncMark('snapshot local guardado');
         updateGmailBtn('connected');
         driveReady = true;
@@ -190,6 +223,8 @@ function initDriveClient(autoSync){
             if(typeof showToast==='function') showToast('⚠️ La sincronización tardó '+Math.round(totalMs/1000)+'s — detalle en consola','info');
           } else if(typeof showToast==='function' && loaded){
             showToast('✓ Datos sincronizados','success');
+          } else if(typeof showToast==='function' && !loaded && !initialLoadComplete){
+            showToast('⚠️ No se pudo sincronizar con Drive — tus datos locales están a salvo, recargá para reintentar','error');
           }
           // Auto-sync DESACTIVADO — nunca sincronizar automáticamente
           if(autoSync||window._gmailSyncPending){window._gmailSyncPending=false;openGmailPeriodModal();}
@@ -203,6 +238,10 @@ function initDriveClient(autoSync){
 
 function scheduleDriveSave(snapshot){
   if(!driveReady || !driveAccessToken) return;
+  if(!initialLoadComplete){
+    console.warn('[guard] guardado bloqueado: carga inicial de Drive no terminada');
+    return;
+  }
   clearTimeout(driveSaveTimer);
   driveSaveTimer = setTimeout(()=>saveToDrive(snapshot), 1500);
 }
@@ -264,13 +303,12 @@ async function saveToDrive(snapshot){
 }
 
 async function findDriveFile(){
-  try{
-    const res = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27${DRIVE_FILE_NAME}%27&fields=files(id)`,{
-      headers:{'Authorization':'Bearer '+driveAccessToken}
-    });
-    const data = await readGoogleResponse(res, 'No se pudo consultar el archivo principal en Drive');
-    return data.files&&data.files.length ? data.files[0].id : null;
-  }catch(e){ return null; }
+  // Si la consulta falla, PROPAGA el error — null significa únicamente "confirmado: no existe"
+  const res = await fetch(`https://www.googleapis.com/drive/v3/files?spaces=appDataFolder&q=name%3D%27${DRIVE_FILE_NAME}%27&fields=files(id,modifiedTime)&orderBy=modifiedTime%20desc`,{
+    headers:{'Authorization':'Bearer '+driveAccessToken}
+  });
+  const data = await readGoogleResponse(res, 'No se pudo consultar el archivo principal en Drive');
+  return data.files&&data.files.length ? data.files[0].id : null;
 }
 
 async function saveToDrivePublic(snapshot){
@@ -319,11 +357,14 @@ async function loadFromDrive(){
     const fileId = await findDriveFile();
     _syncMark('archivo encontrado: '+(fileId?'sí':'no'));
     if(!fileId){
-      // No Drive file yet — migrate localStorage data to Drive
+      // Consulta exitosa con cero resultados: usuario nuevo real (si hubiera fallado la red,
+      // findDriveFile habría tirado error y saltado al catch sin pasar por acá)
+      initialLoadComplete = true;
+      _syncMark('confirmado: no hay archivo en Drive (primera vez)');
+      // Migrar localStorage existente a Drive para no perderlo
       const raw=localStorage.getItem('fin_state');
       if(raw){
         const snap=JSON.parse(raw);
-        // Save existing localStorage data to Drive so it's not lost
         await saveToDrive(snap);
       }
       return false;
@@ -437,10 +478,12 @@ async function loadFromDrive(){
       try{ ensureActiveUserProfileBootstrap(); }catch(e){ console.warn('profile bootstrap error', e); }
     }
     _syncMark('estado aplicado ('+(state.transactions||[]).length+' txns)');
+    initialLoadComplete = true;
     return true;
   }catch(e){
     console.warn('Drive load error:',e);
     _syncMark('ERROR en loadFromDrive: '+(e&&e.message||e));
+    // initialLoadComplete queda en false: autosave a Drive bloqueado hasta una carga exitosa
     return false;
   }
 }
