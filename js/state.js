@@ -135,37 +135,68 @@ let driveSaveTimer = null;
 let driveTokenClient = null;
 let driveReady = false;
 
+// `let state` no crea window.state — exponerlo para shell.js, splash.js y todo código que usa window.state
+window.state = state;
+
+// ── Trazas de sincronización: cronometra cada paso del login/carga de Drive ──
+// Ver en consola: window._syncTrace  (detecta dónde se pierde tiempo si la carga es lenta)
+window._syncTrace = [];
+let _syncT0 = 0;
+function _syncMark(step){
+  const now = performance.now();
+  if(!_syncT0) _syncT0 = now;
+  const entry = {step, ms: Math.round(now - _syncT0)};
+  window._syncTrace.push(entry);
+  console.log('[sync]', entry.ms+'ms', step);
+}
+
 function getDriveScopes(){ return 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.readonly'; }
 
 function initDriveClient(autoSync){
   const clientId = getGmailClientId();
   if(!clientId) return;
+  _syncT0 = 0; window._syncTrace = [];
+  _syncMark('inicio conexión Google');
   loadGoogleScript(()=>{
+    _syncMark('script de Google cargado');
     driveTokenClient = google.accounts.oauth2.initTokenClient({
       client_id: clientId,
       scope: getDriveScopes(),
       callback:(resp)=>{
         if(resp.error){console.warn('Drive auth error:',resp.error);return;}
+        _syncMark('token recibido de Google');
         driveAccessToken = resp.access_token;
         gmailAccessToken = resp.access_token;
         state.onboardingState = { ...(state.onboardingState || {}), google: true };
-        try{localStorage.setItem('fin_state',JSON.stringify(getStateSnapshot()));}catch(e){}
+        try{localStorage.setItem('fin_state',JSON.stringify(getStateSnapshot()));}catch(e){console.warn('localStorage save error:',e);}
+        _syncMark('snapshot local guardado');
         updateGmailBtn('connected');
         driveReady = true;
+        if(typeof showToast==='function') showToast('☁️ Sincronizando con Google Drive…','info');
         if(typeof fetchGoogleProfile === 'function') fetchGoogleProfile(true);
         loadFromDrive().then(loaded=>{
+          _syncMark('loadFromDrive resuelto (loaded='+loaded+')');
           if(loaded){
             if(state.transactions.length){document.getElementById('dash-empty').style.display='none';document.getElementById('dash-content').style.display='flex';}
             updateSidebarStats();renderDashboard();renderTransactions();renderCuotas();
+            _syncMark('renders completados');
           }
           if(typeof renderSettingsPage === 'function') renderSettingsPage();
           if(typeof renderOnboardingWizard === 'function') renderOnboardingWizard();
           if(typeof refreshSplashGoogleState === 'function') refreshSplashGoogleState(true);
+          const totalMs=window._syncTrace.length?window._syncTrace[window._syncTrace.length-1].ms:0;
+          if(totalMs>8000){
+            console.warn('[sync] CARGA LENTA ('+Math.round(totalMs/1000)+'s) — detalle:', JSON.stringify(window._syncTrace));
+            if(typeof showToast==='function') showToast('⚠️ La sincronización tardó '+Math.round(totalMs/1000)+'s — detalle en consola','info');
+          } else if(typeof showToast==='function' && loaded){
+            showToast('✓ Datos sincronizados','success');
+          }
           // Auto-sync DESACTIVADO — nunca sincronizar automáticamente
           if(autoSync||window._gmailSyncPending){window._gmailSyncPending=false;openGmailPeriodModal();}
         });
       }
     });
+    _syncMark('pidiendo token (silencioso)…');
     driveTokenClient.requestAccessToken({prompt:''});
   });
 }
@@ -284,7 +315,9 @@ async function saveToDrivePublic(snapshot){
 async function loadFromDrive(){
   if(!driveAccessToken) return false;
   try{
+    _syncMark('buscando archivo en Drive…');
     const fileId = await findDriveFile();
+    _syncMark('archivo encontrado: '+(fileId?'sí':'no'));
     if(!fileId){
       // No Drive file yet — migrate localStorage data to Drive
       const raw=localStorage.getItem('fin_state');
@@ -299,8 +332,9 @@ async function loadFromDrive(){
     const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,{
       headers:{'Authorization':'Bearer '+driveAccessToken}
     });
-    if(!res.ok) return false;
+    if(!res.ok){ _syncMark('descarga falló: HTTP '+res.status); return false; }
     const s = await res.json();
+    _syncMark('archivo descargado y parseado');
     // Apply loaded state (same as loadState logic)
     state.transactions=(s.transactions||[]).map(t=>({...t,date:new Date(t.date)}));
     state.categories=s.categories||[...DEFAULT_CATS];
@@ -402,9 +436,11 @@ async function loadFromDrive(){
     if(typeof ensureActiveUserProfileBootstrap === 'function'){
       try{ ensureActiveUserProfileBootstrap(); }catch(e){ console.warn('profile bootstrap error', e); }
     }
+    _syncMark('estado aplicado ('+(state.transactions||[]).length+' txns)');
     return true;
   }catch(e){
     console.warn('Drive load error:',e);
+    _syncMark('ERROR en loadFromDrive: '+(e&&e.message||e));
     return false;
   }
 }
