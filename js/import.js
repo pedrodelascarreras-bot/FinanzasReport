@@ -539,7 +539,40 @@ function autoCreateGmailCuotas(txns){
   );
 }
 
+// ── Comercios que el usuario nunca quiere importar ──
+// Mercado Libre genera cuotas que se re-importan en cada sync de Gmail y que el
+// usuario siempre termina borrando (no tiene compras reales de Mercado Libre).
+// Normalizamos la descripción y buscamos "mercadolib": agarra "Mercado Libre",
+// "MERCADOLIBRE*123", "MERPAGO*MERCADOLIBRE...", etc., pero NO "Mercado Pago"
+// /"mercadopago" (que sí se usa para transferencias legítimas).
+function importMerchantNorm(t){
+  return String(t && (t._baseDesc || t.description || t.comercio || t.name || ''))
+    .toLowerCase().replace(/[^a-z0-9]/g,'');
+}
+function isExcludedImportMerchant(t){
+  return importMerchantNorm(t).includes('mercadolib');
+}
+// Barre consumos y cuotas de esos comercios que hayan quedado de imports previos,
+// así "no aparece nunca más" (no solo en la próxima importación).
+function purgeExcludedMerchants(){
+  let removed=0;
+  if(Array.isArray(state.transactions)){
+    const before=state.transactions.length;
+    state.transactions=state.transactions.filter(t=>!isExcludedImportMerchant(t));
+    removed+=before-state.transactions.length;
+  }
+  if(Array.isArray(state.cuotas)){
+    state.cuotas=state.cuotas.filter(c=>!String(c&&(c.name||c.comercio||'')).toLowerCase().replace(/[^a-z0-9]/g,'').includes('mercadolib'));
+  }
+  if(removed) console.info('[import] Comercios excluidos purgados — transacciones:',removed);
+  return removed;
+}
+
 function finishImport(txns,source,origen){
+  // Excluir comercios bloqueados (Mercado Libre) ANTES de crear nada, para que no
+  // aparezcan en Movimientos ni en Cuotas. Ver isExcludedImportMerchant.
+  txns=(txns||[]).filter(t=>!isExcludedImportMerchant(t));
+  purgeExcludedMerchants();
   const sourceIsGmail = source==='gmail' || /^gmail\b/i.test(String(source||'')) || txns.some(t=>isGmailSourceTransaction(t));
   const origenVal = origen || (sourceIsGmail?'importado_desde_gmail': source==='paste'?'pegado_manualmente':'importado_desde_resumen');
   const isGmail = origenVal === 'importado_desde_gmail';

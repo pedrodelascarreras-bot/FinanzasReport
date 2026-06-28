@@ -1325,14 +1325,15 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
     
     const txns = [];
     const annulments = [];
-    for (const bundle of emails) { 
-        const txn = parseSantanderEmail(bundle.email, txns, bundle.rule); 
+    for (const bundle of emails) {
+        const txn = parseSantanderEmail(bundle.email, txns, bundle.rule);
         if (txn) {
             if (txn.isAnulacion) annulments.push(txn);
+            else if (typeof isExcludedImportMerchant === 'function' && isExcludedImportMerchant(txn)) { /* comercio bloqueado (Mercado Libre): no importar */ }
             else txns.push(txn);
-        } 
+        }
     }
-    
+
     // Procesar anulaciones
     if (annulments.length > 0) {
       if (!state.gmailAnulados) state.gmailAnulados = [];
