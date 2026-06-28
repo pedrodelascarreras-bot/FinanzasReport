@@ -162,8 +162,8 @@ function renderSavingsPage(){
           <div class="sav2-feature-amount">${fmtN(totalEquivUSD,2)}</div>
           <div class="sav2-feature-pill">= $${fmtN(Math.round(totalEquivARS),2)} ARS - TC $${fmtN(usdRate,2)}</div>
           <div class="sav2-split-card">
-            <div><span>ARS</span><strong>$${fmtN(totalARS,2)}</strong></div>
-            <div><span>USD</span><strong class="usd">USD ${fmtN(totalUSD,2)}</strong></div>
+            <div><span>ARS</span><strong>$${fmtN(Math.round(totalEquivARS),2)}</strong></div>
+            <div><span>USD</span><strong class="usd">USD ${fmtN(totalEquivUSD,2)}</strong></div>
           </div>
           <div class="sav2-vault-art" aria-hidden="true">
             <span class="leaf l1"></span><span class="leaf l2"></span>
