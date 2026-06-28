@@ -190,7 +190,7 @@
     if(pfEmail && document.activeElement !== pfEmail) pfEmail.value = getManualEmail();
     document.getElementById('pf-currency') && (document.getElementById('pf-currency').value = prefs.currency || 'ARS');
     document.getElementById('pf-lang') && (document.getElementById('pf-lang').value = prefs.language || 'es');
-    document.getElementById('pf-theme') && (document.getElementById('pf-theme').value = prefs.theme || 'dark');
+    document.getElementById('pf-theme') && (document.getElementById('pf-theme').value = prefs.theme || 'light');
     document.getElementById('pf-email-note')?.replaceChildren(document.createTextNode(
       window.isGoogleConnected?.()
         ? `Google usa ${getGoogleEmail() || 'esta cuenta'} como email principal mientras esté conectado.`
@@ -576,7 +576,7 @@
   function saveAppPreferences(){
     const currency = document.getElementById('settings-currency')?.value || window.state?.userPrefs?.currency || 'ARS';
     const language = document.getElementById('settings-language')?.value || window.state?.userPrefs?.language || 'es';
-    const theme = document.getElementById('settings-theme')?.value || window.state?.userPrefs?.theme || 'dark';
+    const theme = document.getElementById('settings-theme')?.value || window.state?.userPrefs?.theme || 'light';
     window.state.userPrefs = { currency, language, theme };
     applyThemePreference(theme);
     window.saveState?.();
@@ -588,7 +588,7 @@
   function saveProfilePreferences(){
     const currency = document.getElementById('pf-currency')?.value || window.state?.userPrefs?.currency || 'ARS';
     const language = document.getElementById('pf-lang')?.value || window.state?.userPrefs?.language || 'es';
-    const theme = document.getElementById('pf-theme')?.value || window.state?.userPrefs?.theme || 'dark';
+    const theme = document.getElementById('pf-theme')?.value || window.state?.userPrefs?.theme || 'light';
     window.state.userPrefs = { currency, language, theme };
     document.getElementById('settings-currency') && (document.getElementById('settings-currency').value = currency);
     document.getElementById('settings-language') && (document.getElementById('settings-language').value = language);

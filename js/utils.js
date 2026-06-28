@@ -553,6 +553,7 @@ function toggleTheme(){
   const isLight=document.body.classList.toggle('light-mode');
   state.theme=isLight?'light':'dark';
   localStorage.setItem('fin_theme',state.theme);
+  if(state.userPrefs) state.userPrefs.theme=state.theme;
   const themeIcon=document.getElementById('theme-icon');
   const themeLabel=document.getElementById('theme-label');
   if(themeIcon) themeIcon.textContent=isLight?'🌙':'☀️';

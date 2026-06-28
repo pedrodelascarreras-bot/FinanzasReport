@@ -1006,11 +1006,12 @@ function getResolvedUserName() {
 }
 
 function applySavedUserTheme() {
-  const preferred = state.userPrefs?.theme;
-  if (!preferred) return;
+  // El tema visible lo controla el botón sol/luna (localStorage 'fin_theme'),
+  // que ya se aplicó en loadTheme() y por defecto es claro. No lo pisamos con
+  // la preferencia del perfil: solo sincronizamos userPrefs con el estado real
+  // para que el selector de ajustes muestre el valor correcto.
   const isLight = document.body.classList.contains('light-mode');
-  if (preferred === 'light' && !isLight) toggleTheme();
-  if (preferred === 'dark' && isLight) toggleTheme();
+  if (state.userPrefs) state.userPrefs.theme = isLight ? 'light' : 'dark';
 }
 
 async function fetchGoogleProfile(force){
@@ -1919,7 +1920,7 @@ function getCurrentProfileSnapshot(){
     userAvatar: state.userAvatar || '',
     userAvatarMode: state.userAvatarMode || 'generated',
     userAvatarPreset: state.userAvatarPreset || '',
-    userPrefs: cloneDeepProfileValue(state.userPrefs || { currency:'ARS', language:'es', theme:'dark' }),
+    userPrefs: cloneDeepProfileValue(state.userPrefs || { currency:'ARS', language:'es', theme:'light' }),
     googleProfile: cloneDeepProfileValue(state.googleProfile || null),
     profileTemplate: state.profileTemplate || 'personal',
     transactions: cloneDeepProfileValue(markOwnedItems((state.transactions || []).map(txn => ({
@@ -2065,7 +2066,7 @@ function applyUserProfile(profileId){
   state.userAvatar = profile.userAvatar || '';
   state.userAvatarMode = profile.userAvatarMode || (profile.userAvatar ? 'upload' : (profile.userAvatarPreset ? 'preset' : 'generated'));
   state.userAvatarPreset = profile.userAvatarPreset || '';
-  state.userPrefs = cloneDeepProfileValue(profile.userPrefs || state.userPrefs || { currency:'ARS', language:'es', theme:'dark' });
+  state.userPrefs = cloneDeepProfileValue(profile.userPrefs || state.userPrefs || { currency:'ARS', language:'es', theme:'light' });
   state.googleProfile = cloneDeepProfileValue(profile.googleProfile || null);
   state.profileTemplate = profile.profileTemplate || 'personal';
   state.transactions = (profile.transactions || []).map(txn => ({
@@ -2333,7 +2334,7 @@ function renderSettingsPage(){
   const prefs = state.userPrefs || { currency:'ARS', language:'es', theme:(document.body.classList.contains('light-mode') ? 'light' : 'dark') };
   currencyEl.value = prefs.currency || 'ARS';
   languageEl.value = prefs.language || 'es';
-  themeEl.value = prefs.theme || 'dark';
+  themeEl.value = prefs.theme || 'light';
   if(typeof window.renderSettingsCenter === 'function') window.renderSettingsCenter();
 }
 

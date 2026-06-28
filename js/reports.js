@@ -1533,7 +1533,7 @@ function clearAllData(){
   state.userAvatar='';
   state.userAvatarMode='generated';
   state.userAvatarPreset='';
-  state.userPrefs={ currency:'ARS', language:'es', theme:'dark' };
+  state.userPrefs={ currency:'ARS', language:'es', theme:'light' };
   state.googleProfile=null;
   if(typeof normalizeCategoryState === 'function') normalizeCategoryState(state);
   saveState();

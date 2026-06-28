@@ -63,7 +63,7 @@ let state={
   userAvatar: '',
   userAvatarMode: 'generated',
   userAvatarPreset: '',
-  userPrefs: { currency:'ARS', language:'es', theme:'dark' },
+  userPrefs: { currency:'ARS', language:'es', theme:'light' },
   googleProfile: null,
 };
 
@@ -440,7 +440,7 @@ async function loadFromDrive(){
     state.userAvatar=s.userAvatar||'';
     state.userAvatarMode=s.userAvatarMode||state.userAvatarMode||'generated';
     state.userAvatarPreset=s.userAvatarPreset||'';
-    state.userPrefs=s.userPrefs||state.userPrefs||{ currency:'ARS', language:'es', theme:'dark' };
+    state.userPrefs=s.userPrefs||state.userPrefs||{ currency:'ARS', language:'es', theme:'light' };
     state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
@@ -542,7 +542,7 @@ function loadState(){
     state.userAvatar=s.userAvatar||'';
     state.userAvatarMode=s.userAvatarMode||state.userAvatarMode||'generated';
     state.userAvatarPreset=s.userAvatarPreset||'';
-    state.userPrefs=s.userPrefs||state.userPrefs||{ currency:'ARS', language:'es', theme:'dark' };
+    state.userPrefs=s.userPrefs||state.userPrefs||{ currency:'ARS', language:'es', theme:'light' };
     state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
