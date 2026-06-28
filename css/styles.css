@@ -28884,6 +28884,15 @@ body.light-mode .tdp-gc-eq-step { background: rgba(36,124,255,0.1); color: #1d6a
 .mob-gc-badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 999px; }
 .mob-gc-badge.pending { background: rgba(255,149,0,0.15); color: #FF9500; }
 .mob-gc-badge.cobrado { background: rgba(52,199,89,0.15); color: #34C759; }
+.mob-gc-cobrar-btn {
+  font-size: 11px; font-weight: 700;
+  padding: 5px 11px; border-radius: 999px;
+  border: 1px solid rgba(52,199,89,0.45);
+  background: rgba(52,199,89,0.14); color: #34C759;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s;
+}
+.mob-gc-cobrar-btn:active { background: rgba(52,199,89,0.28); }
 .mob-gc-pending-total { font-size: 12px; font-weight: 700; color: #FF9500; }
 
 /* ── Movement row shared-expense badge (mv-row layout) ── */

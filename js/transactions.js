@@ -134,6 +134,24 @@ function _gcToggleCobrado(txnId, splitId) {
   _gcRefreshViews();
 }
 
+// Marca como cobrados TODOS los splits pendientes de una persona (por nombre),
+// a lo largo de todas las transacciones compartidas. Usado por la tarjeta de
+// gastos compartidos de la versión móvil.
+function gcMarkPersonCobrado(name) {
+  if (!name) return;
+  let changed = 0;
+  (state.transactions || []).forEach(t => {
+    if (!t.sharedExpense || !t.sharedExpense.enabled) return;
+    (t.sharedExpense.splits || []).forEach(s => {
+      if ((s.name || 'Persona') === name && s.status !== 'cobrado') { s.status = 'cobrado'; changed++; }
+    });
+  });
+  if (!changed) return;
+  saveState();
+  _gcRefreshViews();
+  if (typeof showToast === 'function') showToast('✓ ' + name + ' marcado como cobrado', 'success');
+}
+
 function _gcRemoveSplit(txnId, splitId) {
   const t = state.transactions.find(x => x.id === txnId); if (!t || !t.sharedExpense) return;
   t.sharedExpense.splits = t.sharedExpense.splits.filter(s => s.id !== splitId);
@@ -2221,7 +2239,7 @@ function renderMobileTransactions(txns, meta) {
         <button class="mob-txn-ham" onclick="openMobDrawer()" aria-label="Menú">
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
         </button>
-        <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen">
+        <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen" onclick="nav('dashboard')" style="cursor:pointer">
         <div class="mob-txn-hdr-right"></div>
       </div>
 

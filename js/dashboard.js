@@ -4739,7 +4739,7 @@ function renderMobileDashboard(data) {
       <button class="mob-dash-hamburger" onclick="openMobDrawer()" aria-label="Menú">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
       </button>
-      <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen">
+      <img class="mob-brand-logo-img" src="brand/fluxen-logo.png" alt="Fluxen" onclick="nav('dashboard')" style="cursor:pointer">
       <div class="mob-dash-hdr-right"></div>
     </div>
 
@@ -4879,6 +4879,8 @@ function renderMobileDashboard(data) {
       if(!_gcPending.length) return '';
       const _gcTotalPendingArs=_gcPending.reduce((s,p)=>s+p.pendingArs,0);
       const _gcEsc=(s)=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+      // Guardamos los pendientes para que el botón "Cobré" sepa a quién marcar.
+      window._mobGcPending = _gcPending;
       return `
         <div class="mob-section-card mob-gc-card">
           <div class="mob-sec-hd">
@@ -4886,7 +4888,7 @@ function renderMobileDashboard(data) {
             ${_gcTotalPendingArs>0?`<span class="mob-gc-pending-total">$${fmtN(Math.round(_gcTotalPendingArs))} pendiente</span>`:''}
           </div>
           <div class="mob-gc-list">
-            ${_gcPending.slice(0,6).map(p=>`
+            ${_gcPending.slice(0,6).map((p,i)=>`
               <div class="mob-gc-person-row">
                 <div class="mob-gc-avatar">${_gcEsc(p.name.slice(0,2).toUpperCase())}</div>
                 <div class="mob-gc-info">
@@ -4894,7 +4896,8 @@ function renderMobileDashboard(data) {
                   <div class="mob-gc-meta">${p.count+' gasto'+(p.count!==1?'s':'')}</div>
                 </div>
                 <div class="mob-gc-right">
-                  <div class="mob-gc-amount pending">${p.pendingArs>0?'$'+fmtN(Math.round(p.pendingArs)):'Pendiente'}</div><div class="mob-gc-badge pending">⏳ Pendiente</div>
+                  <div class="mob-gc-amount pending">${p.pendingArs>0?'$'+fmtN(Math.round(p.pendingArs)):'Pendiente'}</div>
+                  <button class="mob-gc-cobrar-btn" onclick="event.stopPropagation();mobGcCobrar(${i})">✓ Cobré</button>
                 </div>
               </div>`).join('')}
           </div>
@@ -4913,5 +4916,12 @@ function renderMobileDashboard(data) {
 
     <div style="height:32px"></div>
   `;
+}
+
+// Botón "✓ Cobré" de la tarjeta de gastos compartidos del móvil: marca como
+// cobrados todos los gastos pendientes de esa persona y refresca la vista.
+function mobGcCobrar(i){
+  const p = (window._mobGcPending || [])[i];
+  if (p && typeof gcMarkPersonCobrado === 'function') gcMarkPersonCobrado(p.name);
 }
 
