@@ -918,7 +918,7 @@ function renderCommitmentsPage(){
     :summaryTone==='warn'
       ?'Si reducís una o dos suscripciones, recuperás aire sin tocar compromisos grandes.'
       :'Mantené tus compromisos por debajo del 35% de tu ingreso para sostener flexibilidad.';
-  const pageClass=state.commitmentsInsightsCollapsed?'cp-page expanded':'cp-page';
+  const pageClass='cp-page expanded';
   const menuHtml=(item,key)=>state._commitmentsMenu===key
     ?'<div class="cp-menu">'
       +'<button onclick="commitmentsInvokeEdit(\''+item.editAction+'\',\''+item.id+'\');event.stopPropagation();">Editar</button>'
@@ -1146,9 +1146,8 @@ function renderCommitmentsPage(){
       +'<div class="cp-main">'
         +'<div class="cp-header">'
           +'<div class="cp-title"><h1>Compromisos</h1><p>Tus gastos fijos, cuotas y suscripciones en un solo lugar.</p></div>'
-          +'<div class="cp-actions"><button class="cp-btn" onclick="openNewFixedModal()">＋ Gasto fijo</button><button class="cp-btn" onclick="openNewSubModal()">＋ Suscripción</button><button class="cp-btn-primary" onclick="openNewCuotaModal()">＋ Nueva cuota</button><button class="cp-btn" onclick="commitmentsToggleInsights()">'+(state.commitmentsInsightsCollapsed?'Mostrar panel':'Ocultar panel')+'</button></div>'
+          +'<div class="cp-actions"><button class="cp-btn" onclick="openNewFixedModal()">＋ Gasto fijo</button><button class="cp-btn" onclick="openNewSubModal()">＋ Suscripción</button><button class="cp-btn-primary" onclick="openNewCuotaModal()">＋ Nueva cuota</button></div>'
         +'</div>'
-        +(state.commitmentsInsightsCollapsed?'<div class="cp-ins-show-bar"><button class="cp-ins-show-btn" onclick="commitmentsToggleInsights()">✦ Mostrar insights</button></div>':'')
         +'<div class="cp-search"><span style="font-size:14px;">⌕</span><input placeholder="Buscar compromiso, servicio o proveedor..." value="'+esc(state.commitmentsSearch||'')+'" oninput="commitmentsSetSearch(this.value)"></div>'
         +'<div class="cp-chips">'
           +[
@@ -1187,14 +1186,6 @@ function renderCommitmentsPage(){
           +(showQuotasSection?renderExpiredCuotasBlock():'')
         +'</div>'
       +'</div>'
-      +(state.commitmentsInsightsCollapsed?'':'<aside class="cp-right">'
-        +'<div class="cp-panel-head"><span>Mostrando insights</span><button class="cp-panel-toggle" onclick="commitmentsToggleInsights()"><span></span></button></div>'
-        +'<section class="cp-card cp-insight-hero"><div class="cp-hero-top"><div><div class="cp-hero-kicker">Carga fija</div><div class="cp-hero-title">'+summaryTitle+'</div><div class="cp-hero-copy">Ocupación sobre tu ingreso total</div></div><div style="position:relative;display:flex;align-items:center;justify-content:center;"><div class="cp-ring"></div><div class="cp-ring-label">'+pctIncome+'%</div></div></div><div class="cp-hero-bar"><span></span></div><div class="cp-hero-meta"><span>Comprometido $'+fmtN(Math.round(totalCommittedArs))+'</span><span>Libre $'+fmtN(Math.round(freeArs))+'</span></div></section>'
-        +'<section class="cp-card cp-mini-card"><div class="cp-breakdown-head"><div class="t">Timeline: Próximos 7 días</div><button class="cp-link-btn" style="color:#f97316;">Calendario</button></div>'+(upcomingWeek.length?'<div class="cp-upcoming-list">'+upcomingWeek.slice(0,4).map(item=>'<div class="cp-upcoming-row"><div class="cp-tline-dot"></div><div class="cp-upcoming-date">'+commitmentsFmtMonthDay(item.due.nextDate)+'</div><div class="cp-upcoming-name">'+esc(item.name)+'</div><div class="cp-upcoming-amount">'+(item.currency==='USD'?'USD ':'$')+fmtN(item.amount)+'</div></div>').join('')+'</div>':'<div class="cp-empty-inline">No hay vencimientos.</div>')+'</section>'
-        +'<section class="cp-card cp-mini-card" style="background:#fff;border:1px dashed #c7d2fe;box-shadow:none;"><div class="t" style="color:#4f46e5;">Podrías liberar</div><div class="v" style="color:#3730a3;">$'+fmtN(Math.round(liberableArs))+'</div><div class="s" style="color:#6366f1;">Si cancelás todas tus suscripciones variables</div><div style="margin-top:10px;"><button class="cp-link-btn" style="color:#4f46e5;text-decoration:underline;">Ver detalle</button></div></section>'
-        +'<div class="cp-mini-grid"><section class="cp-card cp-mini-card"><div class="t">Promedio mensual</div><div class="v">$'+fmtN(Math.round(monthlyAverageArs))+'</div><div class="s">'+(pctIncome>=1?(pctIncome+'% del ingreso'):'Sin referencia')+'</div></section><section class="cp-card cp-mini-card"><div class="t">Mayor compromiso</div><div class="v" style="font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+(biggest?esc(biggest.name):'—')+'</div><div class="s">'+(biggest?((biggest.currency==='USD'?'USD ':'$')+fmtN(biggest.amount)+(income.total>0?' · '+Math.round((biggest.amountArs/income.total)*100)+'% del ingreso':'')):'Sin datos')+'</div></section></div>'
-        +'<section class="cp-card cp-tip" style="background:#fffaf0;border-left:4px solid #f59e0b;"><strong>💡 Sugerencia Fintech</strong><p>Tus suscripciones suman el '+Math.round((liberableArs/Math.max(1,totalCommittedArs))*100)+'% de tus compromisos predefinidos. Revisar qué servicios no estás aprovechando este mes te ayudaría a reducir tu carga fija.</p></section>'
-      +'</aside>')
     +'</div>';
 }
 function fmtCuotaNextDate(d){

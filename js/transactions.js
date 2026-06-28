@@ -1401,7 +1401,7 @@ function renderTransactions(){
     const activeEstado=state.txnEstadoFilter||'all';
     const monthOptions=Array.from(mf?.options||[]).map(opt=>'<option value="'+esc(opt.value)+'" '+(opt.selected?'selected':'')+'>'+esc(opt.textContent||'')+'</option>').join('');
     const cycleOptions=Array.from(tcf?.options||[]).map(opt=>'<option value="'+esc(opt.value)+'" '+(opt.selected?'selected':'')+'>'+esc(opt.textContent||'')+'</option>').join('');
-    const pageClass=state.txnInsightsCollapsed?'mv-page expanded':'mv-page';
+    const pageClass='mv-page expanded';
     const statusChips=[
       {key:'all',label:'Todos',count:allPeriodTxns.length},
       {key:'sin_categoria',label:'Sin categoría',count:estadoCounts.sin_categoria},
@@ -1694,7 +1694,6 @@ function renderTransactions(){
               +'<button class="mv-btn-primary" onclick="openCatReview()">Revisar categorías</button>'
             +'</div>'
           +'</div>'
-          +(state.txnInsightsCollapsed?'<div class="mv-ins-show-bar"><button class="mv-ins-show-btn" onclick="toggleTxnInsightsPanel()">✦ Mostrar insights</button></div>':'')
           +'<div class="mv-search-row">'
             +'<label class="mv-search"><span>🔍</span><input value="'+esc(activeSearch)+'" placeholder="Buscar descripción, monto o categoría..." oninput="txnSetSearch(this.value)"></label>'
           +'</div>'
@@ -1827,30 +1826,6 @@ function renderTransactions(){
           }).join(''):'<div class="mv-card" style="padding:24px;text-align:center;color:#6d6784;font-weight:700;">No hay movimientos para este filtro.</div>')
           +'<div id="mv-commitments-slot" class="mv-commitments-slot"></div>'
         +'</div>'
-        +(state.txnInsightsCollapsed?'':'<div class="mv-right"><div class="mv-right-col">'
-              +'<div class="mv-insights-top"><div class="label">Mostrando insights</div><button class="mv-toggle" onclick="toggleTxnInsightsPanel()"></button></div>'
-              +'<div class="mv-right-stack">'
-                +'<div class="mv-card mv-breakdown"><div class="mv-breakdown-head"><div class="t">TOP 5 CATEGORÍAS</div><button onclick="txnShowCategoryDetails()">Ranking</button></div>'
-                +'<div style="font-size:22px;font-weight:800;color:#0c4a6e;margin-top:4px;letter-spacing:-0.03em;">$'+fmtN(totalSpend)+'</div><div style="font-size:11px;color:#64748b;font-weight:600;margin-bottom:8px;">Total del período</div>'
-                +'<div class="mv-breakdown-bars">'+breakdown.slice(0,5).map(b=>'<div style="height:100%;background:'+catColor(b.label)+';width:'+b.pct+'%;"></div>').join('')+'<div style="flex:1;background:#f1f5f9;"></div></div>'
-                +'<div class="mv-breakdown-list">'+breakdown.slice(0,5).map(b=>'<button class="mv-breakdown-row" onclick="txnSetCategoryFilter(\''+esc(b.label)+'\');renderTransactions();" style="border:none;background:transparent;padding:0;cursor:pointer;"><span style="width:8px;height:8px;border-radius:50%;background:'+catColor(b.label)+';"></span><span style="font-size:12.3px;color:#334155;font-weight:600;text-align:left;">'+esc(b.label)+'</span><span style="font-size:11.7px;color:#64748b;font-weight:700;">'+b.pct+'%</span><span style="text-align:right;font-size:12.2px;color:#0f172a;font-weight:700;">$'+fmtN(b.amount)+'</span></button>').join('')+'</div></div>'
-                +'<div class="mv-mini-grid">'
-                  +'<div class="mv-card mv-mini" style="border:1px solid #e0f2fe;"><div class="k">Mayor impacto</div><div class="mv-dominant"><div class="mv-dominant-icon">'+txnCategoryGlyph(dominant.label)+'</div><div style="min-width:0;flex:1;"><div style="font-size:12.5px;font-weight:800;color:#0c4a6e;text-overflow:ellipsis;overflow:hidden;white-space:nowrap;">'+esc(dominant.label)+'</div><div style="margin-top:3px;font-size:11.1px;color:#0284c7;font-weight:700;">'+dominant.pct+'% del total</div></div></div></div>'
-                  +'<div class="mv-card mv-mini"><div class="k">Suscripciones</div><div class="v">$'+fmtN(periodSubscriptionTotal,0)+'</div><div class="s">'+periodSubscriptionTxns.length+' cobro'+(periodSubscriptionTxns.length===1?'':'s')+'</div></div>'
-                  +'<div class="mv-card mv-mini"><div class="k">Cuotas</div><div class="v">$'+fmtN(periodQuotaTotal,0)+'</div><div class="s">'+periodQuotaTxns.length+' cuota'+(periodQuotaTxns.length===1?'':'s')+'</div></div>'
-                  +(()=>{const maxTxn=focusTxns.slice().sort((a,b)=>Math.abs(b.amount)-Math.abs(a.amount))[0];return '<div class="mv-card mv-mini"><div class="k">Gasto máximo</div><div class="v">'+(maxTxn?'$'+fmtN(Math.round(Math.abs(maxTxn.amount)),0):'—')+'</div><div class="s" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+(maxTxn?esc(txnMerchantName(maxTxn)):'—')+'</div></div>';})()
-                +'</div>'
-                +(_shCount>0?'<div class="mv-card mv-shared-card"><div class="mv-shared-card-head"><span class="mv-shared-card-icon">🤝</span><span class="mv-shared-card-title">Gastos compartidos</span><span class="mv-shared-card-count">'+_shCount+'</span></div>'
-                  +'<div class="mv-shared-card-grid">'
-                    +'<div class="mv-shared-card-stat"><div class="mv-sc-label">Total</div><div class="mv-sc-value">$'+fmtN(Math.round(_shFullArs),0)+'</div></div>'
-                    +'<div class="mv-shared-card-stat"><div class="mv-sc-label">Tu parte</div><div class="mv-sc-value">$'+fmtN(Math.round(_shPersonalArs),0)+'</div></div>'
-                    +(_shPendingArs>0?'<div class="mv-shared-card-stat pending"><div class="mv-sc-label">Por cobrar</div><div class="mv-sc-value">$'+fmtN(Math.round(_shPendingArs),0)+'</div></div>':'')
-                    +(_shCobradoArs>0?'<div class="mv-shared-card-stat cobrado"><div class="mv-sc-label">Cobrado</div><div class="mv-sc-value">$'+fmtN(Math.round(_shCobradoArs),0)+'</div></div>':'')
-                  +'</div>'
-                +'</div>':'')
-                +'<div class="mv-card mv-sync-card" style="box-shadow:none;border:1px dashed #cbd5e1;"><div class="mv-sync-row"><div class="mv-sync-icon" style="background:#f8fafc;color:#64748b;width:30px;height:30px;font-size:13px;">↻</div><div><div style="font-size:12px;font-weight:700;color:#334155;">'+esc(syncLabel)+'</div></div><div style="margin-left:auto;"><button class="mv-ghost-btn" style="color:#0284c7;font-size:11px;padding:6px 12px;height:auto;" onclick="gmailSync()">Sincronizar</button></div></div></div>'
-              +'</div>'
-            +'</div></div>')
       +'</div>';
     const commitmentSlot=document.getElementById('mv-commitments-slot');
     if(commitmentSlot){
