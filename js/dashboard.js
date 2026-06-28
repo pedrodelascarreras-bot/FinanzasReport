@@ -4725,47 +4725,6 @@ function renderMobileDashboard(data) {
   const totalDisplay = arsMonth + (usdMonth*(USD_TO_ARS||1));
   const margenPct = incTotalARS>0 ? Math.round((margen/incTotalARS)*100) : 0;
 
-  // Mini-calendar data
-  const calYear  = today.getFullYear();
-  const calMonth = today.getMonth();
-  const _calMN = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const firstDOW = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
-  const daysInMonth = new Date(calYear, calMonth+1, 0).getDate();
-  // Always use real calendar-month transactions for the calendar widget
-  // (monthTxns may be TC-period filtered, which can span a different month)
-  const _calSourceTxns = (typeof state !== 'undefined' && state.transactions)
-    ? state.transactions.filter(t => !t.isPendingCuota && !t.isPendingSubscription)
-    : (monthTxns || []);
-  // Map each calendar-month transaction to its day number
-  const txnsByDay = {};
-  _calSourceTxns.forEach(t => {
-    if (!t.date) return;
-    try {
-      const d = new Date(t.date+'T12:00:00');
-      if (d.getMonth()===calMonth && d.getFullYear()===calYear) {
-        const dn = d.getDate();
-        (txnsByDay[dn] = txnsByDay[dn]||[]).push(t);
-      }
-    } catch(e){}
-  });
-  // Store for tap handler (rebuilt each render, safe)
-  window._mobCalTxns = txnsByDay;
-
-  // Build calendar cells HTML
-  const _calDOW = ['D','L','M','X','J','V','S'];
-  let calCells = _calDOW.map(d=>`<div class="mob-cal-dow">${d}</div>`).join('');
-  // Leading empty cells
-  for (let i=0; i<firstDOW; i++) calCells += '<div class="mob-cal-empty"></div>';
-  for (let d=1; d<=daysInMonth; d++) {
-    const hasTxns = !!(txnsByDay[d]?.length);
-    const isToday = (d===today.getDate());
-    const cls = ['mob-cal-day', isToday?'mob-cal-today':'', hasTxns?'mob-cal-has-txn':''].filter(Boolean).join(' ');
-    calCells += `<div class="${cls}" onclick="window._mobCalTap(${d})" role="button" tabindex="${hasTxns?0:-1}">
-      <span class="mob-cal-dnum">${d}</span>
-      ${hasTxns?'<div class="mob-cal-dot"></div>':''}
-    </div>`;
-  }
-
   // Category palette & icons
   const catPalette=['#7C4DFF','#247CFF','#FF4545','#FF9500','#28E878'];
   const catIconMap={'consumos sensibles':'🛍️','alimentación':'🍔','alimentos':'🍔','supermercado':'🛒','transporte':'🚗','uber':'🚗','taxi':'🚕','combustible':'⛽','salud':'🏥','farmacia':'💊','médico':'🩺','regalos':'🎁','sin clasificar':'📦','ocio':'🎬','entretenimiento':'🎮','servicios':'💡','educación':'📚','tecnología':'💻','ropa':'👕','restaurant':'🍽️','comida':'🍕','viajes':'✈️','hogar':'🏠','suscripciones':'📱','seguros':'🛡️'};
@@ -4915,8 +4874,9 @@ function renderMobileDashboard(data) {
       const _gcTxns=(typeof state!=='undefined'&&state.transactions?state.transactions:[]).filter(t=>t.sharedExpense&&t.sharedExpense.enabled);
       if(!_gcTxns.length) return '';
       const _gcSummary=typeof getSharedExpenseSummary==='function'?getSharedExpenseSummary(_gcTxns):[];
+      // Solo pendientes: los gastos ya cobrados no figuran en móvil.
       const _gcPending=_gcSummary.filter(p=>p.count>0);
-      const _gcCobrado=_gcSummary.filter(p=>p.count===0&&p.cobradoCount>0);
+      if(!_gcPending.length) return '';
       const _gcTotalPendingArs=_gcPending.reduce((s,p)=>s+p.pendingArs,0);
       const _gcEsc=(s)=>String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
       return `
@@ -4926,16 +4886,15 @@ function renderMobileDashboard(data) {
             ${_gcTotalPendingArs>0?`<span class="mob-gc-pending-total">$${fmtN(Math.round(_gcTotalPendingArs))} pendiente</span>`:''}
           </div>
           <div class="mob-gc-list">
-            ${[..._gcPending,..._gcCobrado].slice(0,6).map(p=>`
+            ${_gcPending.slice(0,6).map(p=>`
               <div class="mob-gc-person-row">
                 <div class="mob-gc-avatar">${_gcEsc(p.name.slice(0,2).toUpperCase())}</div>
                 <div class="mob-gc-info">
                   <div class="mob-gc-name">${_gcEsc(p.name)}</div>
-                  <div class="mob-gc-meta">${p.count>0?p.count+' gasto'+(p.count!==1?'s':''):''} ${p.cobradoCount>0?'· '+p.cobradoCount+' cobrado'+(p.cobradoCount!==1?'s':''):''}</div>
+                  <div class="mob-gc-meta">${p.count+' gasto'+(p.count!==1?'s':'')}</div>
                 </div>
                 <div class="mob-gc-right">
-                  ${p.count>0?`<div class="mob-gc-amount pending">${p.pendingArs>0?'$'+fmtN(Math.round(p.pendingArs)):'Pendiente'}</div><div class="mob-gc-badge pending">⏳ Pendiente</div>`:''}
-                  ${p.count===0&&p.cobradoCount>0?`<div class="mob-gc-amount cobrado">$${fmtN(Math.round(p.cobradoArs))}</div><div class="mob-gc-badge cobrado">✓ Cobrado</div>`:''}
+                  <div class="mob-gc-amount pending">${p.pendingArs>0?'$'+fmtN(Math.round(p.pendingArs)):'Pendiente'}</div><div class="mob-gc-badge pending">⏳ Pendiente</div>
                 </div>
               </div>`).join('')}
           </div>
@@ -4952,51 +4911,7 @@ function renderMobileDashboard(data) {
       <button class="mob-connect-btn" onclick="openCloudSync(event)">Conectar</button>
     </div>` : ''}
 
-    <!-- Calendar widget -->
-    <div class="mob-section-card mob-cal-card">
-      <div class="mob-sec-hd">
-        <span class="mob-sec-title">${_calMN[calMonth].toUpperCase()} ${calYear}</span>
-      </div>
-      <div class="mob-cal-grid">${calCells}</div>
-      <div id="mob-cal-detail" class="mob-cal-detail" style="display:none;"></div>
-    </div>
-
     <div style="height:32px"></div>
   `;
 }
 
-/* ─── Calendar day tap handler ─── */
-window._mobCalTap = function(day) {
-  const detail = document.getElementById('mob-cal-detail');
-  if (!detail) return;
-  const txns = (window._mobCalTxns||{})[day];
-  if (!txns || !txns.length) { detail.style.display='none'; return; }
-
-  // If already showing this day, toggle off
-  if (detail.dataset.day == day && detail.style.display !== 'none') {
-    detail.style.display = 'none';
-    // Deselect all days
-    document.querySelectorAll('.mob-cal-day.mob-cal-selected').forEach(el=>el.classList.remove('mob-cal-selected'));
-    return;
-  }
-
-  // Highlight selected day
-  document.querySelectorAll('.mob-cal-day.mob-cal-selected').forEach(el=>el.classList.remove('mob-cal-selected'));
-  const dayEls = document.querySelectorAll('.mob-cal-day');
-  dayEls.forEach(el => {
-    const num = parseInt(el.querySelector('.mob-cal-dnum')?.textContent||'0',10);
-    if (num===day) el.classList.add('mob-cal-selected');
-  });
-
-  detail.dataset.day = day;
-  const fmt = (n) => '$'+Number(n||0).toLocaleString('es-AR',{minimumFractionDigits:0,maximumFractionDigits:0});
-  const rows = txns.slice(0,8).map(t=>`
-    <div class="mob-cal-det-row">
-      <div class="mob-cal-det-dot" style="background:${t.currency==='USD'?'#247CFF':'#7C4DFF'}"></div>
-      <span class="mob-cal-det-desc">${t.description||'Sin descripción'}</span>
-      <span class="mob-cal-det-amt">${t.currency==='USD'?'U$D '+Number(t.amount||0).toFixed(2):fmt(t.amount)}</span>
-    </div>`).join('');
-  const extra = txns.length>8 ? `<div class="mob-cal-det-more">+${txns.length-8} más</div>` : '';
-  detail.innerHTML = rows + extra;
-  detail.style.display = 'block';
-};
