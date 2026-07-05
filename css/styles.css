@@ -13084,6 +13084,131 @@ body:not(.light-mode) .sav2-btn {
   }
 }
 
+/* ═══════════════════════════════════════════════
+   PIPELINE DE METAS — tablero tipo CRM (savings.js)
+═══════════════════════════════════════════════ */
+.sav-pipe-section { margin-top: 28px; }
+.sav-pipe-hd { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.sav-pipe-hd-left { display: flex; align-items: center; gap: 12px; }
+.sav-pipe-hd-icon {
+  width: 36px; height: 36px; border-radius: 11px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-size: 17px;
+  background: rgba(255,149,0,0.12); color: #ff9500;
+}
+.sav-pipe-hd-left h2 { font-size: 17px; font-weight: 850; letter-spacing: -0.01em; margin: 0 0 2px; color: #1c1a25; }
+.sav-pipe-hd-left p { font-size: 12px; font-weight: 650; color: #858aa3; margin: 0; }
+.sav-pipe-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.sav-pipe-filters { display: flex; gap: 6px; flex-wrap: wrap; }
+.sav-pipe-filter-chip {
+  display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 750;
+  padding: 6px 12px; border-radius: 20px; border: 1px solid rgba(102,103,130,0.16);
+  background: #fff; color: #575c74; cursor: pointer; transition: all .15s ease; font-family: var(--font);
+}
+.sav-pipe-filter-chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+.sav-pipe-filter-chip.active { background: #1c1a25; color: #fff; border-color: #1c1a25; }
+.sav-pipe-filter-chip:hover { transform: translateY(-1px); }
+
+.sav-pipe-board { display: flex; gap: 16px; align-items: flex-start; overflow-x: auto; padding-bottom: 10px; }
+.sav-pipe-col {
+  flex: 0 0 288px; background: rgba(102,103,130,0.055); border-radius: 20px; padding: 12px;
+  transition: background .15s ease;
+}
+.sav-pipe-col.sav-pipe-col-dragover { background: rgba(94,92,230,0.09); outline: 2px dashed rgba(94,92,230,0.35); outline-offset: -2px; }
+.sav-pipe-col-hd { display: flex; align-items: center; gap: 8px; padding: 6px 6px 4px; cursor: grab; }
+.sav-pipe-col-accent { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.sav-pipe-col-title { font-size: 13.5px; font-weight: 850; color: #1c1a25; flex: 1; min-width: 0; }
+.sav-pipe-col-stats { display: flex; align-items: center; gap: 8px; padding: 0 6px 10px; }
+.sav-pipe-col-count { font-size: 10.5px; font-weight: 800; color: #858aa3; background: rgba(102,103,130,0.13); padding: 2px 8px; border-radius: 20px; }
+.sav-pipe-col-total { font-size: 11px; font-weight: 700; color: #858aa3; }
+.sav-pipe-col-total b { color: #575c74; font-weight: 850; }
+.sav-pipe-col-cards { min-height: 6px; }
+
+.sav-pipe-card {
+  background: #fff; border-radius: 16px; padding: 13px; margin-bottom: 9px; cursor: grab; position: relative;
+  box-shadow: 0 1px 2px rgba(20,20,40,0.05); border: 1px solid rgba(20,20,40,0.04);
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+.sav-pipe-card:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -10px rgba(20,20,40,0.22); }
+.sav-pipe-card.sav-pipe-dragging { opacity: .35; }
+.sav-pipe-card.urgent { box-shadow: inset 3px 0 0 #ff3b30, 0 1px 2px rgba(20,20,40,0.05); }
+.sav-pipe-card.urgent:hover { box-shadow: inset 3px 0 0 #ff3b30, 0 10px 24px -10px rgba(20,20,40,0.22); }
+.sav-pipe-card-top { display: flex; align-items: flex-start; gap: 9px; margin-bottom: 9px; }
+.sav-pipe-avatar { width: 32px; height: 32px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 15px; flex-shrink: 0; }
+.sav-pipe-card-name { font-size: 13.5px; font-weight: 800; color: #1c1a25; flex: 1; min-width: 0; line-height: 1.25; }
+.sav-pipe-card-amt { font-size: 11.5px; color: #858aa3; font-weight: 650; margin-bottom: 9px; }
+.sav-pipe-card-amt b { color: #1c1a25; font-weight: 850; }
+.sav-pipe-track { height: 5px; border-radius: 5px; background: rgba(102,103,130,0.14); overflow: hidden; margin-bottom: 9px; }
+.sav-pipe-fill { height: 100%; border-radius: 5px; }
+.sav-pipe-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
+.sav-pipe-tag { font-size: 9.5px; font-weight: 850; padding: 3px 8px; border-radius: 20px; letter-spacing: .01em; }
+.sav-pipe-card-foot { display: flex; align-items: center; justify-content: space-between; }
+.sav-pipe-pct { font-size: 11px; font-weight: 850; color: #575c74; }
+.sav-pipe-tag-add {
+  width: 22px; height: 22px; border-radius: 7px; border: 1px dashed rgba(102,103,130,0.24); background: transparent;
+  color: #a4a8bd; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center;
+}
+.sav-pipe-tag-add:hover { border-color: #5e5ce6; color: #5e5ce6; }
+.sav-pipe-tag-picker {
+  position: absolute; z-index: 60; background: #fff; border-radius: 14px; padding: 8px;
+  box-shadow: 0 20px 50px -12px rgba(20,20,40,0.32); border: 1px solid rgba(102,103,130,0.14); width: 168px;
+  display: none; top: 100%; right: 10px; margin-top: 4px;
+}
+.sav-pipe-tag-picker.open { display: block; }
+.sav-pipe-tag-opt { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 9px; cursor: pointer; font-size: 12px; font-weight: 750; color: #575c74; }
+.sav-pipe-tag-opt:hover { background: rgba(102,103,130,0.08); }
+.sav-pipe-tag-opt .chk { width: 15px; height: 15px; border-radius: 5px; border: 1.5px solid rgba(102,103,130,0.24); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 10px; color: #fff; }
+.sav-pipe-tag-opt .dot2 { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+.sav-pipe-add-card {
+  width: 100%; padding: 9px; border-radius: 13px; border: 1.5px dashed rgba(102,103,130,0.22); background: transparent;
+  color: #858aa3; font-size: 12px; font-weight: 750; cursor: pointer; font-family: var(--font); transition: all .15s ease;
+}
+.sav-pipe-add-card:hover { border-color: #5e5ce6; color: #5e5ce6; background: rgba(94,92,230,0.05); }
+
+/* ── Modal: configurar etapas ── */
+.sav-stage-row { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 12px; background: rgba(102,103,130,0.05); }
+.sav-stage-drag { color: #c7c7cc; cursor: grab; flex-shrink: 0; }
+.sav-stage-color { width: 26px; height: 26px; border-radius: 8px; border: none; padding: 0; cursor: pointer; flex-shrink: 0; background: none; }
+.sav-stage-name-input { flex: 1; min-width: 0; padding: 6px 10px !important; font-size: 13px !important; }
+.sav-stage-count { font-size: 10.5px; font-weight: 750; color: #858aa3; white-space: nowrap; flex-shrink: 0; }
+.sav-stage-del { width: 26px; height: 26px; border-radius: 8px; border: none; background: transparent; color: #c7c7cc; cursor: pointer; font-size: 13px; flex-shrink: 0; }
+.sav-stage-del:hover { background: rgba(255,59,48,0.1); color: #ff3b30; }
+.sav-stage-chip {
+  display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 750;
+  padding: 6px 12px; border-radius: 20px; border: 1px solid; background: #fff; cursor: pointer; transition: all .15s ease;
+}
+.sav-stage-chip .dot { width: 7px; height: 7px; border-radius: 50%; }
+.sav-stage-chip:hover { transform: translateY(-1px); filter: brightness(0.95); }
+
+/* ── Multi-tag picker dentro del modal de meta ── */
+.sav-tag-multi-picker { display: flex; flex-wrap: wrap; gap: 8px; }
+.sav-tag-chip-toggle {
+  --tag-color: #5e5ce6;
+  font-size: 12px; font-weight: 750; padding: 7px 13px; border-radius: 20px;
+  border: 1.5px solid color-mix(in srgb, var(--tag-color) 45%, transparent);
+  background: #fff; color: var(--tag-color); cursor: pointer; font-family: var(--font); transition: all .15s ease;
+}
+.sav-tag-chip-toggle.active { background: var(--tag-color); color: #fff; border-color: var(--tag-color); }
+
+body:not(.light-mode) .sav-pipe-col { background: rgba(255,255,255,0.04); }
+body:not(.light-mode) .sav-pipe-card {
+  background: #1b1e33; border-color: rgba(255,255,255,0.07); box-shadow: none;
+}
+body:not(.light-mode) .sav-pipe-card-name,
+body:not(.light-mode) .sav-pipe-col-title,
+body:not(.light-mode) .sav-pipe-hd-left h2,
+body:not(.light-mode) .sav-pipe-pct,
+body:not(.light-mode) .sav-pipe-card-amt b { color: #f0f2ff; }
+body:not(.light-mode) .sav-pipe-tag-picker { background: #1f2237; border-color: rgba(255,255,255,0.1); }
+body:not(.light-mode) .sav-pipe-tag-opt { color: #cfd3ea; }
+body:not(.light-mode) .sav-pipe-filter-chip { background: #1b1e33; color: #cfd3ea; border-color: rgba(255,255,255,0.1); }
+body:not(.light-mode) .sav-pipe-filter-chip.active { background: #fff; color: #1c1a25; border-color: #fff; }
+body:not(.light-mode) .sav-stage-row { background: rgba(255,255,255,0.04); }
+body:not(.light-mode) .sav-tag-chip-toggle { background: #1b1e33; }
+@media (max-width: 1200px) {
+  .sav-pipe-board { padding-bottom: 14px; }
+}
+
 /* ═══ GLOBAL SEARCH MODAL ITEMS ═══ */
 .global-search-item {
   border-radius: 18px;

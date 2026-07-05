@@ -26,7 +26,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260705e">
+<link rel="stylesheet" href="css/styles.css?v=20260705f">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -1548,13 +1548,8 @@
     <!-- Top 3 Summary Cards -->
     <div id="tend-top-cards" class="tend-top-cards-grid fade-up d1"></div>
 
-    <!-- "Show insights" restore bar (visible when panel is hidden) -->
-    <div id="tend-ins-show-bar" style="display:none;">
-      <button class="tend-ins-show-btn" onclick="setTendInsightsVisible(true)">✦ Mostrar insights</button>
-    </div>
-
-    <!-- Two-column layout: main + insights -->
-    <div class="tend-dual-col">
+    <!-- Layout: solo contenido principal (panel de insights lateral removido) -->
+    <div class="tend-dual-col tend-insights-hidden">
 
       <!-- Left: main content -->
       <div class="tend-col-main">
@@ -1581,9 +1576,6 @@
         </div>
 
       </div>
-
-      <!-- Right: Insights panel -->
-      <div class="tend-insights-shell fade-up d2" id="tend-insights-panel"></div>
 
     </div>
 
@@ -2626,16 +2618,41 @@
       </div>
       <div class="grid-2">
         <div class="input-group"><label class="input-label">Fecha objetivo</label><input type="month" class="input-field" id="sav-goal-deadline"></div>
+        <div class="input-group"><label class="input-label">Etapa del pipeline</label><select class="input-field" id="sav-goal-stage"></select></div>
       </div>
       <input type="hidden" id="sav-goal-current" value="0">
       <div style="font-size:11px;color:var(--text3);line-height:1.5;padding:6px 0;">El progreso se calcula automaticamente sumando el balance de todas tus cuentas.</div>
       <div class="input-group"><label class="input-label">¿De qué cuenta va a salir?</label><select class="input-field" id="sav-goal-account"><option value="">Sin vincular</option></select></div>
       <div class="input-group"><label class="input-label">Color</label><div class="color-picker-row" id="sav-goal-color-picker"></div></div>
+      <div class="input-group"><label class="input-label">Categorías</label><div class="sav-tag-multi-picker" id="sav-goal-tags-picker"></div></div>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal('modal-sav-goal')">Cancelar</button>
       <button class="btn btn-danger btn-sm" id="btn-del-sav-goal" onclick="deleteSavGoal()" style="display:none;">Eliminar</button>
       <button class="btn btn-primary" onclick="saveSavGoal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Configurar etapas del pipeline de ahorros -->
+<div class="modal-overlay" id="modal-sav-stages">
+  <div class="modal" style="width:480px;">
+    <div class="modal-title">Etapas del pipeline</div>
+    <div class="modal-sub">Organizá tus metas como más te sirva — agregá, renombrá o borrá etapas.</div>
+    <div id="sav-stages-list" style="display:flex;flex-direction:column;gap:8px;margin:6px 0 16px;"></div>
+    <div class="input-group" style="margin-bottom:14px;">
+      <label class="input-label">Agregar etapa nueva</label>
+      <div style="display:flex;gap:8px;">
+        <input class="input-field" id="sav-stage-new-name" placeholder="ej: Prioridad alta" style="flex:1;">
+        <button class="btn btn-primary btn-sm" onclick="addSavStageFromInput()">Agregar</button>
+      </div>
+    </div>
+    <div class="input-group">
+      <label class="input-label">Sugeridas</label>
+      <div id="sav-stage-recommendations" style="display:flex;flex-wrap:wrap;gap:8px;"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="closeModal('modal-sav-stages')">Listo</button>
     </div>
   </div>
 </div>
@@ -3302,7 +3319,7 @@ window.addEventListener('unhandledrejection',function(e){
 });
 </script>
 <script src="js/config.js"></script>
-<script src="js/state.js?v=20260628a"></script>
+<script src="js/state.js?v=20260705a"></script>
 <script src="js/i18n.js"></script>
 <script src="js/utils.js?v=20260705a"></script>
 <script src="js/import.js?v=20260628a"></script>
@@ -3311,14 +3328,14 @@ window.addEventListener('unhandledrejection',function(e){
 <script src="js/analytics.js?v=20260609c"></script>
 <script src="js/expenses.js?v=20260628b"></script>
 <script src="js/income.js?v=20260513h"></script>
-<script src="js/savings.js?v=20260628a"></script>
+<script src="js/savings.js?v=20260705a"></script>
 <script src="js/categories.js"></script>
 <script src="js/reports.js?v=20260628a"></script>
 <script src="js/balance.20260407j.js?v=20260611d"></script>
 <script src="js/ui.20260407j.js?v=20260705a"></script>
 <script src="js/splash.js?v=20260421g"></script>
 <script src="js/shell.js?v=20260628a"></script>
-<script src="js/init.js?v=20260705a"></script>
+<script src="js/init.js?v=20260705b"></script>
 <script src="js/credit-cards.js?v=20260705a"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>

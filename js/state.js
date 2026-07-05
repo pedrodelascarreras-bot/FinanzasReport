@@ -13,8 +13,9 @@ let state={
   incomeMonths:[],       // V1: [{id,month,sources,extraArs,extraUsd}] · V2: [{id,month,schemaVersion:2,salary:{ars,usd,commissions},extras:[]}]
   bankAccounts:[],       // [{id,name,currency,emoji,createdAt}] — for income destination tracking
   savAccounts:[],        // [{id,name,emoji,balance,currency,type,yieldPct,color}]
-  savGoals:[],           // [{id,name,emoji,target,currency,current,deadline,accountId,color}]
+  savGoals:[],           // [{id,name,emoji,target,currency,current,deadline,accountId,color,stageId,tags:[]}]
   savDeposits:[],        // [{id,month:'2025-03',accountId,amount,currency,note,kind}] — 100% manual
+  savStages:[],          // [{id,name,color}] — etapas del pipeline de metas (se auto-inicializa con defaults)
   incViewCurrency:'ARS',
   tcConfig:{cardName:'',closeDay:0,dueDay:0,limit:0,mixTarget:70},
   viewCycleConfig:{
@@ -81,7 +82,7 @@ function getStateSnapshot(){
     savingsGoal:state.savingsGoal,alertThreshold:state.alertThreshold,spendPct:state.spendPct||100,insightsBufferMonths:state.insightsBufferMonths||3,tendChartMode:state.tendChartMode||'bar',imports:state.imports,
     cuotas:state.cuotas,autoCuotaConfig:state.autoCuotaConfig,subscriptions:state.subscriptions,fixedExpenses:state.fixedExpenses||[],
     incomeSources:state.incomeSources,incomeMonths:state.incomeMonths,
-    savAccounts:state.savAccounts,savGoals:state.savGoals,savDeposits:state.savDeposits||[],tcConfig:state.tcConfig,viewCycleConfig:state.viewCycleConfig||{},
+    savAccounts:state.savAccounts,savGoals:state.savGoals,savDeposits:state.savDeposits||[],savStages:state.savStages||[],tcConfig:state.tcConfig,viewCycleConfig:state.viewCycleConfig||{},
     usdRate:state.usdRate||1420,usdRateBuy:state.usdRateBuy||state.usdRate||1420,usdRateSell:state.usdRateSell||state.usdRate||1420,usdRateSource:state.usdRateSource||'blue',usdRateUpdated:state.usdRateUpdated||null,usdRateHistory:state.usdRateHistory||[],
     catRules:state.catRules||[],nameRules:state.nameRules||[],logoRules:state.logoRules||[],catHistory:state.catHistory||{},
     ccCards:state.ccCards||[],ccCycles:state.ccCycles||[],ccActiveCard:state.ccActiveCard||null,
@@ -396,6 +397,7 @@ async function loadFromDrive(){
     state.savAccounts=s.savAccounts||[];
     state.savGoals=s.savGoals||[];
     state.savDeposits=s.savDeposits||[];
+    state.savStages=s.savStages||[];
     if(s.tcConfig)state.tcConfig={...state.tcConfig,...s.tcConfig};
     if(s.viewCycleConfig){
       state.viewCycleConfig={
@@ -497,7 +499,7 @@ function loadState(){
     state.subscriptions=s.subscriptions||[];
     state.fixedExpenses=s.fixedExpenses||[];
     state.incomeSources=s.incomeSources||[];state.incomeMonths=s.incomeMonths||[];
-    state.savAccounts=s.savAccounts||[];state.savGoals=s.savGoals||[];state.savDeposits=s.savDeposits||[];
+    state.savAccounts=s.savAccounts||[];state.savGoals=s.savGoals||[];state.savDeposits=s.savDeposits||[];state.savStages=s.savStages||[];
     if(s.tcConfig)state.tcConfig={...state.tcConfig,...s.tcConfig};
     if(s.viewCycleConfig){
       state.viewCycleConfig={
