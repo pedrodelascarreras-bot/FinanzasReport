@@ -483,11 +483,6 @@ function renderSavingsPage(){
         </div>
       </section>
 
-      <section class="sav2-activity-section">
-        <div class="sav2-section-head compact"><h2>Actividad reciente</h2><button>Ver todo</button></div>
-        ${recentHtml}
-      </section>
-
       <section class="sav-pipe-section">
         <div class="sav-pipe-hd">
           <div class="sav-pipe-hd-left">
@@ -504,6 +499,11 @@ function renderSavingsPage(){
           </div>
         </div>
         <div class="sav-pipe-board">${boardHtml}</div>
+      </section>
+
+      <section class="sav2-activity-section">
+        <div class="sav2-section-head compact"><h2>Actividad reciente</h2><button>Ver todo</button></div>
+        ${recentHtml}
       </section>
     </div>`;
 }
