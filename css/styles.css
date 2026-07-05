@@ -13212,8 +13212,15 @@ body:not(.light-mode) .sav-reg-acc-card:hover { background: rgba(255,255,255,0.0
 .sav-pipe-fill { height: 100%; border-radius: 5px; }
 .sav-pipe-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 9px; }
 .sav-pipe-tag { font-size: 9.5px; font-weight: 850; padding: 3px 8px; border-radius: 20px; letter-spacing: .01em; }
-.sav-pipe-card-foot { display: flex; align-items: center; justify-content: space-between; }
-.sav-pipe-pct { font-size: 11px; font-weight: 850; color: #575c74; }
+.sav-pipe-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.sav-pipe-card-foot-left { display: flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }
+.sav-pipe-pct { font-size: 11px; font-weight: 850; color: #575c74; flex-shrink: 0; }
+.sav-pipe-deadline {
+  font-size: 10px; font-weight: 800; color: #858aa3; background: rgba(102,103,130,0.1);
+  padding: 2px 7px; border-radius: 20px; white-space: nowrap;
+}
+.sav-pipe-deadline-soon { color: #c26900; background: rgba(255,149,0,0.14); }
+.sav-pipe-deadline-urgent { color: #ff3b30; background: rgba(255,59,48,0.12); }
 .sav-pipe-tag-add {
   width: 22px; height: 22px; border-radius: 7px; border: 1px dashed rgba(102,103,130,0.24); background: transparent;
   color: #a4a8bd; cursor: pointer; font-size: 12px; display: flex; align-items: center; justify-content: center;
@@ -13270,6 +13277,7 @@ body:not(.light-mode) .sav-pipe-col-title,
 body:not(.light-mode) .sav-pipe-hd-left h2,
 body:not(.light-mode) .sav-pipe-pct,
 body:not(.light-mode) .sav-pipe-card-amt b { color: #f0f2ff; }
+body:not(.light-mode) .sav-pipe-deadline { background: rgba(255,255,255,0.08); color: #cfd3ea; }
 body:not(.light-mode) .sav-pipe-tag-picker { background: #1f2237; border-color: rgba(255,255,255,0.1); }
 body:not(.light-mode) .sav-pipe-tag-opt { color: #cfd3ea; }
 body:not(.light-mode) .sav-pipe-filter-chip { background: #1b1e33; color: #cfd3ea; border-color: rgba(255,255,255,0.1); }

@@ -68,6 +68,16 @@ function formatSavDeadline(deadline){
   if(!y||!m) return deadline;
   return new Date(y,m-1,1).toLocaleDateString('es-AR',{month:'short',year:'numeric'}).replace('.','');
 }
+// La fecha es el factor de prioridad más importante: vencida/este mes = rojo, próximo mes = naranja.
+function savDeadlineUrgencyClass(deadline){
+  if(!deadline) return '';
+  const nowKey = getMonthKey(new Date());
+  const nextMonthDate = new Date(); nextMonthDate.setMonth(nextMonthDate.getMonth()+1);
+  const nextKey = getMonthKey(nextMonthDate);
+  if(deadline <= nowKey) return 'sav-pipe-deadline-urgent';
+  if(deadline === nextKey) return 'sav-pipe-deadline-soon';
+  return '';
+}
 
 // ── Drag & drop state (módulo) ──
 // En window (no let/const) porque el modal de etapas la referencia directo desde un atributo ondrop inline.
@@ -382,14 +392,23 @@ function renderSavingsPage(){
       <div class="sav-pipe-track"><div class="sav-pipe-fill" style="width:${g.pct}%;background:${barColor};"></div></div>
       ${tagsHtml?`<div class="sav-pipe-tags">${tagsHtml}</div>`:''}
       <div class="sav-pipe-card-foot">
-        <span class="sav-pipe-pct">${g.pct}%${g.deadline?' · '+esc(formatSavDeadline(g.deadline)):''}</span>
+        <div class="sav-pipe-card-foot-left">
+          <span class="sav-pipe-pct">${g.pct}%</span>
+          ${g.deadline?`<span class="sav-pipe-deadline ${savDeadlineUrgencyClass(g.deadline)}">📅 ${esc(formatSavDeadline(g.deadline))}</span>`:''}
+        </div>
         <button class="sav-pipe-tag-add" onclick="event.stopPropagation();toggleSavTagPicker('${g.id}')" title="Categorizar">🏷️</button>
       </div>
       <div class="sav-pipe-tag-picker" id="sav-tag-picker-${g.id}">${tagOptsHtml}</div>
     </div>`;
   };
   const savPipelineColumn = (stage)=>{
-    const stageGoals = visibleGoals.filter(g=>g.stageId===stage.id);
+    // Ordenadas por fecha límite: la más próxima primero. Sin fecha, al final.
+    const stageGoals = visibleGoals.filter(g=>g.stageId===stage.id).sort((a,b)=>{
+      if(!a.deadline && !b.deadline) return 0;
+      if(!a.deadline) return 1;
+      if(!b.deadline) return -1;
+      return a.deadline.localeCompare(b.deadline);
+    });
     const total = stageGoals.reduce((s,g)=>s+(Number(g.target)||0),0);
     return `
     <div class="sav-pipe-col" data-stage="${stage.id}"
