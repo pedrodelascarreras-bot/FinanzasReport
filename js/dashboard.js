@@ -1243,10 +1243,13 @@ function renderDashboard(){
   if(isTcView){
     const cycles=getTcCycles(activeCycleMode); // sorted desc by closeDate
     if(cycles.length){
+      // Si el usuario no eligió un ciclo puntual (dashTcCycle vacío = "actual"), no lo fijemos
+      // acá: sino la próxima vez que cambie el ciclo real, el dashboard queda pegado al viejo.
+      const _hadExplicitCycleSelection=!!state.dashTcCycle;
       activeTcCycle=_resolveDashboardTcCycle(cycles);
       // Sync selector value
-      if(_dashSel) _dashSel.value=activeTcCycle.id;
-      state.dashTcCycle=activeTcCycle.id;
+      if(_dashSel) _dashSel.value=_hadExplicitCycleSelection?activeTcCycle.id:'';
+      if(_hadExplicitCycleSelection) state.dashTcCycle=activeTcCycle.id;
       const idx2=cycles.findIndex(c=>c.id===activeTcCycle.id);
       const open=getTcCycleOpen(cycles,idx2);
       if(open){

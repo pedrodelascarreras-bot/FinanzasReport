@@ -160,7 +160,7 @@ function updateQrBadge(){
 
 // ══ NAV ══
 // Map page → which nav-section contains it (if any)
-const PAGE_SECTION={settings:null};
+const PAGE_SECTION={settings:null,reportes:'ns-config',balance:'ns-config','credit-cards':'ns-config'};
 
 function isMobileAppView(){
   return window.innerWidth <= 768;

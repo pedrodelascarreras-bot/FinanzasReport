@@ -16583,7 +16583,7 @@ body.light-mode .tdp-tp-input {
 .db2-row-1 { display: grid; grid-template-columns: 1.08fr 0.92fr; gap: 18px; align-items: stretch; flex: 1; min-height: 0; }
 .db2-row-2 {
   display: grid;
-  grid-template-columns: 1.2fr 0.5fr 0.82fr;
+  grid-template-columns: 1.4fr 0.82fr;
   gap: 20px;
   align-items: stretch;
   flex: 0 0 388px;
@@ -19877,7 +19877,6 @@ body:not(.light-mode) #page-dashboard .header-actions .txn-select option{
 @media(max-width:1100px) {
   .db2-row-1 { grid-template-columns: 1fr; }
   .db2-row-2 { grid-template-columns: 1fr 1fr; height: auto; flex-basis: auto; }
-  .db2-row-2 .db2-agenda-card { grid-column: 1 / -1; }
   .db2-row-3 { grid-template-columns: 1fr; }
   .db2-third-grid { grid-template-columns: 1fr 1fr; }
   .db2-proj-body,

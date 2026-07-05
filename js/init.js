@@ -316,10 +316,15 @@ function getTcCycles(mode){
   const autoAmex=_buildGeneratedCyclesForMode('amex', 18, 1);
   const hiddenSet=new Set(state.hiddenTcCycles||[]);
   const mergedMap=new Map();
+  // Dedupe por (tarjeta, mes de cierre) en vez de por fecha exacta: si el día de cierre
+  // configurado (viewCycleConfig) queda temporalmente desincronizado del ciclo manual real,
+  // el auto-generado y el manual no deben coexistir como si fueran ciclos distintos del mismo mes.
   [...legacy,...autoVisa,...autoAmex].forEach(c=>{
-    const key=getTcCycleSignature(c);
-    if(!key || hiddenSet.has(key)) return;
-    if(!mergedMap.has(key)) mergedMap.set(key,c);
+    const sig=getTcCycleSignature(c);
+    if(!sig || hiddenSet.has(sig)) return;
+    const payMethod=getTcCyclePayMethodKey(c)||'mes';
+    const monthKey=[payMethod, c.cardId||'', _tcCycleMonthKey(c.closeDate)].join('::');
+    if(!mergedMap.has(monthKey)) mergedMap.set(monthKey,c);
   });
   let rows=[...mergedMap.values()];
   if(normalizedMode==='visa'||normalizedMode==='amex'){
