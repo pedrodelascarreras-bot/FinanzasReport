@@ -479,8 +479,9 @@ window.addEventListener('load',()=>{
 });
 function loadSidebar(){
   const app=document.querySelector('.app');
-  if(app)app.classList.remove('sidebar-collapsed');
-  localStorage.setItem('fin_sidebar','open');
+  // Compacto por defecto (rail con hover-to-peek); solo queda abierto si el usuario lo fijó así a mano.
+  const pinnedOpen=localStorage.getItem('fin_sidebar')==='open';
+  if(app)app.classList.toggle('sidebar-collapsed',!pinnedOpen);
   syncSidebarControls();
 }
 

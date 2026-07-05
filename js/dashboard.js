@@ -4258,8 +4258,8 @@ function renderDb2Agenda(timelineData){
   };
 
   listEl.innerHTML = events.map(e => {
-    const when = e.days === 0 ? 'Hoy' : e.days === 1 ? 'Mañana' : `En ${e.days} días`;
-    const chipCls = e.days === 0 ? 'today' : e.days <= 3 ? 'soon' : '';
+    const when = e.days === 0 ? 'Hoy' : e.days === 1 ? 'Mañana' : `${e.days} días`;
+    const urgentCls = e.days <= 2 ? 'urgent' : '';
     const name = e.shortLabel || e.title || 'Evento';
     const logo = getLogoProps(name, e.type);
     const amtStr = e.amount ? '-$' + (isMasked() ? '••••' : fmtN(Math.round(e.amount))) : '';
@@ -4272,22 +4272,16 @@ function renderDb2Agenda(timelineData){
     const dayStr = e.date instanceof Date
       ? e.date.toLocaleDateString('es-AR',{day:'2-digit'})
       : '—';
-    const monthStr = e.date instanceof Date
-      ? e.date.toLocaleDateString('es-AR',{month:'short'}).replace('.','')
-      : '';
-    return `<button class="db2-agenda-item" type="button" onclick="nav('calendar')">
-      <div class="db2-agenda-date">
-        <span class="db2-agenda-day">${dayStr}</span>
-        <span class="db2-agenda-month">${esc(monthStr)}</span>
+    return `<button class="db2-agenda-item ${urgentCls}" type="button" onclick="nav('calendar')">
+      <div class="db2-agenda-logo" style="background:${logo.bg}">${logo.letter}</div>
+      <div class="db2-agenda-body">
+        <div class="db2-agenda-name">${esc(name)}</div>
+        <div class="db2-agenda-desc">${descLine}</div>
       </div>
-      <div class="db2-agenda-main">
-        <div class="db2-agenda-logo" style="background:${logo.bg}">${logo.letter}</div>
-        <div class="db2-agenda-body">
-          <div class="db2-agenda-name">${esc(name)}</div>
-          <div class="db2-agenda-desc">${descLine}</div>
-        </div>
+      <div class="db2-agenda-right">
+        <div class="db2-agenda-daynum">${dayStr}</div>
+        <div class="db2-agenda-daylbl">${when}</div>
       </div>
-      <div class="db2-agenda-chip ${chipCls}">${when}</div>
     </button>`;
   }).join('');
 }

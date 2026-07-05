@@ -26,7 +26,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20260705a">
+<link rel="stylesheet" href="css/styles.css?v=20260705c">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
@@ -253,49 +253,37 @@
       <div><div class="page-title" id="dash-page-title" style="display:none"></div><div class="page-subtitle" id="dash-date">—</div></div>
     </div>
 
-    <div class="dash-control-deck">
-    <div class="dashboard-smart-toolbar" id="dashboard-smart-toolbar" role="toolbar" aria-label="Accesos rápidos del dashboard">
-      <div class="dash-smart-kicker">Accesos inteligentes</div>
-      <div class="dash-smart-actions">
-        <button class="dash-smart-btn dash-smart-btn-primary" onclick="openQuickExpenseFlow()" title="Registrar un gasto manual rápido">
-          <span class="dash-smart-icon">＋</span>
-          <span>Nuevo gasto</span>
+    <div class="dash-control-deck dash-control-deck-compact">
+      <div class="dash-qa-group" id="dashboard-smart-toolbar" role="toolbar" aria-label="Accesos rápidos del dashboard">
+        <button class="dash-qa-btn dash-qa-btn-primary" onclick="openQuickExpenseFlow()" title="Nuevo gasto" aria-label="Registrar un gasto manual rápido">
+          <span>＋</span>
         </button>
-        <button class="dash-smart-btn" onclick="nav('calendar')" title="Ir al calendario completo (igual que Agenda Viva)">
-          <span class="dash-smart-icon">📅</span>
-          <span>Calendario</span>
+        <button class="dash-qa-btn" onclick="nav('calendar')" title="Calendario" aria-label="Ir al calendario completo">
+          <span>📅</span>
         </button>
-        <button class="dash-smart-btn" onclick="quickGmailImport()" title="Sincronizar consumos desde Gmail">
-          <span class="dash-smart-icon">✉️</span>
-          <span>Importar Gmail</span>
+        <button class="dash-qa-btn" onclick="quickGmailImport()" title="Importar Gmail" aria-label="Sincronizar consumos desde Gmail">
+          <span>✉️</span>
         </button>
-        <button class="dash-smart-btn" onclick="openQuickCategoryCreate()" title="Crear una categoría y seguir">
-          <span class="dash-smart-icon">🏷️</span>
-          <span>Nueva categoría</span>
+        <button class="dash-qa-btn" onclick="openQuickCategoryCreate()" title="Nueva categoría" aria-label="Crear una categoría y seguir">
+          <span>🏷️</span>
         </button>
-        <button class="dash-smart-btn" onclick="openQuickTaskCreate()" title="Crear una task y verla en el calendario">
-          <span class="dash-smart-icon">✅</span>
-          <span>Nueva task</span>
+        <button class="dash-qa-btn" onclick="openQuickTaskCreate()" title="Nueva task" aria-label="Crear una task y verla en el calendario">
+          <span>✅</span>
         </button>
-        <button class="dash-smart-btn" id="db2-global-privacy-btn" onclick="toggleGlobalPrivacy()" title="Ocultar todos los montos (Privacy Mode)">
-          <span class="dash-smart-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="width:16px;height:16px;"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg></span>
-          <span id="db2-global-privacy-label">Ocultar montos</span>
+        <button class="dash-qa-btn" id="db2-global-privacy-btn" onclick="toggleGlobalPrivacy()" title="Ocultar montos" aria-label="Ocultar todos los montos (Privacy Mode)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
         </button>
       </div>
-    </div>
 
-    <div class="header-actions dash-view-toolbar">
-      <div class="dash-view-kicker">Vistas</div>
-      <!-- Mes toggle -->
-      <div class="surface-toggle" style="display:none">
-        <button id="dash-toggle-mes" class="surface-toggle-btn active" onclick="setDashView('mes')">Mes</button>
-        <button id="dash-toggle-visa" class="surface-toggle-btn" onclick="setDashView('visa')" style="display:none">Vista VISA</button>
+      <div class="header-actions dash-view-toolbar dash-view-compact">
+        <div class="surface-toggle">
+          <button id="dash-toggle-mes" class="surface-toggle-btn active" onclick="setDashView('mes')">Mes</button>
+          <button id="dash-toggle-visa" class="surface-toggle-btn" onclick="setDashView('visa')">VISA</button>
+        </div>
+        <select id="dash-month-select" class="txn-select" onchange="setDashMonthFromSelect(this.value)">
+          <option value="">Mes actual</option>
+        </select>
       </div>
-      <!-- Period selector (changes based on toggle) -->
-      <select id="dash-month-select" class="txn-select" onchange="setDashMonthFromSelect(this.value)">
-        <option value="">Mes actual</option>
-      </select>
-    </div>
     </div>
   <!-- Cabecera de ciclo de tarjeta (solo visible en vista TC) -->
   <div id="dash-tc-cycle-header" class="dash-tc-cycle-header" style="display:none;">
@@ -3316,9 +3304,9 @@ window.addEventListener('unhandledrejection',function(e){
 <script src="js/config.js"></script>
 <script src="js/state.js?v=20260628a"></script>
 <script src="js/i18n.js"></script>
-<script src="js/utils.js?v=20260628a"></script>
+<script src="js/utils.js?v=20260705a"></script>
 <script src="js/import.js?v=20260628a"></script>
-<script src="js/dashboard.js?v=20260705a"></script>
+<script src="js/dashboard.js?v=20260705b"></script>
 <script src="js/transactions.js?v=20260628b"></script>
 <script src="js/analytics.js?v=20260609c"></script>
 <script src="js/expenses.js?v=20260628b"></script>
