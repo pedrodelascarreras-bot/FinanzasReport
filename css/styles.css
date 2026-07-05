@@ -534,20 +534,25 @@ body { padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inse
 .nav-section { display: flex; flex-direction: column; margin-bottom: 2px; }
 .nav-section-header {
   display: flex; align-items: center; gap: 8px;
-  padding: 5px 10px; border-radius: var(--r3);
-  font-size: 10.5px; font-weight: 600; letter-spacing: 0.4px;
-  text-transform: uppercase; color: var(--text4);
-  cursor: pointer; border: none; background: none;
+  padding: 8px 10px; border-radius: var(--r3);
+  font-size: 13px; font-weight: 500; letter-spacing: -0.12px;
+  text-transform: none; color: var(--text2);
+  cursor: pointer; border: 1px solid transparent; background: none;
   width: 100%; text-align: left; transition: all 0.12s; user-select: none;
 }
-.nav-section-header:hover { color: var(--text3); }
-.ns-icon { font-size: 12px; width: 17px; text-align: center; flex-shrink: 0; opacity: 0.35; display: inline-flex; align-items: center; }
+.nav-section-header:hover {
+  color: var(--text);
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.05);
+}
+.ns-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; flex-shrink: 0; opacity: 0.5; transition: opacity 0.18s; }
 .ns-label { flex: 1; }
-.ns-arrow { font-size: 11px; transition: transform 0.2s; opacity: 0.3; }
+.ns-arrow { font-size: 11px; transition: transform 0.2s; opacity: 0.35; }
 .nav-section.open .ns-arrow { transform: rotate(90deg); }
 .nav-section-body { display: none; flex-direction: column; gap: 1px; }
 .nav-section.open .nav-section-body { display: flex; }
-.nav-section.has-active .nav-section-header { color: var(--text3); }
+.nav-section.has-active .nav-section-header { color: var(--text); }
+.nav-section.has-active .ns-icon { opacity: 1; }
 
 .sidebar-stats-pill {
   padding: 10px 12px;
@@ -951,8 +956,15 @@ body.light-mode .panel-heading {
 }
 #page-dashboard .dash-view-compact .surface-toggle-btn{
   min-height:30px;
+  min-width:58px;
   padding:0 14px;
   font-size:11.5px;
+  text-align:center;
+  background:rgba(31,47,70,0.05);
+  border:1px solid rgba(31,47,70,0.06);
+}
+#page-dashboard .dash-view-compact .surface-toggle-btn.active{
+  border-color:transparent;
 }
 #page-dashboard .dash-view-compact .txn-select{
   min-height:30px;
@@ -965,7 +977,14 @@ body.light-mode .panel-heading {
 }
 /* Menos aire arriba: que los widgets arranquen apenas debajo del header global */
 body:has(#page-dashboard.active) .main{
-  padding-top:20px;
+  padding-top:14px;
+}
+body:has(#page-dashboard.active) .app-header{
+  padding:12px 0 8px;
+  margin-bottom:0;
+}
+#page-dashboard .dashboard-header{
+  min-height:0;
 }
 
 #page-dashboard .page-title {
@@ -11814,9 +11833,17 @@ body.light-mode .nav-item.active .nav-icon {
   color: #ffffff !important;
 }
 body.light-mode .nav-item .nav-icon,
+body.light-mode .ns-icon {
+  color: #6b7890 !important;
+}
 body.light-mode .nav-section-header,
 body.light-mode .nav-section.has-active .nav-section-header {
-  color: #6b7890 !important;
+  color: #44526a !important;
+}
+body.light-mode .nav-section-header:hover {
+  color: #142033 !important;
+  background: rgba(0,113,227,0.06) !important;
+  border-color: rgba(0,113,227,0.08) !important;
 }
 body.light-mode .sidebar-bottom-tools {
   background: linear-gradient(180deg, rgba(255,255,255,0), rgba(255,255,255,0.9) 28%, rgba(255,255,255,0.98));
@@ -19870,8 +19897,15 @@ body:not(.light-mode) #page-dashboard .header-actions .surface-toggle{
 body:not(.light-mode) #page-dashboard .header-actions .surface-toggle-btn{
   color:#aeb9d8;
 }
+body:not(.light-mode) #page-dashboard .dash-view-compact .surface-toggle-btn{
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(255,255,255,0.06);
+}
 body:not(.light-mode) #page-dashboard .header-actions .surface-toggle-btn.active{
   color:#ffffff;
+}
+body:not(.light-mode) #page-dashboard .dash-view-compact .surface-toggle-btn.active{
+  border-color:transparent;
 }
 body:not(.light-mode) #page-dashboard .header-actions .txn-select{
   background: rgba(26, 33, 54, 0.9);
