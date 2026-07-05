@@ -296,6 +296,11 @@ function renderSavingsPage(){
   const avgRate = rateValues.length ? Math.round(rateValues.reduce((s,v)=>s+v,0)/rateValues.length) : null;
   const monthNow = getMonthKey(new Date());
   const movementsThisMonth = deps.filter(d=>d.month===monthNow).length;
+  const prevMonthDate = new Date(); prevMonthDate.setMonth(prevMonthDate.getMonth()-1);
+  const prevMonthKey = getMonthKey(prevMonthDate);
+  const depositsThisMonthUsd = deps.filter(d=>d.month===monthNow && d.kind!=='withdrawal').reduce((s,d)=>s+toUsd(Math.abs(Number(d.amount)||0), d.currency||'ARS'),0);
+  const depositsPrevMonthUsd = deps.filter(d=>d.month===prevMonthKey && d.kind!=='withdrawal').reduce((s,d)=>s+toUsd(Math.abs(Number(d.amount)||0), d.currency||'ARS'),0);
+  const momPct = depositsPrevMonthUsd>0 ? Math.round(((depositsThisMonthUsd-depositsPrevMonthUsd)/depositsPrevMonthUsd)*100) : null;
   const sortedMoves = [...deps].sort((a,b)=>(b.month||'').localeCompare(a.month||'') || String(b.id||'').localeCompare(String(a.id||'')));
   const recentMove = sortedMoves[0] || null;
   const accountById = id => accounts.find(a=>a.id===id) || null;
@@ -322,26 +327,15 @@ function renderSavingsPage(){
   const annualProjectionUsd = avgMonthlyUsd > 0 ? avgMonthlyUsd * 12 : totalEquivUSD * 12;
 
   const iconForAccount = account => esc(account.emoji || ({banco:'🏦',billetera:'📱',efectivo:'💵',inversion:'📈',cripto:'🔷',otro:'💰'}[account.type]||'🏦'));
-  const statCard = (tone,icon,title,value,sub)=>`
-    <article class="sav2-stat-card">
-      <div class="sav2-stat-icon ${tone}">${icon}</div>
-      <div>
-        <div class="sav2-stat-title">${title}</div>
-        <div class="sav2-stat-value">${value}</div>
-        <div class="sav2-stat-sub">${sub}</div>
-      </div>
-    </article>`;
-  const accountCard = (account,index)=>{
+  const accountCardCompact = (account,index)=>{
     const color = account.color || (index===1?'#ff3b30':'#6d4aff');
-    return `<article class="sav2-list-card" onclick="editSavAccount('${account.id}')">
-      <div class="sav2-avatar" style="background:${color}16;color:${color};">${iconForAccount(account)}</div>
-      <div class="sav2-list-main">
-        <div class="sav2-list-name">${esc(account.name)}</div>
-        <div class="sav2-list-sub">${esc(account.type||'Banco')}</div>
-        <div class="sav2-account-value" style="color:${color};">${money(Number(account.balance)||0, account.currency)}</div>
-        <div class="sav2-list-foot">${accountMovementSummary(account)}</div>
+    return `<article class="sav-reg-acc-card" onclick="editSavAccount('${account.id}')">
+      <div class="sav-reg-acc-avatar" style="background:${color}1e;color:${color};">${iconForAccount(account)}</div>
+      <div class="sav-reg-acc-body">
+        <div class="sav-reg-acc-name">${esc(account.name)}</div>
+        <div class="sav-reg-acc-type">${esc(account.type||'Banco')}</div>
       </div>
-      <button class="sav2-menu-btn" onclick="event.stopPropagation();editSavAccount('${account.id}')">⋯</button>
+      <div class="sav-reg-acc-bal">${money(Number(account.balance)||0, account.currency)}</div>
     </article>`;
   };
   const recentHtml = recentMove ? (()=>{
@@ -432,46 +426,42 @@ function renderSavingsPage(){
         </div>
       </header>
 
-      <section class="sav2-top-grid">
-        <article class="sav2-feature-card">
-          <div class="sav2-feature-label">Total acumulado</div>
-          <div class="sav2-feature-currency">USD</div>
-          <div class="sav2-feature-amount">${fmtN(totalEquivUSD,2)}</div>
-          <div class="sav2-feature-pill">= $${fmtN(Math.round(totalEquivARS),2)} ARS - TC $${fmtN(usdRate,2)}</div>
-          <div class="sav2-split-card">
-            <div><span>ARS</span><strong>$${fmtN(Math.round(totalEquivARS),2)}</strong></div>
-            <div><span>USD</span><strong class="usd">USD ${fmtN(totalEquivUSD,2)}</strong></div>
-          </div>
-          <div class="sav2-vault-art" aria-hidden="true">
-            <span class="leaf l1"></span><span class="leaf l2"></span>
-            <span class="coin c1"></span><span class="coin c2"></span><span class="coin c3"></span><span class="coin c4"></span>
-            <span class="safe"><i></i><b></b></span>
-          </div>
-        </article>
-
-        <div class="sav2-summary-block">
-          <div class="sav2-section-head"><h2>Resumen rápido</h2><button>Ver detalle</button></div>
-          <div class="sav2-stat-grid">
-            ${statCard('green','🏛','Depositado este año',money(ytdDepositUsd,'USD'),ytdDeposits.length+' movimiento'+(ytdDeposits.length!==1?'s':''))}
-            ${statCard('orange','⚙','Promedio mensual ahorrado',money(avgMonthlyUsd,'USD'),depositMonths.length+' mes'+(depositMonths.length!==1?'es':'')+' con registro')}
-            ${statCard('purple','▟','Tasa de ahorro promedio',avgRate!==null?avgRate+'%':'—',avgRate!==null?rateValues.length+' mes'+(rateValues.length!==1?'es':'')+' con ingreso registrado':'Registrá ingresos para ver este dato')}
-          </div>
-
-          <section class="sav2-accounts-solo">
-            <div class="sav2-section-head compact"><h2>Mis cuentas</h2><button onclick="openSavAccountModal()">+ Agregar</button></div>
-            <div class="sav2-list-stack">
-              ${accounts.map(accountCard).join('') || '<div class="sav2-empty">Sin cuentas registradas</div>'}
+      <section class="sav-reg-section">
+        <div class="sav-reg-hd">
+          <div class="sav-reg-hd-left">
+            <div class="sav-reg-hd-icon">🏦</div>
+            <div>
+              <h2>Registro de ahorros</h2>
+              <p>Lo que ya tenés guardado, cuenta por cuenta</p>
             </div>
-          </section>
+          </div>
+          <button class="sav2-btn" onclick="openSavDepositModal()">＋ Nuevo depósito</button>
         </div>
-      </section>
 
-      <section class="sav2-bottom-strip">
-        <div><span>Liquidez total</span><strong>${money(totalEquivUSD,'USD')}</strong><small>Disponible para usar</small></div>
-        <div><span>Movimientos este mes</span><strong>${movementsThisMonth}</strong><small>Últimos 30 días</small></div>
-        <div class="with-icon"><i>⚙</i><span>Mejor meta</span><strong>${bestGoal?esc(bestGoal.name):'—'}</strong><small>${bestGoal?bestGoal.pct+'% completado':'Sin metas'}</small></div>
-        <div><span>Ahorro mensual objetivo</span><strong>${money(savingsTargetUsd,'USD')}</strong><small>Sugerido personalizable</small></div>
-        <div><span>Proyección anual</span><strong>${money(annualProjectionUsd,'USD')}</strong><small>Si mantenés el hábito</small></div>
+        <div class="sav-reg-grid">
+          <article class="sav-reg-hero">
+            <div class="sav-reg-hero-kicker">Total acumulado</div>
+            <div class="sav-reg-hero-amt">${money(totalEquivUSD,'USD')}</div>
+            <div class="sav-reg-hero-sub">≈ $${fmtN(Math.round(totalEquivARS),2)} ARS al TC $${fmtN(usdRate,2)}</div>
+            <div class="sav-reg-hero-chips">
+              ${momPct!==null?`<span class="sav-reg-hero-chip">${momPct>=0?'📈':'📉'} <b>${momPct>=0?'+':''}${momPct}%</b> vs. mes pasado</span>`:''}
+              <span class="sav-reg-hero-chip">💰 <b>${money(depositsThisMonthUsd,'USD')}</b> depositado este mes</span>
+            </div>
+          </article>
+
+          <div class="sav-reg-acc-panel">
+            <div class="sav-reg-acc-panel-hd">
+              <div>
+                <div class="sav-reg-acc-panel-title">Mis cuentas</div>
+                <div class="sav-reg-acc-panel-sub">${accounts.length} cuenta${accounts.length!==1?'s':''} activa${accounts.length!==1?'s':''}</div>
+              </div>
+            </div>
+            <div class="sav-reg-acc-list">
+              ${accounts.map(accountCardCompact).join('')}
+              <button class="sav-reg-acc-add" onclick="openSavAccountModal()">＋ Agregar cuenta</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="sav2-activity-section">
