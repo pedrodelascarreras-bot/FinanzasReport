@@ -423,14 +423,29 @@ function renderSavingsPage(){
     const net = accMoves.reduce((s,d)=>s+savSignedAmount(d),0);
     return accMoves.length+' movimiento'+(accMoves.length!==1?'s':'')+' - '+money(Math.abs(net), account.currency);
   };
-  // El progreso de cada meta viene de sus propios aportes (contributions), no de una
-  // cuenta compartida — así dos metas sin vincular no muestran el mismo número.
+  // El progreso de cada meta combina sus aportes propios (contributions) más una
+  // porción de tu ahorro general (Registro de ahorros), repartida en cascada por
+  // prioridad — así cada meta refleja plata real sin que todas muestren el mismo número.
   const contribAmountInGoalCurrency = (c,goal)=>{
     const amt = Math.abs(Number(c.amount)||0);
     if(!c.currency || c.currency===goal.currency) return amt;
     return goal.currency==='USD' ? toUsd(amt,c.currency) : toArs(amt,c.currency);
   };
-  const goalCurrent = goal=>(goal.contributions||[]).reduce((s,c)=>s+contribAmountInGoalCurrency(c,goal),0);
+  const manualSavedInGoalCurrency = goal=>(goal.contributions||[]).reduce((s,c)=>s+contribAmountInGoalCurrency(c,goal),0);
+  const usdToGoalCurrency = (amountUsd,goal)=>goal.currency==='USD' ? amountUsd : toArs(amountUsd,'USD');
+  const goalPoolAlloc = new Map();
+  {
+    let remainingPoolUsd = totalEquivUSD;
+    sortSavGoals(goals, 'priority', toUsd).forEach(g=>{
+      const manual = manualSavedInGoalCurrency(g);
+      const manualUsd = toUsd(manual, g.currency);
+      const remainingTargetUsd = Math.max(0, toUsd(g.target,g.currency) - manualUsd);
+      const allocUsd = Math.min(remainingPoolUsd, remainingTargetUsd);
+      remainingPoolUsd -= allocUsd;
+      goalPoolAlloc.set(g.id, usdToGoalCurrency(allocUsd,g));
+    });
+  }
+  const goalCurrent = goal=>manualSavedInGoalCurrency(goal) + (goalPoolAlloc.get(goal.id)||0);
   const goalMonthlyRate = goal=>{
     const byMonth = {};
     (goal.contributions||[]).forEach(c=>{ byMonth[c.month] = (byMonth[c.month]||0) + contribAmountInGoalCurrency(c,goal); });
