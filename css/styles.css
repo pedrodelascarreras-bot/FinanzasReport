@@ -29467,3 +29467,128 @@ body.light-mode .tag-compare-bar-wrap { background: transparent; }
 .app.sidebar-collapsed .sidebar:hover .ns-icon {
   margin: 0 !important; width: 18px !important;
 }
+
+/* ════════════════════════════════════════════════
+   SIDEBAR — rediseño consolidado (solid, simétrico)
+   Todo lo de esta sección va scopeado a #app-sidebar
+   con !important a propósito: el resto del archivo
+   tiene docenas de reglas fragmentadas por tema para
+   el sidebar (histórico); en vez de perseguirlas una
+   por una, este bloque es la única fuente de verdad
+   para su apariencia y gana la cascada por diseño.
+════════════════════════════════════════════════ */
+#app-sidebar {
+  --sb-pill-bg: rgba(255,255,255,0.05);
+  --sb-hover-bg: rgba(255,255,255,0.08);
+  --sb-solid-bg: #0d1324;
+  --sb-gradient: linear-gradient(135deg, var(--blue) 0%, var(--purple) 100%);
+}
+body.light-mode #app-sidebar {
+  --sb-pill-bg: rgba(49,67,96,0.05);
+  --sb-hover-bg: rgba(49,67,96,0.08);
+  --sb-solid-bg: #ffffff;
+}
+#app-sidebar {
+  background: var(--sb-solid-bg) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  border-right: 1px solid var(--border) !important;
+}
+.app:not(.sidebar-collapsed) #app-sidebar {
+  padding: 14px 10px 16px !important;
+}
+
+/* brand row */
+.app:not(.sidebar-collapsed) #app-sidebar .sidebar-logo-row {
+  display: flex !important; align-items: center !important; justify-content: space-between !important;
+  min-height: 36px !important; margin-bottom: 14px !important; padding: 0 4px !important;
+}
+#app-sidebar .sb-brand-mark {
+  width: 24px; height: 24px; border-radius: 7px; flex-shrink: 0;
+  background: var(--sb-gradient);
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-family: var(--font); font-weight: 800; font-size: 12px;
+}
+#app-sidebar .sb-brand-name {
+  font-family: var(--font); font-weight: 800; font-size: 15px; letter-spacing: -0.02em;
+  background: var(--sb-gradient); -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.app.sidebar-collapsed #app-sidebar .sb-brand-name { display: none !important; }
+.app.sidebar-collapsed #app-sidebar .sidebar-logo-row { justify-content: center !important; }
+
+/* nav items + section header — misma tipografía, altura y radio para todo */
+.app:not(.sidebar-collapsed) #app-sidebar .nav-item,
+.app:not(.sidebar-collapsed) #app-sidebar .nav-section-header {
+  min-height: 38px !important; height: auto !important;
+  padding: 0 10px !important; gap: 10px !important;
+  border-radius: 10px !important;
+  font-family: var(--font) !important; font-size: 13px !important; font-weight: 600 !important;
+  letter-spacing: -0.01em !important;
+  color: var(--text2) !important;
+  background: none !important; border-color: transparent !important; box-shadow: none !important;
+  transform: none !important;
+}
+.app:not(.sidebar-collapsed) #app-sidebar .nav-item:hover,
+.app:not(.sidebar-collapsed) #app-sidebar .nav-section-header:hover {
+  background: var(--sb-hover-bg) !important; color: var(--text) !important;
+  border-color: transparent !important; transform: none !important; box-shadow: none !important;
+}
+.app:not(.sidebar-collapsed) #app-sidebar .nav-item.active {
+  background: var(--sb-gradient) !important; color: #fff !important;
+  border-color: transparent !important; box-shadow: 0 6px 16px rgba(124,58,237,0.28) !important;
+}
+.app:not(.sidebar-collapsed) #app-sidebar .nav-icon,
+.app:not(.sidebar-collapsed) #app-sidebar .ns-icon {
+  width: 18px !important; height: 18px !important; opacity: 0.55 !important;
+}
+.app:not(.sidebar-collapsed) #app-sidebar .nav-item:hover .nav-icon,
+.app:not(.sidebar-collapsed) #app-sidebar .nav-item.active .nav-icon,
+.app:not(.sidebar-collapsed) #app-sidebar .nav-section.has-active .ns-icon {
+  opacity: 1 !important;
+}
+.app:not(.sidebar-collapsed) #app-sidebar .nav-section.has-active .nav-section-header {
+  color: var(--text) !important;
+}
+.app:not(.sidebar-collapsed) #app-sidebar .ns-arrow { opacity: 0.4 !important; font-size: 11px !important; }
+.app:not(.sidebar-collapsed) #app-sidebar .nav-item.sub {
+  padding-left: 30px !important; font-weight: 600 !important; font-size: 13px !important; color: var(--text3) !important;
+}
+.app:not(.sidebar-collapsed) #app-sidebar .nav-item.sub:hover { color: var(--text2) !important; background: var(--sb-hover-bg) !important; }
+.app:not(.sidebar-collapsed) #app-sidebar .nav-item.sub.active { background: var(--sb-gradient) !important; color: #fff !important; }
+
+/* bottom tools */
+#app-sidebar .sidebar-bottom-tools { gap: 6px !important; padding-top: 10px !important; background: none !important; }
+
+.app:not(.sidebar-collapsed) #app-sidebar .gmail-sync-btn {
+  min-height: 38px !important; padding: 0 10px !important; gap: 10px !important;
+  border-radius: 10px !important; border: 1px solid var(--border) !important; background: var(--sb-pill-bg) !important;
+  font-family: var(--font) !important; font-size: 13px !important; font-weight: 600 !important; color: var(--text2) !important;
+  box-shadow: none !important;
+}
+.app:not(.sidebar-collapsed) #app-sidebar .gmail-sync-btn:hover { background: var(--sb-hover-bg) !important; color: var(--text) !important; }
+.app:not(.sidebar-collapsed) #app-sidebar .gmail-sync-glyph {
+  width: 20px !important; height: 20px !important; font-size: 13px !important; font-weight: 800 !important;
+  display: flex !important; align-items: center !important; justify-content: center !important;
+  color: var(--blue) !important; flex-shrink: 0 !important; line-height: 1 !important;
+}
+.app:not(.sidebar-collapsed) #app-sidebar .gmail-sync-copy { flex: 1 !important; min-width: 0 !important; }
+.app:not(.sidebar-collapsed) #app-sidebar #gmail-sync-label {
+  font-size: 13px !important; font-weight: 600 !important; color: inherit !important;
+  white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important; display: block !important;
+}
+.app:not(.sidebar-collapsed) #app-sidebar #gmail-sync-dot { width: 6px !important; height: 6px !important; border-radius: 50% !important; box-shadow: none !important; }
+
+.app:not(.sidebar-collapsed) #app-sidebar .sidebar-theme-switch { display: grid !important; grid-template-columns: 1fr 1fr !important; gap: 6px !important; }
+.app:not(.sidebar-collapsed) #app-sidebar .theme-mode-btn {
+  min-height: 38px !important; height: auto !important; border-radius: 10px !important;
+  border: 1px solid var(--border) !important; background: var(--sb-pill-bg) !important; color: var(--text2) !important;
+  font-family: var(--font) !important; font-size: 13px !important; font-weight: 600 !important; letter-spacing: -0.01em !important;
+  gap: 6px !important; box-shadow: none !important;
+}
+.app:not(.sidebar-collapsed) #app-sidebar .theme-mode-btn:hover { color: var(--text) !important; background: var(--sb-hover-bg) !important; transform: none !important; }
+.app:not(.sidebar-collapsed) #app-sidebar .theme-mode-btn.active {
+  background: var(--sb-gradient) !important; color: #fff !important; border-color: transparent !important;
+  box-shadow: 0 6px 16px rgba(124,58,237,0.28) !important;
+}
+.app:not(.sidebar-collapsed) #app-sidebar .theme-mode-icon { font-size: 14px !important; }
