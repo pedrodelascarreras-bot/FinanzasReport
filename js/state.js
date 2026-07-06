@@ -13,7 +13,7 @@ let state={
   incomeMonths:[],       // V1: [{id,month,sources,extraArs,extraUsd}] · V2: [{id,month,schemaVersion:2,salary:{ars,usd,commissions},extras:[]}]
   bankAccounts:[],       // [{id,name,currency,emoji,createdAt}] — for income destination tracking
   savAccounts:[],        // [{id,name,emoji,balance,currency,type,yieldPct,color}]
-  savGoals:[],           // [{id,name,emoji,target,currency,current,deadline,accountId,color,stageId,tags:[]}]
+  savGoals:[],           // [{id,name,emoji,target,currency,current,deadline,accountId,color,stageId,tags:[],contributions:[{id,amount,currency,month}],pinned,completedAt}]
   savDeposits:[],        // [{id,month:'2025-03',accountId,amount,currency,note,kind}] — 100% manual
   savStages:[],          // [{id,name,color}] — etapas del pipeline de metas (se auto-inicializa con defaults)
   incViewCurrency:'ARS',

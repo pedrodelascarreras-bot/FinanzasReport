@@ -58,7 +58,21 @@ function ensureSavStages(){
       g.tags = [];
       changed = true;
     }
+    if(!Array.isArray(g.contributions)){
+      g.contributions = [];
+      changed = true;
+    }
+    if(typeof g.pinned !== 'boolean'){
+      g.pinned = false;
+      changed = true;
+    }
+    if(g.completedAt === undefined){
+      g.completedAt = null;
+      changed = true;
+    }
   });
+  if(!state.savSort) { state.savSort = 'deadline'; changed = true; }
+  if(!state.savPipelineView) { state.savPipelineView = 'kanban'; changed = true; }
   if(changed) saveState();
 }
 
@@ -149,6 +163,95 @@ document.addEventListener('click', ()=>{
 function setSavTagFilter(key){
   state.savTagFilter = state.savTagFilter===key ? null : key;
   renderSavingsPage();
+}
+
+// ── Pipeline pro: búsqueda, orden, vista, prioridad, aportes rápidos ──
+window._savSearchQuery = '';
+function setSavSearchQuery(value){
+  window._savSearchQuery = value || '';
+  renderSavingsPage();
+  const inp = document.getElementById('sav-pipe-search-input');
+  if(inp){ inp.focus(); inp.setSelectionRange(inp.value.length, inp.value.length); }
+}
+function setSavSort(value){
+  state.savSort = value;
+  saveState();
+  renderSavingsPage();
+}
+function setSavPipelineView(view){
+  state.savPipelineView = view;
+  saveState();
+  renderSavingsPage();
+}
+function toggleSavGoalPin(goalId){
+  const g = (state.savGoals||[]).find(x=>x.id===goalId);
+  if(!g) return;
+  g.pinned = !g.pinned;
+  saveState();
+  renderSavingsPage();
+}
+function sortSavGoals(list, sortKey, toUsdFn){
+  const arr = [...list];
+  const deadlineCmp = (a,b)=>{
+    if(!a.deadline && !b.deadline) return 0;
+    if(!a.deadline) return 1;
+    if(!b.deadline) return -1;
+    return a.deadline.localeCompare(b.deadline);
+  };
+  if(sortKey==='progress') return arr.sort((a,b)=>b.pct-a.pct || deadlineCmp(a,b));
+  if(sortKey==='value') return arr.sort((a,b)=>toUsdFn(b.target,b.currency)-toUsdFn(a.target,a.currency));
+  if(sortKey==='priority') return arr.sort((a,b)=>{
+    if(!!b.pinned !== !!a.pinned) return (b.pinned?1:0)-(a.pinned?1:0);
+    const aUrgent = (a.tags||[]).includes('urgente'), bUrgent = (b.tags||[]).includes('urgente');
+    if(aUrgent !== bUrgent) return (bUrgent?1:0)-(aUrgent?1:0);
+    return deadlineCmp(a,b);
+  });
+  return arr.sort(deadlineCmp);
+}
+
+window._savQuickAddGoalId = null;
+function openSavQuickAdd(goalId){
+  window._savQuickAddGoalId = goalId;
+  const g = (state.savGoals||[]).find(x=>x.id===goalId);
+  if(!g) return;
+  document.getElementById('sav-quickadd-goal-name').textContent = g.name;
+  document.getElementById('sav-quickadd-goal-currency').textContent = g.currency;
+  document.getElementById('sav-quickadd-amount').value = '';
+  openModal('modal-sav-quickadd');
+  setTimeout(()=>document.getElementById('sav-quickadd-amount')?.focus(), 50);
+}
+function saveSavQuickAdd(){
+  const goalId = window._savQuickAddGoalId;
+  const g = (state.savGoals||[]).find(x=>x.id===goalId);
+  if(!g) return;
+  const amount = parseFloat(document.getElementById('sav-quickadd-amount').value)||0;
+  if(amount<=0){ showToast('⚠️ Ingresá un monto','error'); return; }
+  if(!Array.isArray(g.contributions)) g.contributions=[];
+  g.contributions.push({id:'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,5), amount, currency:g.currency, month:getMonthKey(new Date())});
+  saveState();
+  closeModal('modal-sav-quickadd');
+  renderSavingsPage();
+  showToast('✓ Aporte sumado a '+g.name,'success');
+}
+function deleteSavGoalContribution(goalId, contribId){
+  const g = (state.savGoals||[]).find(x=>x.id===goalId);
+  if(!g) return;
+  g.contributions = (g.contributions||[]).filter(c=>c.id!==contribId);
+  saveState();
+  renderSavingsPage();
+  renderSavGoalContributionsList(goalId);
+}
+function renderSavGoalContributionsList(goalId){
+  const el = document.getElementById('sav-goal-contributions-list'); if(!el) return;
+  const g = (state.savGoals||[]).find(x=>x.id===goalId);
+  const contribs = g ? [...(g.contributions||[])].sort((a,b)=>(b.month||'').localeCompare(a.month||'')) : [];
+  if(!contribs.length){ el.innerHTML = '<div style="font-size:11.5px;color:var(--text3);">Todavía no sumaste aportes a esta meta.</div>'; return; }
+  el.innerHTML = contribs.map(c=>`
+    <div class="sav-contrib-row">
+      <span class="sav-contrib-month">${esc(formatSavDeadline(c.month))}</span>
+      <span class="sav-contrib-amt">${c.currency==='USD'?'USD ':'$'}${fmtN(Number(c.amount)||0,2)}</span>
+      <button class="sav-contrib-del" onclick="deleteSavGoalContribution('${goalId}','${c.id}')" title="Eliminar aporte">✕</button>
+    </div>`).join('');
 }
 
 // ── Etapas del pipeline: CRUD ──
@@ -320,21 +423,59 @@ function renderSavingsPage(){
     const net = accMoves.reduce((s,d)=>s+savSignedAmount(d),0);
     return accMoves.length+' movimiento'+(accMoves.length!==1?'s':'')+' - '+money(Math.abs(net), account.currency);
   };
-  const goalCurrent = goal=>{
-    if(goal.accountId){
-      const acc = accountById(goal.accountId);
-      return acc ? (goal.currency==='USD' ? toUsd(acc.balance,acc.currency) : toArs(acc.balance,acc.currency)) : 0;
-    }
-    return goal.currency==='USD' ? totalEquivUSD : totalEquivARS;
+  // El progreso de cada meta viene de sus propios aportes (contributions), no de una
+  // cuenta compartida — así dos metas sin vincular no muestran el mismo número.
+  const contribAmountInGoalCurrency = (c,goal)=>{
+    const amt = Math.abs(Number(c.amount)||0);
+    if(!c.currency || c.currency===goal.currency) return amt;
+    return goal.currency==='USD' ? toUsd(amt,c.currency) : toArs(amt,c.currency);
   };
+  const goalCurrent = goal=>(goal.contributions||[]).reduce((s,c)=>s+contribAmountInGoalCurrency(c,goal),0);
+  const goalMonthlyRate = goal=>{
+    const byMonth = {};
+    (goal.contributions||[]).forEach(c=>{ byMonth[c.month] = (byMonth[c.month]||0) + contribAmountInGoalCurrency(c,goal); });
+    const months = Object.keys(byMonth);
+    if(!months.length) return 0;
+    return months.reduce((s,m)=>s+byMonth[m],0)/months.length;
+  };
+  const monthNowKey = getMonthKey(new Date());
+  const addMonthsToKey = (monthKey,n)=>{
+    const [y,m] = monthKey.split('-').map(Number);
+    const d = new Date(y,(m-1)+n,1);
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');
+  };
+  let goalCompletionChanged = false;
   const goalModels = goals.map(g=>{
     const current = goalCurrent(g);
     const pct = g.target > 0 ? Math.min(100,Math.round((current/g.target)*100)) : 0;
-    return {...g,current,pct};
+    if(pct>=100 && !g.completedAt){ g.completedAt = monthNowKey; goalCompletionChanged = true; }
+    // Cachea el progreso calculado en el objeto persistido para que otras páginas
+    // (dashboard, insights, reportes) lean el mismo número sin recalcularlo.
+    if(g.current !== current){ g.current = current; goalCompletionChanged = true; }
+    const rate = goalMonthlyRate(g);
+    let eta = {status:'unknown', text:'Suma un aporte para estimar tu ritmo'};
+    if(pct>=100){
+      eta = {status:'done', text:'🎉 meta cumplida'};
+    } else if(rate>0){
+      const monthsLeft = Math.max(1,Math.ceil((g.target-current)/rate));
+      const etaMonth = addMonthsToKey(monthNowKey, monthsLeft);
+      const tight = !!(g.deadline && etaMonth > g.deadline);
+      eta = {status: tight?'tight':'ontrack', text:'⏳ ~'+monthsLeft+' mes'+(monthsLeft!==1?'es':'')+' a este ritmo'+(tight?' — no llega a '+formatSavDeadline(g.deadline):'')};
+    }
+    return {...g,current,pct,eta};
   });
+  if(goalCompletionChanged) saveState();
   const bestGoal = goalModels.length ? [...goalModels].sort((a,b)=>b.pct-a.pct)[0] : null;
   const savingsTargetUsd = Number(state.savMonthlyTargetUsd || state.savingsMonthlyTargetUsd || 500);
   const annualProjectionUsd = avgMonthlyUsd > 0 ? avgMonthlyUsd * 12 : totalEquivUSD * 12;
+
+  // ── Pipeline: métricas globales ──
+  const totalWishlistUsd = goalModels.reduce((s,g)=>s+toUsd(g.target,g.currency),0);
+  const totalSavedUsd = goalModels.reduce((s,g)=>s+toUsd(g.current,g.currency),0);
+  const globalPipelinePct = totalWishlistUsd>0 ? Math.round((totalSavedUsd/totalWishlistUsd)*100) : 0;
+  const activeGoalsCount = goalModels.filter(g=>g.pct<100).length;
+  const completedThisYearCount = goalModels.filter(g=>g.completedAt && g.completedAt.startsWith(String(thisYear))).length;
+  const contribsThisMonthUsd = goalModels.reduce((s,g)=>s+(g.contributions||[]).filter(c=>c.month===monthNowKey).reduce((s2,c)=>s2+toUsd(contribAmountInGoalCurrency(c,g),g.currency),0),0);
 
   const iconForAccount = account => esc(account.emoji || ({banco:'🏦',billetera:'📱',efectivo:'💵',inversion:'📈',cripto:'🔷',otro:'💰'}[account.type]||'🏦'));
   const accountCardCompact = (account,index)=>{
@@ -364,7 +505,13 @@ function renderSavingsPage(){
 
   // ── Pipeline de metas ──
   const tagFilter = state.savTagFilter || null;
-  const visibleGoals = tagFilter ? goalModels.filter(g=>(g.tags||[]).includes(tagFilter)) : goalModels;
+  const searchQuery = (window._savSearchQuery||'').trim().toLowerCase();
+  let visibleGoals = tagFilter ? goalModels.filter(g=>(g.tags||[]).includes(tagFilter)) : goalModels;
+  if(searchQuery) visibleGoals = visibleGoals.filter(g=>g.name.toLowerCase().includes(searchQuery));
+  const sortKey = state.savSort || 'deadline';
+  visibleGoals = sortSavGoals(visibleGoals, sortKey, toUsd);
+  const etaClass = status => status==='done'?'done':(status==='tight'?'tight':(status==='ontrack'?'':'unknown'));
+
   const savPipelineCard = g=>{
     const tags = g.tags||[];
     const isUrgent = tags.includes('urgente');
@@ -372,7 +519,9 @@ function renderSavingsPage(){
       const t=SAV_TAG_MAP[k]; if(!t) return '';
       return `<span class="sav-pipe-tag" style="background:${t.color}1e;color:${t.color};">${esc(t.label)}</span>`;
     }).join('');
-    const barColor = g.pct>=100 ? '#34c759' : (isUrgent ? 'linear-gradient(90deg,#ff453a,#ff9500)' : 'linear-gradient(90deg,#5e5ce6,#0a84ff)');
+    const ringColor = g.pct>=100 ? '#34c759' : (isUrgent ? '#ff3b30' : (g.color||'#5e5ce6'));
+    const ringR = 15, ringCirc = 2*Math.PI*ringR;
+    const ringOffset = (ringCirc * (1 - g.pct/100)).toFixed(1);
     const tagOptsHtml = SAV_TAGS.map(t=>{
       const checked = tags.includes(t.key);
       return `<div class="sav-pipe-tag-opt ${checked?'checked':''}" onclick="event.stopPropagation();toggleSavGoalTag('${g.id}','${t.key}')">
@@ -381,48 +530,70 @@ function renderSavingsPage(){
       </div>`;
     }).join('');
     return `
-    <div class="sav-pipe-card ${isUrgent?'urgent':''}" draggable="true"
+    <div class="sav-pipe-card ${isUrgent?'urgent':''} ${g.pct>=100?'complete':''}" draggable="true"
          ondragstart="onSavCardDragStart(event,'${g.id}')" ondragend="onSavCardDragEnd(event)"
          onclick="editSavGoal('${g.id}')">
       <div class="sav-pipe-card-top">
-        <div class="sav-pipe-avatar" style="background:${(g.color||'#5e5ce6')}22;">${esc(g.emoji||'🎯')}</div>
-        <div class="sav-pipe-card-name">${esc(g.name)}</div>
+        <div class="sav-pipe-ring-wrap">
+          <svg width="36" height="36" viewBox="0 0 36 36">
+            <circle cx="18" cy="18" r="${ringR}" fill="none" class="sav-pipe-ring-track" stroke-width="3.5"></circle>
+            <circle cx="18" cy="18" r="${ringR}" fill="none" stroke="${ringColor}" stroke-width="3.5" stroke-linecap="round"
+              stroke-dasharray="${ringCirc.toFixed(1)}" stroke-dashoffset="${ringOffset}" transform="rotate(-90 18 18)"></circle>
+          </svg>
+          <span class="sav-pipe-ring-emoji">${esc(g.emoji||'🎯')}</span>
+        </div>
+        <div class="sav-pipe-card-name-wrap">
+          <div class="sav-pipe-card-name">${esc(g.name)}</div>
+          <div class="sav-pipe-card-amt"><b>${money(g.current||0,g.currency)}</b> / ${money(Number(g.target)||0,g.currency)}</div>
+        </div>
+        <button class="sav-pipe-pin ${g.pinned?'active':''}" onclick="event.stopPropagation();toggleSavGoalPin('${g.id}')" title="${g.pinned?'Quitar prioridad':'Marcar prioridad'}">${g.pinned?'★':'☆'}</button>
       </div>
-      <div class="sav-pipe-card-amt"><b>${money(g.current||0,g.currency)}</b> / ${money(Number(g.target)||0,g.currency)}</div>
-      <div class="sav-pipe-track"><div class="sav-pipe-fill" style="width:${g.pct}%;background:${barColor};"></div></div>
+      <div class="sav-pipe-eta ${etaClass(g.eta.status)}">${g.eta.text}</div>
       ${tagsHtml?`<div class="sav-pipe-tags">${tagsHtml}</div>`:''}
       <div class="sav-pipe-card-foot">
         <div class="sav-pipe-card-foot-left">
           <span class="sav-pipe-pct">${g.pct}%</span>
           ${g.deadline?`<span class="sav-pipe-deadline ${savDeadlineUrgencyClass(g.deadline)}">📅 ${esc(formatSavDeadline(g.deadline))}</span>`:''}
         </div>
-        <button class="sav-pipe-tag-add" onclick="event.stopPropagation();toggleSavTagPicker('${g.id}')" title="Categorizar">🏷️</button>
+        <div style="display:flex;gap:5px;">
+          <button class="sav-pipe-quickadd" onclick="event.stopPropagation();openSavQuickAdd('${g.id}')" title="Sumar ahorro">＋</button>
+          <button class="sav-pipe-tag-add" onclick="event.stopPropagation();toggleSavTagPicker('${g.id}')" title="Categorizar">🏷️</button>
+        </div>
       </div>
       <div class="sav-pipe-tag-picker" id="sav-tag-picker-${g.id}">${tagOptsHtml}</div>
     </div>`;
   };
   const savPipelineColumn = (stage)=>{
-    // Ordenadas por fecha límite: la más próxima primero. Sin fecha, al final.
-    const stageGoals = visibleGoals.filter(g=>g.stageId===stage.id).sort((a,b)=>{
-      if(!a.deadline && !b.deadline) return 0;
-      if(!a.deadline) return 1;
-      if(!b.deadline) return -1;
-      return a.deadline.localeCompare(b.deadline);
-    });
+    const stageGoals = visibleGoals.filter(g=>g.stageId===stage.id);
     const total = stageGoals.reduce((s,g)=>s+(Number(g.target)||0),0);
+    const avgPct = stageGoals.length ? Math.round(stageGoals.reduce((s,g)=>s+g.pct,0)/stageGoals.length) : 0;
+    const emptyHtml = `<div class="sav-pipe-col-empty"><div class="sav-pipe-col-empty-icon">🎯</div><div class="sav-pipe-col-empty-txt">Arrastrá una meta acá</div></div>`;
     return `
-    <div class="sav-pipe-col" data-stage="${stage.id}"
+    <div class="sav-pipe-col ${stage.id==='sav_st_cumplida'?'done':''}" data-stage="${stage.id}"
          ondragover="onSavColDragOver(event)" ondragleave="onSavColDragLeave(event)" ondrop="onSavColDrop(event,'${stage.id}')">
       <div class="sav-pipe-col-hd" draggable="true" ondragstart="onSavStageDragStart(event,'${stage.id}')" ondragend="onSavStageDragEnd(event)">
         <span class="sav-pipe-col-accent" style="background:${stage.color}"></span>
         <span class="sav-pipe-col-title">${esc(stage.name)}</span>
-      </div>
-      <div class="sav-pipe-col-stats">
         <span class="sav-pipe-col-count">${stageGoals.length}</span>
-        <span class="sav-pipe-col-total">valor total: <b>$${fmtN(total,0)}</b></span>
       </div>
-      <div class="sav-pipe-col-cards">${stageGoals.map(savPipelineCard).join('')}</div>
-      <button class="sav-pipe-add-card" onclick="openSavGoalModal('${stage.id}')">＋ meta</button>
+      <div class="sav-pipe-col-body">
+        <div class="sav-pipe-col-stats"><span>valor: <b>$${fmtN(total,0)}</b></span>${stageGoals.length?`<span>avg ${avgPct}%</span>`:''}</div>
+        ${stageGoals.length ? stageGoals.map(savPipelineCard).join('') : emptyHtml}
+        <button class="sav-pipe-add-card" onclick="openSavGoalModal('${stage.id}')">＋ meta</button>
+      </div>
+    </div>`;
+  };
+  const savPipelineListRow = g=>{
+    const stage = (state.savStages||[]).find(s=>s.id===g.stageId);
+    return `
+    <div class="sav-pipe-list-row" onclick="editSavGoal('${g.id}')">
+      <button class="sav-pipe-pin ${g.pinned?'active':''}" onclick="event.stopPropagation();toggleSavGoalPin('${g.id}')" title="Prioridad">${g.pinned?'★':'☆'}</button>
+      <div class="sav-pipe-list-name"><span class="em" style="background:${(g.color||'#5e5ce6')}22;">${esc(g.emoji||'🎯')}</span>${esc(g.name)}</div>
+      <div class="sav-pipe-list-track"><div style="width:${g.pct}%;background:${g.pct>=100?'#34c759':(g.color||'#5e5ce6')};"></div></div>
+      <span class="sav-pipe-list-eta ${etaClass(g.eta.status)}">${g.eta.status==='done'?'Cumplida':(g.eta.status==='unknown'?'—':g.eta.text.replace('⏳ ',''))}</span>
+      <span class="sav-pipe-list-stage">${stage?`<span class="dot" style="background:${stage.color}"></span>${esc(stage.name)}`:'—'}</span>
+      <span class="sav-pipe-list-deadline ${g.deadline?savDeadlineUrgencyClass(g.deadline):''}">${g.deadline?esc(formatSavDeadline(g.deadline)):'—'}</span>
+      <button class="sav-pipe-quickadd" onclick="event.stopPropagation();openSavQuickAdd('${g.id}')" title="Sumar ahorro">＋</button>
     </div>`;
   };
   const filterChipsHtml = SAV_TAGS.map(t=>`
@@ -430,6 +601,34 @@ function renderSavingsPage(){
       <span class="dot" style="background:${t.color}"></span>${esc(t.label)}
     </button>`).join('');
   const boardHtml = (state.savStages||[]).map(savPipelineColumn).join('');
+  const listHtml = visibleGoals.length ? visibleGoals.map(savPipelineListRow).join('')
+    : `<div class="sav-pipe-col-empty" style="padding:34px 10px;"><div class="sav-pipe-col-empty-icon">🎯</div><div class="sav-pipe-col-empty-txt">No hay metas que coincidan con el filtro</div></div>`;
+  const pipelineView = state.savPipelineView || 'kanban';
+  const sortLabels = {priority:'Prioridad',progress:'% avance',deadline:'Fecha límite',value:'Valor'};
+  const sortOptionsHtml = Object.keys(sortLabels).map(k=>`<option value="${k}" ${sortKey===k?'selected':''}>Ordenar: ${sortLabels[k]}</option>`).join('');
+  const statsHtml = `
+    <div class="sav-pipe-stats">
+      <div class="sav-pipe-stat">
+        <div class="sav-pipe-stat-label">Valor total wishlist</div>
+        <div class="sav-pipe-stat-value">${money(totalWishlistUsd,'USD',0)}</div>
+        <div class="sav-pipe-stat-sub">${goalModels.length} meta${goalModels.length!==1?'s':''} · ${activeGoalsCount} activa${activeGoalsCount!==1?'s':''}</div>
+      </div>
+      <div class="sav-pipe-stat">
+        <div class="sav-pipe-stat-label">Ahorrado hasta hoy</div>
+        <div class="sav-pipe-stat-value">${money(totalSavedUsd,'USD',0)}</div>
+        <div class="sav-pipe-stat-sub ${contribsThisMonthUsd>0?'up':''}">${contribsThisMonthUsd>0?'↑ '+money(contribsThisMonthUsd,'USD',0)+' este mes':'Sin aportes este mes'}</div>
+      </div>
+      <div class="sav-pipe-stat">
+        <div class="sav-pipe-stat-label">Progreso global</div>
+        <div class="sav-pipe-stat-value">${globalPipelinePct}%</div>
+        <div class="sav-pipe-stat-bar"><div class="sav-pipe-stat-bar-fill" style="width:${globalPipelinePct}%;"></div></div>
+      </div>
+      <div class="sav-pipe-stat">
+        <div class="sav-pipe-stat-label">Cumplidas este año</div>
+        <div class="sav-pipe-stat-value">${completedThisYearCount}</div>
+        <div class="sav-pipe-stat-sub">${goalModels.length - activeGoalsCount} en total</div>
+      </div>
+    </div>`;
 
   page.innerHTML = `
     <div class="sav2-shell">
@@ -489,16 +688,25 @@ function renderSavingsPage(){
             <div class="sav-pipe-hd-icon">🎯</div>
             <div>
               <h2>Pipeline de metas</h2>
-              <p>Arrastrá cada meta por sus etapas, como un embudo de ventas</p>
+              <p>Tu wishlist de compras y objetivos, con seguimiento real de progreso</p>
             </div>
           </div>
-          <div class="sav-pipe-toolbar">
-            <div class="sav-pipe-filters">${filterChipsHtml}</div>
+        </div>
+        ${statsHtml}
+        <div class="sav-pipe-toolbar2">
+          <div class="sav-pipe-search"><span>🔎</span><input id="sav-pipe-search-input" placeholder="Buscar meta..." value="${esc(window._savSearchQuery||'')}" oninput="setSavSearchQuery(this.value)"></div>
+          <div class="sav-pipe-filters">${filterChipsHtml}</div>
+          <div class="sav-pipe-toolbar-right">
+            <select class="sav-pipe-select" onchange="setSavSort(this.value)">${sortOptionsHtml}</select>
+            <div class="sav-pipe-view-toggle">
+              <button class="${pipelineView==='kanban'?'active':''}" onclick="setSavPipelineView('kanban')">▦ Kanban</button>
+              <button class="${pipelineView==='list'?'active':''}" onclick="setSavPipelineView('list')">☰ Lista</button>
+            </div>
             <button class="sav2-btn" onclick="openSavStagesModal()">⚙ Etapas</button>
             <button class="sav2-btn-primary" onclick="openSavGoalModal()">＋ Nueva meta</button>
           </div>
         </div>
-        <div class="sav-pipe-board">${boardHtml}</div>
+        ${pipelineView==='kanban' ? `<div class="sav-pipe-board">${boardHtml}</div>` : `<div class="sav-pipe-list">${listHtml}</div>`}
       </section>
 
       <section class="sav2-activity-section">
@@ -619,6 +827,8 @@ function openSavGoalModal(stageId){
   }
   window._savGoalDraftTags = [];
   renderSavGoalTagsPicker();
+  const contribWrap=document.getElementById('sav-goal-contributions-wrap');
+  if(contribWrap) contribWrap.style.display='none';
   renderGenericColorPicker('sav-goal-color-picker','');openModal('modal-sav-goal');
 }
 function editSavGoal(id){
@@ -637,6 +847,8 @@ function editSavGoal(id){
   window._savGoalDraftTags = Array.isArray(g.tags) ? [...g.tags] : [];
   renderSavGoalTagsPicker();
   document.getElementById('btn-del-sav-goal').style.display='inline-flex';
+  const contribWrap=document.getElementById('sav-goal-contributions-wrap');
+  if(contribWrap){ contribWrap.style.display='block'; renderSavGoalContributionsList(id); }
   renderGenericColorPicker('sav-goal-color-picker',g.color||'');openModal('modal-sav-goal');
 }
 function saveSavGoal(){
@@ -646,7 +858,9 @@ function saveSavGoal(){
   ensureSavStages();
   const stSel=document.getElementById('sav-goal-stage');
   const stageId=(stSel&&stSel.value)||state.savStages[0]?.id||null;
-  const obj={id:document.getElementById('modal-sav-goal-editing').value||Date.now().toString(36),name,emoji:document.getElementById('sav-goal-emoji').value||'🎯',target,currency:document.getElementById('sav-goal-currency').value,current:parseFloat(document.getElementById('sav-goal-current').value)||0,deadline:document.getElementById('sav-goal-deadline').value||null,accountId:document.getElementById('sav-goal-account').value||null,color,stageId,tags:[...(window._savGoalDraftTags||[])]};
+  const editingId=document.getElementById('modal-sav-goal-editing').value;
+  const existing=editingId?state.savGoals.find(x=>x.id===editingId):null;
+  const obj={id:editingId||Date.now().toString(36),name,emoji:document.getElementById('sav-goal-emoji').value||'🎯',target,currency:document.getElementById('sav-goal-currency').value,deadline:document.getElementById('sav-goal-deadline').value||null,accountId:document.getElementById('sav-goal-account').value||null,color,stageId,tags:[...(window._savGoalDraftTags||[])],contributions:existing?.contributions||[],pinned:existing?.pinned||false,completedAt:existing?.completedAt||null};
   const idx=state.savGoals.findIndex(x=>x.id===obj.id);if(idx>=0)state.savGoals[idx]=obj;else state.savGoals.push(obj);
   saveState();closeModal('modal-sav-goal');renderSavingsPage();refreshAll();showToast('✓ Meta guardada','success');
 }
