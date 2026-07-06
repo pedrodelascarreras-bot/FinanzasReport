@@ -29529,6 +29529,11 @@ body.light-mode #app-sidebar {
   background: none !important; border-color: transparent !important; box-shadow: none !important;
   transform: none !important;
 }
+.app:not(.sidebar-collapsed) #app-sidebar .nav-item > span:last-child,
+.app:not(.sidebar-collapsed) #app-sidebar .ns-label {
+  font-family: var(--font) !important; font-size: 13px !important; font-weight: 600 !important;
+  letter-spacing: -0.01em !important; color: inherit !important;
+}
 .app:not(.sidebar-collapsed) #app-sidebar .nav-item:hover,
 .app:not(.sidebar-collapsed) #app-sidebar .nav-section-header:hover {
   background: var(--sb-hover-bg) !important; color: var(--text) !important;
