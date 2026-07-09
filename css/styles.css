@@ -13435,6 +13435,15 @@ body:not(.light-mode) .sav-tag-chip-toggle { background: #171b30; }
 .savplan-amt { display: flex; align-items: baseline; gap: 5px; }
 .savplan-amt .cur { font-size: 12px; font-weight: 700; color: #8a8ea6; }
 .savplan-val { border: none; background: none; font-family: var(--font); font-size: 22px; font-weight: 800; color: #1c1a25; width: 100%; outline: none; letter-spacing: -.02em; }
+.savplan-income { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+  padding: 13px 15px; margin-bottom: 16px; border-radius: 14px; border: 1.5px solid rgba(0,184,212,0.25); background: rgba(0,184,212,0.05); }
+.savplan-income-left { min-width: 0; }
+.savplan-income-hint { font-size: 11.5px; font-weight: 600; color: #858aa3; margin-top: 4px; }
+.savplan-income-hint a { color: #00838a; font-weight: 700; cursor: pointer; text-decoration: none; }
+.savplan-income-hint b { color: #575c74; font-weight: 800; }
+.savplan-income-input { display: flex; align-items: baseline; gap: 5px; background: #fff; border: 1px solid rgba(102,103,130,0.14); border-radius: 12px; padding: 8px 12px; flex-shrink: 0; }
+.savplan-income-input .cur { font-size: 12px; font-weight: 700; color: #8a8ea6; }
+.savplan-income-val { border: none; background: none; outline: none; font-family: var(--font); font-size: 20px; font-weight: 800; color: #1c1a25; width: 120px; letter-spacing: -.02em; text-align: right; }
 .savplan-recort { margin-bottom: 2px; }
 .savplan-rlbl { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
 .savplan-rlbl a { font-size: 11.5px; font-weight: 700; color: #7C3AED; text-decoration: none; cursor: pointer; }
@@ -13521,6 +13530,10 @@ body:not(.light-mode) .savplan-step.on, body:not(.light-mode) .savplan-empty-t {
 body:not(.light-mode) .savplan-card, body:not(.light-mode) .savplan-step,
 body:not(.light-mode) .savplan-ctx-card { background: #171b30; border-color: rgba(255,255,255,0.07); box-shadow: none; }
 body:not(.light-mode) .savplan-tinput { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); }
+body:not(.light-mode) .savplan-income { background: rgba(0,184,212,0.08); border-color: rgba(0,184,212,0.3); }
+body:not(.light-mode) .savplan-income-input { background: #0d1324; border-color: rgba(255,255,255,0.1); }
+body:not(.light-mode) .savplan-income-val { color: #f0f2ff; }
+body:not(.light-mode) .savplan-income-hint a { color: #4fd6e8; }
 body:not(.light-mode) .savplan-tinput.mid { border-color: #7C3AED; }
 body:not(.light-mode) .savplan-chip { background: #171b30; color: #cfd3ea; border-color: rgba(255,255,255,0.1); }
 body:not(.light-mode) .savplan-chip.on { background: rgba(124,58,237,0.22); border-color: rgba(124,58,237,0.5); color: #c9b8ff; }

@@ -29,6 +29,8 @@ function ensureSavPlan(){
     state.savPlan.discretionaryCats = savPlanDefaultDiscretionary();
   }
   if(state.savPlan.active === undefined) state.savPlan.active = null;
+  // Ingreso previsto del mes cargado a mano (null = usar el autodetectado de Ingresos)
+  if(state.savPlan.expectedIncomeUsd === undefined) state.savPlan.expectedIncomeUsd = null;
   return state.savPlan;
 }
 
@@ -127,6 +129,17 @@ function savPlanMonthIncomeUsd(){
   return srcTotal/rate + (Number(im.extraUsd)||0) + (Number(im.extraArs)||0)/rate;
 }
 
+// Ingreso a usar en el plan: el previsto a mano gana; si no, el autodetectado.
+function savPlanEffectiveIncome(){
+  const plan = ensureSavPlan();
+  const manual = Number(plan.expectedIncomeUsd);
+  if(plan.expectedIncomeUsd != null && manual > 0){
+    return { usd: manual, source: 'manual' };
+  }
+  const auto = savPlanMonthIncomeUsd();
+  return { usd: auto, source: auto != null ? 'auto' : null };
+}
+
 // ── Análisis completo ──
 function savPlanBuildAnalysis(){
   const plan = ensureSavPlan();
@@ -153,7 +166,9 @@ function savPlanBuildAnalysis(){
   const daysRemaining = Math.max(0, cycleDays - daysElapsed);
   const weeksRemaining = Math.max(1, daysRemaining/7);
 
-  const incomeUsd = savPlanMonthIncomeUsd();
+  const income = savPlanEffectiveIncome();
+  const incomeUsd = income.usd;
+  const incomeSource = income.source;
   const projTotalUsd = prev.totalArs/rate;               // gasto proyectado = lo del ciclo anterior
   const projDiscUsd = prev.discArs/rate;
   const projFixedUsd = prev.fixedArs/rate;
@@ -189,7 +204,7 @@ function savPlanBuildAnalysis(){
   const analysis = {
     ok:true, rate, cyc, prev, cur,
     cycleDays, daysElapsed, daysRemaining,
-    incomeUsd, projTotalUsd, projDiscUsd, projFixedUsd, projSaveUsd,
+    incomeUsd, incomeSource, projTotalUsd, projDiscUsd, projFixedUsd, projSaveUsd,
     targets,
     discPct: prev.totalArs>0 ? Math.round(prev.discArs/prev.totalArs*100) : 0,
     curRunRateUsd: daysElapsed>0 ? (cur.totalArs/rate)/daysElapsed*cycleDays : 0
@@ -341,12 +356,27 @@ function savPlanRenderSetup(a){
   const chipsHtml = cats.length ? cats.map(c=>`
     <span class="savplan-chip ${discSet.has(c)?'on':''}" onclick="savPlanToggleCat('${esc(c).replace(/'/g,"\\'")}')">${esc(c)}</span>`).join('')
     : '<div class="savplan-muted">No hay categorías de gasto todavía. Importá movimientos primero.</div>';
+  const autoIncome = savPlanMonthIncomeUsd();
+  const incomeVal = (plan.expectedIncomeUsd != null && Number(plan.expectedIncomeUsd) > 0) ? Number(plan.expectedIncomeUsd) : '';
+  const incomeHint = autoIncome != null
+    ? `Detectado de tus Ingresos: <b>${savPlanFmtUsd(autoIncome)}</b>. <a onclick="savPlanUseAutoIncome()">Usar ese</a>`
+    : 'No tenés ingresos cargados este mes — poné acá cuánto prevés cobrar.';
   return `
     ${savPlanSteps('setup')}
     <div class="savplan-card savplan-setup">
       <h3>¿Cuánto querés ahorrar este mes?</h3>
       <p class="savplan-sub">Cargá hasta 3 escenarios. Calculo qué recorte necesita cada uno y qué tan realista es.</p>
       <div class="savplan-targets">${targetsHtml}</div>
+      <div class="savplan-income">
+        <div class="savplan-income-left">
+          <div class="savplan-lbl">¿Cuánto vas a cobrar este mes?</div>
+          <div class="savplan-income-hint">${incomeHint}</div>
+        </div>
+        <div class="savplan-income-input">
+          <span class="cur">USD</span>
+          <input class="savplan-income-val" type="number" min="0" placeholder="${autoIncome != null ? Math.round(autoIncome) : 'ej: 2500'}" value="${incomeVal}">
+        </div>
+      </div>
       <div class="savplan-recort">
         <div class="savplan-rlbl">
           <span class="savplan-lbl">¿Qué gastos considerás recortables?</span>
@@ -367,8 +397,8 @@ function savPlanRenderResult(a){
     ? savPlanShortDate(a.cyc.prevOpen)+' → '+savPlanShortDate(a.cyc.prev.closeDate) : '';
   const curLabel = 'día '+a.daysElapsed+' de '+a.cycleDays;
   const incomeCard = a.incomeUsd!=null
-    ? `<div class="savplan-ctx-card"><span class="savplan-lbl">Ingreso del mes</span><div class="cv">${savPlanFmtUsd(a.incomeUsd)}</div><div class="cs">ya está en los cálculos</div></div>`
-    : `<div class="savplan-ctx-card"><span class="savplan-lbl">Ingreso del mes</span><div class="cv">—</div><div class="cs warn">cargalo en Ingresos para más precisión</div></div>`;
+    ? `<div class="savplan-ctx-card"><span class="savplan-lbl">Ingreso del mes</span><div class="cv">${savPlanFmtUsd(a.incomeUsd)}</div><div class="cs">${a.incomeSource==='manual'?'tu previsión · en los cálculos':'detectado · en los cálculos'}</div></div>`
+    : `<div class="savplan-ctx-card"><span class="savplan-lbl">Ingreso del mes</span><div class="cv">—</div><div class="cs warn">cargá tu previsión en el paso 1</div></div>`;
 
   const plansHtml = a.targets.map(t=>{
     const tips = savPlanTipsFor(t, a);
@@ -503,6 +533,18 @@ function savPlanSyncTargetsFromDOM(){
     const i = +inp.dataset.ti;
     if(state.savPlan.targets[i]) state.savPlan.targets[i].amountUsd = Math.max(0, Number(inp.value)||0);
   });
+  const incInp = document.querySelector('.savplan-income-val');
+  if(incInp){
+    const v = incInp.value.trim();
+    state.savPlan.expectedIncomeUsd = v==='' ? null : Math.max(0, Number(v)||0);
+  }
+}
+function savPlanUseAutoIncome(){
+  ensureSavPlan();
+  savPlanSyncTargetsFromDOM();
+  state.savPlan.expectedIncomeUsd = null;
+  saveState();
+  renderSavPlanSection();
 }
 function savPlanToggleCat(name){
   ensureSavPlan();
@@ -657,7 +699,7 @@ function savPlanBuildAiPrompt(a){
 CONTEXTO (ciclo VISA+AMEX):
 - Ciclo anterior (cerrado): gasté ${savPlanFmtArs(a.prev.totalArs)} (${savPlanFmtUsd(a.prev.totalArs/a.rate)}), de los cuales ${a.discPct}% es discrecional/recortable.
 - Ciclo actual (en curso): llevo gastado ${savPlanFmtArs(a.cur.totalArs)}, voy por el día ${a.daysElapsed} de ${a.cycleDays}.
-- Ingreso del mes: ${a.incomeUsd!=null?savPlanFmtUsd(a.incomeUsd):'no cargado'}.
+- Ingreso previsto del mes: ${a.incomeUsd!=null?savPlanFmtUsd(a.incomeUsd)+(a.incomeSource==='manual'?' (previsión mía)':' (detectado de mis ingresos cargados)'):'no cargado'}.
 - Tipo de cambio usado: 1 USD = ${savPlanFmtArs(a.rate)}.
 
 GASTO POR CATEGORÍA (ciclo anterior):
