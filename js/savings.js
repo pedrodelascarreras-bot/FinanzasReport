@@ -724,11 +724,15 @@ function renderSavingsPage(){
         ${pipelineView==='kanban' ? `<div class="sav-pipe-board">${boardHtml}</div>` : `<div class="sav-pipe-list">${listHtml}</div>`}
       </section>
 
+      <div id="sav-plan-mount"></div>
+
       <section class="sav2-activity-section">
         <div class="sav2-section-head compact"><h2>Actividad reciente</h2><button>Ver todo</button></div>
         ${recentHtml}
       </section>
     </div>`;
+
+  if(typeof renderSavPlanSection === 'function') renderSavPlanSection();
 }
 
 // ── Depósitos CRUD ──

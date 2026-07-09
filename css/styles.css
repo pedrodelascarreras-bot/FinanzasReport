@@ -13391,6 +13391,149 @@ body:not(.light-mode) .sav-tag-chip-toggle { background: #171b30; }
   .sav-pipe-stats { grid-template-columns: repeat(2,1fr); }
 }
 
+/* ═══════════════════════════════════════════════
+   PLAN DE AHORRO DEL MES (savings-plan.js)
+═══════════════════════════════════════════════ */
+.savplan-section {
+  margin-top: 28px; padding: 22px; border-radius: 24px;
+  background:
+    radial-gradient(700px 340px at 4% -20%, rgba(0,184,212,0.10), transparent 60%),
+    radial-gradient(600px 300px at 100% 0%, rgba(124,58,237,0.08), transparent 55%),
+    rgba(102,103,130,0.035);
+  border: 1px solid rgba(102,103,130,0.08);
+}
+.savplan-hd { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.savplan-hd-ic {
+  width: 40px; height: 40px; border-radius: 12px; flex-shrink: 0; color: #fff; font-size: 19px;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg,#7C3AED,#00B8D4); box-shadow: 0 10px 22px -8px rgba(124,58,237,0.5);
+}
+.savplan-hd h2 { font-size: 18px; font-weight: 850; letter-spacing: -0.01em; margin: 0; color: #1c1a25; }
+.savplan-hd p { font-size: 12px; font-weight: 650; color: #858aa3; margin: 2px 0 0; }
+.savplan-lbl { font-size: 10.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; color: #8a8ea6; }
+.savplan-muted { font-size: 12px; color: #858aa3; font-weight: 600; }
+.savplan-card { background: #fff; border: 1px solid rgba(102,103,130,0.08); border-radius: 16px; box-shadow: 0 1px 2px rgba(20,20,40,0.05); }
+
+.savplan-steps { display: flex; gap: 8px; margin: 16px 0 16px; }
+.savplan-step { flex: 1; display: flex; align-items: center; gap: 8px; padding: 9px 12px; border-radius: 12px;
+  background: #fff; border: 1px solid rgba(102,103,130,0.08); font-size: 11.5px; font-weight: 750; color: #858aa3; box-shadow: 0 1px 2px rgba(20,20,40,0.05); }
+.savplan-step .n { width: 20px; height: 20px; border-radius: 50%; background: rgba(102,103,130,0.14);
+  display: flex; align-items: center; justify-content: center; font-size: 11px; flex-shrink: 0; color: #858aa3; }
+.savplan-step.on { color: #1c1a25; }
+.savplan-step.on .n { background: linear-gradient(135deg,#7C3AED,#00B8D4); color: #fff; }
+.savplan-step.done .n { background: #34c759; color: #fff; }
+
+/* setup */
+.savplan-setup { padding: 18px; }
+.savplan-setup h3 { font-size: 14px; font-weight: 850; margin: 0 0 3px; color: #1c1a25; }
+.savplan-sub { font-size: 12px; color: #858aa3; font-weight: 600; margin: 0 0 14px; }
+.savplan-targets { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 16px; }
+.savplan-tinput { border: 1.5px solid rgba(102,103,130,0.14); border-radius: 14px; padding: 13px 14px; background: rgba(124,58,237,0.02); }
+.savplan-tinput.mid { border-color: #7C3AED; }
+.savplan-tl { font-size: 11px; font-weight: 800; color: #8a8ea6; text-transform: uppercase; letter-spacing: .04em; margin-bottom: 8px; }
+.savplan-name { border: none; background: none; font-family: var(--font); font-size: 13px; font-weight: 700; color: #1c1a25; width: 100%; outline: none; margin-bottom: 8px; }
+.savplan-amt { display: flex; align-items: baseline; gap: 5px; }
+.savplan-amt .cur { font-size: 12px; font-weight: 700; color: #8a8ea6; }
+.savplan-val { border: none; background: none; font-family: var(--font); font-size: 22px; font-weight: 800; color: #1c1a25; width: 100%; outline: none; letter-spacing: -.02em; }
+.savplan-recort { margin-bottom: 2px; }
+.savplan-rlbl { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.savplan-rlbl a { font-size: 11.5px; font-weight: 700; color: #7C3AED; text-decoration: none; cursor: pointer; }
+.savplan-chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.savplan-chip { font-size: 11.5px; font-weight: 700; padding: 6px 12px; border-radius: 20px; cursor: pointer; user-select: none;
+  border: 1.5px solid rgba(102,103,130,0.14); background: #fff; color: #858aa3; transition: all .12s; }
+.savplan-chip.on { background: rgba(124,58,237,0.1); border-color: rgba(124,58,237,0.4); color: #7C3AED; }
+.savplan-chip.on::before { content: '✓ '; }
+.savplan-cta { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; flex-wrap: wrap; }
+.savplan-btn { font-family: var(--font); font-size: 12.5px; font-weight: 750; padding: 10px 15px; border-radius: 11px;
+  border: 1px solid rgba(102,103,130,0.14); background: #fff; color: #575c74; cursor: pointer; }
+.savplan-btn:hover { color: #1c1a25; }
+.savplan-btn.primary { border: none; background: linear-gradient(135deg,#7C3AED,#00B8D4); color: #fff; font-weight: 800; box-shadow: 0 8px 18px -8px rgba(124,58,237,0.55); }
+.savplan-btn.savplan-activate { width: 100%; margin-top: 12px; }
+
+/* context bar */
+.savplan-ctx { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 16px; }
+.savplan-ctx-card { background: #fff; border: 1px solid rgba(102,103,130,0.08); border-radius: 16px; padding: 13px 15px; box-shadow: 0 1px 2px rgba(20,20,40,0.05); }
+.savplan-ctx-card .cv { font-size: 18px; font-weight: 850; letter-spacing: -.02em; margin-top: 6px; color: #1c1a25; }
+.savplan-ctx-card .cs { font-size: 11px; font-weight: 650; color: #858aa3; margin-top: 3px; }
+.savplan-ctx-card .cs.warn { color: #c26900; }
+
+/* result plans */
+.savplan-plans { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; }
+.savplan-plan { overflow: hidden; }
+.savplan-plan .top { padding: 14px 16px 12px; color: #fff; }
+.savplan-plan.easy .top { background: linear-gradient(135deg,#1c9e60,#3ac57f); }
+.savplan-plan.mid .top { background: linear-gradient(135deg,#7C3AED,#00B8D4); }
+.savplan-plan.hard .top { background: linear-gradient(135deg,#c26900,#e0a020); }
+.savplan-plan.extreme .top { background: linear-gradient(135deg,#c62b21,#e05555); }
+.savplan-plan .top .pn { font-size: 12.5px; font-weight: 700; opacity: .9; }
+.savplan-plan .top .pa { font-size: 26px; font-weight: 850; letter-spacing: -.02em; margin: 2px 0 6px; }
+.savplan-plan .top .badge { display: inline-block; font-size: 10.5px; font-weight: 800; padding: 3px 10px; border-radius: 20px; background: rgba(255,255,255,0.22); }
+.savplan-plan .body { padding: 14px 16px; }
+.savplan-metric { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid rgba(102,103,130,0.1); }
+.savplan-metric:last-of-type { border-bottom: none; }
+.savplan-metric .mk { font-size: 11.5px; font-weight: 650; color: #858aa3; }
+.savplan-metric .mv { font-size: 12.5px; font-weight: 800; color: #1c1a25; text-align: right; }
+.savplan-metric .mv.hl { color: #7C3AED; }
+.savplan-tips { margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(102,103,130,0.1); }
+.savplan-tip { display: flex; gap: 8px; font-size: 11px; font-weight: 600; color: #585c74; line-height: 1.45; margin-bottom: 7px; }
+.savplan-tip:last-child { margin-bottom: 0; }
+.savplan-tip .ti { flex-shrink: 0; }
+
+/* tracking */
+.savplan-track { padding: 20px; }
+.savplan-track-hd { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; flex-wrap: wrap; margin-bottom: 16px; }
+.savplan-track-hd .tt { font-size: 15px; font-weight: 850; color: #1c1a25; }
+.savplan-track-hd .ts { font-size: 12px; font-weight: 600; color: #858aa3; margin-top: 2px; }
+.savplan-pill { font-size: 11px; font-weight: 800; padding: 6px 13px; border-radius: 20px; background: rgba(28,158,96,0.12); color: #1c9e60; white-space: nowrap; }
+.savplan-pill.warn { background: rgba(194,105,0,0.12); color: #c26900; }
+.savplan-bigbar { margin: 4px 0 6px; }
+.savplan-bigbar .bl { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; font-weight: 700; margin-bottom: 8px; color: #1c1a25; flex-wrap: wrap; }
+.savplan-bigbar .bl .r { color: #858aa3; }
+.savplan-bar { height: 14px; border-radius: 8px; background: rgba(102,103,130,0.14); overflow: visible; position: relative; }
+.savplan-bar > div { height: 100%; border-radius: 8px; background: linear-gradient(90deg,#7C3AED,#00B8D4); }
+.savplan-bar .marker { position: absolute; top: -4px; bottom: -4px; width: 2px; background: #1c1a25; opacity: .5; }
+.savplan-bar .marker::after { content: 'hoy'; position: absolute; top: -15px; left: -8px; font-size: 8.5px; font-weight: 800; color: #858aa3; }
+.savplan-track-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-top: 22px; }
+.savplan-tstat { background: rgba(124,58,237,0.05); border-radius: 14px; padding: 13px 15px; }
+.savplan-tstat .tv { font-size: 19px; font-weight: 850; letter-spacing: -.02em; color: #1c1a25; }
+.savplan-tstat .tl2 { font-size: 10.5px; font-weight: 750; color: #858aa3; text-transform: uppercase; letter-spacing: .04em; margin-top: 5px; }
+.savplan-tstat.good .tv { color: #1c9e60; }
+.savplan-streak-wrap { margin-top: 18px; }
+.savplan-streak { display: flex; gap: 5px; margin-top: 9px; flex-wrap: wrap; }
+.savplan-streak .d { width: 16px; height: 16px; border-radius: 5px; background: rgba(102,103,130,0.14); }
+.savplan-streak .d.hit { background: #34c759; }
+.savplan-streak .d.spent { background: rgba(198,43,33,0.35); }
+.savplan-tipbox { margin-top: 18px; padding: 13px 15px; border-radius: 14px; background: rgba(124,58,237,0.05); }
+.savplan-tipbox .savplan-tip { margin: 0; }
+
+.savplan-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 8px; padding: 40px 16px; }
+.savplan-empty-ic { font-size: 30px; opacity: .5; }
+.savplan-empty-t { font-size: 14px; font-weight: 800; color: #1c1a25; max-width: 440px; }
+.savplan-empty-s { font-size: 12px; font-weight: 600; color: #858aa3; max-width: 440px; line-height: 1.5; }
+
+/* dark mode */
+body:not(.light-mode) .savplan-section { background: radial-gradient(700px 340px at 4% -20%, rgba(0,184,212,0.12), transparent 60%), radial-gradient(600px 300px at 100% 0%, rgba(124,58,237,0.10), transparent 55%), rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.06); }
+body:not(.light-mode) .savplan-hd h2, body:not(.light-mode) .savplan-setup h3,
+body:not(.light-mode) .savplan-ctx-card .cv, body:not(.light-mode) .savplan-metric .mv,
+body:not(.light-mode) .savplan-track-hd .tt, body:not(.light-mode) .savplan-tstat .tv,
+body:not(.light-mode) .savplan-name, body:not(.light-mode) .savplan-val,
+body:not(.light-mode) .savplan-step.on, body:not(.light-mode) .savplan-empty-t { color: #f0f2ff; }
+body:not(.light-mode) .savplan-card, body:not(.light-mode) .savplan-step,
+body:not(.light-mode) .savplan-ctx-card { background: #171b30; border-color: rgba(255,255,255,0.07); box-shadow: none; }
+body:not(.light-mode) .savplan-tinput { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.1); }
+body:not(.light-mode) .savplan-tinput.mid { border-color: #7C3AED; }
+body:not(.light-mode) .savplan-chip { background: #171b30; color: #cfd3ea; border-color: rgba(255,255,255,0.1); }
+body:not(.light-mode) .savplan-chip.on { background: rgba(124,58,237,0.22); border-color: rgba(124,58,237,0.5); color: #c9b8ff; }
+body:not(.light-mode) .savplan-btn { background: #171b30; color: #cfd3ea; border-color: rgba(255,255,255,0.1); }
+body:not(.light-mode) .savplan-tstat, body:not(.light-mode) .savplan-tipbox { background: rgba(255,255,255,0.04); }
+body:not(.light-mode) .savplan-bar .marker { background: #f0f2ff; }
+body:not(.light-mode) .savplan-metric { border-color: rgba(255,255,255,0.07); }
+
+@media (max-width: 1100px) {
+  .savplan-targets, .savplan-ctx, .savplan-plans, .savplan-track-grid, .savplan-steps { grid-template-columns: repeat(2,1fr); }
+  .savplan-steps { display: grid; }
+}
+
 /* ═══ GLOBAL SEARCH MODAL ITEMS ═══ */
 .global-search-item {
   border-radius: 18px;

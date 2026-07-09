@@ -16,6 +16,7 @@ let state={
   savGoals:[],           // [{id,name,emoji,target,currency,current,deadline,accountId,color,stageId,tags:[],contributions:[{id,amount,currency,month}],pinned,completedAt}]
   savDeposits:[],        // [{id,month:'2025-03',accountId,amount,currency,note,kind}] — 100% manual
   savStages:[],          // [{id,name,color}] — etapas del pipeline de metas (se auto-inicializa con defaults)
+  savPlan:null,          // Plan de ahorro del mes: {targets:[{id,name,amountUsd}],discretionaryCats:[catName],active:{targetId,cycleId,activatedAt}|null}
   incViewCurrency:'ARS',
   tcConfig:{cardName:'',closeDay:0,dueDay:0,limit:0,mixTarget:70},
   viewCycleConfig:{
@@ -82,7 +83,7 @@ function getStateSnapshot(){
     savingsGoal:state.savingsGoal,alertThreshold:state.alertThreshold,spendPct:state.spendPct||100,insightsBufferMonths:state.insightsBufferMonths||3,tendChartMode:state.tendChartMode||'bar',imports:state.imports,
     cuotas:state.cuotas,autoCuotaConfig:state.autoCuotaConfig,subscriptions:state.subscriptions,fixedExpenses:state.fixedExpenses||[],
     incomeSources:state.incomeSources,incomeMonths:state.incomeMonths,
-    savAccounts:state.savAccounts,savGoals:state.savGoals,savDeposits:state.savDeposits||[],savStages:state.savStages||[],tcConfig:state.tcConfig,viewCycleConfig:state.viewCycleConfig||{},
+    savAccounts:state.savAccounts,savGoals:state.savGoals,savDeposits:state.savDeposits||[],savStages:state.savStages||[],savPlan:state.savPlan||null,tcConfig:state.tcConfig,viewCycleConfig:state.viewCycleConfig||{},
     usdRate:state.usdRate||1420,usdRateBuy:state.usdRateBuy||state.usdRate||1420,usdRateSell:state.usdRateSell||state.usdRate||1420,usdRateSource:state.usdRateSource||'blue',usdRateUpdated:state.usdRateUpdated||null,usdRateHistory:state.usdRateHistory||[],
     catRules:state.catRules||[],nameRules:state.nameRules||[],logoRules:state.logoRules||[],catHistory:state.catHistory||{},
     ccCards:state.ccCards||[],ccCycles:state.ccCycles||[],ccActiveCard:state.ccActiveCard||null,
@@ -398,6 +399,7 @@ async function loadFromDrive(){
     state.savGoals=s.savGoals||[];
     state.savDeposits=s.savDeposits||[];
     state.savStages=s.savStages||[];
+    state.savPlan=s.savPlan||null;
     if(s.tcConfig)state.tcConfig={...state.tcConfig,...s.tcConfig};
     if(s.viewCycleConfig){
       state.viewCycleConfig={
@@ -499,7 +501,7 @@ function loadState(){
     state.subscriptions=s.subscriptions||[];
     state.fixedExpenses=s.fixedExpenses||[];
     state.incomeSources=s.incomeSources||[];state.incomeMonths=s.incomeMonths||[];
-    state.savAccounts=s.savAccounts||[];state.savGoals=s.savGoals||[];state.savDeposits=s.savDeposits||[];state.savStages=s.savStages||[];
+    state.savAccounts=s.savAccounts||[];state.savGoals=s.savGoals||[];state.savDeposits=s.savDeposits||[];state.savStages=s.savStages||[];state.savPlan=s.savPlan||null;
     if(s.tcConfig)state.tcConfig={...state.tcConfig,...s.tcConfig};
     if(s.viewCycleConfig){
       state.viewCycleConfig={

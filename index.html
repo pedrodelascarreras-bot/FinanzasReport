@@ -2662,6 +2662,20 @@
   </div>
 </div>
 
+<!-- MODAL: Profundizar el plan de ahorro con IA -->
+<div class="modal-overlay" id="modal-savplan-ai">
+  <div class="modal" style="width:600px;max-height:88vh;display:flex;flex-direction:column;">
+    <div class="modal-title">✨ Profundizar con IA</div>
+    <div class="modal-sub">No hace falta API key: copiá este prompt, pegalo en Claude (claude.ai) junto con el PDF que exportás, y te va a dar un plan detallado.</div>
+    <textarea id="savplan-ai-prompt" readonly style="flex:1;min-height:260px;width:100%;resize:vertical;font-family:var(--mono,monospace);font-size:11.5px;line-height:1.5;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(0,0,0,0.02);color:var(--text2);"></textarea>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('modal-savplan-ai')">Cerrar</button>
+      <button class="btn btn-sm" onclick="savPlanExportPdf()">⬇ Exportar PDF</button>
+      <button class="btn btn-primary" onclick="savPlanCopyAiPrompt()">📋 Copiar prompt</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: Sumar aporte rápido a una meta -->
 <div class="modal-overlay" id="modal-sav-quickadd">
   <div class="modal" style="width:360px;">
@@ -3350,6 +3364,7 @@ window.addEventListener('unhandledrejection',function(e){
 <script src="js/expenses.js?v=20260628b"></script>
 <script src="js/income.js?v=20260513h"></script>
 <script src="js/savings.js?v=20260705d"></script>
+<script src="js/savings-plan.js?v=20260707a"></script>
 <script src="js/categories.js"></script>
 <script src="js/reports.js?v=20260628a"></script>
 <script src="js/balance.20260407j.js?v=20260611d"></script>
