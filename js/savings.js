@@ -726,6 +726,8 @@ function renderSavingsPage(){
 
       <div id="sav-plan-mount"></div>
 
+      <div id="moving-mount"></div>
+
       <section class="sav2-activity-section">
         <div class="sav2-section-head compact"><h2>Actividad reciente</h2><button>Ver todo</button></div>
         ${recentHtml}
@@ -733,6 +735,7 @@ function renderSavingsPage(){
     </div>`;
 
   if(typeof renderSavPlanSection === 'function') renderSavPlanSection();
+  if(typeof renderMovingSection === 'function') renderMovingSection();
 }
 
 // ── Depósitos CRUD ──

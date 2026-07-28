@@ -1958,6 +1958,7 @@ function getCurrentProfileSnapshot(){
     savDeposits: cloneDeepProfileValue(markOwnedItems(state.savDeposits || [], state.activeUserProfileId || 'default-profile')),
     savStages: cloneDeepProfileValue(state.savStages || []),
     savPlan: cloneDeepProfileValue(state.savPlan || null),
+    movingCalc: cloneDeepProfileValue(state.movingCalc || null),
     incViewCurrency: state.incViewCurrency || 'ARS',
     categoryGroups: cloneDeepProfileValue(state.categoryGroups || []),
     categories: cloneDeepProfileValue(state.categories || []),
@@ -2108,6 +2109,7 @@ function applyUserProfile(profileId){
   state.savDeposits = cloneDeepProfileValue(profile.savDeposits || []);
   state.savStages = cloneDeepProfileValue(profile.savStages || []);
   state.savPlan = cloneDeepProfileValue(profile.savPlan || null);
+  state.movingCalc = cloneDeepProfileValue(profile.movingCalc || null);
   state.incViewCurrency = profile.incViewCurrency || state.incViewCurrency || 'ARS';
   state.categoryGroups = cloneDeepProfileValue(profile.categoryGroups || state.categoryGroups || []);
   state.categories = cloneDeepProfileValue(profile.categories || state.categories || []);
