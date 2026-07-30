@@ -39,15 +39,15 @@ function ensureMovingCalc(){
   if(!state.movingCalc || typeof state.movingCalc !== 'object'){
     const self = movingSelfData();
     state.movingCalc = {
-      name: 'Mi propiedad',
-      rentCur: 'USD', rent: 900,
-      expensas: 150000, expCur: 'ARS',
-      servicios: 150000, servCur: 'ARS',
+      name: 'Depto Acassuso · Libertador',
+      rentCur: 'USD', rent: 900,          // publicado USD 950, objetivo negociado 900
+      expensas: 149175, expCur: 'ARS',    // incluye Aysa (agua) + ABL
+      servicios: 150000, servCur: 'ARS',  // solo luz + internet (edificio todo eléctrico → luz alta en invierno)
       deposito: 900, comision: 600, otros: 0,
       mueblesTotal: 1500, mueblesCuotas: 18,
-      moveInDate: '',
+      moveInDate: '2026-10-01',           // disponible desde 15/09/2026
       currentSavings: 1500, monthlySaving: 1200,
-      incomeUsd: self.incomeUsd != null ? Math.round(self.incomeUsd) : 2500
+      incomeUsd: 2500
     };
   }
   const m = state.movingCalc;
