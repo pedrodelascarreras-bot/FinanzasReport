@@ -271,7 +271,6 @@ function nav(page){
   const mn=document.getElementById('mn-'+navTarget);if(mn)mn.classList.add('active');
   if(page==='compare'){renderCompareSelectors();renderCompare();}
   if(page==='balance' && typeof renderBalancePage==='function') renderBalancePage();
-  if(page==='insights'&&state.transactions.length)generateInsights();
   if(page==='categories'){renderCategoryManage();renderInlineColorPicker('');}
   if(page==='transactions'){ setTxnFilterMode('tc'); renderTransactions(); }
   if(page==='import'){renderImportHistory();updateLastBackupLabel();if(typeof renderImportConfigPanel==='function')renderImportConfigPanel();}

@@ -981,7 +981,7 @@ function renderCompare(){
   renderCompareLineChart(ka,kb,la,lb);
 }
 
-// ══ INSIGHTS — delegado a js/insights.js ══
+// ══ INSIGHTS ══
 
 // ══ COMPARE LINE CHART (mes a mes, acumulado diario) ══
 function renderCompareLineChart(ka,kb,la,lb){

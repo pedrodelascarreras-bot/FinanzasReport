@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -6,16 +6,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const rootDir = path.resolve(__dirname, '..');
 const distDir = path.join(rootDir, 'dist');
-const assetVersion = '20260407j';
 
+// Copia la app tal cual a dist/. No renombra ni pisa archivos fuente:
+// el cache-busting se hace con el ?v= de cada <script>/<link> en index.html.
 const entries = [
   'index.html',
+  'manifest.json',
   'css',
   'js',
-  'docs',
-  'README.md',
-  'render.yaml',
-  'serve.py',
+  'brand',
 ];
 
 async function build() {
@@ -23,29 +22,8 @@ async function build() {
   await mkdir(distDir, { recursive: true });
 
   for (const entry of entries) {
-    const from = path.join(rootDir, entry);
-    const to = path.join(distDir, entry);
-    await cp(from, to, { recursive: true });
+    await cp(path.join(rootDir, entry), path.join(distDir, entry), { recursive: true });
   }
-
-  const rootIndexPath = path.join(rootDir, 'index.html');
-  let distIndex = await readFile(rootIndexPath, 'utf8');
-  distIndex = distIndex
-    .replace('css/styles.20260407j.css', `css/styles.${assetVersion}.css`)
-    .replace('js/balance.20260407j.js', `js/balance.${assetVersion}.js`)
-    .replace('js/ui.20260407j.js', `js/ui.${assetVersion}.js`)
-    .replace('js/credit-cards.20260407j.js', `js/credit-cards.${assetVersion}.js`);
-  await writeFile(path.join(distDir, 'index.html'), distIndex, 'utf8');
-
-  await cp(path.join(rootDir, 'css', 'styles.css'), path.join(rootDir, 'css', `styles.${assetVersion}.css`));
-  await cp(path.join(rootDir, 'js', 'balance.js'), path.join(rootDir, 'js', `balance.${assetVersion}.js`));
-  await cp(path.join(rootDir, 'js', 'ui.js'), path.join(rootDir, 'js', `ui.${assetVersion}.js`));
-  await cp(path.join(rootDir, 'js', 'credit-cards.js'), path.join(rootDir, 'js', `credit-cards.${assetVersion}.js`));
-
-  await cp(path.join(rootDir, 'css', 'styles.css'), path.join(distDir, 'css', `styles.${assetVersion}.css`));
-  await cp(path.join(rootDir, 'js', 'balance.js'), path.join(distDir, 'js', `balance.${assetVersion}.js`));
-  await cp(path.join(rootDir, 'js', 'ui.js'), path.join(distDir, 'js', `ui.${assetVersion}.js`));
-  await cp(path.join(rootDir, 'js', 'credit-cards.js'), path.join(distDir, 'js', `credit-cards.${assetVersion}.js`));
 
   console.log(`Build estatico listo en ${distDir}`);
 }
