@@ -5026,7 +5026,8 @@ body.light-mode #inc-sync-banner { background: rgba(255,159,10,0.07); border-col
   }
   :root { --sidebar-w: 0px; }
   .sidebar { display: none; }
-  .app { grid-template-columns: 1fr; }
+  /* también con la barra colapsada (default): si no, la grilla de escritorio deja el contenido en 68px */
+  .app, .app.sidebar-collapsed { grid-template-columns: 1fr; }
   .main { padding: 14px 12px 24px; }
   .mob-nav { display: none !important; } /* bottom nav removed */
   .page-title { font-size: 22px; letter-spacing: -0.03em; }
