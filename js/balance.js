@@ -148,15 +148,20 @@
     };
   }
 
+  // Categorías del mes (reales + compromisos vencidos), con "Procesando…" agrupado como "Sin clasificar"
+  function balanceCategoryTotals(entries){
+    const out={};
+    (entries||[]).forEach(e=>{
+      const key=e.category&&e.category!=='Procesando...'&&e.category!=='Uncategorized'?e.category:'Sin clasificar';
+      out[key]=(out[key]||0)+balanceConvert(e.amount,e.currency);
+    });
+    return out;
+  }
+
   function balanceCategoryHistory(category, monthKey, limit=3){
     const months=balanceMonthKeys().filter(m=>m<monthKey).slice(0,limit);
     if(!months.length) return 0;
-    const values=months.map(month=>{
-      return (state.transactions||[])
-        .filter(t=>(t.month||getMonthKey(t.date))===month && !t.isPendingCuota && !t.isPendingSubscription)
-        .filter(t=>t.category===category)
-        .reduce((sum,t)=>sum+balanceConvert(_bPersonalAmount(t),t.currency),0);
-    });
+    const values=months.map(month=>balanceCategoryTotals(getPeriodTotals(getMonthRange(month)).entries)[category]||0);
     return values.reduce((sum,v)=>sum+v,0)/values.length;
   }
 
@@ -165,17 +170,14 @@
       .filter(t=>(t.month||getMonthKey(t.date))===monthKey)
       .filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
     const prevMonth=balanceMonthKeys().find(m=>m<monthKey)||null;
-    const prevTxns=prevMonth
-      ? (state.transactions||[])
-          .filter(t=>(t.month||getMonthKey(t.date))===prevMonth)
-          .filter(t=>!t.isPendingCuota&&!t.isPendingSubscription)
-      : [];
     const income=balanceIncomeBreakdown(monthKey);
     const prevIncome=prevMonth?balanceIncomeBreakdown(prevMonth):{total:0};
-    const arsExpenses=txns.filter(t=>t.currency!=='USD').reduce((sum,t)=>sum+_bPersonalAmount(t),0);
-    const usdExpenses=txns.filter(t=>t.currency==='USD').reduce((sum,t)=>sum+_bPersonalAmount(t),0);
-    const totalExpenses=arsExpenses+(usdExpenses*(USD_TO_ARS||state.usdRate||1420));
-    const prevTotalExpenses=prevTxns.reduce((sum,t)=>sum+balanceConvert(_bPersonalAmount(t),t.currency),0);
+    // Receta única (js/totals.js): reales + compromisos vencidos sin cargo real
+    const period=getPeriodTotals(getMonthRange(monthKey));
+    const arsExpenses=period.ars;
+    const usdExpenses=period.usd;
+    const totalExpenses=period.totalArs;
+    const prevTotalExpenses=prevMonth?getPeriodTotals(getMonthRange(prevMonth)).totalArs:0;
 
     const savingsMovements=(state.savDeposits||[]).filter(d=>d.month===monthKey);
     const savingsNet=savingsMovements.reduce((sum,d)=>sum+balanceConvert(savSignedAmount(d),d.currency),0);
@@ -188,11 +190,7 @@
     const cuotaActual=(txns.filter(t=>t.cuotaNum||t.cuotaGroupId).reduce((sum,t)=>sum+balanceConvert(_bPersonalAmount(t),t.currency),0));
     const cuotaProxima=getActiveCuotas().reduce((sum,c)=>sum+balanceConvert(c.amount,c.currency),0);
 
-    const categoryTotals={};
-    txns.forEach(t=>{
-      const key=t.category&&t.category!=='Procesando...'&&t.category!=='Uncategorized'?t.category:'Sin clasificar';
-      categoryTotals[key]=(categoryTotals[key]||0)+balanceConvert(_bPersonalAmount(t),t.currency);
-    });
+    const categoryTotals=balanceCategoryTotals(period.entries);
     const topCategories=Object.entries(categoryTotals)
       .map(([name,total])=>{
         const avg=balanceCategoryHistory(name,monthKey,3);

@@ -170,6 +170,8 @@ function getProjectedCommitmentEntriesForRange(opts={}){
 
   (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
     getRecurringDatesInRange(f.day,start,end).forEach(dueDate=>{
+      // Si ya está el débito real de ese mes (mismo comercio/nombre), no se proyecta
+      if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth({id:f.id||'',name:f.name,merchantKey:f.merchantKey}, getMonthKey(dueDate), sourceTxns)) return;
       const matured=hasReachedEffectiveChargeDate(dueDate,todayRef);
       addEntry(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,{
         date:dueDate,
@@ -177,6 +179,7 @@ function getProjectedCommitmentEntriesForRange(opts={}){
         amount:Number(f.amount)||0,
         currency:f.currency||'ARS',
         payMethod:f.payMethod||'',
+        sourceFixedId:f.id||null,
         group:'fijos',
         kind:'Gasto fijo',
         meta:`Débito mensual · día ${f.day}`,

@@ -89,47 +89,30 @@ function ccGetCycleExpenses(cardId, tcCycleId){
   const ccState=state.ccCycles.find(c=>c.cardId===cardId && c.tcCycleId===tcCycleId) || {excludedIds:[], manualExpenses:[]};
   const excluded=new Set(ccState.excludedIds||[]);
   
-  // TC payMethod values that count as a credit card charge for this cycle
-  const _tcGeneric=['tc','Tarjeta de Crédito','tarjeta_credito'];
-  const txnExpenses=(state.transactions||[]).filter(t=>{
-    if(excluded.has(t.id))return false;
-    if(t.isPendingCuota||t.isPendingSubscription)return false;
-    if(pmKey){
-      // Exact card match always counts. Generic TC tags count only once on the owner card.
-      const _match=t.payMethod===pmKey||(_tcGeneric.includes(t.payMethod)&&cardId===genericOwnerId);
-      if(!_match)return false;
-    }
-    const d=dateToYMD(t.date);
-    return d>=openDate && d<=cycle.closeDate;
-  }).map(t=>({
-    id:t.id, date:dateToYMD(t.date), description:t.description, category:t.category||'Sin categoría',
-    amountARS:t.currency==='ARS'?t.amount:0,
-    amountUSD:t.currency==='USD'?t.amount:0,
-    isPendingCuota:!!t.isPendingCuota,
-    isPendingSubscription:!!t.isPendingSubscription,
-    source:'txn'
-  }));
-  const projectedExpenses=getProjectedCommitmentEntriesForRange({
+  // Receta única (js/totals.js) con el monto completo, que es lo que cobra el banco.
+  // La tarjeta principal se lleva también los cargos "tarjeta" genéricos y sin medio de pago.
+  const cardRule=pmKey==='amex'?'amex':(cardId===genericOwnerId?'visa':(pmKey||'visa'));
+  const periodEntries=getPeriodExpenseEntries({
     startStr:openDate,
     endStr:cycle.closeDate,
-    todayRef:new Date(),
-    txns:state.transactions||[]
-  }).filter(entry=>{
-    if(!(entry.includeInTotal && (entry.synthetic || entry.kind==='Cuota proyectada' || entry.kind==='Suscripción proyectada'))) return false;
-    if(pmKey){
-      const match=entry.payMethod===pmKey||((!entry.payMethod||_tcGeneric.includes(entry.payMethod))&&cardId===genericOwnerId);
-      if(!match) return false;
-    }
-    return !excluded.has(entry._key||'');
-  }).map(entry=>({
-    id:entry._key||`proj-${dateToYMD(entry.date)}-${entry.title}`,
-    date:dateToYMD(entry.date),
-    description:entry.title,
-    category:entry.group==='cuotas'?'Cuotas':entry.group==='suscripciones'?'Suscripciones':'Compromisos',
-    amountARS:(entry.currency||'ARS')==='USD'?0:Number(entry.amount)||0,
-    amountUSD:(entry.currency||'ARS')==='USD'?Number(entry.amount)||0:0,
-    isPendingCuota:entry.group==='cuotas',
-    isPendingSubscription:entry.group==='suscripciones',
+    card:cardRule,
+    amountMode:'full',
+    todayRef:new Date()
+  }).filter(e=>!excluded.has(e.id));
+  const txnExpenses=periodEntries.filter(e=>!e.isProjected).map(e=>({
+    id:e.id, date:dateToYMD(e.date), description:e.description, category:e.category,
+    amountARS:e.currency==='USD'?0:e.amount,
+    amountUSD:e.currency==='USD'?e.amount:0,
+    isPendingCuota:false,
+    isPendingSubscription:false,
+    source:'txn'
+  }));
+  const projectedExpenses=periodEntries.filter(e=>e.isProjected).map(e=>({
+    id:e.id, date:dateToYMD(e.date), description:e.description, category:e.category,
+    amountARS:e.currency==='USD'?0:e.amount,
+    amountUSD:e.currency==='USD'?e.amount:0,
+    isPendingCuota:e.group==='cuotas',
+    isPendingSubscription:e.group==='suscripciones',
     source:'projected'
   }));
 

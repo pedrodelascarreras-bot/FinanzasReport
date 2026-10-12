@@ -338,9 +338,12 @@ function getTcCycles(mode){
     });
   }
   const range=getViewWindowRange();
+  // Apertura real (día siguiente al cierre anterior de la misma tarjeta). Antes, un ciclo
+  // manual sin openDate usaba su cierre como apertura y el ciclo en curso quedaba oculto.
+  const allRows=rows;
   rows=rows.filter(c=>{
     const close=c.closeDate||'';
-    const open=c.openDate||close;
+    const open=c.openDate||getTcCycleOpen(allRows, allRows.indexOf(c))||close;
     const closeMonth=_tcCycleMonthKey(close);
     // Ciclo en curso: ya abrió y todavía no cerró — siempre visible aunque cierre el mes próximo
     const inProgress=open<=range.todayYmd && close>=range.todayYmd;

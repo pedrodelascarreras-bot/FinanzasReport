@@ -1050,7 +1050,7 @@ async function generateDashInsights(){
 
 function collectDashboardAlerts(baseDate=new Date()) {
   const today = new Date(baseDate);
-  const monthKey = today.toISOString().slice(0,7);
+  const monthKey = getMonthKey(today);
   const notifs = [];
   const cycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
   cycles.forEach(cyc => {
@@ -1069,8 +1069,8 @@ function collectDashboardAlerts(baseDate=new Date()) {
     }
   });
 
-  const monthTxns = getCurrentMonthTxns().filter(t=>!t.isPendingCuota);
-  const arsT = monthTxns.filter(t => t.currency === 'ARS').reduce((s,t) => s + (typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount), 0);
+  const monthTxns = getCurrentMonthTxns().filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
+  const arsT = getPeriodTotals({...getMonthRange(monthKey),todayRef:today}).totalArs;
   let totalIncome = (state.income?.ars||0)+(state.income?.varArs||0);
   const _notifIncEntry=(state.incomeMonths||[]).find(m=>m.month===monthKey);
   if(_notifIncEntry&&typeof getMonthTotalARS==='function'){
@@ -1229,13 +1229,10 @@ function renderDashboard(){
         const openD=new Date(open+'T12:00:00');
         const closeD=new Date(activeTcCycle.closeDate+'T12:00:00');
         tcPeriodLabel=getViewModeLabel(activeCycleMode)+' · '+expandPeriodYearLabel(activeTcCycle.label)+' · '+openD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' → '+closeD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'});
-        // In TC views, dashboard metrics should use the selected cycle window,
-        // but aggregate charges across both cards in that same date range.
+        // Vista tarjeta: cargos de Visa en la ventana del ciclo (misma regla que getPeriodTotals)
         monthTxns=(state.transactions||[]).filter(t=>{
           const d=dateToYMD(t.date);
-          const pm=(t.payMethod||'').toLowerCase();
-          const isNonCc=pm==='deb'||pm==='ef';
-          return d>=open&&d<=activeTcCycle.closeDate&&!isNonCc;
+          return d>=open&&d<=activeTcCycle.closeDate&&payMethodMatchesCard(t.payMethod,'visa');
         });
       } else {
         monthTxns=[];
@@ -1249,200 +1246,38 @@ function renderDashboard(){
     monthTxns=getCurrentMonthTxns();
   }
 
-  // ── Gastos ──
-  // En modo TC: excluir débito/efectivo (payMethod=deb/ef) ya que el resumen de TC solo incluye cargos de tarjeta
-  // En ambos modos: excluir cuotas proyectadas (isPendingCuota) — son gastos futuros, no actuales
+  // ── Gastos ── receta única (js/totals.js): reales + compromisos vencidos sin cargo real
   const _tcModeActive=isTcView&&activeTcCycle;
-  const _isNonCC=(t)=>t.payMethod==='deb'||t.payMethod==='ef';
-  const _todayYmd=dateToYMD(today);
-  const _hasReachedChargeDate=(value)=>{
-    const ymd=dateToYMD(value);
-    return !!ymd && ymd<=_todayYmd;
-  };
-  const _getRecurringDatesInRange=(day,start,end)=>{
-    if(!day||!start||!end) return [];
-    const dates=[];
-    const cursor=new Date(start.getFullYear(), start.getMonth(), 1);
-    const limit=new Date(end.getFullYear(), end.getMonth(), 1);
-    while(cursor<=limit){
-      const maxDay=new Date(cursor.getFullYear(), cursor.getMonth()+1, 0).getDate();
-      const date=new Date(cursor.getFullYear(), cursor.getMonth(), Math.min(day, maxDay));
-      if(date>=start&&date<=end) dates.push(date);
-      cursor.setMonth(cursor.getMonth()+1);
-    }
-    return dates;
-  };
-  const isCountableCycleExpense=expense=>{
-    if(!expense) return false;
-    if(!expense.isPendingCuota && !expense.isPendingSubscription) return true;
-    return _hasReachedChargeDate(expense.date);
-  };
-  const _allBillable=monthTxns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription&&(_tcModeActive?!_isNonCC(t):true));
-  const billableTxns=_allBillable; // sharedExpense replaces isThirdParty
-  const thirdPartyTxns=_allBillable.filter(t=>!!t.sharedExpense&&!!t.sharedExpense.enabled);
-  const tpSettled=thirdPartyTxns.filter(t=>t.thirdPartyStatus==='settled');
-  const tpSettledArs=tpSettled.filter(t=>t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  const tpSettledUsd=tpSettled.filter(t=>t.currency==='USD').reduce((s,t)=>s+t.amount,0);
-  let arsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
-  let usdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
-  let cntMonth=_allBillable.length;
-  const projectedMonthRange=(()=>{
-    if(_tcModeActive&&activeTcCycle){
-      const scopedCycles=getTcCycles(activeCycleMode);
-      const openStr=getTcCycleOpen(scopedCycles, scopedCycles.findIndex(c=>c.id===activeTcCycle.id))||activeTcCycle.closeDate;
-      return {startStr:openStr,endStr:activeTcCycle.closeDate};
-    }
-    const [year,month]=String(activeMk).split('-').map(Number);
-    const lastDay=new Date(year,month,0).getDate();
-    return {
-      startStr:`${year}-${String(month).padStart(2,'0')}-01`,
-      endStr:`${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`
-    };
-  })();
-  const projectedMonthTotals=sumProjectedCommitmentTotals(
-    getProjectedCommitmentEntriesForRange({
-      ...projectedMonthRange,
-      todayRef:today,
-      txns:state.transactions||[]
-    }).filter(entry=>entry.synthetic || entry.kind==='Cuota proyectada' || entry.kind==='Suscripción proyectada')
-  );
-  if(!_tcModeActive){
-    arsMonth+=projectedMonthTotals.ars;
-    usdMonth+=projectedMonthTotals.usd;
-    cntMonth+=projectedMonthTotals.count;
-  }
-  const futureCommitmentTotals=sumProjectedCommitmentTotals(
-    getProjectedCommitmentEntriesForRange({
-      ...projectedMonthRange,
-      todayRef:today,
-      txns:state.transactions||[]
-    }).filter(entry=>
-      !entry.includeInTotal &&
-      (entry.group==='cuotas'||entry.group==='suscripciones') &&
-      (entry.synthetic || entry.kind==='Cuota proyectada' || entry.kind==='Suscripción proyectada' || entry.kind==='Cuota del ciclo' || entry.kind==='Cuota manual' || entry.kind==='Suscripción')
-    ).map(entry=>({...entry,includeInTotal:true}))
-  );
-  // Disclaimer only for pending third party
-  const tpPendingSumArs=thirdPartyTxns.filter(t=>t.thirdPartyStatus!=='settled' && t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
-  let syntheticARS=0;
-  let syntheticUSD=0;
-  let syntheticCount=0;
   const dashboardRangeMeta=(()=>{
-    if(_tcModeActive&&activeTcCycle){
+    if(_tcModeActive){
       const scopedCycles=getTcCycles(activeCycleMode);
       const openStr=getTcCycleOpen(scopedCycles, scopedCycles.findIndex(c=>c.id===activeTcCycle.id))||activeTcCycle.closeDate;
       return {openStr,closeStr:activeTcCycle.closeDate};
     }
     return null;
   })();
-  const getSyntheticCycleTotals=cycle=>{
-    if(!cycle) return {ars:0,usd:0,count:0};
-    const totals={ars:0,usd:0,count:0};
-    const scopedCycles=getTcCycles(activeCycleMode);
-    const openDateValue=getTcCycleOpen(scopedCycles, scopedCycles.findIndex(c=>c.id===cycle.id))||cycle.closeDate;
-    const openDate=new Date(openDateValue+'T00:00:00');
-    const closeDate=new Date(cycle.closeDate+'T23:59:59');
-    const extraKeys=new Set();
-    const add=(key,currency,amount)=>{
-      if(!key||extraKeys.has(key)) return;
-      extraKeys.add(key);
-      if((currency||'ARS')==='USD') totals.usd+=Number(amount)||0;
-      else totals.ars+=Number(amount)||0;
-      totals.count++;
-    };
-    (state.transactions||[]).filter(t=>t.isPendingSubscription).forEach(t=>{
-      if(!_hasReachedChargeDate(t.date)) return;
-      const d=new Date(String(t.date).includes('T')?t.date:(String(t.date)+'T12:00:00'));
-      if(d<openDate||d>closeDate) return;
-      if(t.sourceSubscriptionId){
-        const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
-        const monthKey=getMonthKey(t.date);
-        if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
-      }
-      add(`sub-${t.sourceSubscriptionId||t.id}`,t.currency,t.amount);
-    });
-    // Cuotas: misma proyección que el resto de la app (state.cuotas + calendario)
-    getProjectedCommitmentEntriesForRange({startStr:openDateValue,endStr:cycle.closeDate,todayRef:today,txns:state.transactions||[]})
-      .filter(e=>e.group==='cuotas'&&e.includeInTotal)
-      .forEach(e=>add(e._key,e.currency,e.amount));
-    (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
-      _getRecurringDatesInRange(s.day,openDate,closeDate).forEach(dueDate=>{
-        if(!_hasReachedChargeDate(dueDate)) return;
-        const monthKey=getMonthKey(dueDate);
-        if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
-        add(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,s.currency||'ARS',s.price);
-      });
-    });
-    (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
-      _getRecurringDatesInRange(f.day,openDate,closeDate).forEach(dueDate=>{
-        if(!_hasReachedChargeDate(dueDate)) return;
-        add(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,f.currency||'ARS',f.amount);
-      });
-    });
-    return totals;
-  };
-  if(_tcModeActive){
-    const _scopedCycles=getTcCycles(activeCycleMode);
-    const _openDate=new Date((getTcCycleOpen(_scopedCycles, _scopedCycles.findIndex(c=>c.id===activeTcCycle.id))||activeTcCycle.closeDate)+'T00:00:00');
-    const _closeDate=new Date(activeTcCycle.closeDate+'T23:59:59');
-    let extraARS=0;
-    let extraUSD=0;
-    let extraCount=0;
-    const extraKeys=new Set();
-    const addExtra=(key,currency,amount)=>{
-      if(!key||extraKeys.has(key)) return;
-      extraKeys.add(key);
-      if((currency||'ARS')==='USD') extraUSD+=Number(amount)||0;
-      else extraARS+=Number(amount)||0;
-      extraCount++;
-    };
-    const addSyntheticExtra=(key,currency,amount)=>{
-      addExtra(key,currency,amount);
-      if((currency||'ARS')==='USD') syntheticUSD+=Number(amount)||0;
-      else syntheticARS+=Number(amount)||0;
-      syntheticCount++;
-    };
-    (state.transactions||[]).filter(t=>t.isPendingSubscription).forEach(t=>{
-      if(!_hasReachedChargeDate(t.date)) return;
-      const d=new Date(String(t.date).includes('T')?t.date:(String(t.date)+'T12:00:00'));
-      if(d<_openDate||d>_closeDate) return;
-      if(t.sourceSubscriptionId){
-        const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
-        const monthKey=getMonthKey(t.date);
-        if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
-      }
-      const key=`sub-${t.sourceSubscriptionId||t.id}`;
-      // Use personal amount so shared expenses don't double-count
-      const _pa=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount;
-      addExtra(key,t.currency,_pa);
-    });
-    // Cuotas: misma proyección que el resto de la app. Antes acá se sumaban las cuotas
-    // manuales sin chequear el cargo real del resumen → se contaban dos veces.
-    getProjectedCommitmentEntriesForRange({startStr:dateToYMD(_openDate),endStr:activeTcCycle.closeDate,todayRef:today,txns:state.transactions||[]})
-      .filter(e=>e.group==='cuotas'&&e.includeInTotal)
-      .forEach(e=>addSyntheticExtra(e._key,e.currency,e.amount));
-    (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
-      _getRecurringDatesInRange(s.day,_openDate,_closeDate).forEach(dueDate=>{
-        if(!_hasReachedChargeDate(dueDate)) return;
-        const monthKey=getMonthKey(dueDate);
-        if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
-        addSyntheticExtra(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,s.currency||'ARS',s.price);
-      });
-    });
-    (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
-      _getRecurringDatesInRange(f.day,_openDate,_closeDate).forEach(dueDate=>{
-        if(!_hasReachedChargeDate(dueDate)) return;
-        addSyntheticExtra(`fixed-cycle-${f.id||f.name}-${dateToYMD(dueDate)}`,f.currency||'ARS',f.amount);
-      });
-    });
-    arsMonth+=extraARS;
-    usdMonth+=extraUSD;
-    cntMonth+=extraCount;
-  }
+  const periodRange=dashboardRangeMeta
+    ? {startStr:dashboardRangeMeta.openStr,endStr:dashboardRangeMeta.closeStr}
+    : getMonthRange(activeMk);
+  const periodCard=_tcModeActive?'visa':null;
+  const periodTotals=getPeriodTotals({...periodRange,card:periodCard,todayRef:today});
+  const billableTxns=monthTxns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
+  const _allBillable=billableTxns;
+  const thirdPartyTxns=billableTxns.filter(t=>!!t.sharedExpense&&!!t.sharedExpense.enabled);
+  let arsMonth=periodTotals.ars;
+  let usdMonth=periodTotals.usd;
+  let cntMonth=periodTotals.count;
+  // Cuotas y suscripciones del período que todavía no vencieron (para la proyección)
+  const futureCommitmentTotals=sumProjectedCommitmentTotals(
+    getProjectedCommitmentEntriesForRange({...periodRange,todayRef:today,txns:state.transactions||[]})
+      .filter(entry=>!entry.includeInTotal && (entry.group==='cuotas'||entry.group==='suscripciones') && payMethodMatchesCard(entry.payMethod,periodCard))
+      .map(entry=>({...entry,includeInTotal:true}))
+  );
+  // Disclaimer only for pending third party
+  const tpPendingSumArs=thirdPartyTxns.filter(t=>t.thirdPartyStatus!=='settled' && t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   const arsCnt=billableTxns.filter(t=>t.currency==='ARS').length;
   const uncategorizedCount=billableTxns.filter(t=>!t.category||t.category==='Uncategorized'||t.category==='Procesando...').length;
-  const catTotals={};
-  billableTxns.filter(t=>t.currency==='ARS').forEach(t=>{catTotals[t.category||'Sin categoría']=(catTotals[t.category||'Sin categoría']||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
+  const catTotals=getPeriodCategoryTotals(periodTotals.entries,{arsOnly:true});
   const topCategories=Object.entries(catTotals)
     .sort((a,b)=>b[1]-a[1])
     .map(([name,amount])=>({name,amount,pct:arsMonth>0?Math.round(amount/arsMonth*100):0}));
@@ -1489,70 +1324,22 @@ function renderDashboard(){
       return open&&_todayYmdDash>=open&&_todayYmdDash<=c.closeDate;
     })||cardSpecificCycles[0]||null;
     dashboardCardCycleByKey[key]=cardActiveCycle||null;
+    // Total de cada tarjeta con su propio ciclo (vista tarjeta) o el mes elegido (vista mes)
+    const cardCycle=(_tcModeActive&&key==='visa')?activeTcCycle:cardActiveCycle;
+    let cardRange=getMonthRange(activeMk);
+    if(isTcView&&cardCycle){
+      const idx=_allCardCycles.findIndex(x=>x.id===cardCycle.id);
+      const scoped=idx>=0?_allCardCycles:getTcCycles(activeCycleMode);
+      const open=getTcCycleOpen(scoped, scoped.findIndex(x=>x.id===cardCycle.id))||cardCycle.closeDate;
+      cardRange={startStr:open,endStr:cardCycle.closeDate};
+    }
+    const cardTotals=getPeriodTotals({...cardRange,card:key,todayRef:today});
+    dashboardCardTotals[key]={ars:cardTotals.ars,usd:cardTotals.usd,count:cardTotals.count};
+    dashboardCardDisplayTotals[key]=dashboardCardTotals[key];
+    dashboardCardsArs+=cardTotals.ars;
+    dashboardCardsUsd+=cardTotals.usd;
+    dashboardCardsCount+=cardTotals.count;
   });
-  // Receta canónica — misma que Movimientos: monto personal, tc/vacío cuenta como visa
-  const dashboardCardBaseTxns=(monthTxns||[]).filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
-  dashboardCardBaseTxns.forEach(t=>{
-    const pm=(t.payMethod||'').toLowerCase();
-    const key=pm==='amex'?'amex':'visa'; // monthTxns ya excluye deb/ef
-    const amt=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):(Number(t.amount)||0);
-    if(!dashboardCardTotals[key]) dashboardCardTotals[key]={ars:0,usd:0,count:0};
-    if((t.currency||'ARS')==='USD') dashboardCardTotals[key].usd+=amt;
-    else dashboardCardTotals[key].ars+=amt;
-    dashboardCardTotals[key].count++;
-  });
-  const dashboardProjectedEntries=(dashboardRangeMeta&&typeof getProjectedCommitmentEntriesForRange==='function')
-    ? getProjectedCommitmentEntriesForRange({
-        startStr:dashboardRangeMeta.openStr,
-        endStr:dashboardRangeMeta.closeStr,
-        todayRef:today,
-        txns:state.transactions||[]
-      }).filter(entry=>entry.includeInTotal&&(entry.synthetic||entry.kind==='Cuota proyectada'||entry.kind==='Suscripción proyectada'))
-    : [];
-  dashboardProjectedEntries.forEach(entry=>{
-    const ownerKey=(entry.payMethod||'').toLowerCase()==='amex'?'amex':'visa';
-    const amt=(entry.personalAmount!=null)?Number(entry.personalAmount):(Number(entry.amount)||0);
-    if(!dashboardCardDisplayTotals[ownerKey]) dashboardCardDisplayTotals[ownerKey]={ars:0,usd:0,count:0};
-    if((entry.currency||'ARS')==='USD') dashboardCardDisplayTotals[ownerKey].usd+=amt;
-    else dashboardCardDisplayTotals[ownerKey].ars+=amt;
-    dashboardCardDisplayTotals[ownerKey].count++;
-  });
-  Object.keys(dashboardCardTotals).forEach(key=>{
-    dashboardCardDisplayTotals[key]={
-      ars:(dashboardCardTotals[key]?.ars||0)+(dashboardCardDisplayTotals[key]?.ars||0),
-      usd:(dashboardCardTotals[key]?.usd||0)+(dashboardCardDisplayTotals[key]?.usd||0),
-      count:(dashboardCardTotals[key]?.count||0)+(dashboardCardDisplayTotals[key]?.count||0)
-    };
-    dashboardCardsArs+=dashboardCardDisplayTotals[key].ars||0;
-    dashboardCardsUsd+=dashboardCardDisplayTotals[key].usd||0;
-    dashboardCardsCount+=dashboardCardDisplayTotals[key].count||0;
-  });
-  const dashboardSummaryTotals=(typeof getTxnDisplaySummaryTotals==='function')
-    ? getTxnDisplaySummaryTotals({
-        mode:isTcView?activeCycleMode:'mes',
-        activeCycleMeta:dashboardRangeMeta,
-        searchVal:'',
-        txns:monthTxns||[],
-        summaryTxns:monthTxns||[],
-        todayRef:today,
-        monthKey:activeMk,
-        hasCategoryFilter:false,
-        hasCurrencyFilter:false,
-        hasCardFilter:false,
-        estadoFilter:'all'
-      })
-    : {ars:arsMonth,usd:usdMonth,grand:arsMonth+(usdMonth*(window.USD_TO_ARS||USD_TO_ARS||1))};
-  arsMonth=dashboardSummaryTotals.ars||0;
-  usdMonth=dashboardSummaryTotals.usd||0;
-  if(isTcView&&dashboardCards.length){
-    cntMonth=dashboardCardsCount||cntMonth;
-  }
-  const rawPeriodArsMonth=_allBillable.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0) + (_tcModeActive?syntheticARS:projectedMonthTotals.ars);
-  const rawPeriodUsdMonth=_allBillable.filter(t=>t.currency==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0) + (_tcModeActive?syntheticUSD:projectedMonthTotals.usd);
-  const rawPeriodCntMonth=_allBillable.length + (_tcModeActive?syntheticCount:projectedMonthTotals.count);
-  const operationalArsMonth=dashboardSummaryTotals.ars||rawPeriodArsMonth;
-  const operationalUsdMonth=dashboardSummaryTotals.usd||rawPeriodUsdMonth;
-  const operationalCntMonth=rawPeriodCntMonth;
   const creditCycleArsTotal=dashboardCardsArs||arsMonth;
 
   // ── Ingresos ──
@@ -1585,9 +1372,6 @@ function renderDashboard(){
   }
   // (Sync button removed from margin widget)
   const incTotalARS=incARS+(incUSD*USD_TO_ARS);
-  arsMonth=operationalArsMonth;
-  usdMonth=operationalUsdMonth;
-  cntMonth=operationalCntMonth;
   const totalGastoARS=arsMonth+(usdMonth*USD_TO_ARS);
   const pct=incTotalARS>0?Math.round((totalGastoARS/incTotalARS)*100):null;
   const spendBudget=incTotalARS>0?incTotalARS*(state.spendPct||100)/100:0;
@@ -2950,32 +2734,27 @@ function renderDonutChart(){}
 function renderProjection(){}
 function renderDowHeatmap(){}
 
+// Gasto del período del dashboard (ciclo Visa elegido o mes), con la receta única
 function getDashCycleTotal() {
-  const allCyc = typeof getTcCycles === 'function' ? getTcCycles() : state.tcCycles;
-  if(state.dashView === 'tc' && state.dashTcCycle) {
-    const cyc = allCyc.find(c => c.id === state.dashTcCycle);
-    if(cyc) {
-       const txns = typeof getTcCycleTxns === 'function' ? getTcCycleTxns(cyc, allCyc) : [];
-       return txns.filter(t => t.currency === 'ARS' && t.amount > 0).reduce((s,t) => s + t.amount, 0);
+  const view = normalizeViewMode(state.dashView || 'visa');
+  if(view !== 'mes' && state.dashTcCycle) {
+    const cycles = getTcCycles(view);
+    const idx = cycles.findIndex(c => c.id === state.dashTcCycle);
+    if(idx >= 0) {
+      const open = getTcCycleOpen(cycles, idx) || cycles[idx].closeDate;
+      return getPeriodTotals({startStr:open, endStr:cycles[idx].closeDate, card:'visa'}).totalArs;
     }
   }
-  // Fallback to current month if not in TC view
-  const mk = state.dashMonth || getMonthKey(new Date());
-  return state.transactions
-    .filter(t => (t.month === mk || getMonthKey(t.date) === mk) && t.currency === 'ARS' && t.amount > 0 && !t.isPendingCuota)
-    .reduce((s,t) => s + t.amount, 0);
+  return getPeriodTotals(getMonthRange(state.dashMonth || getMonthKey(new Date()))).totalArs;
 }
 
 function getDashMonthIncome() {
   const mk = state.dashMonth || getMonthKey(new Date());
-  const monthData = state.incomeMonths.find(m => m.month === mk);
-  if(monthData) {
-    let total = 0;
-    Object.values(monthData.sources).forEach(v => total += v);
-    if(monthData.extraArs) total += monthData.extraArs;
-    return total;
+  const monthData = (state.incomeMonths||[]).find(m => m.month === mk);
+  if(monthData && typeof getMonthTotalARS === 'function') {
+    return getMonthTotalARS(monthData) + getMonthTotalUSD(monthData) * (USD_TO_ARS || state.usdRate || 1420);
   }
-  return state.income.ars || 0;
+  return state.income?.ars || 0;
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -3636,21 +3415,8 @@ function _db2CycleIncomeMonth(cycle, cycles){
 }
 
 function _db2BuildMonthExpenseEntries(monthKey){
-  const base=(state.transactions||[]).filter(t=>
-    (t.month||getMonthKey(t.date))===monthKey &&
-    !t.isPendingCuota &&
-    !t.isPendingSubscription
-  );
-  const [year,month]=String(monthKey||'').split('-').map(Number);
-  if(!year || !month) return base;
-  const lastDay=new Date(year,month,0).getDate();
-  const projected=getProjectedCommitmentEntriesForRange({
-    startStr:`${year}-${String(month).padStart(2,'0')}-01`,
-    endStr:`${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`,
-    todayRef:new Date(),
-    txns:state.transactions||[]
-  }).filter(entry=>entry.synthetic || entry.kind==='Cuota proyectada' || entry.kind==='Suscripción proyectada');
-  return [...base, ...projected];
+  const range=getMonthRange(monthKey);
+  return range?getPeriodTxnList(range):[];
 }
 
 function _db2BuildCycleExpenseEntries(cycleMode, cycleId){

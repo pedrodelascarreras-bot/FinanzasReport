@@ -940,96 +940,36 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
   return finalEntries;
 }
 
+// Totales del resumen de Movimientos. Sin filtros (búsqueda, categoría, moneda, estado)
+// usa la receta única getPeriodTotals; con filtros suma solo lo que se ve en la lista.
 function getTxnDisplaySummaryTotals(opts){
   const mode=opts?.mode||'mes';
   const activeCycleMeta=opts?.activeCycleMeta||null;
-  const searchVal=opts?.searchVal||'';
-  const txns=Array.isArray(opts?.txns)?opts.txns:[];
   const summaryTxns=Array.isArray(opts?.summaryTxns)?opts.summaryTxns:[];
   const todayRef=opts?.todayRef instanceof Date?opts.todayRef:new Date();
-  const hasCategoryFilter=!!opts?.hasCategoryFilter;
-  const hasCurrencyFilter=!!opts?.hasCurrencyFilter;
-  const hasCardFilter=!!opts?.hasCardFilter;
-  const estadoFilter=opts?.estadoFilter||'all';
-
-  // Personal amounts (user's actual share)
-  let arsTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0),0);
-  let usdTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0),0);
-  // Full amounts (what the card actually charges) — for TC view display
-  let arsFullTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='ARS').reduce((s,t)=>s+(Number(t.amount)||0),0);
-  let usdFullTotal=summaryTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
-
-  const canUseProjectedTotals=
-    !searchVal &&
-    !hasCategoryFilter &&
-    !hasCurrencyFilter &&
-    estadoFilter==='all';
-
-  if(canUseProjectedTotals && mode!=='mes' && activeCycleMeta){
-    const isNonCC=t=>t.payMethod==='deb'||t.payMethod==='ef';
-    const billableActualTxns=txns.filter(t=>
-      !t.isPendingCuota &&
-      !t.isPendingSubscription &&
-      !isNonCC(t)
-    );
-    arsTotal=billableActualTxns.filter(t=>(t.currency||'ARS')!=='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0),0);
-    usdTotal=billableActualTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):Number(t.amount)||0),0);
-    arsFullTotal=billableActualTxns.filter(t=>(t.currency||'ARS')!=='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
-    usdFullTotal=billableActualTxns.filter(t=>(t.currency||'ARS')==='USD').reduce((s,t)=>s+(Number(t.amount)||0),0);
-  }
-
-  if(canUseProjectedTotals){
-    let range=null;
-    if(mode!=='mes' && activeCycleMeta){
-      range={startStr:activeCycleMeta.openStr,endStr:activeCycleMeta.closeStr};
-    } else if(mode==='mes' && opts?.monthKey){
-      const [year,month]=String(opts.monthKey).split('-').map(Number);
-      const lastDay=new Date(year,month,0).getDate();
-      range={
-        startStr:`${year}-${String(month).padStart(2,'0')}-01`,
-        endStr:`${year}-${String(month).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`
-      };
-    }
-    if(range){
-      const projectedEntries=getProjectedCommitmentEntriesForRange({
-        ...range,
-        todayRef,
-        txns:state.transactions||[]
-      }).filter(entry=>{
-        if(!(entry.synthetic || entry.kind==='Cuota proyectada' || entry.kind==='Suscripción proyectada')) return false;
-        if(!entry.includeInTotal) return false;
-        if(hasCardFilter && entry.payMethod && entry.payMethod!==state.txnCardFilter) return false;
-        if(hasCardFilter && !entry.payMethod && entry.synthetic){
-          const ownerId=state.ccActiveCard||(state.ccCards||[]).find(c=>c.payMethodKey==='visa')?.id||(state.ccCards||[])[0]?.id||null;
-          const ownerKey=(state.ccCards||[]).find(c=>c.id===ownerId)?.payMethodKey||'visa';
-          if(state.txnCardFilter!==ownerKey) return false;
-        }
-        return true;
-      });
-      const projectedTotals=sumProjectedCommitmentTotals(projectedEntries);
-      arsTotal+=projectedTotals.ars;
-      usdTotal+=projectedTotals.usd;
-      // For full totals, sum entry.amount (full) instead of personalAmount
-      const projectedFullTotals=projectedEntries.reduce((acc,entry)=>{
-        if(!entry?.includeInTotal) return acc;
-        if((entry.currency||'ARS')==='USD') acc.usd+=(Number(entry.amount)||0);
-        else acc.ars+=(Number(entry.amount)||0);
-        return acc;
-      },{ars:0,usd:0});
-      arsFullTotal+=projectedFullTotals.ars;
-      usdFullTotal+=projectedFullTotals.usd;
-    }
-  }
-
+  const canUsePeriodTotals=
+    !opts?.searchVal &&
+    !opts?.hasCategoryFilter &&
+    !opts?.hasCurrencyFilter &&
+    (opts?.estadoFilter||'all')==='all';
+  const range=mode!=='mes'
+    ? (activeCycleMeta?{startStr:activeCycleMeta.openStr,endStr:activeCycleMeta.closeStr}:null)
+    : getMonthRange(opts?.monthKey);
   const _rate=window.USD_TO_ARS||USD_TO_ARS||1;
-  return {
-    ars:arsTotal,
-    usd:usdTotal,
-    grand:arsTotal+(usdTotal*_rate),
-    arsFull:arsFullTotal,
-    usdFull:usdFullTotal,
-    grandFull:arsFullTotal+(usdFullTotal*_rate)
-  };
+  if(canUsePeriodTotals && range){
+    // Vista tarjeta: el ciclo es de Visa salvo que se filtre otra tarjeta
+    const card=opts?.cardFilter||(mode!=='mes'?'visa':null);
+    const personal=getPeriodTotals({...range,card,todayRef});
+    const full=getPeriodTotals({...range,card,todayRef,amountMode:'full'});
+    return {
+      ars:personal.ars, usd:personal.usd, grand:personal.ars+personal.usd*_rate, count:personal.count,
+      arsFull:full.ars, usdFull:full.usd, grandFull:full.ars+full.usd*_rate
+    };
+  }
+  const sumBy=(cur,fn)=>summaryTxns.filter(t=>(t.currency||'ARS')===cur&&!t.isPendingCuota&&!t.isPendingSubscription).reduce((s,t)=>s+fn(t),0);
+  const ars=sumBy('ARS',getTxnPersonalAmount), usd=sumBy('USD',getTxnPersonalAmount);
+  const arsFull=sumBy('ARS',t=>Number(t.amount)||0), usdFull=sumBy('USD',t=>Number(t.amount)||0);
+  return {ars, usd, grand:ars+usd*_rate, count:summaryTxns.length, arsFull, usdFull, grandFull:arsFull+usdFull*_rate};
 }
 
 // ── Duplicate filter in transactions list ──
@@ -1174,7 +1114,10 @@ function renderTransactions(){
   if(cfv)txns=txns.filter(t=>t.category===cfv);
   if(cufv)txns=txns.filter(t=>t.currency===cufv);
   const cardFv=state.txnCardFilter||'';
-  if(cardFv)txns=txns.filter(t=>t.payMethod===cardFv);
+  // Misma regla que los totales (payMethodMatchesCard): en vista tarjeta, sin filtro
+  // explícito, se ven los cargos del ciclo Visa (sin débito, efectivo ni Amex).
+  const _listCard=cardFv||(mode!=='mes'&&!_isSearching&&!state._dupFilterOn?'visa':'');
+  if(_listCard)txns=txns.filter(t=>payMethodMatchesCard(t.payMethod,_listCard));
   if(state.txnTagFilter)txns=txns.filter(t=>t.tags&&t.tags.includes(state.txnTagFilter));
   // Sync card filter button states
   document.getElementById('tcf-all')?.classList.toggle('active',!cardFv);
@@ -1297,6 +1240,7 @@ function renderTransactions(){
     hasCategoryFilter:!!cfv,
     hasCurrencyFilter:!!cufv,
     hasCardFilter:!!cardFv,
+    cardFilter:cardFv,
     estadoFilter:estadoF
   });
   const arsTotal=displayTotals.ars;

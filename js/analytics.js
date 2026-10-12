@@ -48,38 +48,12 @@ function getTendPeriodLabel(k){
   }
   const[y,m]=k.split('-');return new Date(parseInt(y),parseInt(m)-1,1).toLocaleDateString('es-AR',{month:'short',year:'2-digit'});
 }
+// Movimientos del período para Tendencias: receta única (js/totals.js)
 function getTcCycleTrendTxns(cycle, cycles){
   if(!cycle) return [];
-  // Receta canónica — misma que Movimientos (getTxnDisplaySummaryTotals):
-  // reales sin pendientes + proyectados sintéticos de getProjectedCommitmentEntriesForRange
-  const baseTxns=getTcCycleTxns(cycle,cycles).filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
   const open=getTcCycleOpen(cycles, cycles.findIndex(c=>c.id===cycle.id))||cycle.closeDate;
-  if(typeof getProjectedCommitmentEntriesForRange!=='function') return baseTxns;
-  const cyclePm=(typeof getTcCyclePayMethodKey==='function'?getTcCyclePayMethodKey(cycle):'')||'';
-  const projected=getProjectedCommitmentEntriesForRange({
-    startStr:open,
-    endStr:cycle.closeDate,
-    todayRef:new Date(),
-    txns:state.transactions||[]
-  }).filter(e=>{
-    if(!e.includeInTotal) return false;
-    if(!(e.synthetic||e.kind==='Cuota proyectada'||e.kind==='Suscripción proyectada')) return false;
-    const pm=(e.payMethod||'').toLowerCase();
-    // Igual que el resto: amex solo en ciclo amex; todo lo demás cae en visa
-    if(cyclePm==='amex') return pm==='amex';
-    if(cyclePm==='visa') return pm!=='amex';
-    return true;
-  }).map(e=>({
-    id:e._key||('trend-proj-'+dateToYMD(e.date)+'-'+(e.title||'')),
-    date:e.date,
-    description:e.title||'',
-    amount:(e.personalAmount!=null)?Number(e.personalAmount):(Number(e.amount)||0),
-    currency:e.currency||'ARS',
-    category:e.group==='cuotas'?'Cuotas':e.group==='suscripciones'?'Suscripciones':'Finanzas',
-    payMethod:e.payMethod||cyclePm||'visa',
-    isSyntheticCommitment:true
-  }));
-  return [...baseTxns,...projected];
+  const cyclePm=(typeof getTcCyclePayMethodKey==='function'?getTcCyclePayMethodKey(cycle):'')||'visa';
+  return getPeriodTxnList({startStr:open,endStr:cycle.closeDate,card:cyclePm==='amex'?'amex':'visa'});
 }
 function getTxnsForTendPeriod(k){
   const mode=normalizeViewMode(state.tendMode||'visa');
@@ -88,7 +62,8 @@ function getTxnsForTendPeriod(k){
     const cycle=cycles.find(c=>c.id===k);
     return cycle?getTcCycleTrendTxns(cycle,cycles):[];
   }
-  return state.transactions.filter(t=>(t.month||getMonthKey(t.date))===k);
+  const range=getMonthRange(k);
+  return range?getPeriodTxnList(range):[];
 }
 function toggleTendCat(cat){
   if(state.activeTendCats.has(cat))state.activeTendCats.delete(cat);

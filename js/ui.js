@@ -704,7 +704,7 @@ function renderNotifications() {
     const usage = (cycleTotal / monthIncome) * 100;
     if(usage >= 80) {
       notifs.push({
-        id: `spend-limit-${today.toISOString().slice(0,7)}`,
+        id: `spend-limit-${getMonthKey(today)}`,
         type: 'alert',
         title: 'Límite de Gastos',
         desc: `Atención: ya utilizaste el ${Math.round(usage)}% de tus ingresos del ciclo actual.`,
@@ -746,7 +746,7 @@ function renderNotifications() {
   }
 
   // 6. Uncategorized transactions (5+)
-  const _monthKey = today.toISOString().slice(0,7);
+  const _monthKey = getMonthKey(today);
   const _monthTxns = (state.transactions||[]).filter(t => {
     const m = t.month || (t.date ? String(t.date).slice(0,7) : '');
     return m === _monthKey && !t.isPendingCuota;

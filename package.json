@@ -9,6 +9,9 @@
     "typecheck": "tsc -p tsconfig.json",
     "test:report": "npm --prefix report test",
     "test:cuotas": "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tests/cuotas.test.js",
+    "test:totals": "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tests/totals.test.js",
+    "test:consistencia": "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tests/consistencia.test.js",
+    "test": "npm run test:cuotas && npm run test:totals && npm run test:consistencia",
     "validate": "npm run lint && npm run typecheck && npm run test:report && npm run build"
   },
   "devDependencies": {

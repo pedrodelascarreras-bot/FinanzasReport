@@ -288,44 +288,28 @@ function toggleReportSectionGroup(group, checked){
   updateRepPreview();
 }
 
+// Movimientos del reporte: receta única (js/totals.js) — reales + compromisos vencidos,
+// con tu parte de los gastos compartidos. "Todo" lista solo movimientos reales.
 function getRepTxns(){
   const mode=normalizeRepMode(state.repMode||'visa');
   const sel=document.getElementById('rep-period-select')?.value||'';
   const range=typeof getViewWindowRange==='function'
     ? getViewWindowRange()
     : {todayYmd:dateToYMD(new Date()), currentMonthKey:getMonthKey(new Date()), startMonthKey:getMonthKey(new Date(new Date().getFullYear(),new Date().getMonth()-6,1))};
-  if(mode==='todo'||sel==='all')return state.transactions;
+  if(mode==='todo'||sel==='all') return (state.transactions||[]).filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
   if(mode==='mes'){
     if(sel<range.startMonthKey||sel>range.currentMonthKey) return [];
-    return state.transactions.filter(t=>(t.month||getMonthKey(t.date))===sel);
+    return getPeriodTxnList(getMonthRange(sel));
   }
   if(mode==='visa'){
     const cycleId=sel.replace('cycle:','');
     const cycles=getTcCycles(mode);
-    const cycle=cycles.find(c=>c.id===cycleId);
-    if(!cycle) return [];
-    const fallbackTxns=typeof getTcCycleTxns==='function' ? getTcCycleTxns(cycle,cycles) : [];
-    if(typeof ccGetCycleExpenses!=='function') return fallbackTxns;
-    const resolvedCard=cycle.cardId
-      ? (state.ccCards||[]).find(card=>card.id===cycle.cardId)
-      : (typeof _resolveCardForMode==='function' ? _resolveCardForMode(mode) : null);
-    const cardId=resolvedCard?.id||cycle.cardId||state.ccActiveCard||(state.ccCards||[])[0]?.id||'';
-    if(!cardId) return fallbackTxns;
-    return ccGetCycleExpenses(cardId, cycle.id).map(expense=>({
-      id:expense.id||`rep-${cycle.id}-${expense.date}-${expense.description||'gasto'}`,
-      date:expense.date,
-      month:getMonthKey(expense.date),
-      week:typeof getWeekKey==='function' ? getWeekKey(expense.date) : '',
-      description:expense.description||'Sin detalle',
-      category:expense.category||'Sin categoría',
-      amount:expense.amountUSD>0 ? Number(expense.amountUSD)||0 : Number(expense.amountARS)||0,
-      currency:expense.amountUSD>0 ? 'USD' : 'ARS',
-      payMethod:resolvedCard?.payMethodKey||mode,
-      isPendingCuota:!!expense.isPendingCuota,
-      isPendingSubscription:!!expense.isPendingSubscription,
-      isThirdParty:false,
-      source:expense.source||'txn'
-    }));
+    const idx=cycles.findIndex(c=>c.id===cycleId);
+    if(idx<0) return [];
+    const cycle=cycles[idx];
+    const open=getTcCycleOpen(cycles, idx)||cycle.closeDate;
+    const cyclePm=(typeof getTcCyclePayMethodKey==='function'?getTcCyclePayMethodKey(cycle):'')||'visa';
+    return getPeriodTxnList({startStr:open,endStr:cycle.closeDate,card:cyclePm==='amex'?'amex':'visa'});
   }
   if(mode==='rango'){
     let from=document.getElementById('rep-range-from')?.value||'';
@@ -334,11 +318,10 @@ function getRepTxns(){
     if(from<range.startMonthKey+'-01') from=range.startMonthKey+'-01';
     if(to>range.todayYmd) to=range.todayYmd;
     if(from>to) return [];
-    return state.transactions.filter(t=>{const d=dateToYMD(t.date);return d>=from&&d<=to;});
+    return getPeriodTxnList({startStr:from,endStr:to});
   }
-  return state.transactions;
+  return (state.transactions||[]).filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
 }
-
 function getRepSections(){
   ensureRepReportState();
   const presets={
@@ -512,15 +495,6 @@ function buildReportHTML(txns,sections,periodLabel){
 
   // Comparación mes anterior
   const reportMode=normalizeRepMode(state.repMode||'visa');
-  const mapCycleExpenseToTxn=expense=>({
-    date:expense.date,
-    month:getMonthKey(expense.date),
-    description:expense.description||'Sin detalle',
-    category:expense.category||'Sin categoría',
-    amount:expense.amountUSD>0 ? Number(expense.amountUSD)||0 : Number(expense.amountARS)||0,
-    currency:expense.amountUSD>0 ? 'USD' : 'ARS',
-    payMethod:expense.payMethod||reportMode
-  });
   const prevMonths=getAvailableMonths().sort();
   const curIdx=prevMonths.indexOf(txnMk);
   const prevMk=curIdx>0?prevMonths[curIdx-1]:null;
@@ -534,18 +508,13 @@ function buildReportHTML(txns,sections,periodLabel){
     const prevCycle=cycleIdx>=0?cycles[cycleIdx+1]:null;
     prevLabel=prevCycle?.label||prevCycle?.closeDate||'';
     if(prevCycle){
-      const prevCardId=prevCycle.cardId
-        || (typeof _resolveCardForMode==='function' ? _resolveCardForMode(reportMode)?.id : '')
-        || state.ccActiveCard
-        || state.ccCards?.[0]?.id
-        || '';
-      prevTxns=typeof ccGetCycleExpenses==='function'
-        ? ccGetCycleExpenses(prevCardId, prevCycle.id).map(mapCycleExpenseToTxn)
-        : getTcCycleTxns(prevCycle, cycles);
+      const prevOpen=getTcCycleOpen(cycles, cycleIdx+1)||prevCycle.closeDate;
+      const prevPm=(typeof getTcCyclePayMethodKey==='function'?getTcCyclePayMethodKey(prevCycle):'')||'visa';
+      prevTxns=getPeriodTxnList({startStr:prevOpen,endStr:prevCycle.closeDate,card:prevPm==='amex'?'amex':'visa'});
     }
   } else if(prevMk){
     prevLabel=prevMk;
-    prevTxns=state.transactions.filter(t=>(t.month||getMonthKey(t.date))===prevMk);
+    prevTxns=getPeriodTxnList(getMonthRange(prevMk));
   }
   const prevArs=prevTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
   const prevCatMap={};prevTxns.filter(t=>t.currency==='ARS').forEach(t=>{prevCatMap[t.category]=(prevCatMap[t.category]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
@@ -554,7 +523,7 @@ function buildReportHTML(txns,sections,periodLabel){
 
   // Hábitos: día de semana con más gasto
   const DIAS=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
-  const byDow={};txns.filter(t=>t.currency==='ARS').forEach(t=>{const d=new Date(t.date+'T12:00:00').getDay();byDow[d]=(byDow[d]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
+  const byDow={};txns.filter(t=>t.currency==='ARS').forEach(t=>{const d=(t.date instanceof Date?t.date:new Date(String(t.date).includes('T')?t.date:t.date+'T12:00:00')).getDay();byDow[d]=(byDow[d]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
   const peakDow=Object.entries(byDow).sort((a,b)=>b[1]-a[1])[0];
   // Semana más cara
   const byWeek={};txns.filter(t=>t.currency==='ARS').forEach(t=>{const w=t.week||getWeekKey(t.date);byWeek[w]=(byWeek[w]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
