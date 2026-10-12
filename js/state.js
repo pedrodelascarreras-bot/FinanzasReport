@@ -31,7 +31,7 @@ let state={
   chartMode:'bars',
   dashMonth:null,
   txnFilterMode:'visa',
-  charts:{},_assigningTxnId:null,apiKey:'',
+  charts:{},_assigningTxnId:null,
   catRules:[],           // [{id, keyword, category, active, priority}]
   nameRules:[],          // [{id, keyword, renameTo, active, priority}]
   logoRules:[],          // [{id, keyword, logoKey, active, priority}]
@@ -175,11 +175,7 @@ function saveState(){
 
 // ── Google Drive Storage ──
 const DRIVE_FILE_NAME = 'finanzas-data.json';
-const DRIVE_PUBLIC_FILE_NAME = 'finanzas-data-sync.json';
-const DRIVE_SYNC_FOLDER_NAME = 'FinanzasApp';
 let driveFileId = null;
-let drivePublicFileId = null;
-let driveSyncFolderId = null;
 let driveAccessToken = null;
 let driveSaveTimer = null;
 let driveTokenClient = null;
@@ -202,7 +198,7 @@ function _syncMark(step){
   console.log('[sync]', entry.ms+'ms', step);
 }
 
-function getDriveScopes(){ return 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/gmail.readonly'; }
+function getDriveScopes(){ return 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/gmail.readonly'; }
 
 function initDriveClient(autoSync){
   const clientId = getGmailClientId();
@@ -316,7 +312,6 @@ async function saveToDrive(snapshot){
     const dot = document.getElementById('gmail-sync-dot');
     if(dot){ dot.style.background='var(--accent)'; setTimeout(()=>dot.style.background='var(--accent2)',2000); }
     localStorage.setItem(LS_LAST_SYNCED_AT, snapshot.savedAt||new Date().toISOString());
-    saveToDrivePublic(snapshot).catch(e=>console.warn('Public sync error:',e));
   }catch(e){
     console.warn('Drive save error:',e);
     if(e.status===401 || e.status===403){ driveAccessToken=null; driveReady=false; }
@@ -330,45 +325,6 @@ async function findDriveFile(){
   });
   const data = await readGoogleResponse(res, 'No se pudo consultar el archivo principal en Drive');
   return data.files&&data.files.length ? data.files[0].id : null;
-}
-
-async function saveToDrivePublic(snapshot){
-  if(!driveAccessToken) return;
-  try{
-    const content = JSON.stringify(snapshot);
-    if(!drivePublicFileId){
-      const q = encodeURIComponent("name='"+DRIVE_PUBLIC_FILE_NAME+"' and trashed=false");
-      const res = await fetch('https://www.googleapis.com/drive/v3/files?q='+q+'&fields=files(id)',{
-        headers:{'Authorization':'Bearer '+driveAccessToken}
-      });
-      const data = await readGoogleResponse(res, 'No se pudo consultar la copia pública en Drive');
-      if(data.files && data.files.length) drivePublicFileId = data.files[0].id;
-    }
-    if(drivePublicFileId){
-      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files/'+drivePublicFileId+'?uploadType=media',{
-        method:'PATCH',
-        headers:{'Authorization':'Bearer '+driveAccessToken,'Content-Type':'application/json'},
-        body: content
-      });
-      if(!res.ok) await readGoogleResponse(res, 'No se pudo actualizar la copia pública en Drive');
-    } else {
-      const meta = {name:DRIVE_PUBLIC_FILE_NAME};
-      const form = new FormData();
-      form.append('metadata', new Blob([JSON.stringify(meta)],{type:'application/json'}));
-      form.append('file', new Blob([content],{type:'application/json'}));
-      const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',{
-        method:'POST',
-        headers:{'Authorization':'Bearer '+driveAccessToken},
-        body: form
-      });
-      const data = await readGoogleResponse(res, 'No se pudo crear la copia pública en Drive');
-      if(!data?.id) throw new Error('Google Drive no devolvió un ID para la copia pública');
-      drivePublicFileId = data.id;
-    }
-  }catch(e){
-    console.warn('Error guardando copia publica en Drive:',e);
-    if(e.status===401 || e.status===403){ driveAccessToken=null; driveReady=false; }
-  }
 }
 
 async function loadFromDrive(){
@@ -594,11 +550,11 @@ function loadState(){
     state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';
     state.smartTags=s.smartTags||[];
+    localStorage.removeItem('fin_apikey'); // la categorización con IA se eliminó: no dejar la key guardada
     state.txnFilterMode=_normalizeViewMode(s.txnFilterMode||state.txnFilterMode||'visa');
     state.tendMode=_normalizeViewMode(s.tendMode||state.tendMode||'visa');
     state.dashView=_normalizeViewMode(s.dashView||state.dashView||'visa');
     state.repMode=_normalizeViewMode(s.repMode||state.repMode||'visa');
-    state.apiKey=localStorage.getItem('fin_apikey')||'';
     if(typeof normalizeCategoryState === 'function'){
       try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
     }

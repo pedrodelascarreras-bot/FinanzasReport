@@ -2,24 +2,19 @@
   "name": "finanzas-app",
   "version": "1.0.0",
   "private": true,
-  "description": "Tooling de validacion para la app de finanzas personales",
+  "description": "Tooling de validación de la app de finanzas personales",
   "scripts": {
     "build": "node scripts/build-static.mjs",
-    "lint": "eslint js/**/*.js report/*.js",
-    "typecheck": "tsc -p tsconfig.json",
-    "test:report": "npm --prefix report test",
+    "lint": "eslint js/**/*.js",
     "test:cuotas": "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tests/cuotas.test.js",
     "test:totals": "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tests/totals.test.js",
     "test:consistencia": "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tests/consistencia.test.js",
     "test": "npm run test:cuotas && npm run test:totals && npm run test:consistencia",
-    "validate": "npm run lint && npm run typecheck && npm run test:report && npm run build"
+    "validate": "npm run lint && npm test && npm run build"
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",
-    "@resvg/resvg-js": "^2.6.2",
-    "@types/node": "^24.5.2",
     "eslint": "^9.24.0",
-    "globals": "^16.0.0",
-    "typescript": "^5.9.2"
+    "globals": "^16.0.0"
   }
 }

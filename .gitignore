@@ -1,5 +1,4 @@
 node_modules/
 dist/
-report/node_modules/
 .claude/worktrees/
 .DS_Store

@@ -523,7 +523,7 @@ function finishImport(txns,source,origen){
   if(isGmail){
     saveState();renderDashboard();renderTransactions();updateQrBadge();
   } else {
-    Promise.resolve(categorizeWithAI()).then(()=>{saveState();renderDashboard();renderTransactions();});
+    categorizePendingTxns();saveState();renderDashboard();renderTransactions();
   }
 }
 
@@ -1002,45 +1002,28 @@ function findDuplicateGroups(){
 // ── Duplicate modal ──
 // openDuplicateModal and confirmDeleteDupes replaced by showDuplicatesModal
 
-// ══ AI CATEGORIZATION ══
-async function categorizeWithAI(){
-  const unc=state.transactions.filter(t=>t.category==='Procesando...');
-  if(!unc.length)return Promise.resolve();
-  const key=getApiKey();
-  if(!key){unc.forEach(t=>{t.category=ruleBasedCategory(t.description);});return Promise.resolve();}
-  const chunks=[];for(let i=0;i<unc.length;i+=40)chunks.push(unc.slice(i,i+40));
-  for(const chunk of chunks){
-    try{
-      const items=chunk.map(t=>t.id+'|||'+t.description).join('\n');
-      const prompt='Categoriza gastos en subcategorías. SOLO JSON sin backticks.\nSubcategorías disponibles: '+catNames().join(', ')+'\nFormato: {"id":"Subcategoria",...}\nUsá la subcategoría más específica posible.\n'+items;
-      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':key,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});
-      const d=await r.json();
-      const map=JSON.parse((d.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim());
-      chunk.forEach(t=>{if(map[t.id])t.category=map[t.id];});
-    }catch(e){chunk.forEach(t=>{t.category=ruleBasedCategory(t.description);});}
-  }
+// ══ CATEGORIZACIÓN AUTOMÁTICA (reglas) ══
+// Solo toca movimientos sin categoría: nunca pisa una categoría elegida o corregida por vos.
+function isTxnUncategorized(t){
+  return !t.category || t.category==='Procesando...' || t.category==='Uncategorized';
 }
-async function autoCategorizeAll(){
-  if(!state.transactions.length){showToast('Sin movimientos','error');return;}
-  const btn=document.getElementById('btn-autocat');const statusEl=document.getElementById('autocat-status');
-  const msgEl=document.getElementById('autocat-msg');const progEl=document.getElementById('autocat-progress');
-  const apiKey=getApiKey();const total=state.transactions.length;
-  btn.disabled=true;btn.style.opacity='0.5';statusEl.style.display='flex';
-  if(apiKey){
-    msgEl.textContent='Categorizando con IA...';
-    const chunks=[];for(let i=0;i<state.transactions.length;i+=40)chunks.push(state.transactions.slice(i,i+40));
-    let done=0;
-    for(const chunk of chunks){
-      try{const items=chunk.map(t=>t.id+'|||'+t.description).join('\n');const prompt='Categoriza gastos en subcategorías. SOLO JSON sin backticks.\nSubcategorías: '+catNames().join(', ')+'\nFormato: {"id":"Subcategoria",...}\nUsá la más específica.\n'+items;const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages:[{role:'user',content:prompt}]})});const d=await r.json();const map=JSON.parse((d.content?.[0]?.text||'{}').replace(/```json|```/g,'').trim());chunk.forEach(t=>{if(map[t.id])t.category=map[t.id];});}catch(e){chunk.forEach(t=>{t.category=ruleBasedCategory(t.description);});}
-      done+=chunk.length;progEl.textContent=done+'/'+total;
-    }
-    msgEl.textContent='Completado con IA';
-  }else{
-    msgEl.textContent='Reglas...';state.transactions.forEach((t,i)=>{t.category=ruleBasedCategory(t.description);if(i%20===0)progEl.textContent=(i+1)+'/'+total;});
-    progEl.textContent=total+'/'+total;msgEl.textContent='Completado';
-  }
-  saveState();refreshAll();showToast(total+' movimientos categorizados','success');
-  setTimeout(()=>{statusEl.style.display='none';btn.disabled=false;btn.style.opacity='1';progEl.textContent='';},2500);
+// Usa tu historial de confirmaciones, tus reglas y las reglas base (suggestCategory).
+// Si nada coincide, el movimiento queda pendiente de revisión.
+function categorizePendingTxns(){
+  let n=0;
+  (state.transactions||[]).forEach(t=>{
+    if(!isTxnUncategorized(t)) return;
+    const sug=suggestCategory(t.description);
+    if(sug.source==='default') return;
+    t.category=sug.category;
+    n++;
+  });
+  return n;
+}
+function autoCategorizeAll(){
+  const n=categorizePendingTxns();
+  if(!n){showToast(state.transactions.some(isTxnUncategorized)?'Ningún movimiento pendiente coincide con tus reglas o historial':'No hay movimientos sin categoría','info');return;}
+  saveState();refreshAll();showToast(n+' movimiento'+(n===1?'':'s')+' categorizado'+(n===1?'':'s'),'success');
 }
 
 // ══ AFTER IMPORT ══

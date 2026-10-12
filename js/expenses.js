@@ -146,12 +146,97 @@ function getActiveCuotas(refDate=new Date()){
   return (state.cuotas||[]).filter(c=>getCuotaStatus(c, refDate).rem>0);
 }
 
+// ── Mismo plan con distinto identificador ──
+// Gmail arma el cuotaGroupId con el comercio del mail y el monto redondeado; el resumen
+// con la descripción del banco y el monto exacto. Para no tener la misma compra dos veces,
+// dos planes son el mismo si coinciden total de cuotas, moneda, monto (±2%), comercio
+// parecido y el número de cuota es coherente con el calendario (±1).
+function normalizeCuotaMerchant(name){
+  return String(name||'').toLowerCase()
+    .replace(/\(?cuota\s+\d+\s*(?:\/|de)\s*\d+\)?/g,'')
+    .replace(/[^a-z0-9]/g,'')
+    .replace(/^(?:mercadopago|merpago|mpago|mp|payu|dlo|www)/,'');
+}
+function cuotaMerchantsMatch(a,b){
+  const x=normalizeCuotaMerchant(a), y=normalizeCuotaMerchant(b);
+  if(!x||!y) return false;
+  if(x===y) return true;
+  const n=Math.min(x.length,y.length,8);
+  if(n<4) return false;
+  return x.includes(y.slice(0,n)) || y.includes(x.slice(0,n));
+}
+function cuotaAmountsMatch(a,b){
+  a=Number(a)||0; b=Number(b)||0;
+  return a>0 && b>0 && Math.abs(a-b)/Math.max(a,b)<=0.02;
+}
+// Número de cuota que le corresponde a una fecha según el calendario del plan
+function getCuotaNumAtDate(c, date){
+  const a=getCuotaAnchor(c);
+  return a.num+(date.getFullYear()-a.date.getFullYear())*12+(date.getMonth()-a.date.getMonth());
+}
+function findEquivalentCuota(spec, candidates=state.cuotas||[]){
+  return candidates.find(c=>{
+    if(spec.excludeId && c.id===spec.excludeId) return false;
+    if(getCuotaTotal(c)!==spec.total) return false;
+    if((c.currency||'ARS')!==(spec.currency||'ARS')) return false;
+    if(!cuotaAmountsMatch(c.amount, spec.amount)) return false;
+    if(!cuotaMerchantsMatch(c.name, spec.name)) return false;
+    if(spec.date && spec.num && Math.abs(getCuotaNumAtDate(c, spec.date)-spec.num)>1) return false;
+    return true;
+  })||null;
+}
+// Si el movimiento es de un plan que ya existe con otro identificador, lo vincula a ese plan
+// (le pone el cuotaGroupId del plan, o el plan adopta el suyo si era una cuota manual).
+function linkTxnToEquivalentCuota(t){
+  if(!t || !t.cuotaGroupId || t.isPendingCuota) return false;
+  if((state.cuotas||[]).some(c=>c.cuotaGroupId===t.cuotaGroupId)) return false;
+  const match=findEquivalentCuota({
+    total:Math.max(2, Number(t.cuotaTotal)||2),
+    currency:t.currency||'ARS',
+    amount:Number(t.amount)||0,
+    name:getCuotaTxnBaseName(t),
+    date:_cuotaParseDate(t.date),
+    num:Number(t.cuotaNum)||1
+  });
+  if(!match) return false;
+  if(match.cuotaGroupId) t.cuotaGroupId=match.cuotaGroupId;
+  else match.cuotaGroupId=t.cuotaGroupId;
+  return true;
+}
+// Fusiona planes duplicados que ya estén guardados (de imports anteriores)
+function mergeDuplicateCuotas(){
+  const list=state.cuotas||[];
+  let merged=0;
+  for(let i=0;i<list.length;i++){
+    const keep=list[i];
+    for(let j=list.length-1;j>i;j--){
+      const dup=list[j];
+      const a=getCuotaAnchor(dup);
+      const same=findEquivalentCuota({total:getCuotaTotal(dup), currency:dup.currency||'ARS', amount:dup.amount, name:dup.name, date:a.date, num:a.num}, [keep]);
+      if(!same) continue;
+      // El calendario más reciente manda; el nombre del que se conserva, salvo que sea genérico
+      if((dup.lastPaidDate||'')>(keep.lastPaidDate||'') && (parseInt(dup.paid,10)||0)>=(parseInt(keep.paid,10)||0)){
+        keep.paid=dup.paid; keep.lastPaidDate=dup.lastPaidDate; keep.day=dup.day||keep.day;
+      }
+      if(!keep.name || keep.name==='Cuota') keep.name=dup.name;
+      const keepGroup=getCuotaGroupId(keep), dupGroup=getCuotaGroupId(dup);
+      if(!keep.cuotaGroupId) keep.cuotaGroupId=keepGroup;
+      (state.transactions||[]).forEach(t=>{ if(t.cuotaGroupId===dupGroup) t.cuotaGroupId=keepGroup; });
+      list.splice(j,1);
+      merged++;
+    }
+  }
+  if(merged) console.info('[cuotas] planes duplicados fusionados:', merged);
+  return merged;
+}
+
 // ── Alta / actualización de cuotas a partir de movimientos importados ──
 // Para cada plan (cuotaGroupId) toma la cuota de número más alto y deja el calendario
 // anclado ahí. Nunca retrocede `paid`. Respeta los planes que el usuario borró.
 function upsertCuotasFromTxns(txns){
   if(!Array.isArray(state.cuotas)) state.cuotas=[];
   const cfgs=state.autoCuotaConfig||{};
+  (txns||[]).forEach(t=>{ if(t && Number(t.cuotaTotal)>=2) linkTxnToEquivalentCuota(t); });
   const latestByGroup=new Map();
   (txns||[]).forEach(t=>{
     if(!t || t.isPendingCuota || t.isAnulacion) return;
@@ -221,15 +306,17 @@ function migrateCuotasToSingleSource(){
     t.cuotaGroupId='cg_legacy_'+getAutoCuotaKey(null, getCuotaTxnBaseName(t));
     changed=true;
   });
-  // 2) Planes con movimientos reales que todavía no están en state.cuotas
+  // 2) Planes duplicados (misma compra por Gmail y por resumen)
+  if(mergeDuplicateCuotas()) changed=true;
+  // 3) Planes con movimientos reales que todavía no están en state.cuotas
   const tracked=new Set(state.cuotas.map(c=>c.cuotaGroupId).filter(Boolean));
   const untracked=txns.filter(t=>!t.isPendingCuota && t.cuotaGroupId && !tracked.has(t.cuotaGroupId) && Number(t.cuotaTotal)>=2);
   if(untracked.length && upsertCuotasFromTxns(untracked).created) changed=true;
-  // 3) Proyecciones viejas guardadas como movimientos
+  // 4) Proyecciones viejas guardadas como movimientos
   const before=txns.length;
   state.transactions=txns.filter(t=>!t.isPendingCuota);
   if(state.transactions.length!==before) changed=true;
-  // 4) Cuotas cargadas a mano sin fecha de referencia: `paid` se interpreta "a hoy"
+  // 5) Cuotas cargadas a mano sin fecha de referencia: `paid` se interpreta "a hoy"
   const today=new Date();
   state.cuotas.forEach(c=>{
     if(c.lastPaidDate || c.startDate) return;

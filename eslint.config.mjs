@@ -1,14 +1,9 @@
 import js from '@eslint/js';
 import globals from 'globals';
 
-const sharedRules = {
-  'no-unused-vars': ['warn', { args: 'none', ignoreRestSiblings: true }],
-  'no-empty': ['error', { allowEmptyCatch: true }],
-};
-
 export default [
   {
-    ignores: ['dist/**', 'report/node_modules/**'],
+    ignores: ['dist/**'],
   },
   js.configs.recommended,
   {
@@ -32,17 +27,5 @@ export default [
       'no-undef': 'off',
       'no-unused-vars': 'off',
     },
-  },
-  {
-    files: ['report/*.js'],
-    languageOptions: {
-      ecmaVersion: 'latest',
-      sourceType: 'commonjs',
-      globals: {
-        ...globals.node,
-        ...globals.es2021,
-      },
-    },
-    rules: sharedRules,
   },
 ];

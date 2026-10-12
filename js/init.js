@@ -600,7 +600,6 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(typeof renderSecurityPage === 'function') renderSecurityPage();
   if(typeof renderAppShellProfile === 'function') renderAppShellProfile();
   if(typeof enforceMobilePagePreferences === 'function') enforceMobilePagePreferences();
-  if(!getApiKey()){/* API Key now always visible in sidebar IA section */}
   fetchUsdRate();
   // Entrada: PIN de 4 dígitos (js/lock.js) sobre los datos guardados en el dispositivo.
   // Google es opcional: se conecta a mano para respaldar en Drive o importar de Gmail.
@@ -943,8 +942,6 @@ function disconnectGoogleAccess(){
     gmailAccessToken = null;
     driveReady = false;
     driveFileId = null;
-    drivePublicFileId = null;
-    driveSyncFolderId = null;
     state.googleProfile = null;
     saveState();
     updateGmailBtn('default');

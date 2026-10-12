@@ -1020,14 +1020,3 @@ function deleteIncMonth(monthKey){ deleteIncomeMonth(monthKey); }
 function saveIncSource(){ /* legacy no-op */ }
 function deleteIncSource(){ /* legacy no-op */ }
 function saveIncMonth(){ saveSueldo(); }
-function getApiKey(){ return state.apiKey || localStorage.getItem('fin_apikey') || ''; }
-function saveApiKey(){
-  const inp = document.getElementById('input-apikey');
-  if (!inp) return;
-  const k = inp.value.trim();
-  if (!k) return;
-  state.apiKey = k;
-  localStorage.setItem('fin_apikey', k);
-  if (typeof closeModal === 'function') closeModal('modal-apikey');
-  if (typeof showToast === 'function') showToast('✓ API Key guardada', 'success');
-}

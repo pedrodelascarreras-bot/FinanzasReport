@@ -106,5 +106,42 @@ const anchor = d(state.cuotas[0].lastPaidDate);
 st = getCuotaStatus(state.cuotas[0], new Date(anchor.getFullYear(), anchor.getMonth() + 2, 28));
 eq(st.paid, 4, 'dos vencimientos después: 4 pagas');
 
+// 9) Misma compra por Gmail (cuota 1, monto redondeado) y por resumen (cuota 3, monto exacto)
+reset();
+const gmail = { id: 'gm', date: d('2026-08-10'), description: 'MERPAGO*TIENDAXYZ', _baseDesc: 'MERPAGO*TIENDAXYZ', amount: 16667, currency: 'ARS', cuotaNum: 1, cuotaTotal: 6, cuotaGroupId: 'cg_merpagotiendax_16667_6' };
+state.transactions = [gmail];
+upsertCuotasFromTxns([gmail]);
+const resumen = { id: 'rs', date: d('2026-10-10'), description: 'MERCADOPAGO*TIENDAXYZ (Cuota 3/6)', _baseDesc: 'MERCADOPAGO*TIENDAXYZ', amount: 16666.67, currency: 'ARS', cuotaNum: 3, cuotaTotal: 6, cuotaGroupId: 'cg_mercadopagotien_16666.67_6' };
+state.transactions.push(resumen);
+upsertCuotasFromTxns([resumen]);
+eq(state.cuotas.length, 1, 'Gmail + resumen de la misma compra = un solo plan');
+eq([state.cuotas[0].paid, state.cuotas[0].lastPaidDate, resumen.cuotaGroupId], [3, '2026-10-10', 'cg_merpagotiendax_16667_6'], 'el resumen re-ancla el plan y queda vinculado');
+eq(cuotaEntries('2026-10-01', '2026-10-31', '2026-10-20').length, 0, 'octubre: la cuota real del resumen no se proyecta de nuevo');
+
+// 10) Otra compra en el mismo comercio pero distinto monto: plan aparte
+const otra = { id: 'ot', date: d('2026-10-12'), description: 'MERPAGO*TIENDAXYZ', _baseDesc: 'MERPAGO*TIENDAXYZ', amount: 5000, currency: 'ARS', cuotaNum: 1, cuotaTotal: 6, cuotaGroupId: 'cg_merpagotiendax_5000_6' };
+upsertCuotasFromTxns([otra]);
+eq(state.cuotas.length, 2, 'distinto monto = plan distinto');
+
+// 11) Duplicados ya guardados de imports anteriores se fusionan al cargar
+reset();
+state.cuotas = [
+  { id: 'auto_a', cuotaGroupId: 'ga', name: 'MERPAGO*TIENDAXYZ', amount: 16667, total: 6, paid: 1, day: 10, lastPaidDate: '2026-08-10', currency: 'ARS' },
+  { id: 'auto_b', cuotaGroupId: 'gb', name: 'MERCADOPAGO*TIENDAXYZ', amount: 16666.67, total: 6, paid: 3, day: 10, lastPaidDate: '2026-10-10', currency: 'ARS' }
+];
+state.transactions = [{ id: 'x1', date: d('2026-10-10'), description: 'MERCADOPAGO*TIENDAXYZ', amount: 16666.67, currency: 'ARS', cuotaNum: 3, cuotaTotal: 6, cuotaGroupId: 'gb' }];
+migrateCuotasToSingleSource();
+eq(state.cuotas.map(c => [c.id, c.paid, c.lastPaidDate]), [['auto_a', 3, '2026-10-10']], 'se fusionan y queda el calendario más reciente');
+eq(state.transactions[0].cuotaGroupId, 'ga', 'los movimientos pasan al plan que queda');
+
+// 12) Cuota cargada a mano + después importada del resumen: no se duplica
+reset();
+state.cuotas = [{ id: 'm9', name: 'Heladera Garbarino', amount: 50000, total: 12, paid: 2, day: 5, lastPaidDate: '2026-09-05', currency: 'ARS' }];
+const imp = { id: 'h', date: d('2026-10-05'), description: 'GARBARINO HELADERA (Cuota 3/12)', _baseDesc: 'GARBARINO HELADERA', amount: 50000, currency: 'ARS', cuotaNum: 3, cuotaTotal: 12, cuotaGroupId: 'cg_garbarinohelad_50000_12' };
+eq(cuotaMerchantsMatch('Heladera Garbarino', 'GARBARINO HELADERA'), true, 'mismo comercio con palabras en otro orden');
+state.transactions = [imp];
+upsertCuotasFromTxns([imp]);
+eq([state.cuotas.length, state.cuotas[0].cuotaGroupId, state.cuotas[0].paid], [1, 'cg_garbarinohelad_50000_12', 3], 'la cuota manual adopta el plan importado');
+
 print((failures ? '✗ ' + failures + ' fallaron, ' : '✓ ') + passed + ' pruebas OK');
 if (failures) throw new Error(failures + ' pruebas fallaron');
