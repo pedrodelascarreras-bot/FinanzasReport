@@ -955,18 +955,22 @@ function renderCalendarPage(){
     </div>`;
   }).join('') : '<div class="calendar-empty">No hay nada próximo en la agenda.</div>';
 }
+// Botones Mes / VISA / AMEX del dashboard
+function syncDashViewToggles(){
+  ['mes','visa','amex'].forEach(key=>{
+    const btn=document.getElementById('dash-toggle-'+key);
+    if(!btn) return;
+    const on=state.dashView===key;
+    btn.style.background=on?'var(--accent)':'transparent';
+    btn.style.color=on?'#ffffff':'var(--text3)';
+  });
+}
 function setDashView(mode){
-  state.dashView=normalizeViewMode(mode);
-  const btnMes=document.getElementById('dash-toggle-mes');
-  const btnVisa=document.getElementById('dash-toggle-visa');
-  if(btnMes&&btnVisa){
-    const isMes=state.dashView==='mes';
-    const isVisa=state.dashView==='visa';
-    btnMes.style.background=isMes?'var(--accent)':'transparent';
-    btnMes.style.color=isMes?'#ffffff':'var(--text3)';
-    btnVisa.style.background=isVisa?'var(--accent)':'transparent';
-    btnVisa.style.color=isVisa?'#ffffff':'var(--text3)';
-  }
+  const next=normalizeViewMode(mode);
+  // El ciclo elegido es de una tarjeta: al cambiar de vista se vuelve al ciclo actual
+  if(next!==state.dashView) state.dashTcCycle=null;
+  state.dashView=next;
+  syncDashViewToggles();
   saveState();
   renderDashboard();
 }
@@ -1131,17 +1135,7 @@ function renderDashboard(){
   // ── TC vs Mes mode (declared here, used throughout the function) ──
   const isTcView=state.dashView!=='mes';
   const activeCycleMode=isTcView?state.dashView:'mes';
-  // ── Sync toggle buttons ──
-  const _btnM=document.getElementById('dash-toggle-mes');
-  const _btnV=document.getElementById('dash-toggle-visa');
-  if(_btnM&&_btnV){
-    const isMes=state.dashView==='mes';
-    const isVisa=state.dashView==='visa';
-    _btnM.style.background=isMes?'var(--accent)':'transparent';
-    _btnM.style.color=isMes?'#ffffff':'var(--text3)';
-    _btnV.style.background=isVisa?'var(--accent)':'transparent';
-    _btnV.style.color=isVisa?'#ffffff':'var(--text3)';
-  }
+  syncDashViewToggles();
   // Keep period selector in sync
   const _dashSel=document.getElementById('dash-month-select');
   if(_dashSel){
@@ -1212,10 +1206,10 @@ function renderDashboard(){
         const openD=new Date(open+'T12:00:00');
         const closeD=new Date(activeTcCycle.closeDate+'T12:00:00');
         tcPeriodLabel=getViewModeLabel(activeCycleMode)+' · '+expandPeriodYearLabel(activeTcCycle.label)+' · '+openD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' → '+closeD.toLocaleDateString('es-AR',{day:'2-digit',month:'short'});
-        // Vista tarjeta: cargos de Visa en la ventana del ciclo (misma regla que getPeriodTotals)
+        // Vista tarjeta: cargos de esa tarjeta en la ventana del ciclo (misma regla que getPeriodTotals)
         monthTxns=(state.transactions||[]).filter(t=>{
           const d=dateToYMD(t.date);
-          return d>=open&&d<=activeTcCycle.closeDate&&payMethodMatchesCard(t.payMethod,'visa');
+          return d>=open&&d<=activeTcCycle.closeDate&&payMethodMatchesCard(t.payMethod,activeCycleMode);
         });
       } else {
         monthTxns=[];
@@ -1242,7 +1236,7 @@ function renderDashboard(){
   const periodRange=dashboardRangeMeta
     ? {startStr:dashboardRangeMeta.openStr,endStr:dashboardRangeMeta.closeStr}
     : getMonthRange(activeMk);
-  const periodCard=_tcModeActive?'visa':null;
+  const periodCard=_tcModeActive?activeCycleMode:null;
   const periodTotals=getPeriodTotals({...periodRange,card:periodCard,todayRef:today});
   const billableTxns=monthTxns.filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
   const _allBillable=billableTxns;
@@ -1302,7 +1296,7 @@ function renderDashboard(){
     })||cardSpecificCycles[0]||null;
     dashboardCardCycleByKey[key]=cardActiveCycle||null;
     // Total de cada tarjeta con su propio ciclo (vista tarjeta) o el mes elegido (vista mes)
-    const cardCycle=(_tcModeActive&&key==='visa')?activeTcCycle:cardActiveCycle;
+    const cardCycle=(_tcModeActive&&key===activeCycleMode)?activeTcCycle:cardActiveCycle;
     let cardRange=getMonthRange(activeMk);
     if(isTcView&&cardCycle){
       const idx=_allCardCycles.findIndex(x=>x.id===cardCycle.id);
@@ -1600,7 +1594,7 @@ function renderDashboard(){
   const dhcML=document.getElementById('dhc-month-label');
   if(dhcML){
     let label = isTcView&&activeTcCycle?expandPeriodYearLabel(cleanHeroCycleLabel(activeTcCycle.label||'')):((MNAMES[pM-1]||'')+ ' ' + pY);
-    if(isTcView) label = 'VISA + AMEX · ' + label;
+    if(isTcView) label = activeCycleMode.toUpperCase() + ' · ' + label;
     dhcML.textContent = label.toUpperCase();
   }
   if(isMasked()) {
@@ -2695,7 +2689,7 @@ function getDashCycleTotal() {
     const idx = cycles.findIndex(c => c.id === state.dashTcCycle);
     if(idx >= 0) {
       const open = getTcCycleOpen(cycles, idx) || cycles[idx].closeDate;
-      return getPeriodTotals({startStr:open, endStr:cycles[idx].closeDate, card:'visa'}).totalArs;
+      return getPeriodTotals({startStr:open, endStr:cycles[idx].closeDate, card:view}).totalArs;
     }
   }
   return getPeriodTotals(getMonthRange(state.dashMonth || getMonthKey(new Date()))).totalArs;

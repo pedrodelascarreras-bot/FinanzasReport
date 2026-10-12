@@ -65,7 +65,7 @@ const monthKeyNow = getMonthKey(now);
 const day = n => dateToYMD(new Date(now.getFullYear(), now.getMonth(), n));
 state.transactions = [
   { id: 'c', date: D(day(1)), description: 'Super', amount: 5000, currency: 'ARS', payMethod: 'visa', category: 'Supermercado', tags: [] },
-  { id: 'x', date: D(day(1)), description: 'Amazon', amount: 30, currency: 'USD', payMethod: 'amex', category: 'Compras', tags: [] },
+  { id: 'x', date: D(todayYmd), description: 'Amazon', amount: 30, currency: 'USD', payMethod: 'amex', category: 'Compras', tags: [] },
   { id: 'd', date: D(day(1)), description: 'Verdu', amount: 800, currency: 'ARS', payMethod: 'deb', category: 'Supermercado', tags: [] },
   { id: 's', date: D(day(1)), description: 'Cena', amount: 9000, currency: 'ARS', payMethod: 'visa', category: 'Restaurantes', tags: [], sharedExpense: { enabled: true, myAmount: 3000, splits: [{ name: 'Juan', amount: 6000, status: 'pendiente' }] } }
 ];
@@ -107,6 +107,29 @@ if (idx >= 0) {
   const ccVisa = ccGetTotals(ccGetCycleExpenses('card_visa', cyc.id));
   eq({ ars: ccVisa.ars, usd: ccVisa.usd }, inCycle(day(1)) ? { ars: 17000, usd: 0 } : { ars: 0, usd: 0 }, 'Tarjetas Visa usa el monto completo (cena 9000)');
 }
+
+// Ciclo AMEX en curso: solo el cargo Amex (Amazon USD 30); nada de Visa, débito ni fijos
+const amexCycles = getTcCycles('amex');
+const aIdx = amexCycles.findIndex(c => { const o = getTcCycleOpen(amexCycles, amexCycles.indexOf(c)); return o && o <= todayYmd && todayYmd <= c.closeDate; });
+eq(aIdx >= 0, true, 'hay un ciclo AMEX en curso');
+if (aIdx >= 0) {
+  const cyc = amexCycles[aIdx], open = getTcCycleOpen(amexCycles, aIdx);
+  const amexExpected = { ars: 0, usd: 30 };
+  const amex = getPeriodTotals({ startStr: open, endStr: cyc.closeDate, card: 'amex' });
+  eq({ ars: amex.ars, usd: amex.usd }, amexExpected, 'receta única (ciclo AMEX)');
+  const movA = getTxnDisplaySummaryTotals({ mode: 'amex', activeCycleMeta: { openStr: open, closeStr: cyc.closeDate }, summaryTxns: [] });
+  eq({ ars: movA.ars, usd: movA.usd }, amexExpected, 'Movimientos (ciclo AMEX)');
+  eq(sum(getTcCycleTrendTxns(cyc, amexCycles)), amexExpected, 'Tendencias (ciclo AMEX)');
+  state.repMode = 'amex'; repSel.value = 'cycle:' + cyc.id;
+  eq(sum(getRepTxns()), amexExpected, 'Reportes (ciclo AMEX)');
+  const ccA = ccGetTotals(ccGetCycleExpenses('card_amex', cyc.id));
+  eq({ ars: ccA.ars, usd: ccA.usd }, amexExpected, 'Tarjetas (ciclo AMEX)');
+  state.dashView = 'amex'; state.dashTcCycle = cyc.id;
+  eq(Math.round(getDashCycleTotal()), amexExpected.usd * 1000, 'Dashboard total (ciclo AMEX)');
+  state.dashView = 'mes'; state.dashTcCycle = null;
+}
+// La vista AMEX sobrevive a guardar y recargar
+eq(_normalizeViewMode('amex'), 'amex', 'la vista AMEX no se convierte en VISA al recargar');
 
 // Las pantallas cargan sin errores
 ['renderDashboard', 'renderBalancePage', 'renderReportesPage', 'renderTransactions', 'renderTendencia', 'renderCommitmentsPage', 'renderCalendarPage'].forEach(fn => {

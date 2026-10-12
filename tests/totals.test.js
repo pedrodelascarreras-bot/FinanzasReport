@@ -96,5 +96,11 @@ eq([pr.spent, pr.variableSpent, pr.daysLeft, pr.futureCommitted, pr.projected], 
 const prPast = getPeriodProjection(Object.assign({}, OCT, { todayRef: d('2026-11-20') }));
 eq([prPast.daysLeft, prPast.projected], [0, prPast.spent], 'período cerrado: proyección = gastado');
 
+// 9) Una suscripción con su proyección guardada como movimiento no se cuenta dos veces
+reset();
+state.subscriptions = [{ id: 's1', name: 'Spotify', price: 5500, currency: 'ARS', freq: 'monthly', day: 1, active: true, payMethod: 'visa' }];
+state.transactions = [{ id: 'proj_sub_s1_2026-11', date: d('2026-11-01'), description: 'Spotify (suscripción)', amount: 5500, currency: 'ARS', isPendingSubscription: true, sourceSubscriptionId: 's1', payMethod: 'visa' }];
+eq(getPeriodTotals({ startStr: '2026-11-01', endStr: '2026-11-30', todayRef: d('2026-11-02') }).ars, 5500, 'Spotify vencida cuenta una sola vez');
+
 print((failures ? '✗ ' + failures + ' fallaron, ' : '✓ ') + passed + ' pruebas OK');
 if (failures) throw new Error(failures + ' pruebas fallaron');

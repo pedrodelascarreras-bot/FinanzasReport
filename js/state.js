@@ -586,8 +586,6 @@ function loadState(){
 }
 
 function _normalizeViewMode(mode){
-  if(mode==='mes') return 'mes';
-  if(mode==='visa'||mode==='tc') return 'visa';
-  if(mode==='amex') return 'visa';
+  if(mode==='mes'||mode==='amex') return mode;
   return 'visa';
 }

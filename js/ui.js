@@ -250,8 +250,6 @@ function nav(page){
     page='dashboard';
   }
   if(page==='credit-cards') state.ccPageTab='resumen';
-  if(page==='tendencia') state.tendMode='tc';
-  if(page==='transactions') state.txnFilterMode='tc';
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item,.mob-nav-btn').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('.nav-section').forEach(s=>s.classList.remove('has-active'));
@@ -269,7 +267,7 @@ function nav(page){
   if(page==='compare'){renderCompareSelectors();renderCompare();}
   if(page==='balance' && typeof renderBalancePage==='function') renderBalancePage();
   if(page==='categories'){renderCategoryManage();renderInlineColorPicker('');}
-  if(page==='transactions'){ setTxnFilterMode('tc'); renderTransactions(); }
+  if(page==='transactions'){ setTxnFilterMode(state.txnFilterMode||'visa'); }
   if(page==='import'){renderImportHistory();updateLastBackupLabel();if(typeof renderImportConfigPanel==='function')renderImportConfigPanel();}
   if(page==='import-history'){renderImportHistory();}
   if(page==='tendencia')renderTendencia();

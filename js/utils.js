@@ -67,36 +67,9 @@ function getProjectedCommitmentEntriesForRange(opts={}){
     entries.push({_key:key,...obj});
   };
   const addAmountTone=settled=>settled ? '#34c759' : '#ff9500';
-  const inRange=d=>{
-    const dt=d instanceof Date?new Date(d):new Date(String(d).includes('T')?d:(String(d)+'T12:00:00'));
-    return !Number.isNaN(dt.getTime())&&dt>=start&&dt<=end;
-  };
 
-  sourceTxns.filter(t=>t.isPendingSubscription&&inRange(t.date)).forEach(t=>{
-    if(t.sourceSubscriptionId){
-      const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
-      const monthKey=getMonthKey(t.date);
-      if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
-    }
-    const matured=hasReachedEffectiveChargeDate(t.date,todayRef);
-    addEntry(`sub-${t.sourceSubscriptionId||t.id}`,{
-      date:t.date,
-      title:t._baseDesc||t.description,
-      amount:Number(t.amount)||0,
-      personalAmount:typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):(Number(t.amount)||0),
-      currency:t.currency||'ARS',
-      payMethod:t.payMethod||'',
-      sourceTxnId:t.id||null,
-      sourceSubscriptionId:t.sourceSubscriptionId||null,
-      group:'suscripciones',
-      kind:'Suscripción proyectada',
-      meta:'Próximo cobro',
-      includeInTotal:matured,
-      synthetic:false,
-      isSettled:matured,
-      tone:addAmountTone(matured)
-    });
-  });
+  // Suscripciones: se proyectan por calendario más abajo (sub-cycle-…). Las proyecciones
+  // guardadas como movimientos (isPendingSubscription) no se suman acá: duplicaban el cobro.
 
   // Cuotas: fuente única state.cuotas, con su calendario (ver getCuotaInstallmentsInRange).
   // Una cuota no se proyecta si ya hay un cargo real de ese plan para ese número o ese mes.

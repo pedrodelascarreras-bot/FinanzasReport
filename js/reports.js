@@ -1,10 +1,11 @@
 // ══ REPORTES ══
 const MNAMES_R=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 function normalizeRepMode(mode){
-  if(mode==='mes'||mode==='visa'||mode==='rango'||mode==='todo') return mode;
-  if(mode==='amex'||mode==='tc') return 'visa';
+  if(mode==='mes'||mode==='visa'||mode==='amex'||mode==='rango'||mode==='todo') return mode;
   return 'visa';
 }
+// Vista de ciclo de tarjeta (VISA o AMEX)
+function isRepCardMode(mode){ return mode==='visa'||mode==='amex'; }
 
 function renderReportesPage(){
   ensureRepReportState();
@@ -43,7 +44,7 @@ function setRepMode(mode){
   ensureRepReportState();
   state.repMode=normalizeRepMode(mode||'visa');
   // HTML button id "rep-mode-all" maps to mode value "todo"
-  ['mes','visa','rango','all'].forEach(m=>{
+  ['mes','visa','amex','rango','all'].forEach(m=>{
     const modeKey = m==='all' ? 'todo' : m;
     document.getElementById('rep-mode-'+m)?.classList.toggle('active', modeKey===state.repMode);
   });
@@ -69,7 +70,7 @@ function setRepMode(mode){
       .sort()
       .reverse();
     sel.innerHTML=months.map(m=>{const[y,mo]=m.split('-');return'<option value="'+m+'">'+MNAMES_R[+mo-1]+' '+y+'</option>';}).join('');
-  } else if(state.repMode==='visa'){
+  } else if(isRepCardMode(state.repMode)){
     sel.disabled=false;
     const cycles=getTcCycles(state.repMode);
     if(cycles.length){
@@ -103,15 +104,14 @@ function getRepTxns(){
     if(sel<range.startMonthKey||sel>range.currentMonthKey) return [];
     return getPeriodTxnList(getMonthRange(sel));
   }
-  if(mode==='visa'){
+  if(isRepCardMode(mode)){
     const cycleId=sel.replace('cycle:','');
     const cycles=getTcCycles(mode);
     const idx=cycles.findIndex(c=>c.id===cycleId);
     if(idx<0) return [];
     const cycle=cycles[idx];
     const open=getTcCycleOpen(cycles, idx)||cycle.closeDate;
-    const cyclePm=(typeof getTcCyclePayMethodKey==='function'?getTcCyclePayMethodKey(cycle):'')||'visa';
-    return getPeriodTxnList({startStr:open,endStr:cycle.closeDate,card:cyclePm==='amex'?'amex':'visa'});
+    return getPeriodTxnList({startStr:open,endStr:cycle.closeDate,card:mode});
   }
   if(mode==='rango'){
     let from=document.getElementById('rep-range-from')?.value||'';
@@ -302,7 +302,7 @@ function buildReportHTML(txns,sections,periodLabel){
   const prevMk=curIdx>0?prevMonths[curIdx-1]:null;
   let prevLabel=prevMk||'';
   let prevTxns=[];
-  if(reportMode==='visa'){
+  if(isRepCardMode(reportMode)){
     const cycleValue=document.getElementById('rep-period-select')?.value||'';
     const currentCycleId=cycleValue.replace('cycle:','');
     const cycles=getTcCycles(reportMode);
@@ -311,8 +311,7 @@ function buildReportHTML(txns,sections,periodLabel){
     prevLabel=prevCycle?.label||prevCycle?.closeDate||'';
     if(prevCycle){
       const prevOpen=getTcCycleOpen(cycles, cycleIdx+1)||prevCycle.closeDate;
-      const prevPm=(typeof getTcCyclePayMethodKey==='function'?getTcCyclePayMethodKey(prevCycle):'')||'visa';
-      prevTxns=getPeriodTxnList({startStr:prevOpen,endStr:prevCycle.closeDate,card:prevPm==='amex'?'amex':'visa'});
+      prevTxns=getPeriodTxnList({startStr:prevOpen,endStr:prevCycle.closeDate,card:reportMode});
     }
   } else if(prevMk){
     prevLabel=prevMk;
@@ -492,7 +491,7 @@ function buildReportHTML(txns,sections,periodLabel){
 
   // ── COMPARACIÓN ──
   if(sections.includes('comparacion')&&prevTxns.length){
-    const prevLabelText=reportMode==='visa'
+    const prevLabelText=isRepCardMode(reportMode)
       ? prevLabel
       : (()=>{const[py,pm]=String(prevLabel).split('-').map(Number);return MNAMES_R[pm-1]+' '+py;})();
     const allCatsCmp=[...new Set([...Object.keys(catMap),...Object.keys(prevCatMap)])].sort((a,b)=>(catMap[b]||0)-(catMap[a]||0));
@@ -884,7 +883,8 @@ function refreshRepAiPrompt(txns, periodLabel){
   const target=document.getElementById('rep-ai-prompt');
   if(!target) return;
   const label=periodLabel||getRepPeriodLabel();
-  const modeLabel=normalizeRepMode(state.repMode||'visa')==='visa'?'Vista VISA':normalizeRepMode(state.repMode||'visa')==='mes'?'Mes':'Período personalizado';
+  const _repMode=normalizeRepMode(state.repMode||'visa');
+  const modeLabel=isRepCardMode(_repMode)?getViewModeLabel(_repMode):_repMode==='mes'?'Mes':'Período personalizado';
   const usdRate=getReportUsdRate();
   const ars=txns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
   const usd=txns.filter(t=>t.currency==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);

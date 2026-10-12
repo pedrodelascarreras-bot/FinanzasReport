@@ -10,8 +10,7 @@ function normalizeViewMode(mode){
   return 'mes';
 }
 function resolveUiViewMode(mode){
-  const v=normalizeViewMode(mode);
-  return v==='amex'?'visa':v;
+  return normalizeViewMode(mode);
 }
 
 function getViewWindowMonthsBack(){
@@ -34,6 +33,7 @@ function getViewWindowRange(){
 function getViewModeLabel(mode){
   const key=normalizeViewMode(mode);
   if(key==='visa') return 'Vista VISA';
+  if(key==='amex') return 'Vista AMEX';
   return 'Vista Mes';
 }
 

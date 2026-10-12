@@ -280,6 +280,7 @@
         <div class="surface-toggle">
           <button id="dash-toggle-mes" class="surface-toggle-btn active" onclick="setDashView('mes')">Mes</button>
           <button id="dash-toggle-visa" class="surface-toggle-btn" onclick="setDashView('visa')">VISA</button>
+          <button id="dash-toggle-amex" class="surface-toggle-btn" onclick="setDashView('amex')">AMEX</button>
         </div>
         <select id="dash-month-select" class="txn-select" onchange="setDashMonthFromSelect(this.value)">
           <option value="">Mes actual</option>
@@ -1350,6 +1351,7 @@
             <div class="rep-mode-grid">
               <button class="tft-btn rep-mode-btn active" id="rep-mode-mes" onclick="setRepMode('mes')">Mes</button>
               <button class="tft-btn rep-mode-btn" id="rep-mode-visa" onclick="setRepMode('visa')">Vista VISA</button>
+              <button class="tft-btn rep-mode-btn" id="rep-mode-amex" onclick="setRepMode('amex')">Vista AMEX</button>
               <button class="tft-btn rep-mode-btn" id="rep-mode-rango" onclick="setRepMode('rango')">Rango</button>
               <button class="tft-btn rep-mode-btn" id="rep-mode-all" onclick="setRepMode('todo')">Histórico</button>
             </div>
@@ -1447,6 +1449,7 @@
       <div class="txn-filter-toggle">
         <button class="tft-btn active" id="tft-mes" onclick="setTxnFilterMode('mes')">📅 Por mes</button>
         <button class="tft-btn" id="tft-visa" onclick="setTxnFilterMode('visa')">💳 Vista VISA</button>
+        <button class="tft-btn" id="tft-amex" onclick="setTxnFilterMode('amex')">💳 Vista AMEX</button>
       </div>
 
       <!-- Selector de mes (visible en modo mes) -->
@@ -1546,7 +1549,8 @@
         <option value="">Todos los períodos</option>
       </select>
       <div class="view-toggle">
-        <button class="toggle-btn active" id="tend-tog-visa" onclick="setTendMode('visa')">Ciclo TC</button>
+        <button class="toggle-btn active" id="tend-tog-visa" onclick="setTendMode('visa')">Ciclo VISA</button>
+        <button class="toggle-btn" id="tend-tog-amex" onclick="setTendMode('amex')">Ciclo AMEX</button>
         <button class="toggle-btn" id="tend-tog-mes" onclick="setTendMode('mes')">Meses</button>
       </div>
     </div>
@@ -3366,6 +3370,11 @@ window.addEventListener('unhandledrejection',function(e){
         <span class="mob-theme-opt-label">Ciclo VISA<small>Ciclo actual de tu tarjeta</small></span>
         <span class="mob-theme-opt-check">✓</span>
       </button>
+      <button class="mob-theme-opt" id="mob-period-opt-amex" onclick="closeMobPeriodPicker();setDashView('amex')">
+        <span class="mob-theme-opt-icon">💳</span>
+        <span class="mob-theme-opt-label">Ciclo AMEX<small>Ciclo actual de tu Amex</small></span>
+        <span class="mob-theme-opt-check">✓</span>
+      </button>
       <button class="mob-theme-opt" id="mob-period-opt-mes" onclick="closeMobPeriodPicker();setDashView('mes')">
         <span class="mob-theme-opt-icon">📅</span>
         <span class="mob-theme-opt-label">Mes actual<small>Todos los gastos del mes</small></span>
@@ -3459,11 +3468,10 @@ function openMobPeriodPicker() {
   const sheet = document.getElementById('mob-period-sheet');
   if (!sheet) return;
   // Mark the currently active option
-  const isMes = typeof state !== 'undefined' && state.dashView === 'mes';
-  const optVisa = document.getElementById('mob-period-opt-visa');
-  const optMes  = document.getElementById('mob-period-opt-mes');
-  if (optVisa) optVisa.classList.toggle('active', !isMes);
-  if (optMes)  optMes.classList.toggle('active',  isMes);
+  const view = typeof state !== 'undefined' ? (state.dashView || 'visa') : 'visa';
+  ['visa','amex','mes'].forEach(function(k) {
+    document.getElementById('mob-period-opt-' + k)?.classList.toggle('active', view === k);
+  });
   sheet.classList.add('open');
   if (typeof _iosLock === 'function') _iosLock();
 }

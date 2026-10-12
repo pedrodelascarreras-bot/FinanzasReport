@@ -23,8 +23,7 @@ function animateTendCanvas(canvas){
 }
 function setTendMode(m){
   state.tendMode=normalizeViewMode(m);
-  document.getElementById('tend-tog-mes')?.classList.toggle('active',state.tendMode==='mes');
-  document.getElementById('tend-tog-visa')?.classList.toggle('active',state.tendMode==='visa');
+  ['mes','visa','amex'].forEach(k=>document.getElementById('tend-tog-'+k)?.classList.toggle('active',state.tendMode===k));
   renderTendencia();
 }
 function getTendPeriodKeys(){
@@ -676,8 +675,7 @@ function renderTendencia(){
   const legacyMap={bar:'ranking',treemap:'ranking',line:'evo'};
   if(legacyMap[state.tendChartMode]) state.tendChartMode=legacyMap[state.tendChartMode];
 
-  document.getElementById('tend-tog-mes')?.classList.toggle('active',state.tendMode==='mes');
-  document.getElementById('tend-tog-visa')?.classList.toggle('active',state.tendMode==='visa');
+  ['mes','visa','amex'].forEach(k=>document.getElementById('tend-tog-'+k)?.classList.toggle('active',state.tendMode===k));
 
   const allKeys=getTendPeriodKeys();
   if(allKeys.length<1){
