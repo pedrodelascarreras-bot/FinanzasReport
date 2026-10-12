@@ -253,67 +253,6 @@
     `;
   }
 
-  function renderSettingsAccountsList(){
-    const el = document.getElementById('settings-accounts-list');
-    if(!el) return;
-    const profiles = typeof window.ensureBankProfiles === 'function' ? window.ensureBankProfiles() : (window.state?.bankProfiles || []);
-    const savingsAccounts = window.state?.savAccounts || [];
-    const derivedAccounts = [
-      ...profiles,
-      ...savingsAccounts.map(account => ({
-        id:`sav-${account.id}`,
-        name:account.name || 'Cuenta de ahorro',
-        bank:account.type || 'Ahorros',
-        card:account.emoji || 'Cuenta',
-        typeLabel:account.type || 'Ahorro',
-        status: 'active',
-        methodLabel: account.currency || 'ARS',
-        balance: Number(account.balance || 0)
-      }))
-    ];
-    if(!derivedAccounts.length){
-      const fallbackCards = window.state?.ccCards || [];
-      if(fallbackCards.length){
-        el.innerHTML = fallbackCards.map(card => `
-          <div class="settings-fintech-row">
-            <div class="settings-fintech-main">
-              <strong>${esc(card.name || 'Tarjeta')}</strong>
-              <small>Tomada desde la configuración de tarjetas</small>
-              <div class="settings-fintech-chips">
-                <span>${esc(card.type || 'credit-card')}</span>
-                <span>${esc(card.payMethodKey || 'manual')}</span>
-              </div>
-            </div>
-            <div class="settings-fintech-actions">
-              <button class="dashboard-widget-mini primary" onclick="nav('credit-cards')">Abrir tarjetas</button>
-            </div>
-          </div>
-        `).join('');
-        return;
-      }
-      el.innerHTML = `<div class="settings-empty-block">Todavía no hay cuentas configuradas. Agregá una para definir banco, wallet o tarjeta y su método operativo.</div>`;
-      return;
-    }
-    el.innerHTML = derivedAccounts.map(profile => `
-      <div class="settings-fintech-row">
-        <div class="settings-fintech-main">
-          <strong>${esc(profile.name || 'Cuenta')}</strong>
-          <small>${esc(profile.bank || 'Sin banco')} · ${esc(profile.card || 'Sin detalle')}</small>
-          <div class="settings-fintech-chips">
-            <span>${esc(profile.typeLabel || 'Cuenta bancaria')}</span>
-            <span>${profile.status === 'inactive' ? 'Inactiva' : 'Activa'}</span>
-            <span>${esc(profile.methodLabel || 'Manual')}</span>
-            ${profile.balance ? `<span>$${esc(typeof fmtN === 'function' ? fmtN(Math.round(profile.balance)) : Math.round(profile.balance))}</span>` : ''}
-          </div>
-        </div>
-        <div class="settings-fintech-actions">
-          ${String(profile.id || '').startsWith('sav-')
-            ? `<button class="dashboard-widget-mini primary" onclick="nav('savings')">Ver ahorro</button>`
-            : `<button class="dashboard-widget-mini primary" onclick="openBankProfileManager('${esc(profile.id)}')">Editar</button><button class="dashboard-widget-mini" onclick="deleteBankProfileById('${esc(profile.id)}')">Eliminar</button>`}
-        </div>
-      </div>
-    `).join('');
-  }
 
   function renderSettingsCardsList(){
     const el = document.getElementById('settings-cards-list');
@@ -418,63 +357,6 @@
     };
   }
 
-  function renderSettingsCategoriesList(){
-    const el = document.getElementById('settings-categories-list');
-    if(!el) return;
-    if(typeof window.normalizeCategoryState === 'function') window.normalizeCategoryState(window.state);
-    const categories = window.state?.categories || [];
-    const groups = getSettingsCategoryGroups();
-    const counts = {};
-    (window.state?.transactions || []).forEach(txn => {
-      counts[txn.category] = (counts[txn.category] || 0) + 1;
-    });
-    if(!groups.length){
-      el.innerHTML = `<div class="settings-empty-block">Todavía no hay grupos. Creá el primero para organizar las categorías.</div>`;
-      return;
-    }
-    // Aunque no haya categorías cargadas, igual renderizamos los grupos
-    // (cada grupo muestra su mensaje vacío individualmente y permite crear).
-    el.innerHTML = groups.map(groupItem => {
-      const meta = getSettingsCategoryGroupMeta(groupItem);
-      const groupCategories = categories
-        .filter(cat => (cat.groupId && cat.groupId === meta.id) || (cat.group || 'Sin clasificar') === meta.name)
-        .sort((a,b) => (a.order || 0) - (b.order || 0) || a.name.localeCompare(b.name));
-      const total = groupCategories.reduce((sum, cat) => sum + (counts[cat.name] || 0), 0);
-      return `
-        <details class="settings-category-group" ${meta.name === 'Sin clasificar' ? 'open' : ''}>
-          <summary class="settings-category-summary" style="display: block !important; padding: 0 !important;">
-            <div class="settings-category-summary-inner" style="display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 18px; width: 100%;">
-              <div class="settings-category-summary-main">
-                <span class="settings-category-group-badge" style="background:${esc(meta.color)}22;color:${esc(meta.color)}">${esc(meta.emoji)}</span>
-                <div>
-                  <strong>${esc(meta.name)}</strong>
-                  <small>${groupCategories.length} categoría${groupCategories.length===1?'':'s'} · ${total} movimiento${total===1?'':'s'}</small>
-                </div>
-              </div>
-              <div class="settings-fintech-actions">
-                <button class="dashboard-widget-mini" type="button" onclick="event.preventDefault();event.stopPropagation();startSettingsGroupEdit(${jsString(meta.id)})">Renombrar</button>
-                <button class="dashboard-widget-mini" type="button" onclick="event.preventDefault();event.stopPropagation();startSettingsCategoryCreate(${jsString(meta.id)})">Agregar categoría</button>
-              </div>
-            </div>
-          </summary>
-          <div class="settings-category-items">
-            ${groupCategories.length ? groupCategories.map(cat => `
-              <div class="settings-category-item">
-                <div class="settings-fintech-main">
-                  <strong><span class="settings-category-dot" style="background:${esc(cat.color || '#64748b')}"></span>${esc(cat.name)}</strong>
-                  <small>${counts[cat.name] || 0} movimiento${(counts[cat.name] || 0) === 1 ? '' : 's'} · ${esc(cat.group || 'Sin grupo')} · ${esc(cat.type || 'expense')}</small>
-                </div>
-                <div class="settings-fintech-actions">
-                  <button class="dashboard-widget-mini primary" type="button" onclick="startSettingsCategoryEdit(${jsString(cat.id || cat.name)})">Editar</button>
-                  <button class="dashboard-widget-mini" type="button" onclick="deleteSettingsCategory(${jsString(cat.id || cat.name)})">Eliminar</button>
-                </div>
-              </div>
-            `).join('') : `<div class="settings-empty-block">Este grupo todavía no tiene categorías.</div>`}
-          </div>
-        </details>
-      `;
-    }).join('');
-  }
 
   function renderSettingsGmailRulesList(){
     const el = document.getElementById('settings-gmail-rules-list');

@@ -34,9 +34,6 @@ function getMonthCommissionsUSD(m){
   return 0;
 }
 
-function getMonthExtrasV2(m){
-  return _isV2(m) ? (m.extras || []) : [];
-}
 
 // ── Combined totals (used by dashboard) ────────────────────
 function getMonthTotalARS(m){
@@ -129,9 +126,6 @@ function _fmtMonthLong(k){
   return new Date(parseInt(y), parseInt(m)-1, 1).toLocaleDateString('es-AR', {month:'long',year:'numeric'});
 }
 
-function _findAccount(id){
-  return (state.bankAccounts||[]).find(a => a.id === id) || null;
-}
 
 // ═══════════════════════════════════════════════════════════
 // MAIN RENDER
@@ -1022,22 +1016,10 @@ function saveIncMargenConfig(val){
 }
 
 // ═══════════════════════════════════════════════════════════
-// LEGACY API SHIMS (kept for backward compatibility)
-// Some other files may still call these — preserve no-ops or basic behavior
-// ═══════════════════════════════════════════════════════════
-function openIncomeSourceModal(){ openSueldoModal(); }
-function openLogIncomeModal(){ openSueldoModal(); }
-function editIncMonth(monthKey){ openSueldoModal(monthKey); }
 function deleteIncMonth(monthKey){ deleteIncomeMonth(monthKey); }
-function syncCurrentMonthIncome(){ /* legacy no-op */ }
 function saveIncSource(){ /* legacy no-op */ }
 function deleteIncSource(){ /* legacy no-op */ }
-function buildLogIncSourceFields(){ return ''; }
-function updateIncModalPreview(){ /* legacy no-op */ }
 function saveIncMonth(){ saveSueldo(); }
-function saveIncConfig(){ /* legacy no-op */ }
-function saveIncome(){ /* legacy no-op */ }
-function toggleIncomeInsights(){ /* legacy no-op — insights panel removed in v2 */ }
 function getApiKey(){ return state.apiKey || localStorage.getItem('fin_apikey') || ''; }
 function saveApiKey(){
   const inp = document.getElementById('input-apikey');

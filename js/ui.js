@@ -182,9 +182,6 @@ function handleDashEmptyTap(event){
   nav('import');
 }
 
-function openTrendDetail(){
-  nav(isMobileAppView() ? 'tendencia' : 'compare');
-}
 
 function enforceMobilePagePreferences(){
   if(!isMobileAppView()) return;
@@ -313,17 +310,8 @@ function catColor(n){return _resolveCat(n)?.color||'#888888';}
 function catStyle(n){const c=catColor(n);return 'background:'+c+'22;color:'+c+';border:1px solid '+c+'44;';}
 function catGroup(n){return _resolveCat(n)?.group||'Sin clasificar';}
 function catEmoji(n){return _resolveCat(n)?.emoji||'🗑️';}
-function catGroupColor(g){const grp=CATEGORY_GROUPS.find(x=>x.group===g);return grp?grp.color:'#888888';}
 function catGroupEmoji(g){const grp=CATEGORY_GROUPS.find(x=>x.group===g);return grp?grp.emoji:'🗑️';}
-// Get all unique group names from current categories
-function catGroupNames(){return [...new Set(state.categories.map(c=>c.group))];}
-// Get subcategories for a group
-function catSubsForGroup(g){return state.categories.filter(c=>c.group===g);}
 function catNames(){return state.categories.map(c=>c.name);}
-function catParentName(n){return catGroup(n);}
-function getParentCat(subName){
-  return CATEGORY_GROUPS.find(g=>g.subs.includes(subName))||{group:'Sin clasificar',emoji:'🗑️',color:'#888888',subs:['Uncategorized']};
-}
 
 // ══ SAVINGS GOALS SUMMARY BAR ══
 
@@ -1002,25 +990,6 @@ function getDashboardWidgetDisplayName(key, metaMap){
   return `${config.icon || custom?.icon || ''}${config.icon || custom?.icon ? ' ' : ''}${baseName}`.trim();
 }
 
-function buildDashboardWidgetTilePreview(key, metaMap){
-  const config = getDashboardWidgetConfigs()[key] || {};
-  const custom = getDashboardCustomWidgets().find(w => w.id === key);
-  const variant = custom?.variant || config.variant || 'default';
-  const icon = custom?.icon || config.icon || '◫';
-  return `
-    <div class="dashboard-library-visual widget-variant-${variant}">
-      <div class="dashboard-library-visual-top">
-        <div class="dashboard-library-emoji">${icon}</div>
-        <span class="dashboard-library-state on">${custom ? 'custom' : 'base'}</span>
-      </div>
-      <div class="dashboard-library-lines">
-        <div class="dashboard-library-line lg"></div>
-        <div class="dashboard-library-line md"></div>
-        <div class="dashboard-library-line sm"></div>
-      </div>
-    </div>
-  `;
-}
 
 function saveDashboardDesignState(pageData, silent){
   const ls = loadLayoutState();
@@ -1057,28 +1026,6 @@ function saveDashboardSavedViews(views){
   saveLayoutState(ls);
 }
 
-function buildDashboardMiniPreview(designState){
-  const metaMap = getDashboardWidgetMetaMap();
-  const rows = [
-    (designState.widgetGroups['dashboard-utility'] || []).filter(key => !designState.widgetHidden.includes(key)).slice(0,2),
-    (designState.widgetGroups['dashboard-kpis'] || []).filter(key => !designState.widgetHidden.includes(key)).slice(0,4),
-    (designState.widgetGroups['dashboard-charts'] || []).filter(key => !designState.widgetHidden.includes(key)).slice(0,2),
-    (designState.widgetGroups['dashboard-widgets'] || []).filter(key => !designState.widgetHidden.includes(key)).slice(0,6)
-  ];
-  return `
-    <div class="dashboard-preview-canvas">
-      ${rows.map((row, idx)=>`
-        <div class="dashboard-preview-row row-${idx+1}">
-          ${row.length ? row.map(key=>`
-            <div class="dashboard-preview-block size-${row.length >= 4 ? 's' : row.length === 3 ? 'm' : 'l'}">
-              <span>${getDashboardWidgetDisplayName(key, metaMap).replace(' del período','').replace(' próximos','')}</span>
-            </div>
-          `).join('') : `<div class="dashboard-preview-empty">sin widgets</div>`}
-        </div>
-      `).join('')}
-    </div>
-  `;
-}
 
 function renderDashboardDesignPage(){
   const presetsEl = document.getElementById('dashboard-design-presets');

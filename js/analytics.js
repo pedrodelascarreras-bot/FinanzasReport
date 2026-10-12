@@ -65,11 +65,6 @@ function getTxnsForTendPeriod(k){
   const range=getMonthRange(k);
   return range?getPeriodTxnList(range):[];
 }
-function toggleTendCat(cat){
-  if(state.activeTendCats.has(cat))state.activeTendCats.delete(cat);
-  else state.activeTendCats.add(cat);
-  renderTendencia();
-}
 // ─ In-memory UI state (not persisted)
 if(!state.tendChartToggle) state.tendChartToggle='acumulado';
 if(!state.tendRankingTab)  state.tendRankingTab='monto';
@@ -94,14 +89,6 @@ function setTendChartToggle(t){
 }
 
 // ─ Ranking tab
-function setTendRankingTab(t){
-  state.tendRankingTab=t;
-  ['monto','anterior','participacion'].forEach(x=>{
-    const id=x==='participacion'?'rank-tab-pct':'rank-tab-'+x;
-    document.getElementById(id)?.classList.toggle('active',x===t);
-  });
-  _tend_drawRanking();
-}
 
 // ─ Chart view (evo / ranking / compare)
 function setTendChartMode(m){
@@ -114,32 +101,7 @@ function setTendChartMode(m){
 }
 
 // ─ Build daily array for a cycle (by relative day)
-function _tend_cycleDailyData(txns,openStr,closeStr){
-  const openD=new Date(openStr+'T00:00:00');
-  const closeD=new Date(closeStr+'T23:59:59');
-  const days=Math.max(Math.round((closeD-openD)/(864e5))+1,1);
-  const byDay={};
-  txns.forEach(t=>{
-    const td=t.date instanceof Date?t.date:new Date(t.date);
-    const rel=Math.round((td-openD)/864e5);
-    if(rel>=0&&rel<days) byDay[rel]=(byDay[rel]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);
-  });
-  return Array.from({length:days},(_,i)=>byDay[i]||0);
-}
 
-// ─ Build daily array for a month (by calendar day)
-function _tend_monthDailyData(txns,monthKey){
-  const[y,m]=monthKey.split('-').map(Number);
-  const days=new Date(y,m,0).getDate();
-  const byDay={};
-  txns.forEach(t=>{
-    const td=t.date instanceof Date?t.date:new Date(t.date);
-    byDay[td.getDate()]=(byDay[td.getDate()]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);
-  });
-  return Array.from({length:days},(_,i)=>byDay[i+1]||0);
-}
-
-function _tend_cumulative(arr){let s=0;return arr.map(v=>s+=v);}
 
 function _tend_pctLabel(value){
   const pct=Number(value)||0;

@@ -1,16 +1,4 @@
 // ══ TC CONFIG ══
-function openTcConfig(){
-  // Redirect to Credit Cards page (TC config is now inline there)
-  nav('credit-cards');
-  // Auto-open the TC config section
-  setTimeout(()=>{
-    const body=document.getElementById('cc-tc-config-body');
-    const arrow=document.getElementById('cc-tc-config-arrow');
-    if(body)body.style.display='block';
-    if(arrow)arrow.textContent='▾';
-  },100);
-}
-function openTcConfigModal(){ openTcConfig(); }
 
 // ══ TC CYCLE SYSTEM ══
 
@@ -42,11 +30,6 @@ function getViewWindowRange(){
   };
 }
 
-function isMonthKeyInViewWindow(monthKey){
-  if(!monthKey) return false;
-  const range=getViewWindowRange();
-  return monthKey>=range.startMonthKey && monthKey<=range.currentMonthKey;
-}
 
 function getViewModeLabel(mode){
   const key=normalizeViewMode(mode);
@@ -226,7 +209,6 @@ function _buildGeneratedCyclesForMode(mode, monthsBack=18, monthsAhead=2){
   if(!payMethod) return [];
   ensureViewCycleConfig();
   const cfg=state.viewCycleConfig[payMethod]||{};
-  const openDay=_safeCycleDay(cfg.openDay, payMethod==='visa'?26:11);
   const closeDay=_safeCycleDay(cfg.closeDay, payMethod==='visa'?25:10);
   const dueDay=_safeCycleDay(cfg.dueDay, payMethod==='visa'?10:27);
   const today=new Date();
@@ -239,12 +221,12 @@ function _buildGeneratedCyclesForMode(mode, monthsBack=18, monthsAhead=2){
     const maxClose=new Date(closeMonthBase.getFullYear(), closeMonthBase.getMonth()+1, 0).getDate();
     const closeDate=new Date(closeMonthBase.getFullYear(), closeMonthBase.getMonth(), Math.min(closeDay,maxClose), 12,0,0,0);
 
-    let openMonthBase=_addMonths(closeDate,-1);
-    if(openDay<=closeDay) openMonthBase=_addMonths(closeDate,0);
-    const maxOpen=new Date(openMonthBase.getFullYear(), openMonthBase.getMonth()+1, 0).getDate();
-    const openDate=new Date(openMonthBase.getFullYear(), openMonthBase.getMonth(), Math.min(openDay,maxOpen), 12,0,0,0);
-
-    if(openDate>closeDate) continue;
+    // Los ciclos son contiguos: abre el día siguiente al cierre del ciclo anterior.
+    // (Antes usaba un openDay aparte; si quedaba desincronizado con closeDay, había días
+    // que no caían en ningún ciclo.)
+    const prevCloseBase=_addMonths(closeDate,-1);
+    const maxPrevClose=new Date(prevCloseBase.getFullYear(), prevCloseBase.getMonth()+1, 0).getDate();
+    const openDate=new Date(prevCloseBase.getFullYear(), prevCloseBase.getMonth(), Math.min(closeDay,maxPrevClose)+1, 12,0,0,0);
 
     let dueMonthBase=_addMonths(closeDate,0);
     if(dueDay<=closeDay) dueMonthBase=_addMonths(closeDate,1);
@@ -289,11 +271,6 @@ function getTcCycleSignature(cycle){
   return [payMethod, cycle.cardId||'', cycle.closeDate||''].join('::');
 }
 
-function isTcCycleHidden(cycle){
-  const signature=getTcCycleSignature(cycle);
-  if(!signature) return false;
-  return (state.hiddenTcCycles||[]).includes(signature);
-}
 
 function _ensureTcCycleVisible(signature){
   if(!signature) return;
@@ -371,16 +348,6 @@ function getTcCycleOpen(cycles, idx){
   return dateToYMD(d);
 }
 
-function getTcCycleForDate(dateStr, mode){
-  const cycles=getTcCycles(mode);
-  const sorted=[...cycles].sort((a,b)=>a.closeDate.localeCompare(b.closeDate));
-  for(let i=0;i<sorted.length;i++){
-    const open=getTcCycleOpen(cycles,cycles.findIndex(c=>c.id===sorted[i].id));
-    const close=sorted[i].closeDate;
-    if(open&&dateStr>=open&&dateStr<=close) return sorted[i];
-  }
-  return null;
-}
 
 function dateToYMD(d){
   // Safe conversion of any date value (Date object or string) to 'YYYY-MM-DD'
@@ -580,43 +547,7 @@ function renderTcCycleList(){
   }).join('');
 }
 
-function saveTcConfig(){
-  // Legacy — now just closes modal
-  saveState();closeModal('modal-tc-config');
-  showToast('✓ Ciclos guardados','success');
-}
 
-// ── Calcular rango del ciclo activo ──
-function getTcCycleRange(){
-  const{closeDay}=state.tcConfig;if(!closeDay)return null;
-  const today=new Date();const y=today.getFullYear(),m=today.getMonth(),d=today.getDate();
-  let cycleStart,cycleEnd;
-  if(d>closeDay){
-    // Estamos después del cierre: ciclo empezó closeDay+1 este mes
-    cycleStart=new Date(y,m,closeDay+1);
-    cycleEnd=new Date(y,m+1,closeDay);
-  } else {
-    // Estamos antes del cierre: ciclo empezó closeDay+1 mes pasado
-    cycleStart=new Date(y,m-1,closeDay+1);
-    cycleEnd=new Date(y,m,closeDay);
-  }
-  cycleStart.setHours(0,0,0,0);cycleEnd.setHours(23,59,59,999);
-  return{start:cycleStart,end:cycleEnd};
-}
-
-function renderTcDashboard(){
-  // When dashView='tc', renderDashboard calls this to swap the period selector
-  // and update all KPIs using the active TC cycle instead of calendar month
-  const cycles=getTcCycles();
-  const sel=document.getElementById('dash-month-select');
-  if(sel){
-    const curVal=state.dashTcCycle||'';
-    sel.innerHTML='<option value="">Ciclo actual</option>'+cycles.map(c=>{
-      return'<option value="'+c.id+'" '+(c.id===curVal?'selected':'')+'>'+esc(c.label)+'</option>';
-    }).join('');
-  }
-}
-function renderMixBar(){}
 function openPayMethodModal(txnId){
   const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
   window._bulkTagMode=false;
@@ -797,41 +728,9 @@ function importBackupJSON(event){
   event.target.value='';
 }
 
-function showRestorePlaceholder(){
-  showToast('La restauración guiada vuelve en esta sección en la próxima iteración', 'info');
-}
 
-function showExportPlaceholder(){
-  showToast('La exportación dedicada vive en Seguridad', 'info');
-}
 
 // ══ DRIVE STATUS BANNER ══
-function renderDriveStatusBanner() {
-  const el = document.getElementById('drive-status-banner');
-  if (!el) return;
-  if (driveReady && driveAccessToken) {
-    el.style.cssText = 'border-radius:8px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:rgba(100,220,100,0.07);border:1px solid rgba(100,220,100,0.25);';
-    el.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:20px;">☁️</span>
-        <div>
-          <div style="font-size:12px;font-weight:700;color:var(--accent);">Google Drive conectado ✓</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;">Tus datos se sincronizan automáticamente. Si borrás el historial del navegador, se recuperan al reconectar.</div>
-        </div>
-      </div>`;
-  } else {
-    el.style.cssText = 'border-radius:8px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;background:rgba(240,200,60,0.07);border:1px solid rgba(240,200,60,0.3);';
-    el.innerHTML = `
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:20px;">⚠️</span>
-        <div>
-          <div style="font-size:12px;font-weight:700;color:var(--accent3);">Google Drive no conectado</div>
-          <div style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;">Tus datos solo están en este navegador. Si borrás el historial, se pierden. Conectá Drive para tener respaldo automático en la nube.</div>
-        </div>
-      </div>
-      <button class="btn btn-ghost btn-sm" style="flex-shrink:0;" onclick="initDriveClient(true)">Conectar Drive</button>`;
-  }
-}
 
 // ══ HISTORIAL DE BACKUPS ══
 function renderBackupHistory() {
@@ -875,12 +774,6 @@ function registrarBackupEnHistorial(tipo) {
   renderBackupHistory();
 }
 
-function updateCSVExportCount() {
-  const el = document.getElementById('csv-export-count');
-  if (!el) return;
-  const n = (state.transactions || []).length;
-  el.textContent = n === 0 ? 'Sin movimientos cargados' : n + ' movimiento' + (n !== 1 ? 's' : '') + ' para exportar';
-}
 
 // ══════════════════════════════════════════════════════════
 // GMAIL INTEGRATION — configurable auto-import
@@ -1119,15 +1012,6 @@ function openCloudSync(event) {
   initDriveClient(false);
 }
 
-function attemptDriveReconnect(force){
-  const clientId = getGmailClientId();
-  if (!clientId) return;
-  if (driveReconnectInFlight && !force) return;
-  if (driveReady && driveAccessToken) return;
-  driveReconnectInFlight = true;
-  initDriveClient(false);
-  setTimeout(() => { driveReconnectInFlight = false; }, 4000);
-}
 
 function loadGoogleScript(cb) {
   if (window.google && window.google.accounts) { cb(); return; }
@@ -1788,65 +1672,7 @@ function confirmGmailImport() {
   pendingGmailTxns = [];
 }
 
-function getOnboardingChecklist(){
-  ensureGmailImportRules();
-  const activeRules = getActiveGmailImportRules().length;
-  const activeIncome = (state.incomeMonths||[]).length || (state.incomeSources||[]).length || (state.income?.ars||0) || (state.income?.usd||0);
-  return [
-    {
-      id:'google',
-      done:isGoogleConnected(),
-      icon:isGoogleConnected() ? '✓' : '1',
-      title:'Conectar Google',
-      sub:isGoogleConnected() ? 'La cuenta ya está lista para sincronizar datos entre dispositivos.' : 'Necesario para Drive, Gmail y sincronización de datos.',
-      action:isGoogleConnected() ? 'Revisar' : 'Conectar',
-      onclick:'openCloudSync(event)'
-    },
-    {
-      id:'gmail-rules',
-      done:activeRules > 0,
-      icon:activeRules > 0 ? '✓' : '2',
-      title:'Definir reglas Gmail',
-      sub:activeRules > 0 ? `${activeRules} regla${activeRules!==1?'s':''} activa${activeRules!==1?'s':''} para leer gastos desde correos.` : 'Elegí remitentes, consultas y tarjeta asociada para leer gastos automáticamente.',
-      action:'Configurar',
-      onclick:'openGmailRuleManager()'
-    },
-    {
-      id:'cards',
-      done:(state.ccCards||[]).length > 0 || (state.tcCycles||[]).length > 0,
-      icon:(state.ccCards||[]).length > 0 || (state.tcCycles||[]).length > 0 ? '✓' : '3',
-      title:'Configurar tarjetas y ciclos',
-      sub:(state.ccCards||[]).length > 0 || (state.tcCycles||[]).length > 0 ? 'Ya hay tarjetas o ciclos listos para usar en la app.' : 'Cierre, vencimiento, tarjeta y banco para calcular ciclos correctamente.',
-      action:'Abrir',
-      onclick:"nav('credit-cards');ccSelectPageTab('config')"
-    },
-    {
-      id:'income',
-      done:Boolean(activeIncome),
-      icon:activeIncome ? '✓' : '4',
-      title:'Registrar ingresos base',
-      sub:activeIncome ? 'La app ya tiene una base de ingreso para métricas, ahorro y salud financiera.' : 'Necesario para ahorro, score financiero y proyecciones más realistas.',
-      action:'Abrir',
-      onclick:"nav('income')"
-    }
-  ];
-}
 
-function applyUsageProfile(profile){
-  state.profileTemplate = profile;
-  const presetMap = {
-    personal:'balanceado',
-    ahorro:'modo-ahorro',
-    familiar:'seguimiento',
-    freelance:'analitico'
-  };
-  const preset = presetMap[profile];
-  if(preset && typeof applyDashboardDesignPreset === 'function') applyDashboardDesignPreset(preset);
-  syncActiveUserProfileFromState(false);
-  saveState();
-  renderSettingsPage();
-  showToast('✓ Perfil aplicado', 'success');
-}
 
 function ensureBankProfiles(){
   if(!Array.isArray(state.bankProfiles)) state.bankProfiles = [];
@@ -2020,32 +1846,6 @@ function getUserProfileStats(profile){
   };
 }
 
-function saveActiveUserProfile(){
-  const profiles = ensureUserProfiles();
-  if(!state.activeUserProfileId){
-    const newId = 'user-profile-' + Date.now().toString(36);
-    profiles.unshift({
-      id:newId,
-      name: state.userName || 'Perfil principal',
-      note:'Creado desde la configuración actual',
-      ...getCurrentProfileSnapshot()
-    });
-    state.activeUserProfileId = newId;
-  } else {
-    const idx = profiles.findIndex(p => p.id === state.activeUserProfileId);
-    if(idx >= 0){
-      profiles[idx] = {
-        ...profiles[idx],
-        ...getCurrentProfileSnapshot()
-      };
-    }
-  }
-  state.userProfiles = profiles;
-  saveState();
-  renderSettingsPage();
-  renderUserProfilesModal(state.activeUserProfileId);
-  showToast('✓ Perfil activo guardado', 'success');
-}
 
 function duplicateCurrentUserProfile(){
   const payload = {
@@ -2155,17 +1955,6 @@ function applyUserProfile(profileId){
   showToast('✓ Perfil aplicado', 'success');
 }
 
-function ensureAutomationPrefs(){
-  if(!state.automationPrefs || typeof state.automationPrefs !== 'object') state.automationPrefs = {};
-  state.automationPrefs = {
-    weeklyReport: !!state.automationPrefs.weeklyReport,
-    spendingAlerts: state.automationPrefs.spendingAlerts !== false,
-    backupReminder: state.automationPrefs.backupReminder !== false,
-    cardCloseReminder: state.automationPrefs.cardCloseReminder !== false,
-    ...state.automationPrefs
-  };
-  return state.automationPrefs;
-}
 
 function resetUserProfileEditor(){
   const idEl = document.getElementById('user-profile-id');
@@ -2288,53 +2077,8 @@ function openUniversalImport(mode){
   },120);
 }
 
-function openImportAssistant(){
-  renderImportAssistant();
-  openModal('modal-import-assistant');
-}
 
-function renderImportAssistant(){
-  const body = document.getElementById('import-assistant-body');
-  const actions = document.getElementById('import-assistant-actions');
-  if(!body || !actions) return;
-  const rules = getActiveGmailImportRules().length;
-  const profiles = ensureBankProfiles().length;
-  body.innerHTML = `
-    <div class="onboarding-wizard-shell">
-      <div class="onboarding-wizard-panel">
-        <div class="onboarding-wizard-title">¿Cómo te conviene cargar tus gastos?</div>
-        <div class="onboarding-wizard-sub">Elegí según cómo te informa tu banco y qué tan automática querés la experiencia. La app ya puede convivir con varios métodos a la vez.</div>
-        <div class="onboarding-wizard-grid">
-          <div class="onboarding-wizard-note"><strong>Gmail / alertas</strong><br>Mejor si tu banco manda mails por compra o resumen.<br><br><strong>Hoy:</strong> ${rules} regla${rules===1?'':'s'} activa${rules===1?'':'s'}.</div>
-          <div class="onboarding-wizard-note"><strong>Texto pegado</strong><br>Ideal para cualquier banco si copiás el resumen y querés revisar antes de importar.</div>
-          <div class="onboarding-wizard-note"><strong>Archivo / CSV</strong><br>Útil cuando el banco deja descargar movimientos. Hoy es la vía más limpia para formatos estructurados.</div>
-          <div class="onboarding-wizard-note"><strong>Perfiles bancarios</strong><br>Ya hay ${profiles} perfil${profiles===1?'':'es'} guardado${profiles===1?'':'s'} para bancos o tarjetas distintas.</div>
-        </div>
-        <div class="onboarding-wizard-bullets">
-          <div><strong>Si recibís alertas por mail:</strong> conectá Google y armá reglas Gmail.</div>
-          <div><strong>Si tu banco no manda alertas claras:</strong> usá texto pegado o archivo.</div>
-          <div><strong>Si querés compartir la app con otra persona:</strong> primero creá su perfil bancario y después definí su método preferido.</div>
-        </div>
-      </div>
-    </div>
-  `;
-  actions.innerHTML = `
-    <button class="btn btn-ghost" onclick="closeModal('modal-import-assistant')">Cerrar</button>
-    <button class="btn btn-ghost" onclick="openCloudSync(event)">Conectar Google</button>
-    <button class="btn btn-ghost" onclick="openGmailRuleManager()">Reglas Gmail</button>
-    <button class="btn btn-ghost" onclick="openUniversalImport('paste');closeModal('modal-import-assistant')">Texto pegado</button>
-    <button class="btn btn-primary" onclick="openUniversalImport('csv');closeModal('modal-import-assistant')">Archivo / CSV</button>
-  `;
-}
 
-function toggleAutomationPref(key){
-  ensureAutomationPrefs();
-  state.automationPrefs[key] = !state.automationPrefs[key];
-  syncActiveUserProfileFromState(false);
-  saveState();
-  renderSettingsPage();
-  showToast('✓ Automatización actualizada', 'success');
-}
 
 function renderSettingsPage(){
   const currencyEl = document.getElementById('settings-currency');
@@ -2348,9 +2092,6 @@ function renderSettingsPage(){
   if(typeof window.renderSettingsCenter === 'function') window.renderSettingsCenter();
 }
 
-function toggleSettingsAdvanced(){
-  return;
-}
 
 function resetBankProfileEditor(){
   const idEl = document.getElementById('bank-profile-id');
@@ -2535,11 +2276,6 @@ function setOnboardingCurrentStep(step){
   saveState();
 }
 
-function openOnboardingWizard(step){
-  if(typeof step === 'number') setOnboardingCurrentStep(step);
-  renderOnboardingWizard();
-  openModal('modal-onboarding-wizard');
-}
 
 function onboardingPrevStep(){
   const next = Math.max(0, getOnboardingCurrentStep() - 1);

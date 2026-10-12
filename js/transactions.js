@@ -343,14 +343,6 @@ if(state.txnInsightsCollapsed===undefined) state.txnInsightsCollapsed=false;
 if(state._txnActionMenuId===undefined) state._txnActionMenuId='';
 if(state._txnAdvancedFiltersOpen===undefined) state._txnAdvancedFiltersOpen=false;
 
-function toggleTxnInsightsPanel(){
-  state.txnInsightsCollapsed=!state.txnInsightsCollapsed;
-  renderTransactions();
-}
-function toggleTxnAdvancedFilters(){
-  state._txnAdvancedFiltersOpen=!state._txnAdvancedFiltersOpen;
-  renderTransactions();
-}
 function toggleTxnMarked(txnId){
   const t = state.transactions.find(x => x.id === txnId);
   if(!t) return;
@@ -434,10 +426,6 @@ function txnSetCardChip(val){
 }
 function txnSetEstadoChip(val){
   setEstadoFilter(val||'all');
-}
-function txnShowCategoryDetails(){
-  state._txnAdvancedFiltersOpen=true;
-  renderTransactions();
 }
 
 function txnDateKey(d){
@@ -696,17 +684,6 @@ function deleteTxnCycleCommitment(key){
   dismissTxnCycleCommitmentEntry(key);
 }
 
-function addTxnCycleCommitment(kind){
-  if(kind==='suscripciones'){
-    openNewSubModal();
-    return;
-  }
-  if(kind==='cuotas'){
-    openNewCuotaModal();
-    return;
-  }
-  openNewExpenseModal();
-}
 
 function renderTxnCycleCommitmentsPanel(wrap, entries){
   const oldPanel=document.getElementById('txn-cycle-commitments');
@@ -1304,11 +1281,6 @@ function renderTransactions(){
     return '<span class="origen-chip" style="background:rgba(90,200,250,0.12);color:#5ac8fa;border:1px solid rgba(90,200,250,0.28);">🔁 Próximo cobro</span>';
   }
 
-  function estadoBadge(t){
-    const estado = t.estado_revision || 'detectado_automaticamente';
-    const m = ESTADO_MAP[estado]||{cls:'estado-detectado',label:estado};
-    return '<span class="estado-badge '+m.cls+'">'+m.label+'</span>';
-  }
   function origenChip(t){
     let origen = t.origen_del_movimiento||(t.source==='gmail'?'importado_desde_gmail':'importado_desde_resumen');
     // Si tiene payMethod visa/amex pero origen está marcado como resumen → fue importado desde Gmail
@@ -1336,7 +1308,7 @@ function renderTransactions(){
     });
     const totalSpend=focusTxns.reduce((s,tx)=>s+Math.abs(txnPersonalAmountArs(tx)),0);
     const dayCount=Math.max(groupedDays.length,1);
-    const avgDaily=totalSpend/dayCount;
+    let avgDaily=totalSpend/dayCount;
     const breakdown=txnCategoryBreakdown(focusTxns);
     const dominant=breakdown[0]||{label:'Sin categoría',amount:0,pct:0};
     const todaySpend=groupedDays[0]?.total||0;
@@ -1700,12 +1672,31 @@ function renderTransactions(){
             +'</div>';
           })()
           +(()=>{
-            const projected = avgDaily * 30;
-            const _curMk = getMonthKey(new Date());
-            const prevMonthKey = (()=>{const [y,m]=_curMk.split('-').map(Number);return m===1?(y-1)+'-12':y+'-'+String(m-1).padStart(2,'0');})();
-            const prevTxns = typeof getTxnsFor==='function' ? (getTxnsFor(prevMonthKey)||[]) : [];
-            const prevTotal = prevTxns.filter(t=>!t.isIncome&&t.type!=='income').reduce((s,t)=>s+Math.abs(typeof txnPersonalAmountArs==='function'?txnPersonalAmountArs(t):t.amount),0);
-            const deltaPct = prevTotal > 0 ? Math.round(((totalSpend-prevTotal)/prevTotal)*100) : 0;
+            // Promedio, proyección y comparación con el período anterior: receta única
+            // (js/totals.js), sobre el mismo período y tarjeta que muestra la lista.
+            const _periodRange = mode!=='mes'
+              ? (activeCycleMeta?{startStr:activeCycleMeta.openStr,endStr:activeCycleMeta.closeStr}:null)
+              : getMonthRange(mf?.value||activeMesKey);
+            const _periodCard = cardFv || (mode!=='mes' ? 'visa' : null);
+            let projected = avgDaily * 30;
+            let deltaPct = 0;
+            if(_periodRange && !searchVal){
+              const _proj = getPeriodProjection({..._periodRange, card:_periodCard});
+              avgDaily = _proj.spent / _proj.daysElapsed;
+              projected = _proj.projected;
+              let _prevRange = null;
+              if(mode!=='mes' && activeCycleMeta){
+                const _cyc = getTcCycles(mode);
+                const _i = _cyc.findIndex(c=>c.id===activeCycleMeta.cycle?.id);
+                const _prev = _i>=0 ? _cyc[_i+1] : null;
+                if(_prev) _prevRange = {startStr:getTcCycleOpen(_cyc,_i+1)||_prev.closeDate, endStr:_prev.closeDate};
+              } else {
+                const [_y,_m] = String(mf?.value||activeMesKey).split('-').map(Number);
+                _prevRange = getMonthRange(getMonthKey(new Date(_y, _m-2, 1)));
+              }
+              const _prevTotal = _prevRange ? getPeriodTotals({..._prevRange, card:_periodCard}).totalArs : 0;
+              deltaPct = _prevTotal > 0 ? Math.round(((_proj.spent-_prevTotal)/_prevTotal)*100) : 0;
+            }
             const deltaUp = deltaPct > 0;
             const deltaHtml = deltaPct !== 0 ? '<span style="color:'+(deltaUp?'#ef4444':'#10b981')+';font-weight:800;">'+(deltaUp?'↑':'↓')+' '+Math.abs(deltaPct)+'%</span>' : '—';
             return '<div class="mv-metrics">'
@@ -2387,16 +2378,6 @@ function setEstadoFilter(k){
   renderTransactions();
 }
 
-function acceptTxnSuggestion(txnId){
-  const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
-  if(t.cat_sugerida){
-    learnFromConfirmation(t,t.cat_sugerida);
-    t.category=t.cat_sugerida;
-    t.estado_revision='confirmado_por_usuario';
-    saveState();renderTransactions();updateQrBadge();
-    showToast('✓ '+t.cat_sugerida+' aplicada','success');
-  }
-}
 
 // ══ PANEL DETALLE TRANSACCIÓN ══
 function openTxnDetail(txnId){
@@ -2656,27 +2637,6 @@ function openTxnDetail(txnId){
 }
 
 // ══ THIRD-PARTY / REIMBURSABLE ══
-function toggleThirdParty(txnId,checked){
-  const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
-  t.isThirdParty=!!checked;
-  if(checked){
-    if(!t.thirdPartyStatus) t.thirdPartyStatus='pending';
-    if(!t.thirdPartyAmount) t.thirdPartyAmount=t.amount;
-  }
-  saveState();
-  openTxnDetail(txnId); // re-render panel to show/hide details
-  renderTransactions();
-  renderDashboard();
-}
-function setThirdPartyField(txnId,field,value){
-  const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
-  t[field]=value;
-  saveState();
-  // Re-render panel if status changed (shows/hides settled fields)
-  if(field==='thirdPartyStatus') openTxnDetail(txnId);
-  renderTransactions();
-  renderDashboard();
-}
 
 function closeTxnDetail(){
   // Auto-flush any unsaved name inputs before closing
@@ -2712,26 +2672,6 @@ function _showTxnActions(txnId){
   setTimeout(()=>{const cl=(e)=>{if(!menu.contains(e.target)){menu.remove();document.removeEventListener('click',cl);}};document.addEventListener('click',cl);},0);
 }
 
-function setDetailCat(txnId, catName){
-  const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
-  t.category=catName;
-  // Re-render cat buttons
-  const sel=document.getElementById('tdp-cat-selector');
-  if(sel) sel.querySelectorAll('.tdp-cat-btn').forEach(btn=>{
-    const isSel=btn.textContent.trim()===catName;
-    const c=state.categories.find(x=>x.name===catName);
-    btn.classList.toggle('active',isSel);
-    if(isSel&&c){btn.style.borderColor=c.color;btn.style.color=c.color;btn.style.background=c.color+'18';}
-    else{btn.style.borderColor='';btn.style.color='';btn.style.background='';}
-  });
-  // Update cat dot in table row
-  const row=document.querySelector('[data-txnid="'+txnId+'"]');
-  if(row){
-    const badge=row.querySelector('.cat-badge');
-    if(badge)badge.innerHTML='<span class="cat-dot" style="background:'+catColor(catName)+'"></span>'+esc(catName)+' ✎';
-    badge&&(badge.style.cssText=catStyle(catName)+';cursor:pointer;');
-  }
-}
 
 function _closePanelsOnOutside(e){
   // Guard: if rules panel just re-rendered, the clicked element may no longer be in DOM
@@ -2764,26 +2704,7 @@ function _closePanelsOnOutside(e){
   }
 }
 
-function markAsNormal(txnId){
-  const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
-  t.estado_revision='confirmado_por_usuario';
-  // Guardar en historial para que no vuelva a marcarse como duplicado automáticamente
-  learnFromConfirmation(t, t.category);
-  saveState();
-  closeTxnDetail();
-  renderTransactions();
-  showToast('✓ Marcado como gasto normal','success');
-}
 
-function confirmTxnDetail(txnId){
-  const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
-  learnFromConfirmation(t,t.category);
-  t.estado_revision='confirmado_por_usuario';
-  const btn=document.getElementById('tdp-confirm-btn');
-  if(btn){btn.textContent='✓ Confirmado';btn.classList.add('confirmed');}
-  saveState();renderTransactions();updateQrBadge();
-  showToast('✓ '+t.category+' confirmado','success');
-}
 
 function openAddRuleFromTxn(txnId){
   const t=state.transactions.find(x=>x.id===txnId);if(!t)return;
@@ -2879,10 +2800,6 @@ function _renderTagChips(tags){
   return '<span class="stag-inline-wrap">'+tags.map(tag=>
     '<span class="stag-chip-mini" style="--stag-color:'+_tagColor(tag)+'">'+esc(tag)+'</span>'
   ).join('')+'</span>';
-}
-function txnSetTagFilter(tag){
-  state.txnTagFilter=state.txnTagFilter===tag?'':tag;
-  renderTransactions();
 }
 
 // ══ EDIT TRANSACTION MODAL ══
@@ -3315,7 +3232,6 @@ function _dupUpdateFooter(){
 
 function _dupRefreshModal(){ showDuplicatesModal(); }
 
-function confirmDeleteDuplicates(){ showDuplicatesModal(); }
 function confirmDeleteDupes(){ showDuplicatesModal(); }
 
 // ── Nuevo gasto desde Movimientos ──

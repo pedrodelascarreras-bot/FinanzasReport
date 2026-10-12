@@ -370,9 +370,6 @@ function getNextCuotaDate(day){
 function isFixedSectionHidden(){
   return localStorage.getItem('fin_commitments_hide_fixed')==='1';
 }
-function applyFixedSectionVisibility(){
-  renderCommitmentsPage();
-}
 function toggleFixedSectionVisibility(){
   const next=isFixedSectionHidden()?'0':'1';
   localStorage.setItem('fin_commitments_hide_fixed',next);
@@ -748,10 +745,6 @@ function commitmentsSetSearch(value){
     inp.setSelectionRange(len,len);
   }
 }
-function commitmentsToggleInsights(){
-  state.commitmentsInsightsCollapsed=!state.commitmentsInsightsCollapsed;
-  renderCommitmentsPage();
-}
 function commitmentsToggleMenu(key){
   state._commitmentsMenu=state._commitmentsMenu===key?'':key;
   renderCommitmentsPage();
@@ -1088,17 +1081,6 @@ function renderCommitmentsPage(){
         +'</div>'
       +'</div>'
     +'</div>';
-}
-function fmtCuotaNextDate(d){
-  if(!d)return null;
-  const today=new Date();
-  const diff=Math.round((d-today)/86400000);
-  const MN=['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
-  const label=d.getDate()+' '+MN[d.getMonth()];
-  if(diff===0)return'<span style="color:var(--danger);font-weight:700;">hoy</span>';
-  if(diff===1)return'<span style="color:var(--accent3);font-weight:700;">mañana</span>';
-  if(diff<=7)return'<span style="color:var(--accent3);font-weight:700;">en '+diff+'d ('+label+')</span>';
-  return'<span style="color:var(--text2);">'+label+'</span>';
 }
 // ══ MOBILE COMPROMISOS RENDER ══
 function renderMobileCompromisos() {
@@ -1470,34 +1452,3 @@ function deleteSub(){
 }
 
 // ══ RENDER SUBS ANNUAL BREAKDOWN ══
-function renderSubsAnnual(){
-  const toMonthly=(s)=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
-  const toAnnual=(s)=>toMonthly(s)*12;
-  if(!state.subscriptions.length){document.getElementById('subs-annual-card').style.display='none';return;}
-  const sorted=[...state.subscriptions].sort((a,b)=>toAnnual(b)-toAnnual(a));
-  const totalAnnual=sorted.filter(s=>s.currency==='ARS').reduce((acc,s)=>acc+toAnnual(s),0);
-  const totalAnnualUSD=sorted.filter(s=>s.currency==='USD').reduce((acc,s)=>acc+toAnnual(s),0);
-  const maxAnn=Math.max(...sorted.map(s=>toAnnual(s)),1);
-  document.getElementById('subs-annual-card').style.display='block';
-  const totalParts=[];
-  if(totalAnnual>0)totalParts.push('$'+fmtN(Math.round(totalAnnual))+' ARS/año');
-  if(totalAnnualUSD>0)totalParts.push('U$D '+fmtN(Math.round(totalAnnualUSD))+'/año');
-  document.getElementById('subs-annual-total').textContent=totalParts.join(' + ');
-  document.getElementById('subs-annual-list').innerHTML=sorted.map(s=>{
-    const c=s.color||'#888888';const ann=toAnnual(s);const w=Math.round(ann/maxAnn*100);
-    const prefix=s.currency==='USD'?'U$D ':'$';
-    return`<div style="display:flex;align-items:center;gap:12px;">
-      <div style="font-size:18px;width:28px;text-align:center;flex-shrink:0;">${esc(s.emoji||'●')}</div>
-      <div style="flex:1;min-width:0;">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:5px;">
-          <div style="font-size:13px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.name)}</div>
-          <div style="font-size:13px;font-family:var(--font);font-weight:700;color:${c};flex-shrink:0;">${prefix}${fmtN(Math.round(ann))}/año</div>
-        </div>
-        <div style="height:5px;background:var(--surface3);border-radius:3px;overflow:hidden;">
-          <div style="height:100%;width:${w}%;background:${c};border-radius:3px;transition:width 0.5s ease;"></div>
-        </div>
-        <div style="font-size:10px;color:var(--text3);font-family:var(--font);margin-top:3px;">${prefix}${fmtN(Math.round(ann/12))}/mes · ${s.freq==='annual'?'Cobro anual':s.freq==='weekly'?'Semanal':'Mensual'}</div>
-      </div>
-    </div>`;
-  }).join('');
-}

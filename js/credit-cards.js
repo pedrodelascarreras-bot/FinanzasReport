@@ -306,11 +306,6 @@ function ccSelectViewCycle(cycleId){
   renderCreditCards();
 }
 
-function ccEditCycleFromSummary(cycleId){
-  state.ccPageTab='config';
-  renderCreditCards();
-  editTcCycle(cycleId);
-}
 
 function renderCcActiveCycle(){
   ccInit();
@@ -536,70 +531,10 @@ function renderCcActiveCycle(){
 }
 
 // ── Paid History HTML builder ──
-function _ccBuildPaidHistoryHtml(cardId, paidCycles, tcCycles) {
-  const rows = paidCycles.map(pc => {
-    const tc = tcCycles.find(c => c.id === pc.tcCycleId);
-    if(!tc) return '';
-    const pidx = tcCycles.findIndex(c => c.id === pc.tcCycleId);
-    const pOpen = getTcCycleOpen(tcCycles, pidx);
-    const pExp = ccGetCycleExpenses(cardId, pc.tcCycleId);
-    const pTot = ccGetTotals(pExp);
-    const isViewing = window._ccViewCycle[cardId] === pc.tcCycleId;
-    const dueTxt = pc.dueDate ? ccFmtDate(pc.dueDate) : '—';
-    return `<div onclick="ccSelectViewCycle('${pc.tcCycleId}')"
-      style="padding:12px 20px;display:flex;align-items:center;gap:14px;border-bottom:1px solid var(--border);cursor:pointer;background:${isViewing?'rgba(52,199,89,0.07)':'transparent'};transition:background .12s;"
-      onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='${isViewing?'rgba(52,199,89,0.07)':'transparent'}'">
-      <span style="font-size:18px;color:var(--green-sys);">✓</span>
-      <div style="flex:1;min-width:0;">
-        <div style="font-size:13px;font-weight:700;color:var(--text);">${esc(tc.label)}</div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px;">${ccFmtDate(pOpen)} → ${ccFmtDate(tc.closeDate)}${pc.dueDate?' · Vto. '+dueTxt:''}</div>
-      </div>
-      <div style="text-align:right;">
-        <div style="font-size:13px;font-weight:700;color:var(--accent);font-family:var(--font);">$${fmtN(Math.round(pTot.ars))}</div>
-        ${pTot.usd>0?`<div style="font-size:11px;color:var(--accent2);">U$D ${fmtN(pTot.usd)}</div>`:''}
-      </div>
-    </div>`;
-  }).join('');
-
-  return `<div id="cc-paid-history-wrap" style="margin-top:10px;background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;">
-    <div onclick="ccTogglePaidHistory()" style="padding:14px 20px;display:flex;align-items:center;justify-content:space-between;cursor:pointer;user-select:none;">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:14px;color:var(--green-sys);">✓</span>
-        <span style="font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--text3);">Historial de pagos (${paidCycles.length})</span>
-      </div>
-      <span id="cc-hist-arrow" style="font-size:12px;color:var(--text3);transition:transform .15s;">▾</span>
-    </div>
-    <div id="cc-paid-history-body" style="border-top:1px solid var(--border);">${rows}</div>
-  </div>`;
-}
 
 // ── Set due date ──
-function ccSetDueDate(tcCycleId) {
-  const cardId = state.ccActiveCard || state.ccCards[0]?.id;
-  let ccState = state.ccCycles.find(c => c.cardId === cardId && c.tcCycleId === tcCycleId);
-  const current = ccState?.dueDate || '';
-  const date = prompt('Fecha de vencimiento (YYYY-MM-DD):', current);
-  if(date === null) return;
-  if(date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) { showToast('⚠️ Formato inválido. Usá YYYY-MM-DD','error'); return; }
-  if(!ccState) {
-    ccState = {id:tcCycleId+'_'+cardId, cardId, tcCycleId, status:'pending', manualExpenses:[], excludedIds:[]};
-    state.ccCycles.push(ccState);
-  }
-  ccState.dueDate = date || null;
-  saveState();
-  renderCcActiveCycle();
-  showToast(date ? '✓ Vencimiento guardado' : 'Vencimiento eliminado','success');
-}
 
 // ── Toggle paid history ──
-function ccTogglePaidHistory() {
-  const body = document.getElementById('cc-paid-history-body');
-  const arrow = document.getElementById('cc-hist-arrow');
-  if(!body) return;
-  const open = body.style.display === 'none';
-  body.style.display = open ? 'block' : 'none';
-  if(arrow) { arrow.style.transform = open ? '' : 'rotate(-90deg)'; }
-}
 
 
 
@@ -735,18 +670,6 @@ function ccOpenCycleComposer(cardId){
   ccFocusCycleComposer();
 }
 
-function ccApplyCloseDayFromConfig(dayValue){
-  const day=Math.max(1,Math.min(31,parseInt(dayValue,10)||1));
-  const closeEl=document.getElementById('tc-cycle-close-cc');
-  const openEl=document.getElementById('tc-cycle-open-cc');
-  if(!closeEl)return;
-  const baseValue=closeEl.value||openEl?.value||dateToYMD(new Date());
-  const base=new Date(baseValue+'T12:00:00');
-  const year=base.getFullYear();
-  const month=base.getMonth();
-  const maxDay=new Date(year,month+1,0).getDate();
-  closeEl.value=dateToYMD(new Date(year,month,Math.min(day,maxDay),12));
-}
 
 function ccSyncCloseDayFromDate(){
   const closeEl=document.getElementById('tc-cycle-close-cc');
@@ -914,19 +837,7 @@ function renderCcConfigPanel(){
   `;
 }
 
-function ccSelectConfigCard(cardId){
-  state.ccActiveCard=cardId;
-  window._ccConfigDraftCardId=cardId;
-  window._tcCycleEditId='';
-  renderCreditCards();
-}
 
-function ccOpenHistoryPanel(cardId){
-  window._ccHistoryCardId=cardId||state.ccActiveCard||state.ccCards?.[0]?.id||'';
-  state.ccActiveCard=window._ccHistoryCardId;
-  state.ccPageTab='history';
-  renderCreditCards();
-}
 
 function renderCcHistoryPanel(){
   const el=document.getElementById('cc-history-panel-body');if(!el)return;
@@ -1007,57 +918,9 @@ function ccCreateCardPrompt(){
   showToast('✓ Tarjeta creada','success');
 }
 
-function ccDownloadConfig(cardId){
-  const card=(state.ccCards||[]).find(c=>c.id===cardId);
-  const cycles=getTcCycles().filter(c=>(c.cardId||state.ccCards?.[0]?.id)===cardId);
-  const payload={card,cycles};
-  const blob=new Blob([JSON.stringify(payload,null,2)],{type:'application/json'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;
-  a.download=`configuracion-${(card?.name||'tarjeta').toLowerCase().replace(/\s+/g,'-')}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-}
 
-// ── Toggle "ver más / ver menos" en la sección de registros ──
-if(!window._ccRecordsExpanded) window._ccRecordsExpanded={};
-function ccToggleRecordsExpanded(cardId){
-  window._ccRecordsExpanded[cardId]=!window._ccRecordsExpanded[cardId];
-  renderCcConfigPanel();
-}
 
 // ── Borrar ciclos más antiguos (mantiene solo los 2 más recientes por tarjeta) ──
-function ccDeleteOldCycles(cardId){
-  if(!confirm('¿Borrar los ciclos antiguos de esta tarjeta y dejar solo el actual y el anterior? Esta acción no se puede deshacer.')) return;
-  const cycles=getTcCycles();
-  const cards=state.ccCards||[];
-  const cardCycles=[...cycles]
-    .filter(c=>(c.cardId||cards[0]?.id)===cardId)
-    .sort((a,b)=>b.closeDate.localeCompare(a.closeDate));
-
-  // Dedup by closeDate (same logic as render)
-  const seen=new Set();
-  const deduped=[];
-  cardCycles.forEach(c=>{
-    if(!seen.has(c.closeDate)){ seen.add(c.closeDate); deduped.push(c); }
-  });
-
-  const toDelete=deduped.slice(2); // everything beyond the 2 most recent
-  if(!toDelete.length){ showToast('Sin ciclos para limpiar','info'); return; }
-
-  toDelete.forEach(cycle=>{
-    const signature=getTcCycleSignature(cycle);
-    if(signature) state.hiddenTcCycles=Array.from(new Set([...(state.hiddenTcCycles||[]),signature]));
-    state.tcCycles=(state.tcCycles||[]).filter(c=>c.id!==cycle.id && getTcCycleSignature(c)!==signature);
-    state.ccCycles=(state.ccCycles||[]).filter(c=>c.tcCycleId!==cycle.id);
-  });
-
-  saveState();
-  if(typeof refreshAll==='function') refreshAll();
-  renderCcConfigPanel();
-  showToast(`${toDelete.length} ciclo${toDelete.length===1?'':'s'} eliminado${toDelete.length===1?'':'s'}`,'success');
-}
 
 // ── Render TC Config section inline dentro de la página de Tarjeta de Crédito ──
 function renderCcTcConfig(){
@@ -1089,14 +952,6 @@ function renderCcTcConfig(){
   }).join('');
 }
 
-function ccToggleTcConfig(){
-  const body=document.getElementById('cc-tc-config-body');
-  const arrow=document.getElementById('cc-tc-config-arrow');
-  if(!body)return;
-  const open=body.style.display==='none';
-  body.style.display=open?'block':'none';
-  if(arrow)arrow.textContent=open?'▾':'▸';
-}
 
 window.checkCreditCardAlerts = checkCreditCardAlerts;
 

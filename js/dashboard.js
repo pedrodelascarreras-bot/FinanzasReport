@@ -127,11 +127,6 @@ function updateUsdRateUI(){
   // Si el dashboard ya tiene datos, recalcular
   if(state.transactions.length)renderDashboard();
 }
-function openUsdRateModal(){
-  document.getElementById('modal-usd-input').value=Math.round(USD_TO_ARS);
-  openModal('modal-usd-rate');
-  loadAllRates();
-}
 function saveUsdRateManual(){
   const val=parseFloat(document.getElementById('modal-usd-input').value);
   if(!val||val<1){showToast('⚠️ Ingresá un valor válido','error');return;}
@@ -960,11 +955,6 @@ function renderCalendarPage(){
     </div>`;
   }).join('') : '<div class="calendar-empty">No hay nada próximo en la agenda.</div>';
 }
-function toggleDecisionCenter(){
-  state.decisionCenterCollapsed=!state.decisionCenterCollapsed;
-  saveState();
-  renderDashboard();
-}
 function setDashView(mode){
   state.dashView=normalizeViewMode(mode);
   const btnMes=document.getElementById('dash-toggle-mes');
@@ -1011,13 +1001,6 @@ function updateMonthPicker(){
     const[y,mo]=m.split('-');
     return'<option value="'+m+'" '+(m===cur?'selected':'')+'>'+MNAMES[+mo-1]+' '+y+'</option>';
   }).join('');
-}
-function toggleDashInsights(){
-  const panel=document.getElementById('dash-insights-panel');
-  if(!panel)return;
-  const visible=panel.style.display!=='none';
-  panel.style.display=visible?'none':'flex';
-  if(!visible)generateDashInsights();
 }
 async function generateDashInsights(){
   const panel=document.getElementById('dash-insights-panel');
@@ -1962,11 +1945,6 @@ function renderDashboard(){
   });
 }
 
-function getWeeklyData(txns){
-  txns=txns||state.transactions;
-  const w={};txns.filter(t=>t.currency==='ARS').forEach(t=>{const k=t.week||getWeekKey(t.date);w[k]=(w[k]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
-  const s=Object.keys(w).sort();return{labels:s.map(k=>fmtWeekLabel(k)),values:s.map(k=>w[k]),keys:s};
-}
 function getCatData(txns,byGroup){
   txns=txns||state.transactions;
   const c={};
@@ -2708,9 +2686,6 @@ function applyDashboardWidgetConfigs(){
 }
 
 // Stubs para IDs que ya no existen pero podrian ser llamados desde otro lado
-function renderDonutChart(){}
-function renderProjection(){}
-function renderDowHeatmap(){}
 
 // Gasto del período del dashboard (ciclo Visa elegido o mes), con la receta única
 function getDashCycleTotal() {
@@ -2765,12 +2740,6 @@ function _applyDb2CcPrivacy(prefix, hasUsdValue=false){
     usdEl.textContent=hasUsdValue?'••••':'';
     usdEl.style.display=hasUsdValue?'':'none';
   }
-}
-function _clearDb2CcPrivacy(prefix){
-  const arsEl=document.getElementById(`kpi-${prefix}-ars`);
-  const usdEl=document.getElementById(`kpi-${prefix}-usd`);
-  const amountSide=arsEl?.closest('.db2-cc-amount-side') || usdEl?.closest('.db2-cc-amount-side');
-  if(amountSide) amountSide.classList.remove('is-masked');
 }
 function setDb2EvoMode(mode){
   db2EvoMode = mode === 'month' ? 'month' : 'daily';

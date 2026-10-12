@@ -1,7 +1,4 @@
 // ══ FILE / PASTE ══
-function handleDragOver(e){e.preventDefault();e.currentTarget.classList.add('drag-over');}
-function handleDragLeave(e){e.currentTarget.classList.remove('drag-over');}
-function handleDrop(e){e.preventDefault();e.currentTarget.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)processFile(f);}
 function handleFileSelect(e){const f=e.target.files[0];if(f)processFile(f);e.target.value='';}
 
 function ensureImportConfig(){
@@ -579,29 +576,6 @@ function parseSantander(rows){
   }
   return txns;
 }
-function parsePasteText(text){
-  const lines=text.split('\n').map(l=>l.trim()).filter(l=>l);
-  const txns=[];
-  const mmap={enero:1,febrero:2,marzo:3,abril:4,mayo:5,junio:6,julio:7,agosto:8,septiembre:9,octubre:10,noviembre:11,diciembre:12};
-  let lastDate=null,i=0;
-  while(i<lines.length){
-    const line=lines[i].replace(/^\*+\s*/,'').trim();
-    const dm=line.match(/^(\d{1,2})\s+de\s+(\w+)(?:\s+de\s+(\d{4}))?$/i);
-    if(dm){const mon=mmap[dm[2].toLowerCase()];const yr=dm[3]?parseInt(dm[3]):new Date().getFullYear();if(mon)lastDate=new Date(yr,mon-1,parseInt(dm[1]));i++;continue;}
-    if(!line.startsWith('$')&&!/^\d[\d.,]+$/.test(line)&&line.length>1){
-      let j=i+1,amount=0,currency='ARS';
-      while(j<lines.length&&j<i+5){
-        const next=lines[j].trim();
-        if(next==='$'||next==='U$S'||next==='USD'){currency=(next==='U$S'||next==='USD')?'USD':'ARS';j++;if(j<lines.length){const a=lines[j].replace(/[^\d.,]/g,'').replace(/\./g,'').replace(',','.');amount=parseFloat(a)||0;if(amount>0){i=j+1;break;}}}
-        else if(/^\$[\d.,]+/.test(next)){amount=parseFloat(next.replace(/[^\d.,]/g,'').replace(/\./g,'').replace(',','.'))||0;currency='ARS';i=j+1;break;}
-        else break;j++;
-      }
-      if(amount>0&&lastDate){const id=Math.random().toString(36).substr(2,9);txns.push({id,date:new Date(lastDate),description:line.replace(/^\*+\s*/,'').trim(),amount,currency,category:'Procesando...',week:getWeekKey(lastDate),month:getMonthKey(lastDate)});continue;}
-    }
-    i++;
-  }
-  return txns;
-}
 // ══ REGLAS DE CATEGORIZACIÓN V2 ══
 // Reglas base del sistema (siempre activas, prioridad 0)
 const BASE_RULES = [
@@ -973,18 +947,6 @@ function learnFromConfirmation(t, catName){
 }
 
 // Aplicar sugerencias masivas (sin sobreescribir confirmados)
-function applySuggestions(){
-  let count=0;
-  state.transactions.forEach(t=>{
-    if(t.estado_revision==='confirmado_por_usuario') return;
-    enrichTransaction(t);
-    if(t.category==='Procesando...'||!t.category){
-      t.category = t.cat_sugerida||'Otros';
-      count++;
-    }
-  });
-  return count;
-}
 
 
 

@@ -796,18 +796,6 @@ function renderCccRow(m) {
   `;
 }
 
-function renderCccStatusBadge(status) {
-  const map = {
-    'conc': '<span class="ccc-badge conc">CONCILIADO</span>',
-    'posible': '<span class="ccc-badge possible">REVISAR</span>',
-    'diff': '<span class="ccc-badge diff">DIFERENCIA</span>',
-    'orphan_pdf': '<span class="ccc-badge missing">FALTA EN APP</span>',
-    'orphan_app': '<span class="ccc-badge extra">FALTA EN PDF</span>',
-    'bank_fee': '<span class="ccc-badge fee">IMPUESTO</span>',
-    'excluded': '<span class="ccc-badge excluded">EXCLUIDO</span>'
-  };
-  return map[status] || status;
-}
 
 // ── Discrepancy Resolution ──
 function cccEditAppTxn(matchId) {
@@ -852,59 +840,7 @@ function cccEditAppTxn(matchId) {
   showToast('No se puede editar este gasto (puede ser un gasto automático o cuota)','info');
 }
 
-function cccImportAllFees() {
-  const fees = cccState.matches.filter(m => m.status === 'bank_fee' && !m.appTxn);
-  if (!fees.length) { showToast('No hay impuestos pendientes de importar','info'); return; }
 
-  if (!confirm(`¿Importar ${fees.length} cargos impositivos del PDF a la App?`)) return;
-
-  // BUG FIX: find by tcCycleId and create entry if missing
-  if(!state.ccCycles) state.ccCycles = [];
-  let cycle = state.ccCycles.find(c => c.tcCycleId === cccState.selectedCycle);
-  if(!cycle) {
-    const tcCycles = typeof getTcCycles === 'function' ? getTcCycles() : [];
-    const tcCycle = tcCycles.find(c => c.id === cccState.selectedCycle);
-    if(!tcCycle) { showToast('Ciclo no encontrado','error'); return; }
-    const cardId = state.ccActiveCard || state.ccCards?.[0]?.id || '';
-    cycle = {
-      id: tcCycle.id + '_' + cardId,
-      cardId, tcCycleId: tcCycle.id,
-      closeDate: tcCycle.closeDate || null,
-      status: 'pending', manualExpenses: [], excludedIds: []
-    };
-    state.ccCycles.push(cycle);
-  }
-  if(!cycle.manualExpenses) cycle.manualExpenses = [];
-  
-  fees.forEach(f => {
-    const newExp = {
-      id: 'mce_' + Date.now().toString(36) + Math.random().toString(36).substr(2,3),
-      date: cycle.closeDate || new Date().toISOString().slice(0,10),
-      description: f.pdfTxn.rawDesc,
-      category: 'Comisiones bancarias',
-      amountARS: f.pdfTxn.amountARS,
-      amountUSD: f.pdfTxn.amountUSD
-    };
-    cycle.manualExpenses.push(newExp);
-  });
-  
-  saveState();
-  runMatchingAlgorithm();
-  renderCccResults();
-  showToast(`✓ ${fees.length} cargos importados`,'success');
-}
-
-function cccExcludePdfTxn(matchId) {
-  const m = cccState.matches.find(x => x.id === matchId);
-  if(!m || !m.pdfTxn) return;
-  
-  if(!confirm('¿Excluir esta línea del PDF? No aparecerá como pendiente.')) return;
-  
-  m.status = 'excluded';
-  m.diffARS = 0;
-  m.diffUSD = 0;
-  renderCccResults();
-}
 
 // ── Manual Actions ──
 function cccUnlink(matchId) {

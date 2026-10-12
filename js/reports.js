@@ -201,9 +201,6 @@ function ensureRepReportState(){
   if(includeEl) includeEl.checked=!!state.repIncludeAllMovements;
 }
 
-function toggleRepMoreFilters(){
-  state.repMoreFiltersOpen=true;
-}
 
 function setRepDetailMode(mode, skipPreview){
   ensureRepReportState();
@@ -268,25 +265,8 @@ function setRepMode(mode){
   updateRepPreview();
 }
 
-function setRepDesign(design){
-  state.repDesign=design||'executive';
-  document.getElementById('rep-design-exec')?.classList.toggle('active',design==='executive');
-  document.getElementById('rep-design-detail')?.classList.toggle('active',design==='detailed');
-  document.getElementById('rep-design-minimal')?.classList.toggle('active',design==='minimal');
-  updateRepPreview();
-}
 
-function toggleAllReportSections(checked){
-  document.querySelectorAll('#rep-sections input[type="checkbox"]').forEach(input=>{ input.checked = !!checked; });
-  updateRepPreview();
-}
 
-function toggleReportSectionGroup(group, checked){
-  document.querySelectorAll(`#rep-sections [data-section-group="${group}"] input[type="checkbox"]`).forEach(input=>{
-    input.checked = !!checked;
-  });
-  updateRepPreview();
-}
 
 // Movimientos del reporte: receta única (js/totals.js) — reales + compromisos vencidos,
 // con tu parte de los gastos compartidos. "Todo" lista solo movimientos reales.
@@ -1142,7 +1122,6 @@ function copyRepAiPrompt(){
     .catch(()=>showToast('No pude copiar el prompt', 'error'));
 }
 
-function exportRepHTML(){showToast('Usá Guardar PDF','info');}
 
 async function renderPreviewPdfBlob(){
   const preview = document.getElementById('rep-preview-content');
@@ -1282,25 +1261,6 @@ function printReport(){
 
 
 // ══ RESUMEN ══
-function openResumen(){
-  if(!state.transactions.length){showToast('Importá datos primero','error');return;}
-  const lastImp=state.imports[0];
-  const periodTxns=lastImp&&lastImp.txnIds?state.transactions.filter(t=>lastImp.txnIds.includes(t.id)):state.transactions;
-  const label=lastImp?lastImp.label:'Todos los datos';
-  const usdRate=getReportUsdRate();
-  const ars=periodTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
-  const usd=periodTxns.filter(t=>t.currency==='USD').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);
-  const income=getReportIncomeSnapshot();
-  const totalArs=ars+(usd*usdRate);
-  const pct=income.totalArs>0?Math.round((totalArs/income.totalArs)*100):null;
-  const catMap={};periodTxns.filter(t=>t.currency==='ARS').forEach(t=>{catMap[t.category]=(catMap[t.category]||0)+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount);});
-  const topCats=Object.entries(catMap).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  let diffHtml='';
-  if(state.imports.length>=2){const prevImp=state.imports[1];const prevTxns=prevImp.txnIds?state.transactions.filter(t=>prevImp.txnIds.includes(t.id)):[];const prevArs=prevTxns.filter(t=>t.currency==='ARS').reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0);const diff=ars-prevArs;const dp=prevArs>0?((diff/prevArs)*100).toFixed(1):null;diffHtml='<div class="resumen-block"><h4>vs período anterior ('+prevImp.label+')</h4><div class="resumen-row"><span class="rr-label">Diferencia</span><span class="rr-val" style="color:'+(diff>0?'var(--danger)':'var(--accent)')+';">'+(diff>0?'+':'')+'$'+fmtN(Math.abs(diff))+' ARS</span></div>'+(dp?'<div class="resumen-row"><span class="rr-label">Variación</span><span class="rr-val" style="color:'+(diff>0?'var(--danger)':'var(--accent)')+';">'+(diff>0?'▲':'▼')+' '+Math.abs(dp)+'%</span></div>':'')+'</div>';}
-  document.getElementById('resumen-periodo').textContent=label;
-  document.getElementById('resumen-body').innerHTML='<div class="resumen-block"><h4>💰 Gastos del período</h4><div class="resumen-row"><span class="rr-label">Total ARS</span><span class="rr-val">$'+fmtN(ars)+'</span></div>'+(usd>0?'<div class="resumen-row"><span class="rr-label">Total USD</span><span class="rr-val">U$D '+fmtN(usd)+'</span></div><div class="resumen-row"><span class="rr-label">Total equivalente</span><span class="rr-val">$'+fmtN(Math.round(totalArs))+'</span></div>':'')+(pct!==null?'<div class="resumen-row"><span class="rr-label">% del ingreso</span><span class="rr-val" style="color:'+(pct>state.alertThreshold?'var(--danger)':'var(--accent)')+';">'+pct+'%</span></div>':'')+'<div class="resumen-row"><span class="rr-label">Transacciones</span><span class="rr-val">'+periodTxns.length+'</span></div></div><div class="resumen-block"><h4>🏆 Top categorías</h4>'+topCats.map(([cat,amt])=>'<div class="resumen-row"><span class="rr-label">'+cat+'</span><span class="rr-val">$'+fmtN(amt)+'</span></div>').join('')+'</div>'+diffHtml;
-  openModal('modal-resumen');
-}
 function copyResumen(){
   let txt='📋 RESUMEN FINANCIERO — '+document.getElementById('resumen-periodo').textContent+'\n━━━━━━━━━━━━━━━━━━\n';
   document.querySelectorAll('#resumen-body .resumen-block').forEach(block=>{const h4=block.querySelector('h4');if(h4)txt+='\n'+h4.textContent+'\n';block.querySelectorAll('.resumen-row').forEach(row=>{txt+='  '+(row.querySelector('.rr-label')?.textContent||'')+': '+(row.querySelector('.rr-val')?.textContent||'')+'\n';});});
@@ -1394,21 +1354,6 @@ function renderImportHistoryMenu(){
   renderImportHistoryItems('import-history-menu-list', true);
 }
 
-function toggleImportHistoryMenu(){
-  const menu = document.getElementById('import-history-menu');
-  if(!menu) return;
-  const open = menu.style.display !== 'block';
-  if(!open){
-    closeImportHistoryMenu();
-    return;
-  }
-  if(typeof closeNotifPanel === 'function') closeNotifPanel();
-  if(typeof closeProfileDropdown === 'function') closeProfileDropdown();
-  menu.style.display = 'block';
-  renderImportHistoryMenu();
-  document.addEventListener('click', handleImportHistoryDismiss);
-  document.addEventListener('keydown', handleImportHistoryDismiss);
-}
 
 function closeImportHistoryMenu(){
   const menu = document.getElementById('import-history-menu');

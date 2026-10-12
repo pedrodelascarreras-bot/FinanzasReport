@@ -272,43 +272,6 @@
     return {title:'Mes frágil', tone:'warn', desc:'Cerraste arriba, pero con poco colchón y margen estrecho para el próximo mes.'};
   }
 
-  function balanceDrivers(data){
-    const items=[];
-    const expenseDelta=data.totalExpenses-data.prevTotalExpenses;
-    const incomeDelta=data.income.total-data.prevIncome.total;
-    if(Math.abs(incomeDelta)>1000){
-      items.push({
-        label:incomeDelta>=0?'Ingreso mejorado':'Ingreso debilitado',
-        text:`${incomeDelta>=0?'Entró':'Se perdió'} ${balanceDeltaText(incomeDelta)} frente a ${data.prevMonth?balanceMonthLabel(data.prevMonth):'el mes previo'}.`
-      });
-    }
-    if(Math.abs(expenseDelta)>1000){
-      items.push({
-        label:expenseDelta>=0?'Más gasto que antes':'Menos gasto que antes',
-        text:`El gasto total quedó ${balanceDeltaText(expenseDelta)} versus ${data.prevMonth?balanceMonthLabel(data.prevMonth):'el período anterior'}.`
-      });
-    }
-    const top=data.topCategories[0];
-    if(top){
-      items.push({
-        label:`Peso principal: ${top.name}`,
-        text:`Explicó ${top.pct}% del gasto del mes con ${balanceFmtMoney(top.total)}.`
-      });
-    }
-    if(data.income.extras>0){
-      items.push({
-        label:'Cierre impulsado por extras',
-        text:`Tu resultado incluyó ${balanceFmtMoney(data.income.extras)} no recurrentes; sin eso, el neto sería ${balanceFmtMoney(data.normalizedNet)}.`
-      });
-    }
-    if(data.savingsNet>0){
-      items.push({
-        label:'Ahorro ejecutado',
-        text:`Trasladaste ${balanceFmtMoney(data.savingsNet)} a ahorro manual durante el mes.`
-      });
-    }
-    return items.slice(0,4);
-  }
 
   function balanceInlineInsights(data){
     const insights=[];
@@ -329,55 +292,7 @@
     return insights.slice(0,4);
   }
 
-  function balanceOpportunities(data){
-    const suggestions=[];
-    const subscriptionCount=(state.subscriptions||[]).filter(s=>s.active!==false).length;
-    if(subscriptionCount>=4){
-      suggestions.push({
-        title:'Podá suscripciones',
-        body:`Tenés ${subscriptionCount} activas por ${balanceFmtMoney(data.subscriptionsBase)}/mes. Dar de baja 1 o 2 servicios recupera margen inmediato.`
-      });
-    }
-    const runaway=data.topCategories
-      .filter(cat=>cat.avg>0 && cat.total>cat.avg*1.2)
-      .sort((a,b)=>(b.total-b.avg)-(a.total-a.avg))[0];
-    if(runaway){
-      suggestions.push({
-        title:`Frená ${runaway.name}`,
-        body:`Se fue ${balanceFmtMoney(runaway.total-runaway.avg)} por encima de su promedio reciente. Es la fuga más clara para intervenir.`
-      });
-    }
-    if(data.committedBase>0 && data.income.total>0 && (data.committedBase/data.income.total)>0.55){
-      suggestions.push({
-        title:'Bajá la base comprometida',
-        body:`Fijos, suscripciones y cuotas ya consumen ${Math.round((data.committedBase/data.income.total)*100)}% del ingreso antes del gasto variable.`
-      });
-    }
-    if(data.avgTicket>0 && data.daysWithSpend>(data.daysInMonth*0.75)){
-      suggestions.push({
-        title:'Reducí microgasto recurrente',
-        body:`Gastaste en ${data.daysWithSpend} de ${data.daysInMonth} días. Menos frecuencia suele bajar más que perseguir una sola compra grande.`
-      });
-    }
-    if(!suggestions.length){
-      suggestions.push({
-        title:'Mes bastante limpio',
-        body:'No aparece una fuga dominante. La mejora más rentable parece venir de una meta de ahorro automática y revisión semanal.'
-      });
-    }
-    return suggestions.slice(0,4);
-  }
 
-  function balanceAlerts(data){
-    const alerts=[];
-    if(data.freeCash<0) alerts.push({tone:'danger', title:'Cierre negativo', text:`El mes terminó ${balanceFmtMoney(Math.abs(data.freeCash))} abajo.`});
-    if(data.normalizedNet<0 && data.income.extras>0) alerts.push({tone:'warn', title:'Dependencia de extras', text:'Sin ingresos extraordinarios, el mes hubiera cerrado en negativo.'});
-    if(data.usdExposure>=20) alerts.push({tone:'warn', title:'Exposición en USD', text:`El ${data.usdExposure}% del gasto quedó dolarizado.`});
-    if(data.bufferMonths<2) alerts.push({tone:'danger', title:'Colchón corto', text:`Tu patrimonio cubre cerca de ${fmtN(data.bufferMonths,1)} meses de base comprometida.`});
-    if(data.cuotaProxima>0) alerts.push({tone:'info', title:'Próximas cuotas', text:`Ya hay ${balanceFmtMoney(data.cuotaProxima)} comprometidos en cuotas para adelante.`});
-    if(!alerts.length) alerts.push({tone:'info', title:'Sin alertas críticas', text:'No aparece un riesgo dominante en el cierre. La mejora pasa más por consistencia que por apagar incendios.'});
-    return alerts.slice(0,4);
-  }
 
   function balanceLeaks(data){
     return data.topCategories

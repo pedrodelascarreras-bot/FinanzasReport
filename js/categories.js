@@ -408,27 +408,8 @@ function renderSuggestedRulesTab(catSuggestions, nameSuggestions, logoSuggestion
   return html;
 }
 
-function deleteLearned(comercio){
-  if(!state.catHistory)return;
-  delete state.catHistory[comercio];
-  saveState();renderRulesPanel();
-  showToast('✓ Aprendizaje de "'+comercio+'" eliminado','info');
-}
 
-function convertLearnedToRule(comercio,category){
-  if(!state.catRules)state.catRules=[];
-  state.catRules.unshift({id:Date.now().toString(36),keyword:comercio,category,active:true,priority:state.catRules.length+1});
-  delete state.catHistory[comercio];
-  saveState();renderRulesPanel();
-  showToast('✓ "'+comercio+'" → regla fija','success');
-}
 
-function clearAllLearned(){
-  if(!confirm('¿Borrar todo el historial de aprendizaje? Las reglas creadas por vos no se tocan.'))return;
-  state.catHistory={};
-  saveState();renderRulesPanel();
-  showToast('🗑 Historial de aprendizaje borrado','info');
-}
 
 function acceptRuleSuggestion(keyword,category){
   if(!state.catRules)state.catRules=[];
@@ -778,8 +759,6 @@ function deleteInlineCat(){
   clearInlineCatForm();
 }
 // renderReassignTable removed — legacy, reassign-filter/reassign-table elements no longer exist
-function openNewCatModal(){document.getElementById('modal-cat-title').textContent='Nueva categoría';document.getElementById('modal-cat-name').value='';document.getElementById('modal-cat-editing').value='';document.getElementById('btn-delete-cat').style.display='none';renderColorPicker('');openModal('modal-cat');}
-function openEditCatModal(name){const cat=state.categories.find(c=>c.name===name);if(!cat)return;document.getElementById('modal-cat-title').textContent='Editar categoría';document.getElementById('modal-cat-name').value=cat.name;document.getElementById('modal-cat-editing').value=cat.name;document.getElementById('btn-delete-cat').style.display='inline-flex';renderColorPicker(cat.color);openModal('modal-cat');}
 
 // ══ EMOJI PICKER ══
 const EMOJI_SETS = {
@@ -859,7 +838,6 @@ function initEmojiPicker(pickerId, currentEmoji){
   if(picker){picker.style.display='none';picker.innerHTML='';}
 }
 
-function renderColorPicker(sel){document.getElementById('color-picker').innerHTML=PALETTE.map(c=>'<div class="color-swatch '+(c===sel?'selected':'')+'" style="background:'+c+'" onclick="selectSwatch(\''+c+'\',this,\'color-picker\')"></div>').join('');}
 function selectSwatch(c,el,containerId){
   const container=containerId?document.getElementById(containerId):el.closest('.color-picker-row,.color-swatch-group');
   (container||document).querySelectorAll('.color-swatch').forEach(s=>s.classList.remove('selected'));

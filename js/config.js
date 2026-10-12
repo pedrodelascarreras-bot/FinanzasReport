@@ -213,26 +213,7 @@ function getCategoryGroups(){
   return normalizeCategoryState(typeof state !== 'undefined' ? state : null).categoryGroups;
 }
 
-function getActiveCategories(){
-  return normalizeCategoryState(typeof state !== 'undefined' ? state : null).categories.filter(category => category.active !== false);
-}
 
-function buildCategoryOptions(includeAutoDetect){
-  const groups = getCategoryGroups();
-  const categories = getActiveCategories();
-  const parts = [];
-  if(includeAutoDetect) parts.push('<option value="">Auto detectar</option>');
-  groups.forEach(group => {
-    const subs = categories.filter(category => category.groupId === group.id);
-    if(!subs.length) return;
-    parts.push(`<optgroup label="${group.emoji || group.icon || '•'} ${group.name}">`);
-    subs.forEach(category => {
-      parts.push(`<option value="${category.name}">${category.name}</option>`);
-    });
-    parts.push('</optgroup>');
-  });
-  return parts.join('');
-}
 
 function getCategoryGroupById(groupId){
   return getCategoryGroups().find(group => group.id === groupId) || null;

@@ -15,8 +15,6 @@ function movingToUsd(amount, cur){
   return cur === 'ARS' ? a/movingRate() : a;
 }
 function movingFmtUsd(n){ return 'USD ' + fmtN(Math.round(n||0), 0); }
-function movingFmtArs(n){ return '$' + fmtN(Math.round(n||0), 0); }
-function movingFmtCur(amount, cur){ return cur === 'ARS' ? movingFmtArs(amount) : movingFmtUsd(amount); }
 
 // Datos "de tu lado" — reusa el análisis del Plan de ahorro si está disponible
 function movingSelfData(){

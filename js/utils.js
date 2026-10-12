@@ -7,7 +7,6 @@ function fmtN(n,dec){
   return num.toLocaleString('es-AR',{minimumFractionDigits:d,maximumFractionDigits:d});
 }
 function fmtDate(d){if(!d)return'—';return new Date(d).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});}
-function fmtWeekLabel(k){const d=new Date(k+'T12:00:00');return d.getDate()+'/'+(d.getMonth()+1);}
 function getWeekKey(d){const dt=new Date(d);dt.setHours(0,0,0,0);dt.setDate(dt.getDate()-dt.getDay()+1);return dt.toISOString().split('T')[0];}
 function getMonthKey(d){
   const dt=d instanceof Date?d:new Date(d);
@@ -193,18 +192,6 @@ function getProjectedCommitmentEntriesForRange(opts={}){
 
   return entries.sort((a,b)=>new Date(a.date)-new Date(b.date));
 }
-function sumProjectedCommitmentTotals(entries=[]){
-  // Uses personalAmount if available (so shared expenses don't double-count),
-  // falls back to full amount for synthetic entries (subs/cuotas projected w/o source txn)
-  return entries.reduce((acc,entry)=>{
-    if(!entry?.includeInTotal) return acc;
-    const amt = (entry.personalAmount != null) ? Number(entry.personalAmount) : (Number(entry.amount)||0);
-    if((entry.currency||'ARS')==='USD') acc.usd+=amt;
-    else acc.ars+=amt;
-    acc.count++;
-    return acc;
-  },{ars:0,usd:0,count:0});
-}
 function updateSidebarStats(){/* sidebar stats removed */}
 let _toastHideTimer=null;
 function hideToast(immediate=false){
@@ -380,10 +367,6 @@ function getSharedExpenseSummary(txns) {
 }
 
 // ══ SIDEBAR TOGGLE ══
-function toggleMobMore(){
-  const m=document.getElementById('mob-more-menu');
-  if(m)m.style.display=m.style.display==='none'?'block':'none';
-}
 function closeMobMore(){
   const m=document.getElementById('mob-more-menu');
   if(m)m.style.display='none';
@@ -449,38 +432,6 @@ function loadColorTheme() {
   applyColorTheme(saved);
 }
 
-function toggleColorThemePanel() {
-  const existing = document.getElementById('color-theme-panel');
-  if(existing) { existing.remove(); return; }
-
-  const currentTheme = localStorage.getItem('fin_color_theme') || 'blue';
-  const isLight = document.body.classList.contains('light-mode');
-
-  const panel = document.createElement('div');
-  panel.id = 'color-theme-panel';
-  panel.innerHTML = `
-    <div class="ctp-title">Color de la app</div>
-    <div class="ctp-grid">
-      ${COLOR_THEMES.map(t => `
-        <div class="ctp-swatch ${t.id === currentTheme ? 'active' : ''}" data-theme="${t.id}" onclick="applyColorTheme('${t.id}')">
-          <div class="ctp-swatch-dot" style="background:${isLight ? t.colorLight : t.color};"></div>
-          <span>${t.label}</span>
-        </div>
-      `).join('')}
-    </div>
-  `;
-  document.body.appendChild(panel);
-
-  // Close on outside click
-  setTimeout(() => {
-    document.addEventListener('click', function closePicker(e) {
-      if(!panel.contains(e.target) && e.target.id !== 'color-theme-btn') {
-        panel.remove();
-        document.removeEventListener('click', closePicker);
-      }
-    });
-  }, 50);
-}
 
 // ══ THEME TOGGLE ══
 function toggleTheme(){
