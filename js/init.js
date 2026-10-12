@@ -671,14 +671,9 @@ window.addEventListener('DOMContentLoaded',()=>{
   if(typeof enforceMobilePagePreferences === 'function') enforceMobilePagePreferences();
   if(!getApiKey()){/* API Key now always visible in sidebar IA section */}
   fetchUsdRate();
-  // Splash de bienvenida al abrir la app.
-  if(typeof initSplash === 'function') initSplash();
-  setTimeout(()=>{
-    if(typeof ensureBootSplash === 'function') ensureBootSplash();
-  },180);
-  window.addEventListener('load',()=>{
-    if(typeof ensureBootSplash === 'function') ensureBootSplash();
-  },{once:true});
+  // Entrada: PIN de 4 dígitos (js/lock.js) sobre los datos guardados en el dispositivo.
+  // Google es opcional: se conecta a mano para respaldar en Drive o importar de Gmail.
+  window._appBooted=true;
 });
 
 // ══ MANUAL EXPENSE ══

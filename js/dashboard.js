@@ -1267,12 +1267,6 @@ function renderDashboard(){
   let arsMonth=periodTotals.ars;
   let usdMonth=periodTotals.usd;
   let cntMonth=periodTotals.count;
-  // Cuotas y suscripciones del período que todavía no vencieron (para la proyección)
-  const futureCommitmentTotals=sumProjectedCommitmentTotals(
-    getProjectedCommitmentEntriesForRange({...periodRange,todayRef:today,txns:state.transactions||[]})
-      .filter(entry=>!entry.includeInTotal && (entry.group==='cuotas'||entry.group==='suscripciones') && payMethodMatchesCard(entry.payMethod,periodCard))
-      .map(entry=>({...entry,includeInTotal:true}))
-  );
   // Disclaimer only for pending third party
   const tpPendingSumArs=thirdPartyTxns.filter(t=>t.thirdPartyStatus!=='settled' && t.currency==='ARS').reduce((s,t)=>s+t.amount,0);
   const arsCnt=billableTxns.filter(t=>t.currency==='ARS').length;
@@ -1382,29 +1376,13 @@ function renderDashboard(){
   const daysInMonth=new Date(pY,pM,0).getDate();
   let dailyRate=0, projected=0, daysLeft=0, projPeriodOpen=null, projPeriodClose=null;
 
-  if(isTcView && activeTcCycle){
-    // Modo TC: proyectar hasta el cierre del ciclo TC activo
-    const _cycleList=getTcCycles(activeCycleMode);
-    const _tcOpen=getTcCycleOpen(_cycleList, _cycleList.findIndex(c=>c.id===activeTcCycle.id));
-    const _tcOpenD = _tcOpen ? new Date(_tcOpen+'T12:00:00') : new Date();
-    const _tcCloseD = new Date(activeTcCycle.closeDate+'T12:00:00');
-    const _totalDays = Math.max(1, Math.round((_tcCloseD - _tcOpenD) / 86400000) + 1);
-    const _daysElapsed = Math.max(1, Math.min(_totalDays, Math.round((today - _tcOpenD) / 86400000) + 1));
-    daysLeft = Math.max(0, _totalDays - _daysElapsed);
-    dailyRate = totalGastoARS / _daysElapsed;
-    projected = Math.round(totalGastoARS + (dailyRate * daysLeft) + futureCommitmentTotals.ars + (futureCommitmentTotals.usd * USD_TO_ARS));
-    projPeriodClose = _tcCloseD;
-  } else {
-    // Modo Mes: proyectar hasta fin del mes calendario
-    const dayOfMonth = isCurrentMonth ? today.getDate() : daysInMonth;
-    daysLeft = isCurrentMonth ? daysInMonth - today.getDate() : 0;
-    dailyRate = dayOfMonth > 0 ? totalGastoARS / dayOfMonth : 0;
-    projected = isCurrentMonth
-      ? Math.round(totalGastoARS + (dailyRate * daysLeft) + futureCommitmentTotals.ars + (futureCommitmentTotals.usd * USD_TO_ARS))
-      : totalGastoARS;
-    // Keep close date aligned to selected month, not necessarily current month.
-    projPeriodClose = new Date(pY, pM, 0, 12, 0, 0);
-  }
+  // Proyección al cierre (js/totals.js): extrapola solo el gasto variable; los compromisos
+  // (cuotas, suscripciones, fijos) se suman una vez. Antes el alquiler se multiplicaba por día.
+  const _proj=getPeriodProjection({...periodRange,card:periodCard,todayRef:today});
+  dailyRate=_proj.dailyVariable;
+  daysLeft=_proj.daysLeft;
+  projected=_proj.projected;
+  projPeriodClose=new Date(periodRange.endStr+'T12:00:00');
 
   const dashMonthNames=[t('month_1'),t('month_2'),t('month_3'),t('month_4'),t('month_5'),t('month_6'),t('month_7'),t('month_8'),t('month_9'),t('month_10'),t('month_11'),t('month_12')];
   const insightSummary={

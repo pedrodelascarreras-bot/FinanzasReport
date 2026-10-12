@@ -79,6 +79,7 @@ function getStateSnapshot(){
     try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
   }
   return {
+    savedAt:localStorage.getItem(LS_LOCAL_EDITED_AT)||null,
     transactions:state.transactions,categories:state.categories,categoryGroups:state.categoryGroups||[],income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'visa',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],hiddenTcCycles:state.hiddenTcCycles||[],balanceView:state.balanceView||'summary',
     txnFilterMode:state.txnFilterMode||'visa',tendMode:state.tendMode||'visa',repMode:state.repMode||'visa',
     savingsGoal:state.savingsGoal,alertThreshold:state.alertThreshold,spendPct:state.spendPct||100,insightsBufferMonths:state.insightsBufferMonths||3,tendChartMode:state.tendChartMode||'bar',imports:state.imports,
@@ -148,7 +149,23 @@ function safePersistLocalSnapshot(snapshot){
     return true;
   }catch(e){console.warn('localStorage error',e);return false;}
 }
+// ── Sincronización segura con Drive ──
+// LS_LOCAL_EDITED_AT: última edición hecha en este dispositivo.
+// LS_LAST_SYNCED_AT: versión (savedAt) que este dispositivo subió o bajó de Drive por última vez.
+// Si hay ediciones locales posteriores a la última sincronización, al conectar Google no se
+// pisan con Drive (ver resolveDriveConflict en loadFromDrive).
+const LS_LOCAL_EDITED_AT='fin_local_edited_at';
+const LS_LAST_SYNCED_AT='fin_last_synced_at';
+function markLocalEdit(){
+  if(window._appBooted) localStorage.setItem(LS_LOCAL_EDITED_AT,new Date().toISOString());
+}
+function hasUnsyncedLocalChanges(){
+  const edited=localStorage.getItem(LS_LOCAL_EDITED_AT)||'';
+  const synced=localStorage.getItem(LS_LAST_SYNCED_AT)||'';
+  return !!edited && edited>synced;
+}
 function saveState(){
+  markLocalEdit();
   const snapshot = getStateSnapshot();
   // Always save to localStorage as backup
   safePersistLocalSnapshot(snapshot);
@@ -298,6 +315,7 @@ async function saveToDrive(snapshot){
     // Update Drive indicator silently
     const dot = document.getElementById('gmail-sync-dot');
     if(dot){ dot.style.background='var(--accent)'; setTimeout(()=>dot.style.background='var(--accent2)',2000); }
+    localStorage.setItem(LS_LAST_SYNCED_AT, snapshot.savedAt||new Date().toISOString());
     saveToDrivePublic(snapshot).catch(e=>console.warn('Public sync error:',e));
   }catch(e){
     console.warn('Drive save error:',e);
@@ -379,6 +397,22 @@ async function loadFromDrive(){
     if(!res.ok){ _syncMark('descarga falló: HTTP '+res.status); return false; }
     const s = await res.json();
     _syncMark('archivo descargado y parseado');
+    // Cambios en este dispositivo que todavía no subieron: no pisarlos con Drive
+    if(hasUnsyncedLocalChanges() && isStateMeaningful(getStateSnapshot())){
+      const synced=localStorage.getItem(LS_LAST_SYNCED_AT)||'';
+      const driveChanged=!synced || (s.savedAt||'')>synced;
+      const keepLocal=!driveChanged || confirm(
+        'Hay cambios en este dispositivo que no están en Google Drive, y Drive también cambió desde otro lado.\n\n'+
+        'Aceptar: conservar los datos de ESTE dispositivo (se suben a Drive).\n'+
+        'Cancelar: usar los datos de Drive (se pierden los cambios de este dispositivo).'
+      );
+      if(keepLocal){
+        initialLoadComplete = true;
+        _syncMark('conservando cambios locales y subiéndolos a Drive');
+        await saveToDrive(getStateSnapshot());
+        return true;
+      }
+    }
     // Apply loaded state (same as loadState logic)
     state.transactions=(s.transactions||[]).map(t=>({...t,date:new Date(t.date)}));
     state.categories=s.categories||[...DEFAULT_CATS];
@@ -475,6 +509,10 @@ async function loadFromDrive(){
     if(typeof migrateCuotasToSingleSource === 'function'){
       try{ migrateCuotasToSingleSource(); }catch(e){ console.warn('cuotas migration error', e); }
     }
+    // Este dispositivo queda igual a la versión de Drive
+    const _driveVersion=s.savedAt||new Date().toISOString();
+    localStorage.setItem(LS_LOCAL_EDITED_AT,_driveVersion);
+    localStorage.setItem(LS_LAST_SYNCED_AT,_driveVersion);
     // Also persist to localStorage
     try{
       localStorage.setItem('fin_state',JSON.stringify(getStateSnapshot()));

@@ -144,3 +144,44 @@ function getPeriodCategoryTotals(entries, opts={}){
   });
   return out;
 }
+
+// ¿Este movimiento real es un compromiso (cuota, suscripción o gasto fijo) y no gasto variable?
+function isCommitmentTxn(t){
+  if(!t) return false;
+  if(t.cuotaNum || t.cuotaGroupId || t.sourceSubscriptionId) return true;
+  if(typeof txnMatchesSubscription!=='function') return false;
+  return (state.subscriptions||[]).some(s=>s.active!==false && txnMatchesSubscription(t,s))
+    || (state.fixedExpenses||[]).some(f=>txnMatchesSubscription(t,{id:f.id||'',name:f.name,merchantKey:f.merchantKey}));
+}
+
+// Proyección al cierre del período: solo el gasto VARIABLE se extrapola por día; los
+// compromisos (cuotas, suscripciones, fijos) se suman una vez — los ya vencidos y los
+// que faltan dentro del período. Todo en ARS.
+function getPeriodProjection(opts={}){
+  const todayRef=opts.todayRef instanceof Date?opts.todayRef:new Date();
+  const rate=_periodUsdRate();
+  const toArs=e=>(e.currency||'ARS')==='USD'?e.amount*rate:e.amount;
+  const totals=getPeriodTotals(opts);
+  const variableSpent=totals.entries.filter(e=>!e.isProjected && !isCommitmentTxn(e.txn)).reduce((s,e)=>s+toArs(e),0);
+  const committedSpent=totals.totalArs-variableSpent;
+  const futureCommitted=getProjectedCommitmentEntriesForRange({startStr:opts.startStr,endStr:opts.endStr,todayRef,txns:state.transactions||[]})
+    .filter(e=>!e.includeInTotal && payMethodMatchesCard(e.payMethod, opts.card||null, {requireExplicit:e.group==='fijos'}))
+    .reduce((s,e)=>s+((e.currency||'ARS')==='USD'?(Number(e.amount)||0)*rate:(Number(e.amount)||0)),0);
+  const start=new Date(opts.startStr+'T00:00:00');
+  const end=new Date(opts.endStr+'T23:59:59');
+  const totalDays=Math.max(1, Math.round((end-start)/86400000));
+  const isOpen=todayRef>=start && todayRef<=end;
+  const daysElapsed=isOpen?Math.max(1, Math.min(totalDays, Math.floor((todayRef-start)/86400000)+1)):totalDays;
+  const daysLeft=isOpen?Math.max(0, totalDays-daysElapsed):0;
+  const dailyVariable=variableSpent/daysElapsed;
+  return {
+    spent:totals.totalArs,
+    variableSpent,
+    committedSpent,
+    futureCommitted:isOpen?futureCommitted:0,
+    dailyVariable,
+    daysElapsed,
+    daysLeft,
+    projected:Math.round(totals.totalArs + dailyVariable*daysLeft + (isOpen?futureCommitted:0))
+  };
+}

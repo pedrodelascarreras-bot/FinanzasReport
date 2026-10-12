@@ -84,5 +84,17 @@ r = getPeriodTotals(OCT);
 const cats = getPeriodCategoryTotals(r.entries);
 eq([cats['Cuotas']], [102000], 'categoría Cuotas en ARS');
 
+// 8) Proyección: el alquiler no se multiplica por día; los compromisos futuros suman una vez
+reset();
+state.fixedExpenses = [{ id: 'f1', name: 'Alquiler', amount: 600000, currency: 'ARS', day: 1 }, { id: 'f2', name: 'Expensas', amount: 100000, currency: 'ARS', day: 25 }];
+state.cuotas = [{ id: 'c1', cuotaGroupId: 'g1', name: 'Notebook', amount: 50000, total: 12, paid: 3, day: 15, lastPaidDate: '2026-09-15', currency: 'ARS' }];
+state.transactions = [tx('super', '2026-10-05', 100000, { payMethod: 'visa' })];
+const pr = getPeriodProjection(Object.assign({}, OCT, { todayRef: d('2026-10-10') }));
+// gastado: super 100000 + alquiler 600000 · variable 100000 en 10 días → 10000/día × 21 días
+// + compromisos futuros: cuota del 15 (50000) + expensas del 25 (100000)
+eq([pr.spent, pr.variableSpent, pr.daysLeft, pr.futureCommitted, pr.projected], [700000, 100000, 21, 150000, 700000 + 210000 + 150000], 'proyección separa variable de compromisos');
+const prPast = getPeriodProjection(Object.assign({}, OCT, { todayRef: d('2026-11-20') }));
+eq([prPast.daysLeft, prPast.projected], [0, prPast.spent], 'período cerrado: proyección = gastado');
+
 print((failures ? '✗ ' + failures + ' fallaron, ' : '✓ ') + passed + ' pruebas OK');
 if (failures) throw new Error(failures + ' pruebas fallaron');
