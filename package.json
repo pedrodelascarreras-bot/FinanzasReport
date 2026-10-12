@@ -8,6 +8,7 @@
     "lint": "eslint js/**/*.js report/*.js",
     "typecheck": "tsc -p tsconfig.json",
     "test:report": "npm --prefix report test",
+    "test:cuotas": "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tests/cuotas.test.js",
     "validate": "npm run lint && npm run typecheck && npm run test:report && npm run build"
   },
   "devDependencies": {

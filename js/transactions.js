@@ -683,10 +683,6 @@ function editTxnCycleCommitment(key){
     editCuota(entry.sourceManualCuotaId);
     return;
   }
-  if(entry.group==='cuotas' && entry.sourceAutoCuotaKey){
-    openAutoCuotaModal(entry.sourceAutoCuotaKey);
-    return;
-  }
   showToast('No encontramos un editor para este compromiso','info');
 }
 
@@ -875,10 +871,10 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
     if (t.cuotaGroupId) {
       const mc = (state.cuotas||[]).find(c => c.cuotaGroupId === t.cuotaGroupId);
       if (mc && Number(mc.total) > 1) {
-        // The just-paid cuota number = paid (since we only count it as paid AFTER charge)
-        // For the entry shown in this period, the relevant cuota number is `paid` itself.
-        const paidNum = Math.min(Number(mc.total)||0, Math.max(0, Number(mc.paid)||0));
-        meta = `Cuota ${paidNum}/${mc.total} · ${meta}`;
+        // El número de cuota de este movimiento: el que trae el resumen o, si no, el del calendario
+        const st = getCuotaStatus(mc, t.date instanceof Date ? t.date : new Date(t.date));
+        const paidNum = Number(t.cuotaNum) || st.paid;
+        meta = `Cuota ${paidNum}/${st.total} · ${meta}`;
         mergedFrom = ['cuotas'];   // also makes the entry appear in the Cuotas tab + show CUOTA badge
       }
     }
@@ -2176,8 +2172,7 @@ function renderMobileTransactions(txns, meta) {
     } catch(e) {}
   }
   // Fallback to count-based display
-  const cuotasCount = (state.manualCuotas || state.cuotas || []).filter(c => c.active !== false).length +
-    ((state.transactions || []).filter(t => t.isPendingCuota).length);
+  const cuotasCount = getActiveCuotas().length;
   const subsCount = (state.subscriptions || []).filter(s => s.active !== false).length;
   const fijosCount = (state.fixedExpenses || state.fijos || []).filter(f => f.active !== false).length;
 

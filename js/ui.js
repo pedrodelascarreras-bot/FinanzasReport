@@ -765,15 +765,16 @@ function renderNotifications() {
   }
 
   // 7. Upcoming cuotas (within 3 days)
-  (state.transactions||[]).filter(t => t.isPendingCuota && t.currency === 'ARS').forEach(c => {
-    const cDate = new Date(String(c.date).includes('T') ? c.date : c.date + 'T12:00:00');
-    const diff = Math.round((cDate - today) / 86400000);
+  (state.cuotas||[]).forEach(c => {
+    const cDate = getCuotaStatus(c).nextDate;
+    if(!cDate) return;
+    const diff = Math.round((new Date(cDate.getFullYear(), cDate.getMonth(), cDate.getDate()) - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000);
     if(diff >= 0 && diff <= 3) {
       notifs.push({
-        id: `cuota-notif-${c.id}`,
+        id: `cuota-notif-${c.id}-${dateToYMD(cDate)}`,
         type: 'info',
         title: 'Próxima cuota',
-        desc: `En ${diff === 0 ? 'hoy' : diff + ' día' + (diff !== 1 ? 's' : '')} vence: ${esc(c._baseDesc || c.description || '')}.`,
+        desc: `${diff === 0 ? 'Hoy' : 'En ' + diff + ' día' + (diff !== 1 ? 's' : '')} vence: ${esc(c.name || '')}.`,
         icon: '💳',
         color: 'var(--accent)',
         time: diff === 0 ? 'Hoy' : `En ${diff} día${diff !== 1 ? 's' : ''}`

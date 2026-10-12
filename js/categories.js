@@ -799,7 +799,7 @@ const EMOJI_SETS = {
 const EMOJI_LABELS = {compromisos:'Compromisos',suscripciones:'Suscripciones',general:'General',hogar:'Hogar',tech:'Tecnología',comida:'Comida',transporte:'Transporte',salud:'Salud',entretenimiento:'Entretenimiento',compras:'Compras',finanzas:'Finanzas',educacion:'Educación'};
 
 function getDefaultEmojiCategory(pickerId){
-  if(['cuota','autocuota','fixed'].includes(pickerId)) return 'compromisos';
+  if(['cuota','fixed'].includes(pickerId)) return 'compromisos';
   if(pickerId==='sub') return 'suscripciones';
   return 'general';
 }

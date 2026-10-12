@@ -285,22 +285,10 @@ function getDashboardTimelineData(baseDate=new Date()){
     if(close&&close>=today) events.push({type:'close', title:`${card?.name||cyc.label||'Tarjeta'} cierra`, shortLabel:card?.name||cyc.label||'Tarjeta', date:close, days:daysAway(close), page:'credit-cards', cardId:cyc.cardId, tcCycleId:cyc.id||null});
     if(due&&due>=today) events.push({type:'due', title:`${card?.name||cyc.label||'Tarjeta'} vence`, shortLabel:card?.name||cyc.label||'Tarjeta', date:due, days:daysAway(due), page:'credit-cards', cardId:cyc.cardId, tcCycleId:cyc.id||null});
   });
-  const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
-  autoGroups.forEach(g=>{
-    const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(g,today):null;
-    const day=snap?.cfg?.day||snap?.scheduleDay||null;
-    if(!snap||snap.paid>=snap.total||!day||typeof getNextCuotaDate!=='function') return;
-    const nextDate=getNextCuotaDate(day);
-    const cuotaName=g.displayName||g.name;
-    if(nextDate&&nextDate>=today){
-      events.push({type:'commitment', title:cuotaName, shortLabel:cuotaName, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:snap.amountPerCuota, page:'cuotas', autoCuotaKey:g.key});
-    }
-  });
   (state.cuotas||[]).forEach(c=>{
-    if(c.paid>=c.total||!c.day||typeof getNextCuotaDate!=='function') return;
-    const nextDate=getNextCuotaDate(c.day);
+    const nextDate=getCuotaStatus(c,today).nextDate;
     if(nextDate&&nextDate>=today){
-      events.push({type:'commitment', title:c.name, shortLabel:c.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:c.amount, page:'cuotas', manualCuotaId:c.id});
+      events.push({type:'commitment', title:c.name, shortLabel:c.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:Number(c.amount)||0, page:'cuotas', manualCuotaId:c.id});
     }
   });
   const toMonthly=s=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
@@ -425,15 +413,14 @@ function getGlobalSearchBuckets(query=''){
     .map(t=>({icon:'report',title:t.description,meta:`${fmtDate(t.date)} · ${t.currency==='USD'?'U$D ':'$'}${fmtN(t.amount)} · ${t.category||'Sin categoría'}`,action:'txn-search',payload:t.description,tag:'movimiento'}));
   if(txns.length) buckets.push({title:'Movimientos', items:txns});
 
-  const autoGroups=(typeof detectAutoCuotas==='function'?detectAutoCuotas():[])
-    .filter(g=>!q||match(g.displayName||g.name)||match(g.name))
+  const cuotaHits=(state.cuotas||[])
+    .filter(c=>!q||match(c.name))
     .slice(0,4)
-    .map(g=>{
-      const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(g):null;
-      const cuotaName=g.displayName||g.name;
-      return {icon:'loop',title:cuotaName,meta:`${snap?snap.paid:1}/${snap?snap.total:(g.transactions?.[0]?.cuotaTotal||1)} pagadas · $${fmtN(Math.round(snap?snap.amountPerCuota:g.amount||0))} por cuota`,action:'page',payload:'cuotas',tag:'cuota'};
+    .map(c=>{
+      const st=getCuotaStatus(c);
+      return {icon:'loop',title:c.name,meta:`${st.paid}/${st.total} pagadas · $${fmtN(Math.round(st.amount))} por cuota`,action:'page',payload:'cuotas',tag:'cuota'};
     });
-  if(autoGroups.length) buckets.push({title:'Cuotas', items:autoGroups});
+  if(cuotaHits.length) buckets.push({title:'Cuotas', items:cuotaHits});
 
   const recurring=[
     ...(state.subscriptions||[]).map(s=>({icon:'bell', title:s.name, meta:`Suscripción · ${(s.currency==='USD'?'U$D ':'$')+fmtN(s.price)} · día ${s.day||'sin definir'}`, action:'page', payload:'cuotas', tag:'suscripción'})),
@@ -664,12 +651,11 @@ function getCalendarAgendaItemKey(item, index){
   if(item?.subscriptionId) return `subscription:${item.subscriptionId}`;
   if(item?.fixedExpenseId) return `fixed:${item.fixedExpenseId}`;
   if(item?.manualCuotaId) return `cuota:${item.manualCuotaId}`;
-  if(item?.autoCuotaKey) return `autocuota:${item.autoCuotaKey}`;
   if(item?.tcCycleId) return `${item.type}:${item.tcCycleId}`;
   return `${item?.type||'item'}:${dateToInputValue(item?.date)||'nodate'}:${index}`;
 }
 function calendarSupportsDirectEdit(item){
-  return !!(item?.taskId || item?.subscriptionId || item?.fixedExpenseId || item?.manualCuotaId || item?.autoCuotaKey);
+  return !!(item?.taskId || item?.subscriptionId || item?.fixedExpenseId || item?.manualCuotaId);
 }
 function renderCalendarDayItems(items, opts={}){
   const emptyMessage=opts.emptyMessage || 'Este día está libre. Podés usarlo para programar una task.';
@@ -838,7 +824,6 @@ function editCalendarAgendaItem(itemKey){
   if(item.subscriptionId) return editSub(item.subscriptionId);
   if(item.fixedExpenseId) return editFixed(item.fixedExpenseId);
   if(item.manualCuotaId) return editCuota(item.manualCuotaId);
-  if(item.autoCuotaKey) return openAutoCuotaModal(item.autoCuotaKey);
   openCalendarAgendaItem(itemKey);
 }
 function deleteCalendarAgendaItem(itemKey){
@@ -871,21 +856,11 @@ function deleteCalendarAgendaItem(itemKey){
     return;
   }
   if(item.manualCuotaId){
-    if(!confirm('¿Eliminar esta cuota manual?')) return;
-    if(typeof deleteManualCuotaById==='function') deleteManualCuotaById(item.manualCuotaId,{silent:true});
-    else {
-      state.cuotas=(state.cuotas||[]).filter(c=>c.id!==item.manualCuotaId);
-      saveState();
-    }
+    if(!confirm('¿Eliminar esta cuota?')) return;
+    deleteManualCuotaById(item.manualCuotaId,{silent:true});
     refreshCalendarViews();
     showToast('Cuota eliminada','info');
     return;
-  }
-  if(item.autoCuotaKey){
-    if(!confirm('¿Ocultar esta cuota automática del seguimiento?')) return;
-    if(typeof dismissAutoCuotaWithHistory==='function') dismissAutoCuotaWithHistory(item.autoCuotaKey,{silent:true});
-    else if(typeof dismissAutoCuota==='function') dismissAutoCuota(item.autoCuotaKey);
-    refreshCalendarViews();
   }
 }
 function renderCalendarPage(){
@@ -1113,14 +1088,12 @@ function collectDashboardAlerts(baseDate=new Date()) {
     else if(pct >= 70) notifs.push({id:`budget-70-${monthKey}`,type:'warn',icon:'trend',title:'Alerta de Gasto',body:`Has consumido el <strong>${Math.round(pct)}%</strong> de tu presupuesto mensual.`,link:'dashboard'});
   }
 
-  const cuotas = state.transactions.filter(t => t.isPendingCuota && t.currency === 'ARS');
-  cuotas.forEach(c => {
-    const cDate = new Date(c.date + 'T12:00:00');
-    if(cDate.getMonth() === today.getMonth() && cDate.getFullYear() === today.getFullYear()) {
-      const dDiff = Math.round((cDate - today) / 86400000);
-      if(dDiff >= 0 && dDiff <= 3) {
-        notifs.push({id:`cuota-${c.id}-${monthKey}`,type:'info',icon:'loop',title:'Próximo Compromiso',body:`En ${dDiff === 0 ? 'hoy' : dDiff + ' días'} vence la cuota de: <strong>${c.descripcion || c.description}</strong>.`,link:'cuotas'});
-      }
+  (state.cuotas||[]).forEach(c => {
+    const cDate = getCuotaStatus(c, today).nextDate;
+    if(!cDate) return;
+    const dDiff = Math.round((new Date(cDate.getFullYear(), cDate.getMonth(), cDate.getDate()) - new Date(today.getFullYear(), today.getMonth(), today.getDate())) / 86400000);
+    if(dDiff >= 0 && dDiff <= 3) {
+      notifs.push({id:`cuota-${c.id}-${dateToYMD(cDate)}`,type:'info',icon:'loop',title:'Próximo Compromiso',body:`${dDiff === 0 ? 'Hoy' : 'En ' + dDiff + ' días'} vence la cuota de: <strong>${esc(c.name)}</strong>.`,link:'cuotas'});
     }
   });
 
@@ -1377,56 +1350,21 @@ function renderDashboard(){
       else totals.ars+=Number(amount)||0;
       totals.count++;
     };
-    (state.transactions||[]).filter(t=>(t.isPendingCuota||t.isPendingSubscription)).forEach(t=>{
+    (state.transactions||[]).filter(t=>t.isPendingSubscription).forEach(t=>{
       if(!_hasReachedChargeDate(t.date)) return;
       const d=new Date(String(t.date).includes('T')?t.date:(String(t.date)+'T12:00:00'));
       if(d<openDate||d>closeDate) return;
-      if(t.isPendingSubscription && t.sourceSubscriptionId){
+      if(t.sourceSubscriptionId){
         const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
         const monthKey=getMonthKey(t.date);
         if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
       }
-      const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
-      add(key,t.currency,t.amount);
+      add(`sub-${t.sourceSubscriptionId||t.id}`,t.currency,t.amount);
     });
-    if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
-      detectAutoCuotas().forEach(g=>{
-        const snap=getAutoCuotaSnapshot(g, new Date(Math.min(today.getTime(), closeDate.getTime())));
-        if(!snap || snap.rem<=0) return;
-        const dueDay=snap.cfg?.day||snap.scheduleDay||null;
-        if(!dueDay) return;
-        _getRecurringDatesInRange(dueDay,openDate,closeDate).forEach(dueDate=>{
-          if(!_hasReachedChargeDate(dueDate)) return;
-          add(`auto-${g.key}-${dateToYMD(dueDate)}`,'ARS',snap.amountPerCuota);
-        });
-      });
-    }
-    (state.cuotas||[]).forEach(c=>{
-      const remaining = Math.max(0, (Number(c.total)||0) - (Number(c.paid)||0));
-      if(remaining <= 0 || !c.day) return;
-      // CAP: never emit more dates than unpaid cuotas left
-      const allDates = _getRecurringDatesInRange(c.day, openDate, closeDate);
-      const cappedDates = allDates.slice(0, remaining);
-      const cuotaNameNorm = String(c.name||'').toLowerCase().trim();
-      const cuotaAmt = Number(c.amount)||0;
-      const matchingRealInMonth = (monthKey)=>{
-        if(!cuotaNameNorm) return false;
-        return (state.transactions||[]).some(t=>{
-          if(t.isPendingCuota || t.isPendingSubscription) return false;
-          const tMonth = t.month || getMonthKey(t.date);
-          if(tMonth !== monthKey) return false;
-          const desc = String(t.description||t._baseDesc||'').toLowerCase();
-          if(!desc.includes(cuotaNameNorm) && !cuotaNameNorm.includes(desc.split(' ')[0]||'__')) return false;
-          const amt = Math.abs(Number(t.amount)||0);
-          return cuotaAmt>0 && Math.abs(amt - cuotaAmt) / cuotaAmt < 0.05;
-        });
-      };
-      cappedDates.forEach(dueDate=>{
-        if(!_hasReachedChargeDate(dueDate)) return;
-        if(matchingRealInMonth(getMonthKey(dueDate))) return;
-        add(`manual-${c.id}-${dateToYMD(dueDate)}`, 'ARS', cuotaAmt);
-      });
-    });
+    // Cuotas: misma proyección que el resto de la app (state.cuotas + calendario)
+    getProjectedCommitmentEntriesForRange({startStr:openDateValue,endStr:cycle.closeDate,todayRef:today,txns:state.transactions||[]})
+      .filter(e=>e.group==='cuotas'&&e.includeInTotal)
+      .forEach(e=>add(e._key,e.currency,e.amount));
     (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
       _getRecurringDatesInRange(s.day,openDate,closeDate).forEach(dueDate=>{
         if(!_hasReachedChargeDate(dueDate)) return;
@@ -1464,39 +1402,25 @@ function renderDashboard(){
       else syntheticARS+=Number(amount)||0;
       syntheticCount++;
     };
-    (state.transactions||[]).filter(t=>(t.isPendingCuota||t.isPendingSubscription)).forEach(t=>{
+    (state.transactions||[]).filter(t=>t.isPendingSubscription).forEach(t=>{
       if(!_hasReachedChargeDate(t.date)) return;
       const d=new Date(String(t.date).includes('T')?t.date:(String(t.date)+'T12:00:00'));
       if(d<_openDate||d>_closeDate) return;
-      if(t.isPendingSubscription && t.sourceSubscriptionId){
+      if(t.sourceSubscriptionId){
         const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
         const monthKey=getMonthKey(t.date);
         if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
       }
-      const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
+      const key=`sub-${t.sourceSubscriptionId||t.id}`;
       // Use personal amount so shared expenses don't double-count
       const _pa=typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount;
       addExtra(key,t.currency,_pa);
     });
-    if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
-      detectAutoCuotas().forEach(g=>{
-        const snap=getAutoCuotaSnapshot(g, new Date(Math.min(today.getTime(), _closeDate.getTime())));
-        if(!snap || snap.rem<=0) return;
-        const dueDay=snap.cfg?.day||snap.scheduleDay||null;
-        if(!dueDay) return;
-        _getRecurringDatesInRange(dueDay,_openDate,_closeDate).forEach(dueDate=>{
-          if(!_hasReachedChargeDate(dueDate)) return;
-          addSyntheticExtra(`auto-${g.key}-${dateToYMD(dueDate)}`,'ARS',snap.amountPerCuota);
-        });
-      });
-    }
-    (state.cuotas||[]).forEach(c=>{
-      if(c.paid>=c.total||!c.day) return;
-      _getRecurringDatesInRange(c.day,_openDate,_closeDate).forEach(dueDate=>{
-        if(!_hasReachedChargeDate(dueDate)) return;
-        addSyntheticExtra(`manual-${c.id}-${dateToYMD(dueDate)}`,'ARS',c.amount);
-      });
-    });
+    // Cuotas: misma proyección que el resto de la app. Antes acá se sumaban las cuotas
+    // manuales sin chequear el cargo real del resumen → se contaban dos veces.
+    getProjectedCommitmentEntriesForRange({startStr:dateToYMD(_openDate),endStr:activeTcCycle.closeDate,todayRef:today,txns:state.transactions||[]})
+      .filter(e=>e.group==='cuotas'&&e.includeInTotal)
+      .forEach(e=>addSyntheticExtra(e._key,e.currency,e.amount));
     (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
       _getRecurringDatesInRange(s.day,_openDate,_closeDate).forEach(dueDate=>{
         if(!_hasReachedChargeDate(dueDate)) return;
@@ -1819,19 +1743,16 @@ function renderDashboard(){
   });
 
   // ── Compromisos (cuotas + subs + gastos fijos) ──
-  const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
-  const cuotasAmt=autoGroups.map(g=>{
-    const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(g,today):null;
-    if(!snap||snap.paid>=snap.total) return 0;
-    return snap.amountPerCuota;
-  }).reduce((s,v)=>s+v,0) + state.cuotas.filter(c=>c.paid<c.total).reduce((s,c)=>s+c.amount,0);
+  const activeCuotas=getActiveCuotas(today);
+  const cuotasAmt=activeCuotas.filter(c=>(c.currency||'ARS')!=='USD').reduce((s,c)=>s+(Number(c.amount)||0),0);
+  const cuotasUSD=activeCuotas.filter(c=>c.currency==='USD').reduce((s,c)=>s+(Number(c.amount)||0),0);
   const toMonthly=s=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
   const subsARS=state.subscriptions.filter(s=>s.currency==='ARS').reduce((acc,s)=>acc+toMonthly(s),0);
   const subsUSD=state.subscriptions.filter(s=>s.currency==='USD').reduce((acc,s)=>acc+toMonthly(s),0);
   const fixedARS=(state.fixedExpenses||[]).filter(f=>f.currency==='ARS').reduce((a,f)=>a+f.amount,0);
   const fixedUSD=(state.fixedExpenses||[]).filter(f=>f.currency==='USD').reduce((a,f)=>a+f.amount,0);
   const compromisoARS=cuotasAmt+subsARS+fixedARS;
-  const compromisoUSD=subsUSD+fixedUSD;
+  const compromisoUSD=subsUSD+fixedUSD+cuotasUSD;
   const compromisoTotal=compromisoARS+(compromisoUSD*USD_TO_ARS);
 
   // ── Selector y fecha ──
@@ -2207,7 +2128,7 @@ function renderDashboard(){
   const compD=document.getElementById('kpi-compromisos-d');
   if(compEl){
     animateNumberText(compEl,Math.round(compromisoTotal),{prefix:'$',decimals:2,duration:820});
-    const nC=autoGroups.length+state.cuotas.filter(c=>c.paid<c.total).length;
+    const nC=activeCuotas.length;
     const nS=state.subscriptions.length;
     const nF=(state.fixedExpenses||[]).length;
     

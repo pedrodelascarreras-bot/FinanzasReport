@@ -1,4 +1,11 @@
 // ══ CUOTAS ══
+// Fuente única de verdad: state.cuotas.
+// Cada cuota tiene un calendario fijo: la cuota número `paid` vence en `lastPaidDate`
+// (o la cuota 1 en `startDate`), y cada cuota siguiente vence un mes después, el día `day`.
+// Así las cuotas pagas avanzan solas con el tiempo y nunca se proyectan más allá de `total`.
+// Los movimientos importados con info de cuota (cuotaNum/cuotaTotal/cuotaGroupId) solo
+// actualizan ese calendario; las pantallas siempre leen de state.cuotas.
+
 function normalizeAutoCuotaSlug(value=''){
   return String(value||'').toLowerCase().replace(/\s+/g,'-').replace(/[^a-z0-9-]/g,'').replace(/-+/g,'-').replace(/^-|-$/g,'');
 }
@@ -13,33 +20,24 @@ function getAutoCuotaKey(txn, baseName=''){
   const normalized=normalizeAutoCuotaSlug(baseName);
   return normalized||getLegacyAutoCuotaKey(baseName)||('cuota-'+Date.now());
 }
-function getAutoCuotaConfig(group){
-  const cfgs=state.autoCuotaConfig||{};
-  return cfgs[group.key]||cfgs[group.legacyKey]||{};
+function getCuotaTxnBaseName(t){
+  return String(t?._baseDesc||t?.description||'Cuota')
+    .replace(/\s*\(?Cuota\s+\d+\s*(?:\/|de)\s*\d+\)?\s*$/i,'')
+    .replace(/\s*\(?\d+\/\d+\)?\s*$/,'')
+    .trim()||'Cuota';
 }
-
-function getAutoCuotaGroups(includeDismissed=false){
+// Grupos de cuotas borrados por el usuario: no se vuelven a crear al reimportar.
+function isCuotaGroupDismissed(cuotaGroupId, baseName=''){
+  const dismissed=state.dismissedAutoCuotas||[];
+  if(!dismissed.length) return false;
+  const keys=[getAutoCuotaKey({cuotaGroupId},baseName), getLegacyAutoCuotaKey(baseName)].filter(Boolean);
+  return keys.some(k=>dismissed.includes(k));
+}
+function dismissCuotaGroup(cuotaGroupId){
+  if(!cuotaGroupId) return;
   if(!state.dismissedAutoCuotas) state.dismissedAutoCuotas=[];
-  // Dedup: if a manual cuota entry tracks the same cuotaGroupId, the auto-detector skips it.
-  // Otherwise the Compromisos panel would show the cuota twice (manual + auto).
-  const trackedGroupIds = new Set(
-    (state.cuotas||[])
-      .map(c => c.cuotaGroupId)
-      .filter(Boolean)
-  );
-  const groups={};
-  state.transactions.filter(t=>t.cuotaNum&&t.cuotaTotal).forEach(t=>{
-    if (t.cuotaGroupId && trackedGroupIds.has(t.cuotaGroupId)) return;
-    const baseName=t.description.replace(/\s*\d+\/\d+\s*$/,'').replace(/cuota\s+\d+\s+de\s+\d+/i,'').trim();
-    const key=getAutoCuotaKey(t,baseName);
-    const legacyKey=getLegacyAutoCuotaKey(baseName);
-    const alias=(state.autoCuotaConfig?.[key]?.alias||state.autoCuotaConfig?.[legacyKey]?.alias||'').trim();
-    if(!groups[key])groups[key]={key,legacyKey,name:baseName,displayName:alias||baseName,transactions:[],amount:t.amount,currency:t.currency};
-    groups[key].transactions.push(t);
-  });
-  const all=Object.values(groups);
-  if(includeDismissed) return all;
-  return all.filter(g=>!state.dismissedAutoCuotas.includes(g.key)&&!state.dismissedAutoCuotas.includes(g.legacyKey));
+  const key=getAutoCuotaKey({cuotaGroupId});
+  if(!state.dismissedAutoCuotas.includes(key)) state.dismissedAutoCuotas.push(key);
 }
 
 function buildCommitmentMaterializedTxn(base={}){
@@ -64,107 +62,215 @@ function appendMaterializedCommitmentTxn(txn){
   return true;
 }
 
-function getAutoCuotaInstallmentDate(firstTxn, installmentNum, dueDay){
-  if(!firstTxn||!installmentNum) return null;
-  const firstDate=firstTxn.date instanceof Date?new Date(firstTxn.date):new Date(firstTxn.date);
-  if(Number.isNaN(firstDate.getTime())) return null;
-  const firstNum=Math.max(1,Number(firstTxn.cuotaNum)||1);
-  const monthOffset=Number(installmentNum)-firstNum;
-  const target=new Date(firstDate.getFullYear(),firstDate.getMonth()+monthOffset,1,12,0,0,0);
-  const maxDay=new Date(target.getFullYear(),target.getMonth()+1,0).getDate();
-  target.setDate(Math.min(Number(dueDay)||firstDate.getDate(),maxDay));
-  target.setHours(12,0,0,0);
-  return target;
+// ── Calendario de una cuota ──
+function _cuotaParseDate(value){
+  if(!value) return null;
+  const d=value instanceof Date?new Date(value):new Date(String(value).includes('T')?value:(String(value)+'T12:00:00'));
+  return Number.isNaN(d.getTime())?null:d;
+}
+function _cuotaDateInMonth(year, monthIdx, day){
+  const first=new Date(year, monthIdx, 1, 12, 0, 0, 0);
+  const maxDay=new Date(first.getFullYear(), first.getMonth()+1, 0).getDate();
+  first.setDate(Math.min(Math.max(1, day), maxDay));
+  return first;
+}
+function getCuotaTotal(c){
+  return Math.max(1, parseInt(c?.total,10)||1);
+}
+function getCuotaGroupId(c){
+  return c?.cuotaGroupId||('manual_'+c?.id);
+}
+// Punto de referencia del calendario: la cuota número `num` vence en `date`.
+function getCuotaAnchor(c){
+  const total=getCuotaTotal(c);
+  const paid=Math.min(total, Math.max(0, parseInt(c?.paid,10)||0));
+  const last=_cuotaParseDate(c?.lastPaidDate);
+  const start=_cuotaParseDate(c?.startDate);
+  const day=parseInt(c?.day,10)||(last?last.getDate():null)||(start?start.getDate():null)||1;
+  if(last && paid>0) return {num:paid, date:_cuotaDateInMonth(last.getFullYear(), last.getMonth(), day), day};
+  if(start) return {num:1, date:_cuotaDateInMonth(start.getFullYear(), start.getMonth(), day), day};
+  // Sin fechas guardadas (no debería pasar después de migrateCuotasToSingleSource):
+  // la cuota `paid` es el vencimiento más reciente a hoy.
+  const today=new Date();
+  let recent=_cuotaDateInMonth(today.getFullYear(), today.getMonth(), day);
+  if(recent>today) recent=_cuotaDateInMonth(today.getFullYear(), today.getMonth()-1, day);
+  if(paid>0) return {num:paid, date:recent, day};
+  return {num:1, date:_cuotaDateInMonth(recent.getFullYear(), recent.getMonth()+1, day), day};
+}
+function getCuotaInstallmentDate(c, num){
+  const a=getCuotaAnchor(c);
+  return _cuotaDateInMonth(a.date.getFullYear(), a.date.getMonth()+(Number(num)-a.num), a.day);
+}
+// Cuotas (número + fecha) que vencen dentro de [start, end].
+function getCuotaInstallmentsInRange(c, start, end){
+  if(!(start instanceof Date)||!(end instanceof Date)||start>end) return [];
+  const a=getCuotaAnchor(c);
+  const total=getCuotaTotal(c);
+  const out=[];
+  const cursor=new Date(start.getFullYear(), start.getMonth(), 1);
+  const limit=new Date(end.getFullYear(), end.getMonth(), 1);
+  while(cursor<=limit){
+    const monthOffset=(cursor.getFullYear()-a.date.getFullYear())*12+(cursor.getMonth()-a.date.getMonth());
+    const num=a.num+monthOffset;
+    if(num>=1 && num<=total){
+      const date=_cuotaDateInMonth(cursor.getFullYear(), cursor.getMonth(), a.day);
+      if(date>=start && date<=end) out.push({num, date});
+    }
+    cursor.setMonth(cursor.getMonth()+1);
+  }
+  return out;
+}
+// Estado de la cuota a una fecha: cuántas vencieron, cuántas faltan, próxima fecha.
+function getCuotaStatus(c, refDate=new Date()){
+  const total=getCuotaTotal(c);
+  const a=getCuotaAnchor(c);
+  const ref=refDate instanceof Date?refDate:new Date(refDate);
+  let paid=a.num+(ref.getFullYear()-a.date.getFullYear())*12+(ref.getMonth()-a.date.getMonth());
+  if(getCuotaInstallmentDate(c, paid)>ref) paid--;
+  paid=Math.min(total, Math.max(0, paid));
+  const rem=total-paid;
+  const amount=Number(c?.amount)||0;
+  return {
+    total,
+    paid,
+    rem,
+    pct:Math.round((paid/total)*100),
+    amount,
+    remainingTotal:rem*amount,
+    nextNum:rem>0?paid+1:null,
+    nextDate:rem>0?getCuotaInstallmentDate(c, paid+1):null,
+    endDate:getCuotaInstallmentDate(c, total)
+  };
+}
+function getActiveCuotas(refDate=new Date()){
+  return (state.cuotas||[]).filter(c=>getCuotaStatus(c, refDate).rem>0);
 }
 
-function materializeAutoCuotaHistoryForGroup(group, opts={}){
-  if(!group?.transactions?.length) return 0;
-  const todayRef=opts.todayRef instanceof Date?opts.todayRef:new Date();
-  const snap=getAutoCuotaSnapshot(group,todayRef);
-  const firstTxn=snap.firstTxn;
-  const groupId=group.transactions[0]?.cuotaGroupId||null;
-  if(!firstTxn||!groupId) return 0;
-  let created=0;
-  const dueDay=snap.cfg?.day||snap.scheduleDay||new Date(firstTxn.date).getDate();
-  const maxInstallment=Math.min(Number(snap.total)||0, Number(snap.paid)||0);
-  for(let installmentNum=1;installmentNum<=maxInstallment;installmentNum++){
-    if(hasRealCuotaChargeForInstallment(groupId, installmentNum, state.transactions||[])) continue;
-    const chargeDate=getAutoCuotaInstallmentDate(firstTxn, installmentNum, dueDay);
-    if(!chargeDate || !hasReachedEffectiveChargeDate(chargeDate, todayRef)) continue;
-    const materialized=buildCommitmentMaterializedTxn({
-      id:`mat_cuota_${groupId}_${installmentNum}`,
-      description:`${group.name} (Cuota ${installmentNum}/${snap.total})`,
-      _baseDesc:group.name,
-      amount:firstTxn.amount,
-      currency:firstTxn.currency||group.currency||'ARS',
-      category:firstTxn.category||'Cuotas',
-      source:firstTxn.source||'commitment',
-      cuotaNum:installmentNum,
-      cuotaTotal:snap.total,
+// ── Alta / actualización de cuotas a partir de movimientos importados ──
+// Para cada plan (cuotaGroupId) toma la cuota de número más alto y deja el calendario
+// anclado ahí. Nunca retrocede `paid`. Respeta los planes que el usuario borró.
+function upsertCuotasFromTxns(txns){
+  if(!Array.isArray(state.cuotas)) state.cuotas=[];
+  const cfgs=state.autoCuotaConfig||{};
+  const latestByGroup=new Map();
+  (txns||[]).forEach(t=>{
+    if(!t || t.isPendingCuota || t.isAnulacion) return;
+    if(!t.cuotaGroupId || !(Number(t.cuotaTotal)>=2)) return;
+    const prev=latestByGroup.get(t.cuotaGroupId);
+    const num=Number(t.cuotaNum)||1;
+    if(!prev || num>(Number(prev.cuotaNum)||1) || (num===(Number(prev.cuotaNum)||1) && new Date(t.date)>new Date(prev.date))){
+      latestByGroup.set(t.cuotaGroupId, t);
+    }
+  });
+  let created=0, updated=0;
+  latestByGroup.forEach((t, groupId)=>{
+    const baseName=getCuotaTxnBaseName(t);
+    const txDate=_cuotaParseDate(t.date);
+    const cuotaTotal=Math.max(2, Number(t.cuotaTotal)||2);
+    const cuotaNum=Math.min(cuotaTotal, Math.max(1, Number(t.cuotaNum)||1));
+    const existing=state.cuotas.find(c=>c.cuotaGroupId===groupId);
+    if(existing){
+      // El dato real del resumen manda: re-ancla el calendario si es igual o más nuevo
+      if(cuotaNum>=(parseInt(existing.paid,10)||0) && txDate){
+        if(existing.paid!==cuotaNum || existing.lastPaidDate!==dateToYMD(txDate)) updated++;
+        existing.paid=cuotaNum;
+        existing.lastPaidDate=dateToYMD(txDate);
+      }
+      if(!existing.day && txDate) existing.day=txDate.getDate();
+      if(!existing.amount) existing.amount=Number(t.amount)||0;
+      if(!existing.name || existing.name==='Cuota') existing.name=baseName;
+      return;
+    }
+    if(isCuotaGroupDismissed(groupId, baseName)) return;
+    // Configuración que el usuario le había puesto a la cuota "automática" (alias, total, día…)
+    const cfg=cfgs[getAutoCuotaKey({cuotaGroupId:groupId},baseName)]||cfgs[getLegacyAutoCuotaKey(baseName)]||{};
+    state.cuotas.push({
+      id:'auto_'+groupId,
       cuotaGroupId:groupId,
-      payMethod:firstTxn.payMethod||null,
-      comercio_detectado:firstTxn.comercio_detectado||null,
-      cat_sugerida:firstTxn.cat_sugerida||null,
-      date:chargeDate
+      name:(cfg.alias||'').trim()||baseName,
+      amount:Number(t.amount)||0,
+      total:parseInt(cfg.total,10)||cuotaTotal,
+      paid:cuotaNum,
+      day:parseInt(cfg.day,10)||(txDate?txDate.getDate():new Date().getDate()),
+      lastPaidDate:txDate?dateToYMD(txDate):null,
+      emoji:cfg.emoji||'🛒',
+      color:cfg.color||'#8c5cff',
+      currency:t.currency||'ARS',
+      payMethod:t.payMethod||null,
+      source:'auto-import',
+      createdAt:new Date().toISOString()
     });
-    if(!materialized) continue;
-    state.transactions=(state.transactions||[]).filter(txn=>
-      !(txn.isPendingCuota && txn.cuotaGroupId===groupId && Number(txn.cuotaNum)===installmentNum)
-    );
-    if(appendMaterializedCommitmentTxn(materialized)) created++;
-  }
-  return created;
+    created++;
+  });
+  if(created||updated) console.info('[cuotas] desde movimientos — creadas:', created, 'actualizadas:', updated);
+  return {created, updated};
 }
 
-function inferManualCuotaInstallmentDate(cuota, installmentNum, todayRef=new Date()){
-  const totalPaid=Math.max(0,Number(cuota?.paid)||0);
-  if(!totalPaid || !installmentNum) return null;
-  const dueDay=parseInt(cuota?.day,10)||todayRef.getDate();
-  if(cuota?.startDate){
-    const start=new Date(String(cuota.startDate).includes('T')?cuota.startDate:(cuota.startDate+'T12:00:00'));
-    if(Number.isNaN(start.getTime())) return null;
-    const target=new Date(start.getFullYear(),start.getMonth()+Math.max(installmentNum-1,0),1,12,0,0,0);
-    const maxDay=new Date(target.getFullYear(),target.getMonth()+1,0).getDate();
-    target.setDate(Math.min(dueDay,maxDay));
-    return target;
-  }
-  let anchor=new Date(todayRef.getFullYear(),todayRef.getMonth(),1,12,0,0,0);
-  let anchorMaxDay=new Date(anchor.getFullYear(),anchor.getMonth()+1,0).getDate();
-  anchor.setDate(Math.min(dueDay,anchorMaxDay));
-  if(anchor>todayRef){
-    anchor=new Date(todayRef.getFullYear(),todayRef.getMonth()-1,1,12,0,0,0);
-    anchorMaxDay=new Date(anchor.getFullYear(),anchor.getMonth()+1,0).getDate();
-    anchor.setDate(Math.min(dueDay,anchorMaxDay));
-  }
-  const monthOffset=totalPaid-installmentNum;
-  const target=new Date(anchor.getFullYear(),anchor.getMonth()-monthOffset,1,12,0,0,0);
-  const maxDay=new Date(target.getFullYear(),target.getMonth()+1,0).getDate();
-  target.setDate(Math.min(dueDay,maxDay));
-  return target;
+// ── Migración: todo a state.cuotas ──
+// Idempotente; corre en cada carga. Convierte las cuotas que antes se "detectaban"
+// desde los movimientos en entradas de state.cuotas, borra las proyecciones viejas
+// guardadas como movimientos (isPendingCuota) y fija la fecha de referencia de las
+// cuotas cargadas a mano.
+function migrateCuotasToSingleSource(){
+  if(!Array.isArray(state.cuotas)) state.cuotas=[];
+  const txns=state.transactions||[];
+  let changed=false;
+  // 1) Movimientos con info de cuota pero sin cuotaGroupId: les asigno uno estable
+  txns.forEach(t=>{
+    if(t.isPendingCuota || t.cuotaGroupId || !t.cuotaNum || !(Number(t.cuotaTotal)>=2)) return;
+    t.cuotaGroupId='cg_legacy_'+getAutoCuotaKey(null, getCuotaTxnBaseName(t));
+    changed=true;
+  });
+  // 2) Planes con movimientos reales que todavía no están en state.cuotas
+  const tracked=new Set(state.cuotas.map(c=>c.cuotaGroupId).filter(Boolean));
+  const untracked=txns.filter(t=>!t.isPendingCuota && t.cuotaGroupId && !tracked.has(t.cuotaGroupId) && Number(t.cuotaTotal)>=2);
+  if(untracked.length && upsertCuotasFromTxns(untracked).created) changed=true;
+  // 3) Proyecciones viejas guardadas como movimientos
+  const before=txns.length;
+  state.transactions=txns.filter(t=>!t.isPendingCuota);
+  if(state.transactions.length!==before) changed=true;
+  // 4) Cuotas cargadas a mano sin fecha de referencia: `paid` se interpreta "a hoy"
+  const today=new Date();
+  state.cuotas.forEach(c=>{
+    if(c.lastPaidDate || c.startDate) return;
+    const paid=parseInt(c.paid,10)||0;
+    const day=parseInt(c.day,10)||today.getDate();
+    if(!c.day) c.day=day;
+    let recent=_cuotaDateInMonth(today.getFullYear(), today.getMonth(), day);
+    if(recent>today) recent=_cuotaDateInMonth(today.getFullYear(), today.getMonth()-1, day);
+    if(paid>0) c.lastPaidDate=dateToYMD(recent);
+    else c.startDate=dateToYMD(_cuotaDateInMonth(recent.getFullYear(), recent.getMonth()+1, day));
+    changed=true;
+  });
+  if(changed) console.info('[cuotas] migración a fuente única aplicada');
+  return changed;
 }
 
 function materializeManualCuotaHistory(cuota, opts={}){
   if(!cuota) return 0;
-  const paid=Math.max(0,Number(cuota.paid)||0);
-  if(!paid) return 0;
   const todayRef=opts.todayRef instanceof Date?opts.todayRef:new Date();
+  const status=getCuotaStatus(cuota, todayRef);
+  if(!status.paid) return 0;
+  const groupId=getCuotaGroupId(cuota);
   let created=0;
-  for(let installmentNum=1;installmentNum<=paid;installmentNum++){
+  for(let installmentNum=1;installmentNum<=status.paid;installmentNum++){
+    if(hasRealCuotaChargeForInstallment(groupId, installmentNum, state.transactions||[])) continue;
     const materializedId=`mat_manual_cuota_${cuota.id}_${installmentNum}`;
     if((state.transactions||[]).some(txn=>txn.id===materializedId)) continue;
-    const chargeDate=inferManualCuotaInstallmentDate(cuota, installmentNum, todayRef);
+    const chargeDate=getCuotaInstallmentDate(cuota, installmentNum);
     if(!chargeDate || !hasReachedEffectiveChargeDate(chargeDate, todayRef)) continue;
+    if(hasRealCuotaChargeInMonth(groupId, getMonthKey(chargeDate), state.transactions||[])) continue;
     const materialized=buildCommitmentMaterializedTxn({
       id:materializedId,
-      description:`${cuota.name} (Cuota ${installmentNum}/${cuota.total||paid})`,
+      description:`${cuota.name} (Cuota ${installmentNum}/${status.total})`,
       _baseDesc:cuota.name,
       amount:Number(cuota.amount)||0,
       currency:cuota.currency||'ARS',
       category:'Cuotas',
       source:'commitment',
       cuotaNum:installmentNum,
-      cuotaTotal:Number(cuota.total)||paid,
-      cuotaGroupId:`manual_${cuota.id}`,
+      cuotaTotal:status.total,
+      cuotaGroupId:groupId,
       payMethod:cuota.payMethod||null,
       date:chargeDate
     });
@@ -244,6 +350,8 @@ function deleteManualCuotaById(id, opts={}){
   const cuota=(state.cuotas||[]).find(c=>c.id===id);
   if(!cuota) return false;
   materializeManualCuotaHistory(cuota, opts);
+  // Si vino de un import, que no se vuelva a crear al reimportar el resumen
+  if(cuota.cuotaGroupId) dismissCuotaGroup(cuota.cuotaGroupId);
   state.cuotas=(state.cuotas||[]).filter(c=>c.id!==id);
   saveState();
   renderCuotas();
@@ -251,86 +359,7 @@ function deleteManualCuotaById(id, opts={}){
   if(opts.silent!==true) showToast('Cuota eliminada','info');
   return true;
 }
-
-function dismissAutoCuotaWithHistory(key, opts={}){
-  const group=getAutoCuotaGroups(true).find(g=>g.key===key||g.legacyKey===key);
-  if(group) materializeAutoCuotaHistoryForGroup(group, opts);
-  dismissAutoCuota(key, opts);
-  return true;
-}
-
-function reconcileDeletedCommitmentHistory(opts={}){
-  let created=0;
-  const dismissed=new Set(state.dismissedAutoCuotas||[]);
-  getAutoCuotaGroups(true).forEach(group=>{
-    if(!dismissed.has(group.key) && !dismissed.has(group.legacyKey)) return;
-    created+=materializeAutoCuotaHistoryForGroup(group, opts);
-  });
-  if(created){
-    saveState();
-    console.info('[finanzas] reconciled deleted commitment history', { created });
-  }
-  return created;
-}
-
-function dismissAutoCuota(key, opts={}){
-  if(!state.dismissedAutoCuotas) state.dismissedAutoCuotas=[];
-  if(!state.dismissedAutoCuotas.includes(key)) state.dismissedAutoCuotas.push(key);
-  saveState();renderCuotas();
-  if(opts.silent!==true) showToast('Cuota removida','info');
-}
-
-function detectAutoCuotas(){
-  return getAutoCuotaGroups(false);
-}
-function getAutoCuotaSnapshot(group, baseDate=new Date()){
-  const cfg=getAutoCuotaConfig(group);
-  const actualTxns=group.transactions.filter(t=>!t.isPendingCuota);
-  const txSorted=[...actualTxns].sort((a,b)=>new Date(a.date)-new Date(b.date)||((a.cuotaNum||0)-(b.cuotaNum||0)));
-  const firstTxn=txSorted[0]||null;
-  const labeledNums=[...new Set(actualTxns.map(t=>parseInt(t.cuotaNum,10)).filter(n=>Number.isFinite(n)&&n>0))].sort((a,b)=>a-b);
-  const labelsSequentialFromOne=labeledNums.length>0&&labeledNums.every((n,idx)=>n===idx+1);
-  const observedPaidCount=Math.max(actualTxns.length, labeledNums[0]===1?labeledNums.length:0, 1);
-  const maxPaidFound=labelsSequentialFromOne?labeledNums[labeledNums.length-1]:observedPaidCount;
-  let inferredPaid=maxPaidFound;
-  let scheduleDay=cfg.day||null;
-
-  if(firstTxn){
-    const startD=new Date(firstTxn.date);
-    if(!scheduleDay) scheduleDay=startD.getDate();
-    if(firstTxn.cuotaNum===1){
-      const monthDiff=(baseDate.getFullYear()-startD.getFullYear())*12+(baseDate.getMonth()-startD.getMonth());
-      if(monthDiff>=0){
-        const currentMonthMaxDay=new Date(baseDate.getFullYear(),baseDate.getMonth()+1,0).getDate();
-        const effectiveDueDay=Math.min(scheduleDay||startD.getDate(), currentMonthMaxDay);
-        const dueCount=monthDiff+(baseDate.getDate()>=effectiveDueDay?1:0);
-        inferredPaid=Math.max(maxPaidFound, dueCount);
-      }
-    }
-  }
-
-  if(!scheduleDay){
-    const projected=state.transactions
-      .filter(t=>t.isPendingCuota&&t.cuotaGroupId&&group.transactions[0]?.cuotaGroupId&&t.cuotaGroupId===group.transactions[0].cuotaGroupId)
-      .sort((a,b)=>new Date(a.date)-new Date(b.date))[0];
-    if(projected) scheduleDay=new Date(projected.date).getDate();
-  }
-
-  const total=cfg.total||group.transactions[0]?.cuotaTotal||Math.max(inferredPaid,maxPaidFound,1);
-  const paid=cfg.paid!==undefined?cfg.paid:Math.min(total, Math.max(maxPaidFound, inferredPaid));
-  const rem=Math.max(0,total-paid);
-  const pct=Math.round((paid/Math.max(total,1))*100);
-  const acc=actualTxns.reduce((s,t)=>s+(t.currency==='ARS'?t.amount:0),0);
-  const amountPerCuota=actualTxns.length>0?acc/actualTxns.length:group.amount;
-  const remainingTotal=rem*amountPerCuota;
-  return {cfg,actualTxns,txSorted,firstTxn,maxPaidFound,total,paid,rem,pct,amountPerCuota,remainingTotal,scheduleDay};
-}
-function getDaysUntilNext(day){
-  if(!day)return null;
-  const today=new Date();const next=new Date(today.getFullYear(),today.getMonth(),day);
-  if(next<=today)next.setMonth(next.getMonth()+1);
-  return Math.round((next-today)/(1000*60*60*24));
-}
+// Próxima fecha (hoy excluido) en que cae el día `day` del mes — para suscripciones y fijos
 function getNextCuotaDate(day){
   if(!day)return null;
   const today=new Date();
@@ -550,106 +579,21 @@ function commitmentsSyncStatus(){
   if(!best) return 'Sin actividad reciente';
   return best.label+' · '+best.date.toLocaleDateString('es-AR',{day:'2-digit',month:'short'})+' '+best.date.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit',hour12:false});
 }
-// ── One-shot migration: backfill `lastPaidDate` for cuotas auto-importadas ─
-// Las cuotas creadas antes del fix de "vencido" no tenían `lastPaidDate`,
-// así que el cálculo de "próxima fecha" caía al fallback (día del mes) y las
-// marcaba como vencidas. Esta migración corre 1 vez al cargar la app y
-// busca la transacción real más reciente del mismo cuotaGroupId para hidratar
-// el campo. Idempotente — sólo toca cuotas que les falta el campo.
-function migrateCuotaLastPaidDate(){
-  if (state._cuotaLastPaidDateMigrated) return;
-  let touched = 0;
-  const cuotaNameLower = name => String(name||'').toLowerCase().trim();
-  (state.cuotas || []).forEach(c => {
-    if (c.lastPaidDate) return;
-    let latest = null;
-    // Strategy 1: match by cuotaGroupId (most reliable)
-    if (c.cuotaGroupId) {
-      const matches = (state.transactions || [])
-        .filter(t => t.cuotaGroupId === c.cuotaGroupId && !t.isPendingCuota)
-        .sort((a, b) => new Date(b.date) - new Date(a.date));
-      latest = matches[0] || null;
-    }
-    // Strategy 2: match by name substring + amount (for cuotas without cuotaGroupId)
-    if (!latest && c.name) {
-      const nameNorm = cuotaNameLower(c.name);
-      const amt = Number(c.amount) || 0;
-      const matches = (state.transactions || [])
-        .filter(t => {
-          if (t.isPendingCuota || t.isPendingSubscription) return false;
-          const desc = cuotaNameLower(t.description || t._baseDesc || '');
-          if (!desc.includes(nameNorm) && !nameNorm.includes(desc.split(' ')[0]||'__')) return false;
-          if (amt <= 0) return true;
-          const tAmt = Math.abs(Number(t.amount) || 0);
-          return Math.abs(tAmt - amt) / amt < 0.05;  // ±5% match
-        })
-        .sort((a, b) => new Date(b.date) - new Date(a.date));
-      latest = matches[0] || null;
-    }
-    let isoDate = null;
-    if (latest) {
-      const d = latest.date instanceof Date ? latest.date : new Date(latest.date);
-      if (!Number.isNaN(d.getTime())) isoDate = d.toISOString().slice(0, 10);
-    }
-    // Strategy 3: fallback to createdAt if available
-    if (!isoDate && c.createdAt) {
-      const d = new Date(c.createdAt);
-      if (!Number.isNaN(d.getTime())) isoDate = d.toISOString().slice(0, 10);
-    }
-    // Strategy 4: ultimate fallback — only if paid > 0 (i.e. user marked at least one
-    // installment as paid). For paid=0 cuotas, "vencido" is the correct interpretation.
-    if (!isoDate && c.day && (Number(c.paid)||0) > 0) {
-      const today = new Date();
-      const maxDay = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-      const synth = new Date(today.getFullYear(), today.getMonth(), Math.min(Number(c.day)||1, maxDay));
-      isoDate = synth.toISOString().slice(0, 10);
-    }
-    if (isoDate) {
-      c.lastPaidDate = isoDate;
-      touched++;
-    }
-  });
-  state._cuotaLastPaidDateMigrated = true;
-  if (touched > 0) {
-    saveState();
-    console.info('[cuotas] migrateCuotaLastPaidDate — backfilled', touched, 'cuotas');
-  }
-}
-
-// Smart due-meta for cuotas: uses lastPaidDate to compute the ACTUAL next charge.
-// A cuota with lastPaidDate=2026-05-13 and day=11 has its next charge on 2026-06-11
-// (not "vencido día 11 of this month" — that was already paid).
+// Próximo vencimiento de una cuota según su calendario (nunca "vencida": las cuotas
+// de tarjeta se debitan solas, así que la cuota del mes que ya pasó cuenta como paga).
 function commitmentsDueMetaForCuota(c){
-  const day = parseInt(c?.day, 10) || null;
-  if (!day) return {status:'active', label:'Sin vencimiento', nextDate:null, currentDate:null, sortDays:999, daysOverdue:0};
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const lastPaid = c.lastPaidDate
-    ? new Date(String(c.lastPaidDate).includes('T') ? c.lastPaidDate : (c.lastPaidDate + 'T12:00:00'))
-    : null;
-  let nextDate;
-  if (lastPaid && !Number.isNaN(lastPaid.getTime())) {
-    // Next charge = the month AFTER lastPaidDate, on `day` (clamped to month-end)
-    const baseMonth = new Date(lastPaid.getFullYear(), lastPaid.getMonth() + 1, 1);
-    const maxDay = new Date(baseMonth.getFullYear(), baseMonth.getMonth() + 1, 0).getDate();
-    nextDate = new Date(baseMonth.getFullYear(), baseMonth.getMonth(), Math.min(day, maxDay));
-  } else {
-    // Fallback: use this month's day if not yet passed, else next month
-    const maxDayThis = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
-    const thisDate = new Date(today.getFullYear(), today.getMonth(), Math.min(day, maxDayThis));
-    if (thisDate >= today) {
-      nextDate = thisDate;
-    } else {
-      const maxDayNext = new Date(today.getFullYear(), today.getMonth() + 2, 0).getDate();
-      nextDate = new Date(today.getFullYear(), today.getMonth() + 1, Math.min(day, maxDayNext));
-    }
-  }
-  const diff = Math.round((nextDate - today) / 86400000);
-  if (diff < 0) return {status:'overdue', label:'Vencido · día '+day, nextDate, currentDate:nextDate, sortDays:diff, daysOverdue:Math.abs(diff)};
-  if (diff === 0) return {status:'soon', label:'Vence hoy', nextDate, currentDate:nextDate, sortDays:0, daysOverdue:0};
-  if (diff === 1) return {status:'soon', label:'Vence mañana', nextDate, currentDate:nextDate, sortDays:1, daysOverdue:0};
-  if (diff <= 7) return {status:'soon', label:'Vence en '+diff+' días', nextDate, currentDate:nextDate, sortDays:diff, daysOverdue:0};
-  return {status:'active', label:'Próximo '+commitmentsFmtMonthDay(nextDate), nextDate, currentDate:nextDate, sortDays:diff, daysOverdue:0};
+  const status=getCuotaStatus(c);
+  const day=getCuotaAnchor(c).day;
+  const nextDate=status.nextDate;
+  if(!nextDate) return {status:'active', label:'Finalizada', nextDate:null, currentDate:null, sortDays:999, daysOverdue:0};
+  const now=new Date();
+  const today=new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const nextDay=new Date(nextDate.getFullYear(), nextDate.getMonth(), nextDate.getDate());
+  const diff=Math.round((nextDay-today)/86400000);
+  if(diff===0) return {status:'soon', label:'Vence hoy', nextDate, currentDate:nextDate, sortDays:0, daysOverdue:0, day};
+  if(diff===1) return {status:'soon', label:'Vence mañana', nextDate, currentDate:nextDate, sortDays:1, daysOverdue:0, day};
+  if(diff<=7) return {status:'soon', label:'Vence en '+diff+' días', nextDate, currentDate:nextDate, sortDays:diff, daysOverdue:0, day};
+  return {status:'active', label:'Próximo '+commitmentsFmtMonthDay(nextDate), nextDate, currentDate:nextDate, sortDays:diff, daysOverdue:0, day};
 }
 
 function commitmentsDueMeta(day){
@@ -703,9 +647,6 @@ function commitmentsMoneyHtml(amount,currency,suffix=''){
   return '<span class="cp-money '+cls+'">'+prefix+fmtN(Number(amount)||0)+(suffix||'')+'</span>';
 }
 function commitmentsBuildData(){
-  // Run one-shot migration to backfill lastPaidDate for legacy auto-imported cuotas
-  migrateCuotaLastPaidDate();
-  const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
   const fixedItems=(state.fixedExpenses||[]).map(f=>{
     const due=commitmentsDueMeta(parseInt(f.day,10)||null);
     return {
@@ -747,67 +688,31 @@ function commitmentsBuildData(){
       editAction:'editSub'
     };
   });
-  const autoCuotas=autoGroups.map(g=>{
-    const snap=getAutoCuotaSnapshot(g);
-    const dueDay=parseInt(snap.cfg?.day,10)||parseInt(snap.scheduleDay,10)||null;
-    const due=commitmentsDueMeta(dueDay);
-    const start=snap.firstTxn?new Date(snap.firstTxn.date):new Date();
-    const endDate=new Date(start.getFullYear(), start.getMonth()+Math.max((snap.total||1)-1,0), (dueDay||start.getDate()));
-    return {
-      type:'quota',
-      id:g.key,
-      name:g.displayName||g.name,
-      subtitle:(snap.total||0)+' cuotas',
-      category:'Cuotas',
-      amount:Number(snap.amountPerCuota)||0,
-      currency:g.currency||'ARS',
-      amountArs:commitmentsToArs(snap.amountPerCuota,g.currency),
-      due,
-      emoji:snap.cfg?.emoji||'🛒',
-      color:snap.cfg?.color||'#8c5cff',
-      customLogoUrl:snap.cfg?.customLogoUrl||'',
-      paid:Number(snap.paid)||0,
-      total:Number(snap.total)||0,
-      pct:Number(snap.pct)||0,
-      remaining:Number(snap.rem)||0,
-      remainingTotal:Number(snap.remainingTotal)||0,
-      endDate,
-      editAction:'openAutoCuotaModal',
-      source:'auto'
-    };
-  }).filter(item=>item.remaining>0);
-  const manualCuotas=(state.cuotas||[]).map(c=>{
-    // Use smart due calculation: if we know when the last installment was paid,
-    // the next charge is one month after that. Otherwise fall back to day-of-month logic.
-    const due=commitmentsDueMetaForCuota(c);
-    const remaining=Math.max(0,(Number(c.total)||0)-(Number(c.paid)||0));
-    const pct=Math.round(((Number(c.paid)||0)/Math.max(Number(c.total)||1,1))*100);
-    const start=new Date();
-    const endDate=new Date(start.getFullYear(), start.getMonth()+Math.max(remaining-1,0), (parseInt(c.day,10)||start.getDate()));
+  const cuotaItems=(state.cuotas||[]).map(c=>{
+    const status=getCuotaStatus(c);
     return {
       type:'quota',
       id:c.id,
       name:c.name,
-      subtitle:(Number(c.total)||0)+' cuotas',
+      subtitle:status.total+' cuotas',
       category:'Cuotas',
-      amount:Number(c.amount)||0,
+      amount:status.amount,
       currency:c.currency||'ARS',
-      amountArs:commitmentsToArs(c.amount,c.currency||'ARS'),
-      due,
+      amountArs:commitmentsToArs(status.amount,c.currency||'ARS'),
+      due:commitmentsDueMetaForCuota(c),
       emoji:c.emoji||'🛒',
       color:c.color||'#8c5cff',
       customLogoUrl:c.customLogoUrl||c.logoUrl||'',
-      paid:Number(c.paid)||0,
-      total:Number(c.total)||0,
-      pct,
-      remaining,
-      remainingTotal:remaining*(Number(c.amount)||0),
-      endDate,
+      paid:status.paid,
+      total:status.total,
+      pct:status.pct,
+      remaining:status.rem,
+      remainingTotal:status.remainingTotal,
+      endDate:status.endDate,
       editAction:'editCuota',
       source:'manual'
     };
   }).filter(item=>item.remaining>0);
-  const cuotaItems=[...autoCuotas,...manualCuotas];
   const expiredCuotaItems=cuotaItems.filter(item=>item.due?.status==='overdue');
   const activeCuotaItems=cuotaItems.filter(item=>item.due?.status!=='overdue');
   const allActive=[...fixedItems,...subsItems,...activeCuotaItems];
@@ -857,10 +762,6 @@ function commitmentsInvokeEdit(action,id){
 }
 function commitmentsDeleteExpiredCuota(source,id){
   if(!confirm('¿Borrar esta cuota vencida definitivamente? Los movimientos ya registrados no se borran.')) return;
-  if(source==='auto'){
-    dismissAutoCuotaWithHistory(id);
-    return;
-  }
   deleteManualCuotaById(id,{silent:true});
   renderCommitmentsPage();
   showToast('Cuota vencida eliminada','info');
@@ -1404,24 +1305,6 @@ function renderMobileCompromisos() {
 function renderCuotas(){
   renderCommitmentsPage();
 }
-function buildCuotaCard(key,name,emoji,amount,currency,paid,total,rem,pct,daysUntil,day,remainingTotal,isManual,customColor,nextPayDate){
-  const c=customColor||(pct<50?'#ff3b30':pct<80?'#ff9500':'#007aff');
-  // Next payment badge: show formatted date if available, otherwise config button
-  let nextBadge;
-  if(rem<=0){
-    nextBadge='<span style="background:rgba(52,199,89,0.12);color:#34c759;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;">✓ Pagada</span>';
-  } else if(nextPayDate){
-    const _dFmt=fmtCuotaNextDate(nextPayDate);
-    nextBadge='<span style="display:inline-flex;align-items:center;gap:5px;font-size:11px;background:var(--surface3);border-radius:6px;padding:4px 10px;border:1px solid var(--border2);">📅 Próximo pago '+_dFmt+'</span>';
-  } else {
-    nextBadge='<button class="btn btn-ghost btn-sm" onclick="'+(isManual?'editCuota(\''+key+'\')':'openAutoCuotaModal(\''+key+'\')')+'">⚙ Config fecha</button>';
-  }
-  const deleteBtn=isManual
-    ?'<button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="editCuota(\''+key+'\')">✎</button>'
-    :'<button class="btn btn-ghost btn-sm btn-icon" style="margin-left:auto" onclick="openAutoCuotaModal(\''+key+'\')">✎</button>'
-     +'<button class="btn btn-ghost btn-sm btn-icon" style="color:var(--danger);" title="Eliminar cuota" onclick="if(confirm(\'¿Eliminar esta cuota de la lista? Los movimientos existentes no se borran.\')){dismissAutoCuota(\''+key+'\');}">✕</button>';
-  return'<div class="cuota-card"><div class="cuota-card-top"><div class="cuota-icon-wrap" style="background:'+c+'22;">'+emoji+'</div><div class="cuota-info"><div class="cuota-name">'+esc(name)+'</div><div class="cuota-desc">Cuota '+paid+'/'+total+' · resta $'+fmtN(remainingTotal)+'</div></div><div><div class="cuota-amount">$'+fmtN(amount)+'</div><div class="cuota-amount-sub">por cuota</div></div></div><div class="cuota-progress-area"><div class="cuota-prog-labels"><span>Pagado '+pct+'%</span><span>'+rem+' cuota'+(rem!==1?'s':'')+' restante'+(rem!==1?'s':'')+'</span></div><div class="cuota-prog-bar"><div class="cuota-prog-fill" style="width:'+pct+'%;background:'+c+'"></div></div></div><div class="cuota-actions">'+nextBadge+deleteBtn+'</div></div>';
-}
 function openNewCuotaModal(){
   document.getElementById('modal-cuota-title').textContent='Agregar cuota manual';
   document.getElementById('modal-cuota-editing').value='';
@@ -1438,7 +1321,7 @@ function editCuota(id){
   document.getElementById('modal-cuota-title').textContent='Editar cuota';
   document.getElementById('modal-cuota-editing').value=id;
   document.getElementById('cuota-name').value=c.name;document.getElementById('cuota-amount').value=c.amount;
-  document.getElementById('cuota-total').value=c.total;document.getElementById('cuota-paid').value=c.paid;
+  document.getElementById('cuota-total').value=c.total;document.getElementById('cuota-paid').value=getCuotaStatus(c).paid;
   document.getElementById('cuota-day').value=c.day||'';
   initEmojiPicker('cuota',c.emoji||'🛒');
   renderGenericColorPicker('cuota-color-picker',c.color||'');
@@ -1452,8 +1335,21 @@ function saveCuota(){
   if(!name||amount<=0){showToast('⚠️ Completá nombre y monto','error');return;}
   const sw=document.querySelector('#cuota-color-picker .color-swatch.selected');const rawC=sw?sw.style.backgroundColor:'#888888';const cuotaColor=rawC.startsWith('#')?rawC:rgbToHex(rawC);
   const editing=document.getElementById('modal-cuota-editing').value;
-  if(editing){const c=state.cuotas.find(x=>x.id===editing);if(c){c.name=name;c.amount=amount;c.total=total;c.paid=paid;c.day=day;c.emoji=emoji;c.color=cuotaColor;}}
-  else{state.cuotas.push({id:Date.now().toString(36),name,amount,total,paid,day,emoji,color:cuotaColor});}
+  // "Pagadas" se carga a hoy: la cuota N° `paid` es el vencimiento más reciente (o, si
+  // no hay ninguna paga, la primera vence en el próximo `day`). Eso ancla el calendario.
+  const _today=new Date();
+  const _dueDay=day||_today.getDate();
+  let _recent=_cuotaDateInMonth(_today.getFullYear(),_today.getMonth(),_dueDay);
+  if(_recent>_today) _recent=_cuotaDateInMonth(_today.getFullYear(),_today.getMonth()-1,_dueDay);
+  const anchor=paid>0
+    ? {lastPaidDate:dateToYMD(_recent),startDate:null}
+    : {lastPaidDate:null,startDate:dateToYMD(_cuotaDateInMonth(_recent.getFullYear(),_recent.getMonth()+1,_dueDay))};
+  if(editing){const c=state.cuotas.find(x=>x.id===editing);if(c){
+    const scheduleChanged=getCuotaStatus(c).paid!==paid||(parseInt(c.day,10)||null)!==day;
+    c.name=name;c.amount=amount;c.total=total;c.day=day;c.emoji=emoji;c.color=cuotaColor;
+    if(scheduleChanged){c.paid=paid;Object.assign(c,anchor);}
+  }}
+  else{state.cuotas.push({id:Date.now().toString(36),name,amount,total,paid,day:_dueDay,emoji,color:cuotaColor,currency:'ARS',createdAt:new Date().toISOString(),...anchor});}
   saveState();closeModal('modal-cuota');renderCuotas();refreshAll();showToast('✓ Cuota guardada','success');
 }
 function deleteCuota(){
@@ -1462,39 +1358,6 @@ function deleteCuota(){
   closeModal('modal-cuota');
   showToast('Cuota eliminada','info');
 }
-function openAutoCuotaModal(key){
-  const g=detectAutoCuotas().find(g=>g.key===key);if(!g)return;
-  const cfg=getAutoCuotaConfig(g);
-  const snap=getAutoCuotaSnapshot(g);
-  document.getElementById('modal-cuota-auto-desc').textContent=(g.displayName||g.name)+' · $'+fmtN(g.amount)+' por cuota';
-  document.getElementById('autocuota-alias').value=cfg.alias||'';
-  initEmojiPicker('autocuota',cfg.emoji||'🛒');
-  renderGenericColorPicker('autocuota-color-picker',cfg.color||'');
-  document.getElementById('autocuota-total').value=cfg.total||g.transactions[0]?.cuotaTotal||'';
-  document.getElementById('autocuota-paid').value=cfg.paid!==undefined?cfg.paid:snap.paid;
-  document.getElementById('autocuota-day').value=cfg.day||'';
-  document.getElementById('autocuota-key').value=key;
-  openModal('modal-cuota-auto');
-}
-function saveAutoCuota(){
-  const key=document.getElementById('autocuota-key').value;
-  const alias=document.getElementById('autocuota-alias').value.trim();
-  const emoji=document.getElementById('autocuota-emoji').value||'🛒';
-  const sw=document.querySelector('#autocuota-color-picker .color-swatch.selected');
-  const rawC=sw?sw.style.backgroundColor:'#888888';
-  const color=rawC.startsWith('#')?rawC:rgbToHex(rawC);
-  const total=parseInt(document.getElementById('autocuota-total').value)||null;
-  const paid=parseInt(document.getElementById('autocuota-paid').value);
-  const day=parseInt(document.getElementById('autocuota-day').value)||null;
-  const group=detectAutoCuotas().find(g=>g.key===key);
-  const prev=group?getAutoCuotaConfig(group):(state.autoCuotaConfig[key]||{});
-  state.autoCuotaConfig[key]={...prev,total,paid,day,alias,emoji,color};
-  if(group?.legacyKey&&group.legacyKey!==key&&state.autoCuotaConfig[group.legacyKey]){
-    delete state.autoCuotaConfig[group.legacyKey];
-  }
-  saveState();closeModal('modal-cuota-auto');renderCuotas();refreshAll();showToast('✓ Configuración guardada','success');
-}
-
 // ══ GASTOS FIJOS ══
 function renderFixed(){
   renderCommitmentsPage();

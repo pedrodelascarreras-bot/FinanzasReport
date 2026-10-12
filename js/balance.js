@@ -185,16 +185,8 @@
       .filter(s=>s.active!==false)
       .reduce((sum,item)=>sum+balanceConvert(balanceMonthlyAmount(item),item.currency),0);
 
-    const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
     const cuotaActual=(txns.filter(t=>t.cuotaNum||t.cuotaGroupId).reduce((sum,t)=>sum+balanceConvert(_bPersonalAmount(t),t.currency),0));
-    const cuotaProxima=autoGroups.reduce((sum,g)=>{
-      const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(g):null;
-      if(!snap||snap.paid>=snap.total) return sum;
-      return sum+balanceConvert(snap.amountPerCuota,g.currency);
-    },0)+(state.cuotas||[]).reduce((sum,c)=>{
-      if((c.paid||0)>=(c.total||0)) return sum;
-      return sum+balanceConvert(c.amount,c.currency);
-    },0);
+    const cuotaProxima=getActiveCuotas().reduce((sum,c)=>sum+balanceConvert(c.amount,c.currency),0);
 
     const categoryTotals={};
     txns.forEach(t=>{

@@ -430,113 +430,16 @@ function cancelImportReview(){
   closeModal('modal-import-review');
   window._pendingImportTxns=[];
 }
-// ═══════════════════════════════════════════════════════════
-// Auto-create a `state.cuotas` entry (manual cuota record) for any imported
-// cuota transaction. This GUARANTEES the cuota appears in the Compromisos panel,
-// regardless of whether the auto-cuota group detection picks it up.
-//
-// Strategy:
-// - For each new imported txn with cuotaGroupId + cuotaTotal >= 2:
-//   - If a manual cuota with the same cuotaGroupId already exists → UPDATE its `paid`
-//     to the max of current value and the imported cuotaNum (so re-importing the
-//     next installment correctly advances the counter).
-//   - Otherwise → CREATE a new entry with sensible defaults.
-// - To prevent showing the cuota TWICE in the panel (once via state.cuotas and
-//   once via auto-detected groups from state.transactions), the auto-detector
-//   `getAutoCuotaGroups` skips any group whose cuotaGroupId is tracked in
-//   state.cuotas (see expenses.js).
-// ═══════════════════════════════════════════════════════════
-function autoCreateOrUpdateCuotaEntries(txns){
-  if(!Array.isArray(state.cuotas)) state.cuotas=[];
-  const seenGroupIds = new Set();
-  let created = 0, updated = 0;
-  (txns||[]).filter(t => t && t.cuotaGroupId && Number(t.cuotaTotal) >= 2 && !t.isPendingCuota).forEach(t => {
-    if (seenGroupIds.has(t.cuotaGroupId)) return;
-    seenGroupIds.add(t.cuotaGroupId);
-    const cuotaNum = Math.max(1, Number(t.cuotaNum) || 1);
-    const cuotaTotal = Math.max(2, Number(t.cuotaTotal) || 2);
-    const txDate = t.date instanceof Date ? t.date : new Date(t.date);
-    const dueDay = !Number.isNaN(txDate.getTime()) ? txDate.getDate() : new Date().getDate();
-    const cleanName = (t._baseDesc || t.description || 'Cuota')
-      .replace(/\s*\(?Cuota\s+\d+\s*\/\s*\d+\)?\s*$/i, '')
-      .replace(/\s*\(?\d+\/\d+\)?\s*$/, '')
-      .trim() || 'Cuota';
-    const existing = state.cuotas.find(c => c.cuotaGroupId === t.cuotaGroupId);
-    const lastPaidISO = !Number.isNaN(txDate.getTime()) ? txDate.toISOString().slice(0,10) : null;
-    if (existing) {
-      // Sync paid counter with newer installments
-      const newPaid = Math.min(cuotaTotal, Math.max(Number(existing.paid)||0, cuotaNum));
-      if (newPaid !== existing.paid) { existing.paid = newPaid; updated++; }
-      if (!existing.day) existing.day = dueDay;
-      if (!existing.amount) existing.amount = Number(t.amount) || 0;
-      if (!existing.name || existing.name === 'Cuota') existing.name = cleanName;
-      // Track the most recent paid installment date — used by Compromisos to compute
-      // "next charge" correctly (avoids marking as overdue when this month is already paid).
-      if (lastPaidISO && (!existing.lastPaidDate || lastPaidISO > existing.lastPaidDate)) {
-        existing.lastPaidDate = lastPaidISO;
-      }
-    } else {
-      state.cuotas.push({
-        id: 'auto_' + t.cuotaGroupId,
-        cuotaGroupId: t.cuotaGroupId,   // KEY: links to auto-detected group, prevents dup
-        name: cleanName,
-        amount: Number(t.amount) || 0,
-        total: cuotaTotal,
-        paid: cuotaNum,                 // current cuota = already paid
-        day: dueDay,
-        lastPaidDate: lastPaidISO,      // date of the most recent paid installment
-        emoji: '🛒',
-        color: '#8c5cff',
-        currency: t.currency || 'ARS',
-        payMethod: t.payMethod || null,
-        source: 'auto-import',
-        createdAt: new Date().toISOString()
-      });
-      created++;
-    }
+// Movimientos con cuota pero sin cuotaGroupId (p. ej. CSV o pegado): les asigno el mismo
+// id estable que usan los otros parsers (comercio + monto por cuota + total), así todas
+// las cuotas del mismo plan caen en el mismo grupo de state.cuotas.
+function assignCuotaGroupIds(txns){
+  (txns||[]).forEach(t=>{
+    if(t.cuotaGroupId || !(Number(t.cuotaTotal)>=2) || t.isPendingCuota) return;
+    const _base=String(t._baseDesc||t.description||'').replace(/\s*\(?(?:Cuota\s+\d+\s+de\s+\d+|\d+\/\d+)\)?\s*$/i,'').trim();
+    const _slug=_base.toLowerCase().replace(/[^a-z0-9]/g,'').substring(0,15);
+    t.cuotaGroupId='cg_'+_slug+'_'+(Number(t.amount)||0)+'_'+t.cuotaTotal;
   });
-  if(created || updated){
-    console.info('[cuotas] Auto-managed entries — created:', created, 'updated:', updated);
-  }
-  return { created, updated };
-}
-
-function autoCreateGmailCuotas(txns){
-  // After unifying cuota tracking through state.cuotas (single source of truth),
-  // this function only CLEANS UP stale isPendingCuota projections to prevent
-  // double-counting. The actual projection of future cuotas is now handled by
-  // getProjectedCommitmentEntriesForRange iterating over state.cuotas.
-  //
-  // Why clean up here? If a previous import (under the old architecture) created
-  // isPendingCuota transactions, those would double-count against the new
-  // state.cuotas-based projection. We sweep them out.
-  txns.forEach(t=>{
-    if(!t.cuotaGroupId && t.cuotaTotal>=2 && !t.isPendingCuota){
-      const _base=String(t._baseDesc||t.description||'').replace(/\s*\(?(?:Cuota\s+\d+\s+de\s+\d+|\d+\/\d+)\)?\s*$/i,'').trim();
-      const _slug=_base.toLowerCase().replace(/[^a-z0-9]/g,'').substring(0,15);
-      t.cuotaGroupId='cg_'+_slug+'_'+(Number(t.amount)||0)+'_'+t.cuotaTotal;
-    }
-  });
-  window._lastAutoCuotaDebug = {
-    timestamp: new Date().toISOString(),
-    inputCount: txns.length,
-    withCuotaTotal: txns.filter(t=>t.cuotaTotal>=2).length,
-    withCuotaGroupId: txns.filter(t=>t.cuotaGroupId).length,
-    qualified: txns.filter(t=>t.cuotaGroupId&&t.cuotaTotal>=2&&!t.isPendingCuota).length,
-    samples: txns.slice(0,3).map(t=>({
-      desc: t.description, amount: t.amount, cuotaNum: t.cuotaNum,
-      cuotaTotal: t.cuotaTotal, cuotaGroupId: t.cuotaGroupId,
-      isPendingCuota: !!t.isPendingCuota, isAnulacion: !!t.isAnulacion
-    }))
-  };
-  const cuotaTxns=txns.filter(t=>t.cuotaGroupId&&t.cuotaTotal>=2&&!t.isPendingCuota);
-  if(!cuotaTxns.length) return;
-  // Clean stale pending projections for these groups so they don't conflict
-  // with the unified state.cuotas projection path.
-  const groupIds = new Set(cuotaTxns.map(t=>t.cuotaGroupId));
-  state.transactions = state.transactions.filter(x =>
-    !(x.isPendingCuota && groupIds.has(x.cuotaGroupId))
-  );
 }
 
 // ── Comercios que el usuario nunca quiere importar ──
@@ -605,13 +508,9 @@ function finishImport(txns,source,origen){
   const existingIds=new Set(state.transactions.map(t=>t.id));
   state.transactions=[...state.transactions,...txns];
   deduplicateTransactions();
-  // Auto-generate projected installment transactions for ANY import with cuota info
-  // (Gmail, paste, CSV, manual). The function internally filters to txns with
-  // cuotaGroupId && cuotaTotal >= 2, so it's a no-op when there are no qualifying cuotas.
-  autoCreateGmailCuotas(txns);
-  // Auto-create / sync manual cuota entries in state.cuotas so the Compromisos panel
-  // shows the cuota immediately after import — even if the projection path fails.
-  autoCreateOrUpdateCuotaEntries(txns);
+  // Cuotas: alta / actualización del plan en state.cuotas (fuente única)
+  assignCuotaGroupIds(txns);
+  upsertCuotasFromTxns(txns);
   if(importedSubscriptions.length && typeof syncProjectedSubscriptionTransactions === 'function') syncProjectedSubscriptionTransactions();
   const added=state.transactions.length-before;
   const duplicates=txns.length-added;

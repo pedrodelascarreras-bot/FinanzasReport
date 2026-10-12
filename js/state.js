@@ -472,8 +472,8 @@ async function loadFromDrive(){
     if(typeof normalizeTcCyclesForConsistency === 'function'){
       try{ normalizeTcCyclesForConsistency(); }catch(e){ console.warn('tc cycle normalize error', e); }
     }
-    if(typeof reconcileDeletedCommitmentHistory === 'function'){
-      try{ reconcileDeletedCommitmentHistory({ silent:true }); }catch(e){ console.warn('commitment reconcile error', e); }
+    if(typeof migrateCuotasToSingleSource === 'function'){
+      try{ migrateCuotasToSingleSource(); }catch(e){ console.warn('cuotas migration error', e); }
     }
     // Also persist to localStorage
     try{
@@ -575,8 +575,8 @@ function loadState(){
     if(typeof normalizeTcCyclesForConsistency === 'function'){
       try{ normalizeTcCyclesForConsistency(); }catch(e){ console.warn('tc cycle normalize error', e); }
     }
-    if(typeof reconcileDeletedCommitmentHistory === 'function'){
-      try{ reconcileDeletedCommitmentHistory({ silent:true }); }catch(e){ console.warn('commitment reconcile error', e); }
+    if(typeof migrateCuotasToSingleSource === 'function'){
+      try{ migrateCuotasToSingleSource(); }catch(e){ console.warn('cuotas migration error', e); }
     }
     // populate legacy hidden fields for dashboard compat
     const latestInc=getLatestIncomeARS();if(latestInc)state.income.ars=latestInc;

@@ -493,11 +493,11 @@ function buildReportHTML(txns,sections,periodLabel){
   const top5ExpenseShare=arsT>0?Math.round(topExpenses.reduce((s,t)=>s+(typeof getTxnPersonalAmount==='function'?getTxnPersonalAmount(t):t.amount),0)/arsT*100):0;
 
   // Cuotas activas
-  const autoGroups=typeof detectAutoCuotas==='function'?detectAutoCuotas():[];
-  const cuotasActivas=[
-    ...autoGroups.filter(g=>{const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(g):null;return !!snap&&snap.paid<snap.total;}),
-    ...state.cuotas.filter(c=>c.paid<c.total)
-  ];
+  // amount en ARS (las cuotas en USD se convierten) + estado según el calendario de la cuota
+  const cuotasActivas=getActiveCuotas().map(c=>{
+    const st=getCuotaStatus(c);
+    return {...c, ...st, amount:c.currency==='USD'?st.amount*usdRate:st.amount};
+  });
   const toMonthly=s=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
 
   // Proyección (solo si es mes actual)
@@ -966,13 +966,10 @@ function buildReportHTML(txns,sections,periodLabel){
     <table class="rpt-table"><thead><tr><th>Cuota</th><th style="text-align:right">Monto/mes</th><th style="text-align:right">Pagadas</th><th style="text-align:right">Total</th><th style="text-align:right">Fin estimado</th></tr></thead><tbody>`;
     const nowDate=new Date();
     cuotasActivas.slice(0,12).forEach(item=>{
-      const nombre=item.key||item.description||'Cuota';
-      const monto=item.amount||item.monthlyAmount||0;
-      let paid=0,total=0;
-      if(item.key){const snap=typeof getAutoCuotaSnapshot==='function'?getAutoCuotaSnapshot(item):null;paid=snap?snap.paid:0;total=snap?snap.total:1;}
-      else{paid=item.paid||0;total=item.total||1;}
-      const remaining=total-paid;
-      const etaDate=new Date(nowDate.getFullYear(),nowDate.getMonth()+remaining,1);
+      const nombre=item.name||'Cuota';
+      const monto=item.amount||0;
+      const paid=item.paid,total=item.total,remaining=item.rem;
+      const etaDate=item.endDate||nowDate;
       const etaLabel=MNAMES_R[etaDate.getMonth()]+' '+etaDate.getFullYear();
       html+=`<tr><td style="font-weight:600;">${esc(String(nombre).slice(0,30))}</td><td class="td-r">$${fmtN(monto)}</td><td class="td-r">${paid}/${total}</td><td class="td-r" style="color:#888;">${remaining} restantes</td><td class="td-r" style="color:#6366f1;font-weight:700;">${etaLabel}</td></tr>`;
     });
@@ -1062,7 +1059,7 @@ function buildReportHTML(txns,sections,periodLabel){
   // ── CUOTAS ACTIVAS ──
   if(sections.includes('cuotas')&&(cuotasActivas.length||state.subscriptions.length)){
     html+=`<div class="rpt-section"><div class="rpt-section-title">Cuotas y suscripciones activas</div><table class="rpt-table"><thead><tr><th>Descripción</th><th>Tipo</th><th style="text-align:right">Monto mensual</th></tr></thead><tbody>`;
-    cuotasActivas.slice(0,15).forEach(item=>{const nombre=item.key||item.description||'Cuota';const monto=item.monthlyAmount||item.amount||0;html+=`<tr><td>${esc(nombre)}</td><td style="color:#888;">Cuota</td><td class="td-r">$${fmtN(monto)}</td></tr>`;});
+    cuotasActivas.slice(0,15).forEach(item=>{const nombre=item.name||'Cuota';const monto=item.amount||0;html+=`<tr><td>${esc(nombre)}</td><td style="color:#888;">Cuota</td><td class="td-r">$${fmtN(monto)}</td></tr>`;});
     state.subscriptions.forEach(s=>{html+=`<tr><td>${esc(s.name)}</td><td style="color:#888;">Suscripción</td><td class="td-r">${s.currency==='USD'?'U$D ':'$'}${fmtN(toMonthly(s))}</td></tr>`;});
     html+=`</tbody></table></div>`;
   }

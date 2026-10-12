@@ -73,22 +73,14 @@ function getProjectedCommitmentEntriesForRange(opts={}){
     return !Number.isNaN(dt.getTime())&&dt>=start&&dt<=end;
   };
 
-  sourceTxns.filter(t=>(t.isPendingCuota||t.isPendingSubscription)&&inRange(t.date)).forEach(t=>{
-    if(t.isPendingCuota){
-      const monthKey=getMonthKey(t.date);
-      if(
-        hasRealCuotaChargeForInstallment(t.cuotaGroupId, t.cuotaNum, sourceTxns) ||
-        hasRealCuotaChargeInMonth(t.cuotaGroupId, monthKey, sourceTxns)
-      ) return;
-    }
-    if(t.isPendingSubscription && t.sourceSubscriptionId){
+  sourceTxns.filter(t=>t.isPendingSubscription&&inRange(t.date)).forEach(t=>{
+    if(t.sourceSubscriptionId){
       const sub=(state.subscriptions||[]).find(s=>s.id===t.sourceSubscriptionId);
       const monthKey=getMonthKey(t.date);
       if(sub && typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(sub, monthKey, state.transactions||[])) return;
     }
     const matured=hasReachedEffectiveChargeDate(t.date,todayRef);
-    const key=t.isPendingCuota?`cuota-${t.cuotaGroupId}-${t.cuotaNum}`:`sub-${t.sourceSubscriptionId||t.id}`;
-    addEntry(key,{
+    addEntry(`sub-${t.sourceSubscriptionId||t.id}`,{
       date:t.date,
       title:t._baseDesc||t.description,
       amount:Number(t.amount)||0,
@@ -97,11 +89,9 @@ function getProjectedCommitmentEntriesForRange(opts={}){
       payMethod:t.payMethod||'',
       sourceTxnId:t.id||null,
       sourceSubscriptionId:t.sourceSubscriptionId||null,
-      cuotaGroupId:t.cuotaGroupId||null,
-      cuotaNum:t.cuotaNum||null,
-      group:t.isPendingCuota?'cuotas':'suscripciones',
-      kind:t.isPendingCuota?'Cuota proyectada':'Suscripción proyectada',
-      meta:t.isPendingCuota?`Cuota ${t.cuotaNum}/${t.cuotaTotal}`:'Próximo cobro',
+      group:'suscripciones',
+      kind:'Suscripción proyectada',
+      meta:'Próximo cobro',
       includeInTotal:matured,
       synthetic:false,
       isSettled:matured,
@@ -109,100 +99,40 @@ function getProjectedCommitmentEntriesForRange(opts={}){
     });
   });
 
-  if(typeof detectAutoCuotas==='function' && typeof getAutoCuotaSnapshot==='function'){
-    detectAutoCuotas().forEach(group=>{
-      const snap=getAutoCuotaSnapshot(group, new Date(Math.min(todayRef.getTime(), end.getTime())));
-      if(!snap || snap.rem<=0) return;
-      const dueDay=snap.cfg?.day||snap.scheduleDay||null;
-      if(!dueDay) return;
-      getRecurringDatesInRange(dueDay,start,end).forEach(dueDate=>{
-        const monthKey=getMonthKey(dueDate);
-        const groupId=group.transactions[0]?.cuotaGroupId||null;
-        if(groupId && hasRealCuotaChargeInMonth(groupId, monthKey, sourceTxns)) return;
-        const matured=hasReachedEffectiveChargeDate(dueDate,todayRef);
-        const cuotaIndex=Math.min(snap.total, Math.max(1, matured ? snap.paid : snap.paid+1));
-        addEntry(`auto-${group.key}-${dateToYMD(dueDate)}`,{
-          date:dueDate,
-          title:group.displayName||group.name,
-          amount:Number(snap.amountPerCuota)||0,
-          currency:group.currency||'ARS',
-          payMethod:group.payMethod||'',
-          sourceAutoCuotaKey:group.key,
-          cuotaGroupId:group.transactions[0]?.cuotaGroupId||null,
-          group:'cuotas',
-          kind:'Cuota del ciclo',
-          meta:`Cuota ${cuotaIndex}/${snap.total}`,
-          includeInTotal:matured,
-          synthetic:true,
-          isSettled:matured,
-          tone:addAmountTone(matured)
-        });
-      });
-    });
-  }
-
+  // Cuotas: fuente única state.cuotas, con su calendario (ver getCuotaInstallmentsInRange).
+  // Una cuota no se proyecta si ya hay un cargo real de ese plan para ese número o ese mes.
   (state.cuotas||[]).forEach(c=>{
-    const remaining = Math.max(0, (Number(c.total)||0) - (Number(c.paid)||0));
-    if(remaining <= 0 || !c.day) return;
-    // CAP: never emit more dates than there are unpaid cuotas left.
-    const allDates = getRecurringDatesInRange(c.day, start, end);
-    const cappedDates = allDates.slice(0, remaining);
-    // Helper: skip if a real (non-pending) txn already covers this cuota for the month.
-    // 3 strategies tried in order — first to match wins:
-    //   1) cuotaGroupId (most reliable — auto-import linked the manual cuota to the txn)
-    //   2) sourceTxnId (explicit link in the manual cuota record)
-    //   3) name + amount (fuzzy fallback for legacy cases)
-    const cuotaNameNorm = String(c.name||'').toLowerCase().trim();
-    const cuotaAmt = Number(c.amount)||0;
-    const matchingRealInMonth = (monthKey)=>{
-      // Strategy 1: cuotaGroupId match
-      if (c.cuotaGroupId) {
-        const groupMatch = sourceTxns.some(t=>{
-          if(t.isPendingCuota || t.isPendingSubscription) return false;
-          const tMonth = t.month || getMonthKey(t.date);
-          if(tMonth !== monthKey) return false;
-          return t.cuotaGroupId === c.cuotaGroupId;
-        });
-        if (groupMatch) return true;
-      }
-      // Strategy 2: explicit sourceTxnId on manual cuota
-      if (c.sourceTxnId) {
-        const idMatch = sourceTxns.some(t=>{
-          if(t.isPendingCuota || t.isPendingSubscription) return false;
-          if (t.id !== c.sourceTxnId) return false;
-          const tMonth = t.month || getMonthKey(t.date);
-          return tMonth === monthKey;
-        });
-        if (idMatch) return true;
-      }
-      // Strategy 3: name + amount fuzzy match (fallback)
-      if(!cuotaNameNorm) return false;
-      return sourceTxns.some(t=>{
-        if(t.isPendingCuota || t.isPendingSubscription) return false;
-        const tMonth = t.month || getMonthKey(t.date);
-        if(tMonth !== monthKey) return false;
-        const desc = String(t.description||t._baseDesc||t.comercio_detectado||'').toLowerCase();
-        if(!desc.includes(cuotaNameNorm) && !cuotaNameNorm.includes(desc.split(' ')[0]||'__')) return false;
-        const amt = Math.abs(Number(t.amount)||0);
-        return cuotaAmt>0 && Math.abs(amt - cuotaAmt) / cuotaAmt < 0.05;
-      });
-    };
-    cappedDates.forEach((dueDate, dateIdx)=>{
-      const monthKey = getMonthKey(dueDate);
-      if(matchingRealInMonth(monthKey)) return;
-      const matured=hasReachedEffectiveChargeDate(dueDate,todayRef);
-      const cuotaIndex = Math.min(c.total, (Number(c.paid)||0) + dateIdx + 1);
-      addEntry(`manual-${c.id}-${dateToYMD(dueDate)}`,{
-        date:dueDate,
+    const groupId=getCuotaGroupId(c);
+    const cuotaNameNorm=String(c.name||'').toLowerCase().trim();
+    const cuotaAmt=Number(c.amount)||0;
+    const hasRealInMonth=monthKey=>sourceTxns.some(t=>{
+      if(t.isPendingCuota || t.isPendingSubscription) return false;
+      if((t.month||getMonthKey(t.date))!==monthKey) return false;
+      if(t.cuotaGroupId) return t.cuotaGroupId===groupId;
+      if(c.sourceTxnId && t.id===c.sourceTxnId) return true;
+      // Respaldo para movimientos viejos sin cuotaGroupId: nombre + monto (±5%)
+      if(!cuotaNameNorm || !(cuotaAmt>0)) return false;
+      const desc=String(t.description||t._baseDesc||t.comercio_detectado||'').toLowerCase();
+      if(!desc.includes(cuotaNameNorm) && !cuotaNameNorm.includes(desc.split(' ')[0]||'__')) return false;
+      return Math.abs(Math.abs(Number(t.amount)||0)-cuotaAmt)/cuotaAmt<0.05;
+    });
+    const total=getCuotaTotal(c);
+    getCuotaInstallmentsInRange(c,start,end).forEach(({num,date})=>{
+      if(hasRealCuotaChargeForInstallment(groupId, num, sourceTxns)) return;
+      if(hasRealInMonth(getMonthKey(date))) return;
+      const matured=hasReachedEffectiveChargeDate(date,todayRef);
+      addEntry(`manual-${c.id}-${dateToYMD(date)}`,{
+        date,
         title:c.name,
         amount:cuotaAmt,
         currency:c.currency||'ARS',
         payMethod:c.payMethod||'',
         sourceManualCuotaId:c.id,
-        cuotaGroupId:c.cuotaGroupId||null,   // expose for downstream dedup
+        cuotaGroupId:groupId,
+        cuotaNum:num,
         group:'cuotas',
-        kind:'Cuota manual',
-        meta:`Cuota ${cuotaIndex}/${c.total}`,
+        kind:'Cuota',
+        meta:`Cuota ${num}/${total}`,
         includeInTotal:matured,
         synthetic:true,
         isSettled:matured,
