@@ -324,7 +324,7 @@
           ` : `<div class="settings-empty-block">Sin ciclos cargados para esta tarjeta.</div>`}
           <div class="settings-card-redesign-actions">
             <button class="dashboard-widget-mini primary" type="button" onclick="nav('credit-cards');if(typeof ccSelectPageTab==='function')ccSelectPageTab('config')">Gestionar ciclos</button>
-            <button class="dashboard-widget-mini" type="button" onclick="nav('credit-cards');if(typeof state!=='undefined' && ${card.legacy ? 'false' : 'true'}){state.ccActiveCard='${esc(card.id)}';}if(typeof renderCcPage==='function')renderCcPage()">Ver tarjeta</button>
+            <button class="dashboard-widget-mini" type="button" onclick="${card.legacy ? '' : `state.ccActiveCard='${esc(card.id)}';`}nav('credit-cards')">Ver tarjeta</button>
           </div>
         </div>
       `;

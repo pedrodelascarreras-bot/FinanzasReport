@@ -145,7 +145,7 @@ function getDashboardTimelineData(baseDate=new Date()){
     if(s.active===false||!s.day||typeof getNextCuotaDate!=='function') return;
     const nextDate=getNextCuotaDate(s.day);
     if(nextDate&&nextDate>=today){
-      events.push({type:'subscription', title:s.name, shortLabel:s.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:s.currency==='USD'?toMonthly(s)*(USD_TO_ARS||1420):toMonthly(s), page:'subs', subscriptionId:s.id});
+      events.push({type:'subscription', title:s.name, shortLabel:s.name, date:normalizeDate(nextDate), days:daysAway(nextDate), amount:s.currency==='USD'?toMonthly(s)*(USD_TO_ARS||1420):toMonthly(s), page:'cuotas', subscriptionId:s.id});
     }
   });
   (state.fixedExpenses||[]).forEach(f=>{
@@ -772,10 +772,13 @@ function _dashBuildContext(){
   const cuotasAmt=activeCuotas.filter(c=>(c.currency||'ARS')!=='USD').reduce((s,c)=>s+(Number(c.amount)||0),0);
   const cuotasUSD=activeCuotas.filter(c=>c.currency==='USD').reduce((s,c)=>s+(Number(c.amount)||0),0);
   const toMonthly=s=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
-  const subsARS=state.subscriptions.filter(s=>s.currency==='ARS').reduce((acc,s)=>acc+toMonthly(s),0);
-  const subsUSD=state.subscriptions.filter(s=>s.currency==='USD').reduce((acc,s)=>acc+toMonthly(s),0);
-  const fixedARS=(state.fixedExpenses||[]).filter(f=>f.currency==='ARS').reduce((a,f)=>a+f.amount,0);
-  const fixedUSD=(state.fixedExpenses||[]).filter(f=>f.currency==='USD').reduce((a,f)=>a+f.amount,0);
+  // Solo suscripciones activas (igual que la página Compromisos): una pausada no compromete gasto
+  const _activeSubs=(state.subscriptions||[]).filter(s=>s.active!==false);
+  // Sin moneda cargada = pesos (igual que la página Compromisos)
+  const subsARS=_activeSubs.filter(s=>s.currency!=='USD').reduce((acc,s)=>acc+(Number(toMonthly(s))||0),0);
+  const subsUSD=_activeSubs.filter(s=>s.currency==='USD').reduce((acc,s)=>acc+(Number(toMonthly(s))||0),0);
+  const fixedARS=(state.fixedExpenses||[]).filter(f=>f.currency!=='USD').reduce((a,f)=>a+(Number(f.amount)||0),0);
+  const fixedUSD=(state.fixedExpenses||[]).filter(f=>f.currency==='USD').reduce((a,f)=>a+(Number(f.amount)||0),0);
   const compromisoARS=cuotasAmt+subsARS+fixedARS;
   const compromisoUSD=subsUSD+fixedUSD+cuotasUSD;
   const compromisoTotal=compromisoARS+(compromisoUSD*USD_TO_ARS);
@@ -1200,7 +1203,7 @@ function _dashRenderKpis(ctx){
   if(compEl){
     animateNumberText(compEl,Math.round(compromisoTotal),{prefix:'$',decimals:2,duration:820});
     const nC=activeCuotas.length;
-    const nS=state.subscriptions.length;
+    const nS=(state.subscriptions||[]).filter(s=>s.active!==false).length;
     const nF=(state.fixedExpenses||[]).length;
     
     // Detailed visibility for counts

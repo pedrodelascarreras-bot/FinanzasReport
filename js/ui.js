@@ -253,7 +253,9 @@ function nav(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-item,.mob-nav-btn').forEach(n=>n.classList.remove('active'));
   document.querySelectorAll('.nav-section').forEach(s=>s.classList.remove('has-active'));
-  document.getElementById('page-'+page).classList.add('active');
+  const _pageEl=document.getElementById('page-'+page);
+  if(!_pageEl){ console.warn('[nav] pantalla inexistente:', page); return nav('dashboard'); }
+  _pageEl.classList.add('active');
   syncActivePageState(page);
   // Activate nav item by id
   const navTarget = page==='cc-compare' ? 'credit-cards' : page;

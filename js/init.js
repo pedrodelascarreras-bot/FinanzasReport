@@ -1515,7 +1515,8 @@ function findPossibleDuplicates(newTxns) {
       const eDate = dateToYMD(e.date);
       const sameDay = eDate === tDate;
       const samePeriod = Math.abs(new Date(eDate) - new Date(tDate)) <= 86400000 * 2; // 2-day window
-      const sameAmt = e.amount === t.amount && e.currency === t.currency;
+      // ±1%: el mail de una compra en cuotas redondea (total/cuotas) y el resumen trae el monto exacto
+      const sameAmt = e.currency === t.currency && importAmountsClose(e.amount, t.amount);
       const eBase = (e._baseDesc||e.description||'').toLowerCase().split(' ')[0];
       // Case 1: same day + same amount (exact duplicate check)
       if (sameDay && sameAmt) return true;

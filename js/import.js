@@ -468,6 +468,94 @@ function purgeExcludedMerchants(){
   return removed;
 }
 
+// ══ CUOTAS EN IMPORTS DE RESUMEN (CSV, texto genérico, Santander) ══
+// Detecta "CUOTA 3 DE 12", "CTA 3/12", "C.03/12" o "3/12" al final de la descripción, con
+// validación (cuota ≤ total, total entre 2 y 60: "PAGO 15/10" no es una cuota).
+function detectCuotaInfo(desc){
+  const d=String(desc||'');
+  const m=d.match(/\b(?:cuota|cta|c\.)\s*0?(\d{1,2})\s*(?:\/|de)\s*0?(\d{1,2})\b/i) || d.match(/(?:^|\s)0?(\d{1,2})\/0?(\d{1,2})\s*$/);
+  if(!m) return null;
+  const num=parseInt(m[1],10), total=parseInt(m[2],10);
+  if(!(num>=1 && total>=2 && total<=60 && num<=total)) return null;
+  return {num,total};
+}
+// En los resúmenes las cuotas 2+ suelen venir con la fecha ORIGINAL de compra: se llevan al
+// período del resumen (mes de la fecha más reciente del lote), conservando el día, como ya
+// hacía el parser de texto de Santander. La fecha original queda en _originalDate.
+function normalizeImportedCuotas(txns){
+  const list=(txns||[]).filter(Boolean);
+  list.forEach(t=>{
+    const info=detectCuotaInfo(t.description);
+    if(t.cuotaNum && t.cuotaTotal){
+      const n=Number(t.cuotaNum), tot=Number(t.cuotaTotal);
+      if(!(n>=1 && tot>=2 && tot<=60 && n<=tot)){ delete t.cuotaNum; delete t.cuotaTotal; delete t.cuotaGroupId; }
+      return;
+    }
+    if(info){ t.cuotaNum=info.num; t.cuotaTotal=info.total; }
+  });
+  const dates=list.map(t=>new Date(t.date)).filter(d=>!Number.isNaN(d.getTime()));
+  if(!dates.length) return;
+  const latest=new Date(Math.max(...dates));
+  list.forEach(t=>{
+    if(!(Number(t.cuotaNum)>=2) || t._dateCorrected) return;
+    const d=new Date(t.date);
+    const monthsDiff=(latest.getFullYear()-d.getFullYear())*12+(latest.getMonth()-d.getMonth());
+    if(monthsDiff<1) return;
+    const maxDay=new Date(latest.getFullYear(), latest.getMonth()+1, 0).getDate();
+    const moved=new Date(latest.getFullYear(), latest.getMonth(), Math.min(d.getDate(), maxDay), 12, 0, 0, 0);
+    t._originalDate=new Date(d); t.date=moved; t.week=getWeekKey(moved); t.month=getMonthKey(moved); t._dateCorrected=true;
+  });
+}
+
+// ══ MISMA COMPRA POR GMAIL Y POR RESUMEN ══
+// Una compra puede entrar dos veces: el mail del banco al momento de comprar y la línea del
+// resumen después. Se emparejan uno a uno y queda un solo movimiento.
+function importIsFromGmail(t){
+  return !!(t && (t.gmailId || t.source==='gmail' || t.origen_del_movimiento==='importado_desde_gmail'));
+}
+function importAmountsClose(a,b){
+  a=Math.abs(Number(a)||0); b=Math.abs(Number(b)||0);
+  return a>0 && b>0 && Math.abs(a-b)<=Math.max(1, 0.01*Math.max(a,b));   // redondeo del mail (total/cuotas)
+}
+function importMerchantsClose(a,b){
+  const na=getCuotaTxnBaseName(a), nb=getCuotaTxnBaseName(b);
+  if(cuotaMerchantsMatch(na,nb)) return true;
+  const w=x=>String(x||'').toLowerCase().split(/[\s*]+/)[0]||'';
+  return w(na).length>3 && w(na)===w(nb);
+}
+function importIsSamePurchase(a,b){
+  if((a.currency||'ARS')!==(b.currency||'ARS')) return false;
+  if(!importAmountsClose(a.amount,b.amount)) return false;
+  if((a.cuotaNum||b.cuotaNum) && (Number(a.cuotaNum)||1)!==(Number(b.cuotaNum)||1)) return false;
+  // el resumen mueve la fecha de las cuotas al período; comparamos con la fecha original de compra
+  const da=new Date(a._originalDate||a.date), db=new Date(b._originalDate||b.date);
+  if(!(Math.abs(da-db)<=3*86400000)) return false;
+  return importMerchantsClose(a,b);
+}
+// Resumen nuevo vs. movimientos que ya entraron por Gmail. Devuelve los que hay que agregar
+// y actualiza los de Gmail emparejados (el resumen manda en monto/fecha/cuota; la categoría y
+// el reparto de gastos compartidos que cargaste se conservan).
+function mergeStatementWithGmail(newTxns){
+  const pool=(state.transactions||[]).filter(t=>importIsFromGmail(t) && !t.isPendingCuota && !t.isPendingSubscription);
+  const used=new Set(), kept=[], merged=[];
+  (newTxns||[]).forEach(n=>{
+    if(importIsFromGmail(n)){ kept.push(n); return; }
+    const g=pool.find(p=>!used.has(p.id) && importIsSamePurchase(n,p));
+    if(!g){ kept.push(n); return; }
+    used.add(g.id);
+    const d=n.date instanceof Date?n.date:new Date(n.date);
+    g.amount=Number(n.amount)||g.amount;
+    g.date=d; g.week=getWeekKey(d); g.month=getMonthKey(d);
+    if(n.cuotaNum){ g.cuotaNum=n.cuotaNum; g.cuotaTotal=n.cuotaTotal; }
+    if(!g.cuotaGroupId && n.cuotaGroupId) g.cuotaGroupId=n.cuotaGroupId;
+    if(!g.payMethod && n.payMethod) g.payMethod=n.payMethod;
+    g.statementConfirmed=true;
+    g.statementDescription=n.description||'';
+    merged.push(g);
+  });
+  return {kept, merged};
+}
+
 function finishImport(txns,source,origen){
   // Excluir comercios bloqueados (Mercado Libre) ANTES de crear nada, para que no
   // aparezcan en Movimientos ni en Cuotas. Ver isExcludedImportMerchant.
@@ -476,6 +564,7 @@ function finishImport(txns,source,origen){
   const sourceIsGmail = source==='gmail' || /^gmail\b/i.test(String(source||'')) || txns.some(t=>isGmailSourceTransaction(t));
   const origenVal = origen || (sourceIsGmail?'importado_desde_gmail': source==='paste'?'pegado_manualmente':'importado_desde_resumen');
   const isGmail = origenVal === 'importado_desde_gmail';
+  if(!isGmail) normalizeImportedCuotas(txns);
   const config = ensureImportConfig();
   const bankProfile = (state.bankProfiles || []).find(profile => profile.id === config.bankProfileId) || null;
   txns.forEach(t=>{
@@ -501,13 +590,19 @@ function finishImport(txns,source,origen){
       }
     }
   });
+  // Compras que ya habían entrado por Gmail: no se duplican
+  let mergedFromGmail=[];
+  if(!isGmail){
+    const r=mergeStatementWithGmail(txns);
+    txns=r.kept; mergedFromGmail=r.merged;
+  }
   const before=state.transactions.length;
   const existingIds=new Set(state.transactions.map(t=>t.id));
   state.transactions=[...state.transactions,...txns];
   deduplicateTransactions();
   // Cuotas: alta / actualización del plan en state.cuotas (fuente única)
   assignCuotaGroupIds(txns);
-  upsertCuotasFromTxns(txns);
+  upsertCuotasFromTxns([...txns, ...mergedFromGmail]);
   if(importedSubscriptions.length && typeof syncProjectedSubscriptionTransactions === 'function') syncProjectedSubscriptionTransactions();
   const added=state.transactions.length-before;
   const duplicates=txns.length-added;
@@ -517,7 +612,8 @@ function finishImport(txns,source,origen){
   if(pi.monthKey) state.dashMonth=pi.monthKey;
   saveState();
   const dupMsg=duplicates>0?' · '+duplicates+' duplicadas':'' ;
-  showToast('Importación completada · '+added+' movimiento'+(added===1?'':'s')+dupMsg+' — '+pi.label,'success');
+  const gmailMsg=mergedFromGmail.length?' · '+mergedFromGmail.length+' ya estaban (entraron por Gmail, se confirmaron con el resumen)':'';
+  showToast('Importación completada · '+added+' movimiento'+(added===1?'':'s')+dupMsg+gmailMsg+' — '+pi.label,'success');
   afterDataLoad();
   // Gmail imports: don't auto-categorize, just render
   if(isGmail){
@@ -956,29 +1052,24 @@ function deduplicateTransactions(){
     const desc=String(t.description||'').trim();
     return !/^[Cc]uota\s+\d+\s+de\s+\d+$/.test(desc);
   });
-  // Step 2: Standard dedup — same date + same normalized description + same amount + same currency
-  const seen=new Set();
+  // Step 2: mismo día + misma descripción + mismo monto + misma moneda = el mismo movimiento
+  // importado dos veces. Solo se descarta si viene de OTRA importación: dos compras idénticas
+  // en el mismo resumen (dos cafés iguales el mismo día) son reales y se conservan.
+  const importOf=new Map();
+  (state.imports||[]).forEach(imp=>(imp.txnIds||[]).forEach(id=>{ if(!importOf.has(id)) importOf.set(id, imp.id); }));
+  const firstImportByKey=new Map();
   state.transactions=state.transactions.filter(t=>{
-    const d=t.date instanceof Date?t.date.toISOString().split('T')[0]:String(t.date).split('T')[0];
-    const rawDesc=String(t.description||'').toLowerCase().trim().replace(/\s+/g,' ');
-    const descNorm=rawDesc
+    const d=dateToYMD(t.date);
+    const descNorm=String(t.description||'').toLowerCase().trim().replace(/\s+/g,' ')
       .replace(/\s*\d{2}:\d{2}\s*/g,'')            // strip HH:MM timestamps
       .replace(/\s*\(cuota\s*\d+\/\d+\)\s*$/i,'')  // strip (Cuota X/Y) suffix
       .trim();
-    
-    // Si la transacción proviene de Gmail, usamos su ID único provisto por Google
-    // para garantizar que correos distintos no se fusionen, incluso si son del mismo monto, fecha y comercio.
+    // Los movimientos de Gmail tienen ID propio: mails distintos nunca se fusionan acá
     const suffix = t.gmailId ? '-gmail-'+t.gmailId : '';
-    
-    // Si es un gasto exportado del PDF de la TC, también tiene un identificador de origen que podríamos aislar, 
-    // pero por ahora el ID seguro que se pierde en la deduplicación es el de Gmail.
-    // También conservamos transacciones manuales creadas desde "cc-compare" si tuvieran un marker,
-    // pero gmailId cubre el problema reportado.
-    
     const k=d+'-'+descNorm+'-'+t.amount+'-'+t.currency+suffix;
-    if(seen.has(k))return false;
-    seen.add(k);
-    return true;
+    const imp=importOf.get(t.id)||'__nuevo__';
+    if(!firstImportByKey.has(k)){ firstImportByKey.set(k, imp); return true; }
+    return firstImportByKey.get(k)===imp;   // misma importación → compra real repetida
   });
 }
 

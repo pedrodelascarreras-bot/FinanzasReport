@@ -477,7 +477,12 @@ function getTxnSubscriptionMatchKeys(txn){
   ].map(getSubscriptionMerchantKey).filter(Boolean);
   return [...new Set(keys)];
 }
+// Prefijos de procesadores de pago: "merpagospotify" y "merpagosube" no son el mismo comercio
+const SUB_PROCESSOR_PREFIX=/^(?:mercadopago|merpago|payuar|payu|dlocal|dlo|paypal|ebanx)/;
 function subscriptionKeysMatch(a='', b=''){
+  if(!a || !b) return false;
+  if(a===b) return true;
+  a=a.replace(SUB_PROCESSOR_PREFIX,''); b=b.replace(SUB_PROCESSOR_PREFIX,'');
   if(!a || !b) return false;
   if(a===b) return true;
   if(a.length>=6 && b.length>=6){

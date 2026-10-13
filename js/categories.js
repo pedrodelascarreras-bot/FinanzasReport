@@ -710,6 +710,11 @@ function openInlineCatForm(){
   clearInlineCatForm();
   document.getElementById('cat-inline-name').focus();
 }
+// "Crear nueva" categoría (Configuración y creación rápida): abre el formulario en Categorías
+function openCat(){
+  openInlineCatForm();
+  document.getElementById('cat-inline-name')?.scrollIntoView({block:'center',behavior:'smooth'});
+}
 function clearInlineCatForm(){
   document.getElementById('cat-form-title').textContent='Nueva subcategoría';
   const fallback=typeof getCategoryGroupByName==='function' ? (getCategoryGroupByName('Sin clasificar')||getCategoryGroups?.()[0]) : null;

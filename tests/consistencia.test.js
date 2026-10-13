@@ -139,6 +139,21 @@ if (aIdx >= 0) {
   }
 }
 
+// Compromisos: la página y el KPI del dashboard suman lo mismo (suscripción pausada, fijo sin moneda, USD)
+{
+  const saved = { subs: state.subscriptions, fixed: state.fixedExpenses };
+  state.subscriptions = saved.subs.concat([
+    { id: 'pausada', name: 'Disney', price: 7000, currency: 'ARS', freq: 'monthly', day: 3, active: false },
+    { id: 'usd', name: 'ChatGPT', price: 20, currency: 'USD', freq: 'monthly', day: 9, active: true }
+  ]);
+  state.fixedExpenses = saved.fixed.concat([{ id: 'sinmoneda', name: 'Expensas', amount: 90000, day: 10 }]);
+  const page = Math.round(commitmentsBuildData().allActive.reduce((s, i) => s + i.amountArs, 0));
+  state.dashView = 'mes';
+  const kpi = Math.round(_dashBuildContext().compromisoTotal);
+  eq(kpi, page, 'Compromisos: página = KPI del dashboard');
+  state.subscriptions = saved.subs; state.fixedExpenses = saved.fixed;
+}
+
 // La vista AMEX sobrevive a guardar y recargar
 eq(_normalizeViewMode('amex'), 'amex', 'la vista AMEX no se convierte en VISA al recargar');
 
