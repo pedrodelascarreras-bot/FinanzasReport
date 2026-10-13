@@ -1691,11 +1691,13 @@ function renderTransactions(){
               : getMonthRange(mf?.value||activeMesKey);
             const _periodCard = cardFv || (mode!=='mes' ? mode : null);
             let projected = avgDaily * 30;
+            let projEarly = false;
             let deltaPct = 0;
             if(_periodRange && !searchVal){
               const _proj = getPeriodProjection({..._periodRange, card:_periodCard});
               avgDaily = _proj.spent / _proj.daysElapsed;
               projected = _proj.projected;
+              projEarly = _proj.tooEarly;
               let _prevRange = null;
               if(mode!=='mes' && activeCycleMeta){
                 const _cyc = getTcCycles(mode);
@@ -1713,7 +1715,7 @@ function renderTransactions(){
             const deltaHtml = deltaPct !== 0 ? '<span style="color:'+(deltaUp?'#ef4444':'#10b981')+';font-weight:800;">'+(deltaUp?'↑':'↓')+' '+Math.abs(deltaPct)+'%</span>' : '—';
             return '<div class="mv-metrics">'
               +'<div class="mv-card mv-metric"><div class="mv-metric-icon" style="background:rgba(91,59,255,.08);color:#5B3BFF;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="mv-metric-copy"><div class="mv-metric-label">PROM. DIARIO</div><div class="mv-metric-val">$'+fmtN(Math.round(avgDaily),0)+'</div></div></div>'
-              +'<div class="mv-card mv-metric"><div class="mv-metric-icon" style="background:rgba(59,130,246,.08);color:#3B82F6;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg></div><div class="mv-metric-copy"><div class="mv-metric-label">PROYECCIÓN</div><div class="mv-metric-val">$'+fmtN(Math.round(projected),0)+'</div></div></div>'
+              +'<div class="mv-card mv-metric"><div class="mv-metric-icon" style="background:rgba(59,130,246,.08);color:#3B82F6;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg></div><div class="mv-metric-copy"><div class="mv-metric-label">PROYECCIÓN</div><div class="mv-metric-val">'+(projEarly?'<span style="font-size:13px;opacity:.7;" title="Se calcula a partir del día '+PROJECTION_MIN_DAYS+' del período">Muy temprano</span>':'$'+fmtN(Math.round(projected),0))+'</div></div></div>'
               +'<div class="mv-card mv-metric"><div class="mv-metric-icon" style="background:rgba(107,114,128,.06);color:#6B7280;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg></div><div class="mv-metric-copy"><div class="mv-metric-label">MOVIMIENTOS</div><div class="mv-metric-val">'+focusTxns.length+'</div></div></div>'
               +'<div class="mv-card mv-metric"><div class="mv-metric-icon" style="background:rgba(16,185,129,.08);color:#10b981;"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 6l-9.5 9.5-5-5L1 18"/></svg></div><div class="mv-metric-copy"><div class="mv-metric-label">VS. ANTERIOR</div><div class="mv-metric-val">'+deltaHtml+'</div></div></div>'
             +'</div>';

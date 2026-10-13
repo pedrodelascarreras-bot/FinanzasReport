@@ -124,6 +124,25 @@ function getRepTxns(){
   }
   return (state.transactions||[]).filter(t=>!t.isPendingCuota&&!t.isPendingSubscription);
 }
+// Rango del período elegido en Reportes (para la proyección). null en "Histórico".
+function getRepPeriodRange(){
+  const mode=normalizeRepMode(state.repMode||'visa');
+  const sel=document.getElementById('rep-period-select')?.value||'';
+  if(mode==='mes') return getMonthRange(sel);
+  if(isRepCardMode(mode)){
+    const cycles=getTcCycles(mode);
+    const idx=cycles.findIndex(c=>c.id===sel.replace('cycle:',''));
+    if(idx<0) return null;
+    return {startStr:getTcCycleOpen(cycles, idx)||cycles[idx].closeDate, endStr:cycles[idx].closeDate, card:mode};
+  }
+  if(mode==='rango'){
+    const from=document.getElementById('rep-range-from')?.value||'';
+    const to=document.getElementById('rep-range-to')?.value||'';
+    return from&&to&&from<=to?{startStr:from,endStr:to}:null;
+  }
+  return null;
+}
+
 function getRepSections(){
   ensureRepReportState();
   const presets={
@@ -285,15 +304,19 @@ function buildReportHTML(txns,sections,periodLabel){
   });
   const toMonthly=s=>{if(s.freq==='monthly')return s.price;if(s.freq==='annual')return s.price/12;if(s.freq==='weekly')return s.price*4.3;return s.price;};
 
-  // Proyección (solo si es mes actual)
-  const activeMk=getActiveDashMonth();
+  // Proyección del período del reporte: receta común (getPeriodProjection). Antes usaba el día
+  // de hoy del mes calendario aunque el reporte fuera de otro mes o de un ciclo de tarjeta.
   const txnMk=txns.length?txns[0].month||getMonthKey(txns[0].date):'';
-  const isCurrentMonth=txnMk===getMonthKey(today);
-  const dayOfMonth=today.getDate();
-  const daysInMonth=new Date(today.getFullYear(),today.getMonth()+1,0).getDate();
-  const dailyRate=dayOfMonth>0?totalArs/dayOfMonth:0;
-  const projected=Math.round(dailyRate*daysInMonth);
-  const daysLeft=daysInMonth-dayOfMonth;
+  const _repRange=getRepPeriodRange();
+  const _repProj=_repRange?getPeriodProjection(_repRange):null;
+  const projEarly=!!_repProj?.tooEarly;
+  const isCurrentMonth=!!_repProj && _repProj.daysLeft>0;   // período en curso
+  const dayOfMonth=_repProj?_repProj.daysElapsed:0;
+  const daysInMonth=_repProj?_repProj.daysElapsed+_repProj.daysLeft:0;
+  const dailyRate=_repProj?_repProj.dailyVariable:0;
+  const projected=_repProj?_repProj.projected:Math.round(totalArs);
+  const daysLeft=_repProj?_repProj.daysLeft:0;
+  const projSpent=_repProj?_repProj.spent:totalArs;
 
   // Comparación mes anterior
   const reportMode=normalizeRepMode(state.repMode||'visa');
@@ -474,18 +497,29 @@ function buildReportHTML(txns,sections,periodLabel){
   }
 
   // ── PROYECCIÓN ──
-  if(sections.includes('proyeccion')){
+  if(sections.includes('proyeccion')&&_repProj){
     const projColor=incTotal>0&&projected>incTotal?'#dc2626':'#1d1d1f';
+    let body;
+    if(!isCurrentMonth){
+      body=`<div class="rpt-kpi-row"><div class="rpt-kpi"><div class="rpt-kpi-label">Período cerrado</div><div class="rpt-kpi-val">$${fmtN(Math.round(projSpent))}</div><div class="rpt-kpi-sub">Gasto final del período</div></div></div>`;
+    } else if(projEarly){
+      body=`<div class="rpt-kpi-row">
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Muy temprano para proyectar</div><div class="rpt-kpi-val">$${fmtN(_repProj.secureTotal)}</div><div class="rpt-kpi-sub">Seguro hasta ahora (gastado + compromisos que faltan) · día ${dayOfMonth} de ${daysInMonth}</div></div>
+      </div>
+      <div style="margin-top:10px;font-size:12px;color:#666;">La proyección se calcula a partir del día ${_repProj.minDays} del período.</div>`;
+    } else {
+      body=`<div class="rpt-kpi-row">
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Gasto hasta hoy</div><div class="rpt-kpi-val">$${fmtN(Math.round(projSpent))}</div><div class="rpt-kpi-sub">Día ${dayOfMonth} de ${daysInMonth}</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Ritmo diario (variable)</div><div class="rpt-kpi-val">$${fmtN(Math.round(dailyRate))}</div><div class="rpt-kpi-sub">Sin cuotas, suscripciones ni fijos</div></div>
+      <div class="rpt-kpi"><div class="rpt-kpi-label">Estimado al cierre</div><div class="rpt-kpi-val" style="color:${projColor};">$${fmtN(projected)}</div><div class="rpt-kpi-sub">${daysLeft} días restantes</div></div>
+      </div>
+      ${incTotal>0?`<div style="margin-top:12px;padding:10px 14px;border-radius:8px;background:${projected>incTotal?'#fef2f2':'#f0fdf4'};border:1px solid ${projected>incTotal?'#fecaca':'#bbf7d0'};font-size:12px;color:${projected>incTotal?'#991b1b':'#166534'};">
+        ${projected>incTotal?'Al ritmo actual vas a <strong>superar tu ingreso</strong> en $'+fmtN(projected-incTotal)+' al cierre.':'Al ritmo actual vas a cerrar con <strong>$'+fmtN(incTotal-projected)+'</strong> de margen disponible.'}
+      </div>`:''}`;
+    }
     html+=`<div class="rpt-section">
-    <div class="rpt-section-title">Proyección al cierre del mes</div>
-    <div class="rpt-kpi-row">
-      <div class="rpt-kpi"><div class="rpt-kpi-label">Gasto hasta hoy</div><div class="rpt-kpi-val">$${fmtN(Math.round(totalArs))}</div><div class="rpt-kpi-sub">Día ${dayOfMonth} de ${daysInMonth}</div></div>
-      <div class="rpt-kpi"><div class="rpt-kpi-label">Ritmo diario</div><div class="rpt-kpi-val">$${fmtN(Math.round(dailyRate))}</div><div class="rpt-kpi-sub">Promedio por día</div></div>
-      <div class="rpt-kpi"><div class="rpt-kpi-label">Estimado a fin de mes</div><div class="rpt-kpi-val" style="color:${projColor};">$${fmtN(projected)}</div><div class="rpt-kpi-sub">${daysLeft} días restantes</div></div>
-    </div>
-    ${incTotal>0?`<div style="margin-top:12px;padding:10px 14px;border-radius:8px;background:${projected>incTotal?'#fef2f2':'#f0fdf4'};border:1px solid ${projected>incTotal?'#fecaca':'#bbf7d0'};font-size:12px;color:${projected>incTotal?'#991b1b':'#166534'};">
-      ${projected>incTotal?'Al ritmo actual vas a <strong>superar tu ingreso</strong> en $'+fmtN(projected-incTotal)+' al cierre del mes.':'Al ritmo actual vas a cerrar el mes con <strong>$'+fmtN(incTotal-projected)+'</strong> de margen disponible.'}
-    </div>`:''}
+    <div class="rpt-section-title">Proyección al cierre del período</div>
+    ${body}
   </div>`;
   }
 

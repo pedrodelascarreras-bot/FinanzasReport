@@ -88,8 +88,11 @@ function _ccwGetCardData(key, data){
   const elapsed   = openD ? Math.max(0, Math.round((today-openD)/86400000)) : 0;
   const daysLeft  = closeD ? Math.max(0, Math.round((closeD-today)/86400000)) : 0;
   const pct = Math.min(100, Math.round(elapsed/totalDays*100));
-  const dailyAvg = elapsed > 0 ? arsTotal / elapsed : 0;
-  const projected = dailyAvg * totalDays;
+  // Promedio y proyección de esta tarjeta: misma receta que el resto (getPeriodProjection)
+  const _cardProj = (openYmd && closeYmd) ? getPeriodProjection({startStr:openYmd, endStr:closeYmd, card:key}) : null;
+  const dailyAvg = _cardProj ? _cardProj.spent / _cardProj.daysElapsed : 0;
+  const projected = _cardProj ? _cardProj.projected : 0;
+  const projTooEarly = !!_cardProj?.tooEarly;
 
   // Previous cycle comparison
   let prevArs = 0;
@@ -132,7 +135,7 @@ function _ccwGetCardData(key, data){
   const topCat = Object.entries(catTotals).sort((a,b)=>b[1]-a[1])[0];
   const topCatPct = topCat && arsTotal > 0 ? Math.round(topCat[1]/arsTotal*100) : 0;
 
-  return { key, card, arsTotal, usdTotal, txnCount, openYmd, closeYmd, dueYmd, totalDays, elapsed, daysLeft, pct, dailyAvg, projected, prevArs, deltaPct, lastTxnAgo, topCat: topCat?topCat[0]:null, topCatPct };
+  return { key, card, arsTotal, usdTotal, txnCount, openYmd, closeYmd, dueYmd, totalDays, elapsed, daysLeft, pct, dailyAvg, projected, projTooEarly, prevArs, deltaPct, lastTxnAgo, topCat: topCat?topCat[0]:null, topCatPct };
 }
 
 function _ccwFmt(ymd){
@@ -170,7 +173,7 @@ function _ccwRenderCard(d){
       </div>
       <div class="db2-cc-stats-row">
         <div class="db2-cc-stat-box"><div class="db2-cc-stat-label">Prom. diario</div><div class="db2-cc-stat-value">${masked?'••••':'$'+fmtN(Math.round(d.dailyAvg),0)}</div></div>
-        <div class="db2-cc-stat-box"><div class="db2-cc-stat-label">Proyección</div><div class="db2-cc-stat-value">${masked?'••••':'$'+fmtN(Math.round(d.projected),0)}</div></div>
+        <div class="db2-cc-stat-box"><div class="db2-cc-stat-label">Proyección</div><div class="db2-cc-stat-value">${d.projTooEarly?'Muy temprano':(masked?'••••':'$'+fmtN(Math.round(d.projected),0))}</div></div>
         <div class="db2-cc-stat-box"><div class="db2-cc-stat-label">Movimientos</div><div class="db2-cc-stat-value">${d.txnCount}</div></div>
         <div class="db2-cc-stat-box"><div class="db2-cc-stat-label">vs. anterior</div><div class="db2-cc-stat-value">${deltaHtml || '—'}</div></div>
       </div>
@@ -233,7 +236,7 @@ function _ccwRenderFocusPremium(d){
 
     <div class="ccf-stats">
       <div class="ccf-stat"><div class="ccf-stat-icon ccf-si-avg"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 16 10 10l4 4 6-8"/></svg></div><div class="ccf-stat-copy"><div class="ccf-stat-lbl">PROM. DIARIO</div><div class="ccf-stat-val">${masked?'••••':'$'+fmtN(Math.round(d.dailyAvg),0)}</div></div></div>
-      <div class="ccf-stat"><div class="ccf-stat-icon ccf-si-proj"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg></div><div class="ccf-stat-copy"><div class="ccf-stat-lbl">PROYECCIÓN</div><div class="ccf-stat-val">${masked?'••••':'$'+fmtN(Math.round(d.projected),0)}</div></div></div>
+      <div class="ccf-stat"><div class="ccf-stat-icon ccf-si-proj"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 3v18"/></svg></div><div class="ccf-stat-copy"><div class="ccf-stat-lbl">PROYECCIÓN</div><div class="ccf-stat-val">${d.projTooEarly?'Muy temprano':(masked?'••••':'$'+fmtN(Math.round(d.projected),0))}</div></div></div>
       <div class="ccf-stat"><div class="ccf-stat-icon ccf-si-count"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg></div><div class="ccf-stat-copy"><div class="ccf-stat-lbl">MOVIMIENTOS</div><div class="ccf-stat-val">${d.txnCount}</div></div></div>
       <div class="ccf-stat"><div class="ccf-stat-icon ccf-si-delta"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20V4M5 11l7-7 7 7"/></svg></div><div class="ccf-stat-copy"><div class="ccf-stat-lbl">VS. ANTERIOR</div><div class="ccf-stat-val">${deltaHtml}</div></div></div>
     </div>
@@ -326,7 +329,7 @@ function getNextConfiguredIncomePayment(salaryLimit){
 }
 
 // ── Projection widget extras ──
-function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, spendBudget, daysLeft, dailyRate, projPeriodClose){
+function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, spendBudget, daysLeft, dailyRate, projPeriodClose, projInfo){
   const remainingEl = document.getElementById('db2-proj-remaining');
   const closeDateEl = document.getElementById('db2-proj-closedate');
   const nextIncomeEl = document.getElementById('db2-proj-next-income');
@@ -368,7 +371,8 @@ function renderDb2ProjExtras(projected, totalGastoARS, incTotalARS, spendBudget,
   }
 
   if(r1El){
-    if(isMasked()) r1El.textContent = '••••••••';
+    if(projInfo?.tooEarly) r1El.textContent = 'Muy temprano';
+    else if(isMasked()) r1El.textContent = '••••••••';
     else r1El.textContent = Number.isFinite(projected) ? '$' + fmtN(Math.round(projected || 0)) : '—';
   }
   if(r2El){
@@ -1540,7 +1544,7 @@ function renderDb2Dashboard(data){
   _db2EvolutionState = data.evolutionData || null;
   renderDb2HeroExtras(data.arsMonth, data.usdMonth, data.margen, data.pct, data.incTotalARS, data.spendBudget, data.thirdPartyTxns);
   renderDb2CcCycles(data.ccWidgetData);
-  renderDb2ProjExtras(data.projected, data.totalGastoARS, data.incTotalARS, data.spendBudget, data.daysLeft, data.dailyRate, data.projPeriodClose);
+  renderDb2ProjExtras(data.projected, data.totalGastoARS, data.incTotalARS, data.spendBudget, data.daysLeft, data.dailyRate, data.projPeriodClose, data.projInfo);
   renderDb2Agenda(data.timelineData);
   renderDb2EvolutionChart();
   renderDb2CatDonut(data.monthTxns);

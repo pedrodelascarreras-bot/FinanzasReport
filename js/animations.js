@@ -31,6 +31,11 @@
   // ──────────────────────────────────────────────────────────
   // OVERRIDE animateNumberText — GSAP-powered counter
   // ──────────────────────────────────────────────────────────
+  const _numberTweens = new WeakMap();
+  function killNumberTween (el) {
+    const tw = el && _numberTweens.get(el);
+    if (tw) { tw.kill(); _numberTweens.delete(el); }
+  }
   window.animateNumberText = function (el, value, opts = {}) {
     if (!el) return;
     const num = Number(value);
@@ -45,15 +50,20 @@
     const duration = (opts.duration || 820) / 1000;
     const proxy = { val: from };
 
-    gsap.killTweensOf(proxy);
-    gsap.to(proxy, {
+    // Una sola animación por elemento: la nueva corta la anterior (si no, al cambiar de vista
+    // rápido la animación vieja seguía escribiendo encima del valor nuevo)
+    killNumberTween(el);
+    _numberTweens.set(el, gsap.to(proxy, {
       val: num,
       duration,
       ease: 'power4.out',
       onUpdate() { el.textContent = formatter(proxy.val); },
-      onComplete() { el.textContent = formatter(num); }
-    });
+      onComplete() { el.textContent = formatter(num); _numberTweens.delete(el); }
+    }));
   };
+
+  // Cancela la animación de número de un elemento (privacidad, "muy temprano", etc.)
+  window.cancelNumberTextAnimation = function (el) { killNumberTween(el); };
 
   // ──────────────────────────────────────────────────────────
   // OVERRIDE animateProgressBar — GSAP-powered

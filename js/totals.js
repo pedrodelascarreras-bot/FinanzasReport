@@ -157,6 +157,10 @@ function isCommitmentTxn(t){
 // Proyección al cierre del período: solo el gasto VARIABLE se extrapola por día; los
 // compromisos (cuotas, suscripciones, fijos) se suman una vez — los ya vencidos y los
 // que faltan dentro del período. Todo en ARS.
+// Los primeros PROJECTION_MIN_DAYS días del período es "muy temprano": extrapolar 1 o 2
+// días de gasto da números sin sentido, así que se devuelve solo lo seguro
+// (gastado + compromisos que faltan) y tooEarly=true para que la pantalla lo aclare.
+const PROJECTION_MIN_DAYS=7;
 function getPeriodProjection(opts={}){
   const todayRef=opts.todayRef instanceof Date?opts.todayRef:new Date();
   const rate=_periodUsdRate();
@@ -174,6 +178,9 @@ function getPeriodProjection(opts={}){
   const daysElapsed=isOpen?Math.max(1, Math.min(totalDays, Math.floor((todayRef-start)/86400000)+1)):totalDays;
   const daysLeft=isOpen?Math.max(0, totalDays-daysElapsed):0;
   const dailyVariable=variableSpent/daysElapsed;
+  const secureTotal=Math.round(totals.totalArs + (isOpen?futureCommitted:0));
+  const minDays=opts.minDays!=null?opts.minDays:PROJECTION_MIN_DAYS;
+  const tooEarly=isOpen && daysElapsed<minDays;
   return {
     spent:totals.totalArs,
     variableSpent,
@@ -182,6 +189,9 @@ function getPeriodProjection(opts={}){
     dailyVariable,
     daysElapsed,
     daysLeft,
-    projected:Math.round(totals.totalArs + dailyVariable*daysLeft + (isOpen?futureCommitted:0))
+    secureTotal,
+    tooEarly,
+    minDays,
+    projected:tooEarly ? secureTotal : Math.round(totals.totalArs + dailyVariable*daysLeft + (isOpen?futureCommitted:0))
   };
 }

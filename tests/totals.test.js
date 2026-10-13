@@ -102,5 +102,17 @@ state.subscriptions = [{ id: 's1', name: 'Spotify', price: 5500, currency: 'ARS'
 state.transactions = [{ id: 'proj_sub_s1_2026-11', date: d('2026-11-01'), description: 'Spotify (suscripción)', amount: 5500, currency: 'ARS', isPendingSubscription: true, sourceSubscriptionId: 's1', payMethod: 'visa' }];
 eq(getPeriodTotals({ startStr: '2026-11-01', endStr: '2026-11-30', todayRef: d('2026-11-02') }).ars, 5500, 'Spotify vencida cuenta una sola vez');
 
+// 10) Primeros 7 días: "muy temprano", la proyección es solo lo seguro
+reset();
+state.cuotas = [{ id: 'c1', cuotaGroupId: 'g1', name: 'Notebook', amount: 50000, total: 12, paid: 3, day: 15, lastPaidDate: '2026-09-15', currency: 'ARS' }];
+state.transactions = [tx('super', '2026-10-02', 100000, { payMethod: 'visa' })];
+let early = getPeriodProjection(Object.assign({}, OCT, { todayRef: d('2026-10-03') }));
+eq([early.tooEarly, early.daysElapsed, early.secureTotal, early.projected], [true, 3, 150000, 150000], 'día 3: muy temprano, proyección = gastado + cuota que falta');
+const day7 = getPeriodProjection(Object.assign({}, OCT, { todayRef: d('2026-10-07') }));
+eq([day7.tooEarly, day7.daysElapsed], [false, 7], 'desde el día 7 se proyecta');
+eq(day7.projected > day7.secureTotal, true, 'día 7: la proyección extrapola el gasto variable');
+const closed = getPeriodProjection(Object.assign({}, OCT, { todayRef: d('2026-11-03') }));
+eq(closed.tooEarly, false, 'período cerrado nunca es "temprano"');
+
 print((failures ? '✗ ' + failures + ' fallaron, ' : '✓ ') + passed + ' pruebas OK');
 if (failures) throw new Error(failures + ' pruebas fallaron');

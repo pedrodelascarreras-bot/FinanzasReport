@@ -7,8 +7,9 @@ function renderMobileDashboard(data) {
   const {
     arsMonth=0, usdMonth=0, margen=0, pct=0, incTotalARS=0, spendBudget=0,
     projected=0, projPeriodClose=null, monthTxns=[], ccWidgetData={},
-    dailyRate=0, totalGastoARS=0
+    dailyRate=0, totalGastoARS=0, projInfo=null
   } = data || {};
+  const _projEarly = !!projInfo?.tooEarly;
 
   // Helpers
   const fmtN = (n) => Number(n||0).toLocaleString('es-AR', {minimumFractionDigits:2, maximumFractionDigits:2});
@@ -190,12 +191,16 @@ function renderMobileDashboard(data) {
           </div>
           <div class="mob-proj-info">
             <div class="mob-proj-kicker">PROYECCIÓN A CIERRE</div>
-            <div class="mob-proj-amount">${fmtAmt(projected)}</div>
+            ${_projEarly
+              ? `<div class="mob-proj-amount" style="font-size:18px !important;color:#9AA3B8 !important;">Muy temprano para proyectar</div>
+            <div class="mob-proj-sub">Llevás ${projInfo.daysElapsed} día${projInfo.daysElapsed!==1?'s':''} · Seguro hasta ahora: <strong>${fmtAmt(projInfo.secureTotal)}</strong></div>
+            <div class="mob-proj-sub">Se calcula a partir del día ${projInfo.minDays}</div>`
+              : `<div class="mob-proj-amount">${fmtAmt(projected)}</div>
             <div class="mob-proj-sub">Estimación activa hasta ${fmtDate(projPeriodClose)}</div>
-            ${dailyAvg>0?`<div class="mob-proj-daily">Promedio diario: <strong>${fmtAmt(Math.round(dailyAvg))}</strong></div>`:''}
+            ${dailyAvg>0?`<div class="mob-proj-daily">Promedio diario: <strong>${fmtAmt(Math.round(dailyAvg))}</strong></div>`:''}`}
           </div>
         </div>
-        <span class="mob-proj-badge">Según tu ritmo actual</span>
+        ${_projEarly?'':'<span class="mob-proj-badge">Según tu ritmo actual</span>'}
       </div>
       <div class="mob-proj-bar-row">
         <div class="mob-proj-bar-track"><div class="mob-proj-bar-fill" style="width:${projPct}%"></div></div>

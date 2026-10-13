@@ -644,6 +644,8 @@ function _dashBuildContext(){
   daysLeft=_proj.daysLeft;
   projected=_proj.projected;
   projPeriodClose=new Date(periodRange.endStr+'T12:00:00');
+  // Primeros días del período: no se proyecta (ver PROJECTION_MIN_DAYS en totals.js)
+  const projInfo={tooEarly:_proj.tooEarly, daysElapsed:_proj.daysElapsed, minDays:_proj.minDays, secureTotal:_proj.secureTotal};
 
   const dashMonthNames=[t('month_1'),t('month_2'),t('month_3'),t('month_4'),t('month_5'),t('month_6'),t('month_7'),t('month_8'),t('month_9'),t('month_10'),t('month_11'),t('month_12')];
   const insightSummary={
@@ -778,7 +780,24 @@ function _dashBuildContext(){
   const compromisoUSD=subsUSD+fixedUSD+cuotasUSD;
   const compromisoTotal=compromisoARS+(compromisoUSD*USD_TO_ARS);
 
-  return {_tcWidgetTxns,activeCuotas,activeCycleMode,activeMk,activeTcCycle,arsMonth,cntMonth,compromisoTotal,creditCycleArsTotal,dailyRate,dashboardCardCycleByKey,dashboardCardDisplayTotals,dashboardCardTotals,dashboardCards,dashboardCardsArs,dashboardCycleForCards,daysLeft,debWidgetAmt,hasPayTagsWidget,incTotalARS,isCurrentMonth,isTcView,margen,monthTxns,pM,pY,pct,projPeriodClose,projected,spendBudget,tcWidgetAmt,thirdPartyTxns,today,totalGastoARS,tpPendingSumArs,usdMonth};
+  return {_tcWidgetTxns,activeCuotas,activeCycleMode,activeMk,activeTcCycle,arsMonth,cntMonth,compromisoTotal,creditCycleArsTotal,dailyRate,dashboardCardCycleByKey,dashboardCardDisplayTotals,dashboardCardTotals,dashboardCards,dashboardCardsArs,dashboardCycleForCards,daysLeft,debWidgetAmt,hasPayTagsWidget,incTotalARS,isCurrentMonth,isTcView,margen,monthTxns,pM,pY,pct,projPeriodClose,projected,spendBudget,tcWidgetAmt,thirdPartyTxns,today,totalGastoARS,tpPendingSumArs,usdMonth,projInfo};
+}
+
+// Proyección: primeros días del período → "muy temprano", solo lo seguro
+function _dashRenderProjTooEarly(projEl, projD, info){
+  if(typeof cancelNumberTextAnimation==='function') cancelNumberTextAnimation(projEl);
+  projEl.textContent='Muy temprano para proyectar';
+  // el CSS fuerza color y tamaño del monto con !important
+  projEl.style.setProperty('color','var(--text3)','important');
+  projEl.style.setProperty('font-size','18px','important');
+  const badge=document.getElementById('db2-proj-badge');
+  if(badge) badge.hidden=true;
+  if(projD){
+    const seguro=isMasked()?'••••••••':'$'+fmtN(info.secureTotal,0);
+    projD.textContent=`Llevás ${info.daysElapsed} día${info.daysElapsed!==1?'s':''} · Seguro hasta ahora: ${seguro} · Se calcula a partir del día ${info.minDays}`;
+  }
+  const dailyEl=document.getElementById('kpi-proj-daily');
+  if(dailyEl){ if(typeof cancelNumberTextAnimation==='function') cancelNumberTextAnimation(dailyEl); dailyEl.textContent='—'; }
 }
 
 // Selector de período y título
@@ -1066,7 +1085,7 @@ function _dashRenderBudget(ctx){
 
 // KPIs: tarjetas, proyección y compromisos
 function _dashRenderKpis(ctx){
-  const {_tcWidgetTxns,activeCuotas,activeCycleMode,activeMk,activeTcCycle,arsMonth,compromisoTotal,creditCycleArsTotal,dailyRate,dashboardCardCycleByKey,dashboardCardDisplayTotals,dashboardCardTotals,dashboardCards,dashboardCardsArs,dashboardCycleForCards,daysLeft,debWidgetAmt,hasPayTagsWidget,incTotalARS,isCurrentMonth,isTcView,margen,monthTxns,pct,projPeriodClose,projected,spendBudget,tcWidgetAmt,thirdPartyTxns,timelineData,totalGastoARS,usdMonth}=ctx;
+  const {_tcWidgetTxns,activeCuotas,activeCycleMode,activeMk,activeTcCycle,arsMonth,compromisoTotal,creditCycleArsTotal,dailyRate,dashboardCardCycleByKey,dashboardCardDisplayTotals,dashboardCardTotals,dashboardCards,dashboardCardsArs,dashboardCycleForCards,daysLeft,debWidgetAmt,hasPayTagsWidget,incTotalARS,isCurrentMonth,isTcView,margen,monthTxns,pct,projPeriodClose,projected,spendBudget,tcWidgetAmt,thirdPartyTxns,timelineData,totalGastoARS,usdMonth,projInfo}=ctx;
   // ── KPI: Tarjeta — split VISA / AMEX usando el mismo ciclo que está activo en el dashboard ──
   ccInit();
   const _ccCards=state.ccCards||[];
@@ -1115,7 +1134,14 @@ function _dashRenderKpis(ctx){
     if(value>=incTotalARS*0.85) return 'var(--accent3)';
     return 'var(--green-sys)';
   };
-  if(projEl){
+  if(projEl && projInfo.tooEarly){
+    _dashRenderProjTooEarly(projEl, projD, projInfo);
+    if(projTitle)projTitle.textContent=isTcView?'PROYECCIÓN AL CIERRE TC':'PROYECCIÓN AL CIERRE';
+  } else if(projEl){
+    projEl.style.removeProperty('font-size');
+    projEl.style.removeProperty('color');
+    const _projBadge=document.getElementById('db2-proj-badge');
+    if(_projBadge) _projBadge.hidden=false;
     if(isTcView && activeTcCycle){
       // TC mode: project to cycle close date
       if(daysLeft===0 && totalGastoARS===0){
@@ -1222,11 +1248,11 @@ function _dashRenderKpis(ctx){
   });
   renderWeeklyChart(monthTxns);
   renderCatBars(monthTxns);
-  renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLeft, compromisoTotal, projected);
+  renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLeft, compromisoTotal, projected, projInfo);
   renderTop5();
   renderDb2Dashboard({
     arsMonth, usdMonth, margen, pct, incTotalARS, spendBudget,
-    projected, totalGastoARS, daysLeft, dailyRate, projPeriodClose,
+    projected, totalGastoARS, daysLeft, dailyRate, projPeriodClose, projInfo,
     timelineData, monthTxns, thirdPartyTxns,
     evolutionData:{
       mode:isTcView?'tc':'mes',
@@ -1441,7 +1467,7 @@ function renderTop5(){
   }).join('');
 }
 
-function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLeft, compromisoTotal, projected){
+function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLeft, compromisoTotal, projected, projInfo){
   ensureDashboardCustomWidgets();
   const cleanTxns = (monthTxns || []).filter(t =>
     !t.isPendingCuota &&
@@ -1635,7 +1661,9 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     const fbProj=document.getElementById('kpi-fallback-projected');
     if(fbDaily) animateNumberText(fbDaily,dailyRate,{prefix:'$',decimals:0,duration:600});
     if(fbTotal) animateNumberText(fbTotal,totalGastoARS,{prefix:'$',decimals:0,duration:760});
-    if(fbProj && projected){
+    if(fbProj && projInfo?.tooEarly){
+      fbProj.textContent='Proyección: muy temprano (desde el día '+projInfo.minDays+')';
+    } else if(fbProj && projected){
       const projColor=typeof getProjectionColor==='function'?getProjectionColor(projected,incTotalARS):'var(--text3)';
       fbProj.innerHTML=`Proyección: <span style="color:${projColor};font-weight:600;">$${fmtN(Math.round(projected))}</span>`;
     } else if(fbProj){
@@ -1722,6 +1750,7 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     daysLeft,
     compromisoTotal,
     projected,
+    projInfo,
     usdSpend,
     usdSpendArs,
     totalSpendArs,
@@ -1923,8 +1952,13 @@ function renderDashboardCustomWidgets(context){
         }
         break;
       case 'projected_close':
-        if(valueEl)valueEl.textContent=context.projected?`$${fmtN(Math.round(context.projected))}`:'—';
-        if(subEl)subEl.textContent='Cierre estimado al ritmo actual';
+        if(context.projInfo?.tooEarly){
+          if(valueEl)valueEl.textContent='Muy temprano';
+          if(subEl)subEl.textContent=`Seguro hasta ahora: $${fmtN(context.projInfo.secureTotal,0)} · desde el día ${context.projInfo.minDays}`;
+        } else {
+          if(valueEl)valueEl.textContent=context.projected?`$${fmtN(Math.round(context.projected))}`:'—';
+          if(subEl)subEl.textContent='Cierre estimado al ritmo actual';
+        }
         if(badgeEl)badgeEl.textContent=`${context.daysLeft} días`;
         if(metaEl)metaEl.textContent=context.incTotalARS>0&&context.projected?`${Math.round((context.projected/context.incTotalARS)*100)}% del ingreso`:'';
         if(footerEl)footerEl.textContent='Proyección automática del período activo';
