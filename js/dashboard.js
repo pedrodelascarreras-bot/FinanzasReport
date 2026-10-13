@@ -394,6 +394,15 @@ function renderDashNotifications() {
 
 
 function renderDashboard(){
+  const ctx=_dashBuildContext();
+  _dashRenderHeader(ctx);
+  _dashRenderHero(ctx);
+  _dashRenderBudget(ctx);
+  _dashRenderKpis(ctx);
+}
+
+// Cálculo del período: vista, ciclo, gastos (getPeriodTotals), tarjetas, ingresos, proyección y compromisos
+function _dashBuildContext(){
   renderDashNotifications();
   if(typeof ccInit==='function') ccInit();
   state.dashView=normalizeViewMode(state.dashView||'visa');
@@ -769,6 +778,12 @@ function renderDashboard(){
   const compromisoUSD=subsUSD+fixedUSD+cuotasUSD;
   const compromisoTotal=compromisoARS+(compromisoUSD*USD_TO_ARS);
 
+  return {_tcWidgetTxns,activeCuotas,activeCycleMode,activeMk,activeTcCycle,arsMonth,cntMonth,compromisoTotal,creditCycleArsTotal,dailyRate,dashboardCardCycleByKey,dashboardCardDisplayTotals,dashboardCardTotals,dashboardCards,dashboardCardsArs,dashboardCycleForCards,daysLeft,debWidgetAmt,hasPayTagsWidget,incTotalARS,isCurrentMonth,isTcView,margen,monthTxns,pM,pY,pct,projPeriodClose,projected,spendBudget,tcWidgetAmt,thirdPartyTxns,today,totalGastoARS,tpPendingSumArs,usdMonth};
+}
+
+// Selector de período y título
+function _dashRenderHeader(ctx){
+  const {today,totalGastoARS}=ctx;
   // ── Selector y fecha ──
   updateMonthPicker();
   const MNAMES=[t('month_1'),t('month_2'),t('month_3'),t('month_4'),t('month_5'),t('month_6'),t('month_7'),t('month_8'),t('month_9'),t('month_10'),t('month_11'),t('month_12')];
@@ -865,6 +880,12 @@ function renderDashboard(){
     timelinePill.textContent=visibleCount===1?'1 evento':`${visibleCount||3} eventos`;
   }
 
+  Object.assign(ctx,{MNAMES,timelineData});
+}
+
+// Hero, indicador de gastos compartidos y balance
+function _dashRenderHero(ctx){
+  const {MNAMES,activeCycleMode,activeTcCycle,arsMonth,cntMonth,incTotalARS,isTcView,pM,pY,pct,totalGastoARS,tpPendingSumArs,usdMonth}=ctx;
   // ── Hero ──
   const dhcML=document.getElementById('dhc-month-label');
   if(dhcML){
@@ -950,6 +971,11 @@ function renderDashboard(){
     }
   }
 
+}
+
+// Barra de margen y desglose por medio de pago
+function _dashRenderBudget(ctx){
+  const {incTotalARS,margen,monthTxns,pct,spendBudget,totalGastoARS,usdMonth}=ctx;
   // ── Margin bar ──
   const marginSection=document.getElementById('dhc-margin-section');
   if(marginSection&&incTotalARS>0){
@@ -1036,6 +1062,11 @@ function renderDashboard(){
     if(pLabel)pLabel.textContent=pct+'% usado del ingreso · meta: '+state.alertThreshold+'%';
   } else if(pFill){pFill.style.width='0%';}
 
+}
+
+// KPIs: tarjetas, proyección y compromisos
+function _dashRenderKpis(ctx){
+  const {_tcWidgetTxns,activeCuotas,activeCycleMode,activeMk,activeTcCycle,arsMonth,compromisoTotal,creditCycleArsTotal,dailyRate,dashboardCardCycleByKey,dashboardCardDisplayTotals,dashboardCardTotals,dashboardCards,dashboardCardsArs,dashboardCycleForCards,daysLeft,debWidgetAmt,hasPayTagsWidget,incTotalARS,isCurrentMonth,isTcView,margen,monthTxns,pct,projPeriodClose,projected,spendBudget,tcWidgetAmt,thirdPartyTxns,timelineData,totalGastoARS,usdMonth}=ctx;
   // ── KPI: Tarjeta — split VISA / AMEX usando el mismo ciclo que está activo en el dashboard ──
   ccInit();
   const _ccCards=state.ccCards||[];
