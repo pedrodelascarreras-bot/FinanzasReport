@@ -1,7 +1,9 @@
 // ══════════════════════════════════════════════════════════════
 //  PLAN DE AHORRO DEL MES  (savings-plan.js)
-//  Analiza el ciclo VISA+AMEX anterior vs. el actual, y arma un
-//  plan de ahorro con presupuestos, días sin gasto y tips locales.
+//  Analiza el gasto con TARJETA (Visa + Amex juntas, a propósito) en la ventana del
+//  ciclo Visa anterior vs. el actual, y arma un plan de ahorro con presupuestos,
+//  días sin gasto y tips locales. Ojo: por eso sus totales no coinciden con la vista
+//  VISA del dashboard (que es solo Visa); la UI lo aclara con SAVPLAN_SCOPE_LABEL.
 //  Sin dependencias externas: toda la matemática es determinista.
 // ══════════════════════════════════════════════════════════════
 
@@ -38,10 +40,15 @@ function ensureSavPlan(){
 function savPlanRate(){
   return (typeof USD_TO_ARS !== 'undefined' && USD_TO_ARS) || state.usdRate || 1420;
 }
+// Monto en ARS de un gasto: tu parte si es compartido (misma regla que el resto de la app).
+// Las devoluciones (negativas) restan.
 function savPlanTxArs(t){
-  const a = Math.abs(Number(t.amount)||0);
+  const a = getTxnPersonalAmount(t);
   return t.currency === 'USD' ? a * savPlanRate() : a;
 }
+// Texto que aclara qué suma el plan (se muestra junto a cada total)
+const SAVPLAN_SCOPE_LABEL = 'Visa + Amex juntas';
+const SAVPLAN_SCOPE_HINT = 'Suma tus dos tarjetas en las fechas del ciclo Visa, por eso no coincide con la vista VISA del dashboard (que es solo Visa).';
 function savPlanFmtArs(n){ return '$' + fmtN(Math.round(n||0), 0); }
 function savPlanFmtUsd(n){ return 'USD ' + fmtN(Math.round(n||0), 0); }
 
@@ -83,15 +90,15 @@ function savPlanResolveCycles(){
   return { current, currentOpen, prev, prevOpen, today };
 }
 
-// Todas las tarjetas (visa+amex+tc) en una ventana de fechas, sin débito/efectivo ni anulaciones
+// Todas las tarjetas (Visa + Amex) en una ventana de fechas, con la receta común
+// (js/totals.js): movimientos reales + compromisos ya vencidos sin cargo real, sin
+// débito/efectivo, sin proyecciones a futuro y sin anulaciones.
 function savPlanWindowTxns(open, close){
-  return (state.transactions||[]).filter(t=>{
-    const pm = (t.payMethod||'').toLowerCase();
-    if(pm==='deb' || pm==='ef') return false;
-    if(t.isAnulacion) return false;
-    const d = dateToYMD(t.date);
-    return d >= open && d <= close;
-  });
+  // Una pasada por tarjeta: así cada una aplica sus reglas (p. ej. un gasto fijo sin medio
+  // de pago no es de ninguna tarjeta)
+  return ['visa','amex']
+    .flatMap(card=>getPeriodTxnList({startStr:open, endStr:close, card}))
+    .filter(t=>!t.isAnulacion);
 }
 
 function savPlanAnalyzeWindow(txns, discSet){
@@ -319,7 +326,7 @@ function savPlanShell(inner){
       <div class="savplan-hd-ic">🎯</div>
       <div>
         <h2>Plan de ahorro del mes</h2>
-        <p>Deciles cuánto querés ahorrar y armo el plan analizando tu ciclo VISA + AMEX</p>
+        <p>Deciles cuánto querés ahorrar y armo el plan analizando lo que gastás con tus tarjetas (${SAVPLAN_SCOPE_LABEL}, en las fechas del ciclo Visa)</p>
       </div>
     </div>
     ${inner}
@@ -423,9 +430,9 @@ function savPlanRenderResult(a){
   return `
     ${savPlanSteps('result')}
     <div class="savplan-ctx">
-      <div class="savplan-ctx-card"><span class="savplan-lbl">Ciclo anterior gastado</span><div class="cv">${savPlanFmtUsd(a.prev.totalArs/a.rate)}</div><div class="cs">${prevLabel} · ${savPlanFmtArs(a.prev.totalArs)}</div></div>
+      <div class="savplan-ctx-card"><span class="savplan-lbl" title="${SAVPLAN_SCOPE_HINT}">Ciclo anterior gastado · ${SAVPLAN_SCOPE_LABEL}</span><div class="cv">${savPlanFmtUsd(a.prev.totalArs/a.rate)}</div><div class="cs">${prevLabel} · ${savPlanFmtArs(a.prev.totalArs)}</div></div>
       <div class="savplan-ctx-card"><span class="savplan-lbl">De eso, recortable</span><div class="cv">${a.discPct}%</div><div class="cs">${savPlanFmtUsd(a.projDiscUsd)} discrecional</div></div>
-      <div class="savplan-ctx-card"><span class="savplan-lbl">Ciclo actual (en curso)</span><div class="cv">${savPlanFmtUsd(a.cur.totalArs/a.rate)}</div><div class="cs ${a.curRunRateUsd>a.projTotalUsd?'warn':''}">${curLabel}${a.curRunRateUsd>a.projTotalUsd?' · ritmo alto':''}</div></div>
+      <div class="savplan-ctx-card"><span class="savplan-lbl" title="${SAVPLAN_SCOPE_HINT}">Ciclo actual (en curso) · ${SAVPLAN_SCOPE_LABEL}</span><div class="cv">${savPlanFmtUsd(a.cur.totalArs/a.rate)}</div><div class="cs ${a.curRunRateUsd>a.projTotalUsd?'warn':''}">${curLabel}${a.curRunRateUsd>a.projTotalUsd?' · ritmo alto':''}</div></div>
       ${incomeCard}
     </div>
     <div class="savplan-plans">${plansHtml}</div>
@@ -459,7 +466,7 @@ function savPlanRenderTrack(){
       <div class="savplan-track-hd">
         <div>
           <div class="tt">${headline}</div>
-          <div class="ts">Plan activo: <b>${esc(t.name)} · ${savPlanFmtUsd(t.targetUsd)}</b> · ciclo VISA+AMEX que cierra el ${closeLabel}</div>
+          <div class="ts">Plan activo: <b>${esc(t.name)} · ${savPlanFmtUsd(t.targetUsd)}</b> · ${SAVPLAN_SCOPE_LABEL} · ciclo que cierra el ${closeLabel}</div>
         </div>
         <span class="savplan-pill ${pillCls}">${pillTxt}</span>
       </div>
@@ -656,7 +663,7 @@ function savPlanBuildPdfHtml(a){
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
         <div>
           <div style="font-size:20px;font-weight:800;color:#1c1a25;">Plan de ahorro — Fluxen</div>
-          <div style="font-size:12px;color:#8a8ea6;font-weight:600;">Ciclo VISA+AMEX · ${savPlanShortDate(a.cyc.prevOpen)} → ${savPlanShortDate(a.cyc.prev.closeDate)} vs. ciclo actual</div>
+          <div style="font-size:12px;color:#8a8ea6;font-weight:600;">${SAVPLAN_SCOPE_LABEL} · ciclo ${savPlanShortDate(a.cyc.prevOpen)} → ${savPlanShortDate(a.cyc.prev.closeDate)} vs. ciclo actual</div>
         </div>
         <div style="width:40px;height:40px;border-radius:12px;background:linear-gradient(135deg,#7C3AED,#00B8D4);"></div>
       </div>
@@ -696,7 +703,7 @@ function savPlanBuildAiPrompt(a){
   const targets = a.targets.map(t=>`- "${t.name}": ahorrar ${savPlanFmtUsd(t.targetUsd)} → recorte estimado ${savPlanFmtUsd(t.cutUsd)}, ${t.daysNoSpend} días sin gasto`).join('\n');
   return `Actuá como mi asesor financiero personal. Te paso el análisis real de mi tarjeta y quiero que profundices con recomendaciones concretas y accionables para ahorrar este mes.
 
-CONTEXTO (ciclo VISA+AMEX):
+CONTEXTO (${SAVPLAN_SCOPE_LABEL}, en las fechas del ciclo Visa):
 - Ciclo anterior (cerrado): gasté ${savPlanFmtArs(a.prev.totalArs)} (${savPlanFmtUsd(a.prev.totalArs/a.rate)}), de los cuales ${a.discPct}% es discrecional/recortable.
 - Ciclo actual (en curso): llevo gastado ${savPlanFmtArs(a.cur.totalArs)}, voy por el día ${a.daysElapsed} de ${a.cycleDays}.
 - Ingreso previsto del mes: ${a.incomeUsd!=null?savPlanFmtUsd(a.incomeUsd)+(a.incomeSource==='manual'?' (previsión mía)':' (detectado de mis ingresos cargados)'):'no cargado'}.

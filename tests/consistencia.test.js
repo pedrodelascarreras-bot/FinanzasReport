@@ -128,6 +128,17 @@ if (aIdx >= 0) {
   eq(Math.round(getDashCycleTotal()), amexExpected.usd * 1000, 'Dashboard total (ciclo AMEX)');
   state.dashView = 'mes'; state.dashTcCycle = null;
 }
+// Plan de ahorro: Visa + Amex juntas en las fechas del ciclo Visa (a propósito), con la receta común
+{
+  const vc = getTcCycles('visa'); const vi = vc.findIndex(c => { const o = getTcCycleOpen(vc, vc.indexOf(c)); return o && o <= todayYmd && todayYmd <= c.closeDate; });
+  if (vi >= 0) {
+    const open = getTcCycleOpen(vc, vi), close = vc[vi].closeDate;
+    const plan = Math.round(savPlanWindowTxns(open, close).reduce((s, t) => s + savPlanTxArs(t), 0));
+    const both = Math.round(getPeriodTotals({ startStr: open, endStr: close, card: 'visa' }).totalArs + getPeriodTotals({ startStr: open, endStr: close, card: 'amex' }).totalArs);
+    eq(plan, both, 'Plan de ahorro = Visa + Amex en la ventana del ciclo Visa');
+  }
+}
+
 // La vista AMEX sobrevive a guardar y recargar
 eq(_normalizeViewMode('amex'), 'amex', 'la vista AMEX no se convierte en VISA al recargar');
 
