@@ -141,5 +141,15 @@ eq(state.cuotas.map(c => [getCuotaStatus(c, D('2026-10-20')).paid, c.total, c.la
 const nov = getPeriodTotals({ startStr: '2026-11-01', endStr: '2026-11-30', todayRef: D('2026-11-20') });
 eq(nov.projected.ars, 50000, 'noviembre proyecta la cuota 4/12 una vez');
 
+// 10) Borrar una cuota con cuotas ya pagas: conservar o no el historial
+reset();
+const mkc = id => ({ id, name: 'TV ' + id, amount: 20000, total: 6, paid: 2, day: 5, lastPaidDate: '2026-10-05', currency: 'ARS' });
+state.cuotas = [mkc('k1'), mkc('k2')];
+eq(countManualCuotaHistory(state.cuotas[0]), 2, 'detecta 2 cuotas pagas sin movimiento');
+deleteManualCuotaById('k1', { silent: true, keepHistory: true });
+eq(real().filter(t => /TV k1/.test(t.description)).length, 2, 'Conservar: quedan las 2 cuotas como gastos');
+deleteManualCuotaById('k2', { silent: true, keepHistory: false });
+eq([real().filter(t => /TV k2/.test(t.description)).length, state.cuotas.length], [0, 0], 'Borrar todo: no queda ningún gasto');
+
 print((failures ? '✗ ' + failures + ' fallaron, ' : '✓ ') + passed + ' pruebas OK');
 if (failures) throw new Error(failures + ' pruebas fallaron');

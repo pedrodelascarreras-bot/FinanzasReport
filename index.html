@@ -2329,6 +2329,14 @@
       <input type="number" class="input-field" id="fixed-day" min="1" max="31" placeholder="ej: 10">
     </div>
     <div class="input-group">
+      <label class="input-label">Medio de pago</label>
+      <select class="input-field" id="fixed-paymethod">
+        <option value="">Débito / transferencia / efectivo</option>
+        <option value="visa">Tarjeta Visa</option>
+        <option value="amex">Tarjeta Amex</option>
+      </select>
+    </div>
+    <div class="input-group">
       <label class="input-label">Emoji</label>
       <div style="display:flex;gap:8px;align-items:center;">
         <div id="fixed-emoji-preview" style="font-size:28px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;background:var(--surface2);border-radius:12px;border:1px solid var(--border);cursor:pointer;flex-shrink:0;" onclick="toggleEmojiPicker('fixed')">🏠</div>
@@ -2389,12 +2397,16 @@
     <div style="display:flex;flex-direction:column;gap:14px;">
       <div class="input-group"><label class="input-label">Descripción</label><input class="input-field" id="cuota-name" placeholder="ej: Notebook Fravega"></div>
       <div class="grid-2">
-        <div class="input-group"><label class="input-label">Monto por cuota (ARS)</label><input type="number" class="input-field" id="cuota-amount" placeholder="ej: 45000"></div>
+        <div class="input-group"><label class="input-label">Monto por cuota</label><input type="number" class="input-field" id="cuota-amount" placeholder="ej: 45000"></div>
         <div class="input-group"><label class="input-label">Cuotas totales</label><input type="number" class="input-field" id="cuota-total" placeholder="ej: 12" min="1"></div>
       </div>
       <div class="grid-2">
         <div class="input-group"><label class="input-label">Cuotas pagadas</label><input type="number" class="input-field" id="cuota-paid" placeholder="ej: 3" min="0"></div>
         <div class="input-group"><label class="input-label">Día de cobro (del mes)</label><input type="number" class="input-field" id="cuota-day" placeholder="ej: 10" min="1" max="31"></div>
+      </div>
+      <div class="grid-2">
+        <div class="input-group"><label class="input-label">Medio de pago</label><select class="input-field" id="cuota-paymethod"><option value="visa">Tarjeta Visa</option><option value="amex">Tarjeta Amex</option><option value="deb">Otro (débito, préstamo)</option></select></div>
+        <div class="input-group"><label class="input-label">Moneda</label><select class="input-field" id="cuota-currency"><option value="ARS">ARS $</option><option value="USD">USD U$D</option></select></div>
       </div>
       <div class="input-group">
         <label class="input-label">Emoji</label>
@@ -3267,11 +3279,11 @@ window.addEventListener('unhandledrejection',function(e){
 <script src="js/dashboard.js?v=20261014a"></script>
 <script src="js/dashboard-widgets.js?v=20261013d"></script>
 <script src="js/dashboard-mobile.js?v=20261013d"></script>
-<script src="js/calendar.js?v=20261013a"></script>
+<script src="js/calendar.js?v=20261016a"></script>
 <script src="js/global-search.js?v=20261013a"></script>
 <script src="js/transactions.js?v=20261013d"></script>
 <script src="js/analytics.js?v=20261013a"></script>
-<script src="js/expenses.js?v=20261014a"></script>
+<script src="js/expenses.js?v=20261016a"></script>
 <script src="js/income.js?v=20261013a"></script>
 <script src="js/savings.js?v=20261013a"></script>
 <script src="js/savings-plan.js?v=20261013e"></script>

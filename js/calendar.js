@@ -357,14 +357,7 @@ function deleteCalendarAgendaItem(itemKey){
   }
   if(item.subscriptionId){
     if(!confirm('¿Eliminar esta suscripción?')) return;
-    if(typeof deleteSubscriptionById==='function') deleteSubscriptionById(item.subscriptionId,{silent:true});
-    else {
-      state.subscriptions=(state.subscriptions||[]).filter(s=>s.id!==item.subscriptionId);
-      if(typeof syncProjectedSubscriptionTransactions==='function') syncProjectedSubscriptionTransactions();
-      saveState();
-    }
-    refreshCalendarViews();
-    showToast('Suscripción eliminada','info');
+    requestDeleteSubscription(item.subscriptionId, ok=>{ if(!ok) return; refreshCalendarViews(); showToast('Suscripción eliminada','info'); });
     return;
   }
   if(item.fixedExpenseId){
@@ -377,9 +370,7 @@ function deleteCalendarAgendaItem(itemKey){
   }
   if(item.manualCuotaId){
     if(!confirm('¿Eliminar esta cuota?')) return;
-    deleteManualCuotaById(item.manualCuotaId,{silent:true});
-    refreshCalendarViews();
-    showToast('Cuota eliminada','info');
+    requestDeleteCuota(item.manualCuotaId, ok=>{ if(!ok) return; refreshCalendarViews(); showToast('Cuota eliminada','info'); });
     return;
   }
 }

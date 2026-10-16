@@ -420,10 +420,83 @@ function materializeSubscriptionHistory(sub, opts={}){
   return created;
 }
 
+// ── Borrar compromisos con cobros pasados ──
+// Si una cuota o suscripción ya tuvo cobros que NO están importados como movimientos, se
+// pregunta: ¿fueron gastos reales (quedan en el historial) o se cargó por error (se borra todo)?
+function countManualCuotaHistory(c){
+  const todayRef=new Date(), st=getCuotaStatus(c,todayRef), groupId=getCuotaGroupId(c);
+  let n=0;
+  for(let k=1;k<=st.paid;k++){
+    if(hasRealCuotaChargeForInstallment(groupId,k,state.transactions||[])) continue;
+    if((state.transactions||[]).some(t=>t.id===`mat_manual_cuota_${c.id}_${k}`)) continue;
+    const d=getCuotaInstallmentDate(c,k);
+    if(hasRealCuotaChargeInMonth(groupId,getMonthKey(d),state.transactions||[])) continue;
+    n++;
+  }
+  return n;
+}
+function countSubscriptionHistory(sub){
+  return getSubscriptionMaterializationDates(sub,new Date()).filter(d=>{
+    const mk=getMonthKey(d);
+    if(hasRealSubscriptionChargeInMonth(sub,mk,state.transactions||[])) return false;
+    return !(state.transactions||[]).some(t=>t.id===`mat_sub_${sub.id}_${mk}`);
+  }).length;
+}
+// Ventana con tres opciones. Devuelve 'keep' | 'drop' | null (cancelar)
+function confirmCommitmentDelete(title, body){
+  return new Promise(resolve=>{
+    let ov=document.getElementById('modal-commitment-delete');
+    if(!ov){ ov=document.createElement('div'); ov.className='modal-overlay'; ov.id='modal-commitment-delete'; document.body.appendChild(ov); }
+    ov.innerHTML=`<div class="modal" style="max-width:440px;">
+      <div class="modal-title"></div><div class="modal-sub" style="white-space:pre-line;"></div>
+      <div class="modal-actions" style="flex-wrap:wrap;gap:8px;">
+        <button class="btn btn-ghost" data-r="cancel">Cancelar</button>
+        <button class="btn btn-ghost" data-r="drop" style="color:var(--danger);">Borrar todo</button>
+        <button class="btn btn-primary" data-r="keep">Conservar como gastos</button>
+      </div></div>`;
+    ov.querySelector('.modal-title').textContent=title;
+    ov.querySelector('.modal-sub').textContent=body;
+    const done=r=>{ closeModal('modal-commitment-delete'); resolve(r==='cancel'?null:r); };
+    ov.querySelectorAll('[data-r]').forEach(b=>{ b.onclick=()=>done(b.dataset.r); });
+    openModal('modal-commitment-delete');
+  });
+}
+// Punto de entrada de la UI. after(borrado:boolean) se llama al terminar.
+async function requestDeleteCuota(id, after){
+  const c=(state.cuotas||[]).find(x=>x.id===id); if(!c){ after?.(false); return; }
+  const n=countManualCuotaHistory(c);
+  let keepHistory=true;
+  if(n>0){
+    const r=await confirmCommitmentDelete('Borrar "'+c.name+'"',
+      `Ya pasaron ${n} cuota${n!==1?'s':''} que no están importadas como movimientos.\n\n`+
+      `• Conservar: fueron gastos reales y quedan en tu historial (los meses pasados no cambian).\n`+
+      `• Borrar todo: la cargaste por error; no queda ningún gasto.`);
+    if(!r){ after?.(false); return; }
+    keepHistory=r==='keep';
+  }
+  deleteManualCuotaById(id,{silent:true,keepHistory});
+  after?.(true);
+}
+async function requestDeleteSubscription(id, after){
+  const sub=(state.subscriptions||[]).find(x=>x.id===id); if(!sub){ after?.(false); return; }
+  const n=countSubscriptionHistory(sub);
+  let keepHistory=true;
+  if(n>0){
+    const r=await confirmCommitmentDelete('Borrar "'+sub.name+'"',
+      `Hay ${n} cobro${n!==1?'s':''} pasado${n!==1?'s':''} que no están importados como movimientos.\n\n`+
+      `• Conservar: fueron gastos reales y quedan en tu historial.\n`+
+      `• Borrar todo: la cargaste por error; no queda ningún gasto.`);
+    if(!r){ after?.(false); return; }
+    keepHistory=r==='keep';
+  }
+  deleteSubscriptionById(id,{silent:true,keepHistory});
+  after?.(true);
+}
+
 function deleteSubscriptionById(id, opts={}){
   const sub=(state.subscriptions||[]).find(s=>s.id===id);
   if(!sub) return false;
-  materializeSubscriptionHistory(sub, opts);
+  if(opts.keepHistory!==false) materializeSubscriptionHistory(sub, opts);
   state.subscriptions=(state.subscriptions||[]).filter(s=>s.id!==id);
   syncProjectedSubscriptionTransactions();
   saveState();
@@ -436,7 +509,7 @@ function deleteSubscriptionById(id, opts={}){
 function deleteManualCuotaById(id, opts={}){
   const cuota=(state.cuotas||[]).find(c=>c.id===id);
   if(!cuota) return false;
-  materializeManualCuotaHistory(cuota, opts);
+  if(opts.keepHistory!==false) materializeManualCuotaHistory(cuota, opts);
   // Si vino de un import, que no se vuelva a crear al reimportar el resumen
   if(cuota.cuotaGroupId) dismissCuotaGroup(cuota.cuotaGroupId);
   state.cuotas=(state.cuotas||[]).filter(c=>c.id!==id);
@@ -846,10 +919,7 @@ function commitmentsInvokeEdit(action,id){
   if(typeof window[action]==='function') window[action](id);
 }
 function commitmentsDeleteExpiredCuota(source,id){
-  if(!confirm('¿Borrar esta cuota vencida definitivamente? Los movimientos ya registrados no se borran.')) return;
-  deleteManualCuotaById(id,{silent:true});
-  renderCommitmentsPage();
-  showToast('Cuota vencida eliminada','info');
+  requestDeleteCuota(id, ok=>{ if(!ok) return; renderCommitmentsPage(); showToast('Cuota eliminada','info'); });
 }
 function renderCommitmentsPage(){
   const root=document.getElementById('commitments-native-root');
@@ -1385,6 +1455,8 @@ function openNewCuotaModal(){
   document.getElementById('cuota-name').value='';document.getElementById('cuota-amount').value='';
   document.getElementById('cuota-total').value='';document.getElementById('cuota-paid').value='0';
   document.getElementById('cuota-day').value='';
+  document.getElementById('cuota-paymethod').value='visa';
+  document.getElementById('cuota-currency').value='ARS';
   initEmojiPicker('cuota','🛒');
   renderGenericColorPicker('cuota-color-picker','');
   document.getElementById('btn-del-cuota').style.display='none';
@@ -1397,6 +1469,8 @@ function editCuota(id){
   document.getElementById('cuota-name').value=c.name;document.getElementById('cuota-amount').value=c.amount;
   document.getElementById('cuota-total').value=c.total;document.getElementById('cuota-paid').value=getCuotaStatus(c).paid;
   document.getElementById('cuota-day').value=c.day||'';
+  document.getElementById('cuota-paymethod').value=c.payMethod==='amex'?'amex':(c.payMethod==='deb'||c.payMethod==='ef')?'deb':'visa';
+  document.getElementById('cuota-currency').value=c.currency==='USD'?'USD':'ARS';
   initEmojiPicker('cuota',c.emoji||'🛒');
   renderGenericColorPicker('cuota-color-picker',c.color||'');
   document.getElementById('btn-del-cuota').style.display='inline-flex';
@@ -1409,6 +1483,8 @@ function saveCuota(){
   if(!name||amount<=0){showToast('⚠️ Completá nombre y monto','error');return;}
   const sw=document.querySelector('#cuota-color-picker .color-swatch.selected');const rawC=sw?sw.style.backgroundColor:'#888888';const cuotaColor=rawC.startsWith('#')?rawC:rgbToHex(rawC);
   const editing=document.getElementById('modal-cuota-editing').value;
+  const cuotaPayMethod=document.getElementById('cuota-paymethod')?.value||'visa';
+  const cuotaCurrency=document.getElementById('cuota-currency')?.value==='USD'?'USD':'ARS';
   // "Pagadas" se carga a hoy: la cuota N° `paid` es el vencimiento más reciente (o, si
   // no hay ninguna paga, la primera vence en el próximo `day`). Eso ancla el calendario.
   const _today=new Date();
@@ -1420,17 +1496,15 @@ function saveCuota(){
     : {lastPaidDate:null,startDate:dateToYMD(_cuotaDateInMonth(_recent.getFullYear(),_recent.getMonth()+1,_dueDay))};
   if(editing){const c=state.cuotas.find(x=>x.id===editing);if(c){
     const scheduleChanged=getCuotaStatus(c).paid!==paid||(parseInt(c.day,10)||null)!==day;
-    c.name=name;c.amount=amount;c.total=total;c.day=day;c.emoji=emoji;c.color=cuotaColor;
+    c.name=name;c.amount=amount;c.total=total;c.day=day;c.emoji=emoji;c.color=cuotaColor;c.payMethod=cuotaPayMethod;c.currency=cuotaCurrency;
     if(scheduleChanged){c.paid=paid;Object.assign(c,anchor);}
   }}
-  else{state.cuotas.push({id:Date.now().toString(36),name,amount,total,paid,day:_dueDay,emoji,color:cuotaColor,currency:'ARS',createdAt:new Date().toISOString(),...anchor});}
+  else{state.cuotas.push({id:Date.now().toString(36),name,amount,total,paid,day:_dueDay,emoji,color:cuotaColor,currency:cuotaCurrency,payMethod:cuotaPayMethod,createdAt:new Date().toISOString(),...anchor});}
   saveState();closeModal('modal-cuota');renderCuotas();refreshAll();showToast('✓ Cuota guardada','success');
 }
 function deleteCuota(){
   const id=document.getElementById('modal-cuota-editing').value;
-  deleteManualCuotaById(id,{silent:true});
-  closeModal('modal-cuota');
-  showToast('Cuota eliminada','info');
+  requestDeleteCuota(id, ok=>{ if(!ok) return; closeModal('modal-cuota'); showToast('Cuota eliminada','info'); });
 }
 // ══ GASTOS FIJOS ══
 function renderFixed(){
@@ -1443,6 +1517,7 @@ function openNewFixedModal(){
   document.getElementById('fixed-amount').value='';
   document.getElementById('fixed-currency').value='ARS';
   document.getElementById('fixed-day').value='';
+  document.getElementById('fixed-paymethod').value='';
   initEmojiPicker('fixed','🏠');
   renderGenericColorPicker('fixed-color-picker','');
   document.getElementById('btn-del-fixed').style.display='none';
@@ -1456,6 +1531,7 @@ function editFixed(id){
   document.getElementById('fixed-amount').value=f.amount;
   document.getElementById('fixed-currency').value=f.currency||'ARS';
   document.getElementById('fixed-day').value=f.day||'';
+  document.getElementById('fixed-paymethod').value=['visa','amex'].includes(f.payMethod)?f.payMethod:'';
   initEmojiPicker('fixed',f.emoji||'🏠');
   renderGenericColorPicker('fixed-color-picker',f.color||'');
   document.getElementById('btn-del-fixed').style.display='inline-flex';
@@ -1471,12 +1547,14 @@ function saveFixed(){
     name,amount,
     currency:document.getElementById('fixed-currency').value,
     day:parseInt(document.getElementById('fixed-day').value)||null,
+    // Medio de pago: con tarjeta, el gasto fijo se proyecta en el ciclo de esa tarjeta
+    payMethod:document.getElementById('fixed-paymethod').value||null,
     emoji:document.getElementById('fixed-emoji').value||'🏠',
     color:fixedColor
   };
   if(!state.fixedExpenses)state.fixedExpenses=[];
   const editing=document.getElementById('modal-fixed-editing').value;
-  if(editing){const i=state.fixedExpenses.findIndex(x=>x.id===editing);if(i>=0)state.fixedExpenses[i]=obj;}
+  if(editing){const i=state.fixedExpenses.findIndex(x=>x.id===editing);if(i>=0)state.fixedExpenses[i]={...state.fixedExpenses[i],...obj};}
   else state.fixedExpenses.push(obj);
   saveState();closeModal('modal-fixed');
   renderFixed();renderCompromisosSummary();refreshAll();
@@ -1538,9 +1616,7 @@ function saveSub(){
 }
 function deleteSub(){
   const id=document.getElementById('modal-sub-editing').value;
-  deleteSubscriptionById(id,{silent:true});
-  closeModal('modal-sub');
-  showToast('Suscripción eliminada','info');
+  requestDeleteSubscription(id, ok=>{ if(!ok) return; closeModal('modal-sub'); showToast('Suscripción eliminada','info'); });
 }
 
 // ══ RENDER SUBS ANNUAL BREAKDOWN ══
