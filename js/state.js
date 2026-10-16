@@ -117,6 +117,9 @@ function getStateSnapshot(){
     dismissedAutoCuotas:state.dismissedAutoCuotas||[],
     gmailDeletedIds:state.gmailDeletedIds||[],
     gmailAnulados:state.gmailAnulados||[],
+    bankAccounts:state.bankAccounts||[],
+    _bankAccountsInitialized:!!state._bankAccountsInitialized,
+    sharedExpenseContacts:state.sharedExpenseContacts||[],
     dismissedCommitmentEntries:state.dismissedCommitmentEntries||[],
     tasks:state.tasks||[],
     txnCardFilter:state.txnCardFilter||'',
@@ -216,7 +219,14 @@ function initDriveClient(autoSync){
       client_id: clientId,
       scope: getDriveScopes(),
       callback:(resp)=>{
-        if(resp.error){console.warn('Drive auth error:',resp.error);return;}
+        const _wasReconnect=!!window._driveReconnecting;
+        window._driveReconnecting=false;
+        if(resp.error){
+          console.warn('Drive auth error:',resp.error);
+          if(_wasReconnect && typeof showToast==='function') showToast('⚠️ Se cortó la conexión con Google: tus cambios están en este dispositivo pero no en Drive. Volvé a conectar Google.','error');
+          return;
+        }
+        if(_wasReconnect) autoSync=false;
         _syncMark('token recibido de Google');
         driveAccessToken = resp.access_token;
         gmailAccessToken = resp.access_token;
@@ -317,7 +327,19 @@ async function saveToDrive(snapshot){
     localStorage.setItem(LS_LAST_SYNCED_AT, snapshot.savedAt||new Date().toISOString());
   }catch(e){
     console.warn('Drive save error:',e);
-    if(e.status===401 || e.status===403){ driveAccessToken=null; driveReady=false; }
+    if(e.status===401 || e.status===403){
+      // El permiso de Google dura ~1 hora. Antes quedaba sin guardar en Drive sin avisar
+      // (y otro dispositivo seguía con la copia vieja). Ahora se reconecta en silencio:
+      // al volver, loadFromDrive ve los cambios locales sin subir y los sube.
+      driveAccessToken=null; driveReady=false;
+      if(driveTokenClient && !window._driveReconnecting){
+        window._driveReconnecting=true;
+        if(typeof showToast==='function') showToast('Reconectando con Google para guardar tus cambios en Drive…','info');
+        try{ driveTokenClient.requestAccessToken({prompt:''}); }catch(_){ window._driveReconnecting=false; }
+      }
+    } else if(typeof showToast==='function'){
+      showToast('⚠️ No se pudo guardar en Google Drive. Tus datos quedan en este dispositivo; se reintenta en el próximo cambio.','error');
+    }
   }
 }
 
@@ -445,6 +467,10 @@ async function loadFromDrive(){
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
     state.gmailDeletedIds=s.gmailDeletedIds||[];
     state.gmailAnulados=s.gmailAnulados||[];
+    if(Array.isArray(s.bankAccounts)){ state.bankAccounts=s.bankAccounts; state._bankAccountsInitialized=!!s._bankAccountsInitialized||s.bankAccounts.length>0; }
+    state.sharedExpenseContacts=s.sharedExpenseContacts||state.sharedExpenseContacts||[];
+    state.dismissedNotifs=s.dismissedNotifs||state.dismissedNotifs||[];
+    if(s.userName) state.userName=s.userName;
     state.dismissedCommitmentEntries=s.dismissedCommitmentEntries||[];
     state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';
@@ -556,6 +582,10 @@ function loadState(){
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
     state.gmailDeletedIds=s.gmailDeletedIds||[];
     state.gmailAnulados=s.gmailAnulados||[];
+    if(Array.isArray(s.bankAccounts)){ state.bankAccounts=s.bankAccounts; state._bankAccountsInitialized=!!s._bankAccountsInitialized||s.bankAccounts.length>0; }
+    state.sharedExpenseContacts=s.sharedExpenseContacts||state.sharedExpenseContacts||[];
+    state.dismissedNotifs=s.dismissedNotifs||state.dismissedNotifs||[];
+    if(s.userName) state.userName=s.userName;
     state.dismissedCommitmentEntries=s.dismissedCommitmentEntries||[];
     state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';
@@ -602,3 +632,19 @@ function _normalizeViewMode(mode){
   if(mode==='mes'||mode==='amex') return mode;
   return 'visa';
 }
+
+// ── Varias ventanas abiertas a la vez (navegador + app en la pantalla de inicio) ──
+// Cada ventana tiene su copia en memoria: si una guardaba con datos viejos, pisaba lo que se
+// cambió en la otra (un gasto borrado volvía a aparecer). Cuando otra ventana guarda, esta
+// recarga los datos guardados antes de seguir.
+window.addEventListener('storage', e => {
+  if(e.key!=='fin_state' || !e.newValue || !window._appBooted) return;
+  clearTimeout(window._externalStateTimer);
+  window._externalStateTimer=setTimeout(()=>{
+    try{
+      loadState();
+      if(typeof refreshAll==='function') refreshAll();
+      if(typeof showToast==='function') showToast('Datos actualizados desde otra ventana','info');
+    }catch(err){ console.warn('external state reload error', err); }
+  }, 300);
+});

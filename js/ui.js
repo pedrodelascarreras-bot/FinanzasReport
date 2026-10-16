@@ -488,7 +488,7 @@ function renderNotifications() {
         id: `cuota-notif-${c.id}-${dateToYMD(cDate)}`,
         type: 'info',
         title: 'Próxima cuota',
-        desc: `${diff === 0 ? 'Hoy' : 'En ' + diff + ' día' + (diff !== 1 ? 's' : '')} vence: ${esc(c.name || '')}.`,
+        desc: `${diff === 0 ? 'Hoy' : 'En ' + diff + ' día' + (diff !== 1 ? 's' : '')} vence: ${c.name || ''}.`,
         icon: '💳',
         color: 'var(--accent)',
         time: diff === 0 ? 'Hoy' : `En ${diff} día${diff !== 1 ? 's' : ''}`
@@ -520,8 +520,8 @@ function renderNotifications() {
           ${n.icon}
         </div>
         <div class="notif-content">
-          <div class="notif-title">${n.title}</div>
-          <div class="notif-desc">${n.desc}</div>
+          <div class="notif-title">${esc(n.title)}</div>
+          <div class="notif-desc">${esc(n.desc)}</div>
           <div class="notif-time">${n.time}</div>
         </div>
         <button class="notif-item-close" onclick="event.stopPropagation();dismissNotif('${key.replace(/'/g,"\\'")}')" title="Quitar">✕</button>

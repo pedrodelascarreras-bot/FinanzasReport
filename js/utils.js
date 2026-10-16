@@ -7,14 +7,14 @@ function fmtN(n,dec){
   return num.toLocaleString('es-AR',{minimumFractionDigits:d,maximumFractionDigits:d});
 }
 function fmtDate(d){if(!d)return'—';return new Date(d).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'2-digit'});}
-function getWeekKey(d){const dt=new Date(d);dt.setHours(0,0,0,0);dt.setDate(dt.getDate()-dt.getDay()+1);return dt.toISOString().split('T')[0];}
+function getWeekKey(d){const dt=new Date(d);dt.setHours(0,0,0,0);dt.setDate(dt.getDate()-dt.getDay()+1);return dateToYMD(dt);}
 function getMonthKey(d){
   const dt=d instanceof Date?d:new Date(d);
   // Use local date parts to avoid UTC timezone shifting
   return dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0');
 }
 function parseDate(raw){if(!raw)return null;const m=String(raw).match(/(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);if(m){const y=m[3].length===2?2000+parseInt(m[3]):parseInt(m[3]);return new Date(y,parseInt(m[2])-1,parseInt(m[1]));}const d=new Date(raw);return isNaN(d)?null:d;}
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function esc(s){return String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function hasReachedEffectiveChargeDate(value,todayRef=new Date()){
   const ymd=dateToYMD(value);
   const todayYmd=dateToYMD(todayRef);

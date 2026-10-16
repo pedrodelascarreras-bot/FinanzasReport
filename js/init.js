@@ -277,6 +277,41 @@ function _ensureTcCycleVisible(signature){
   state.hiddenTcCycles=(state.hiddenTcCycles||[]).filter(item=>item!==signature);
 }
 
+// Los ciclos automáticos se acomodan a los vecinos (de la misma tarjeta) para que no queden
+// días sin ciclo ni días en dos ciclos: abren el día después del cierre anterior y, si el
+// siguiente es un ciclo cargado a mano con apertura propia, cierran el día antes.
+function _stitchAutoCycles(rows){
+  const plusDays=(ymd,n)=>{ const d=new Date(ymd+'T12:00:00'); d.setDate(d.getDate()+n); return dateToYMD(d); };
+  const groups=new Map();
+  rows.forEach(c=>{
+    const key=(getTcCyclePayMethodKey(c)||'mes')+'::'+(c.cardId||'');
+    if(!groups.has(key)) groups.set(key,[]);
+    groups.get(key).push(c);
+  });
+  const out=[];
+  groups.forEach(list=>{
+    const sorted=list.map(c=>({...c})).sort((a,b)=>(a.closeDate||'').localeCompare(b.closeDate||''));
+    sorted.forEach((c,i)=>{
+      if(c.source!=='auto') return;
+      const prev=sorted[i-1], next=sorted[i+1];
+      if(prev?.closeDate) c.openDate=plusDays(prev.closeDate,1);
+      if(next && next.source!=='auto' && next.openDate){
+        const close=plusDays(next.openDate,-1);
+        if(!c.openDate || close>=c.openDate){
+          // el vencimiento se corre igual que el cierre (mismo plazo de pago)
+          if(c.dueDate && c.closeDate){
+            const gap=Math.round((new Date(c.dueDate+'T12:00:00')-new Date(c.closeDate+'T12:00:00'))/86400000);
+            c.dueDate=plusDays(close, Math.max(0,gap));
+          }
+          c.closeDate=close;
+        }
+      }
+    });
+    out.push(...sorted);
+  });
+  return out;
+}
+
 function getTcCycles(mode){
   normalizeTcCyclesForConsistency();
   const normalizedMode=mode?normalizeViewMode(mode):null;
@@ -303,7 +338,7 @@ function getTcCycles(mode){
     const monthKey=[payMethod, c.cardId||'', _tcCycleMonthKey(c.closeDate)].join('::');
     if(!mergedMap.has(monthKey)) mergedMap.set(monthKey,c);
   });
-  let rows=[...mergedMap.values()];
+  let rows=_stitchAutoCycles([...mergedMap.values()]);
   if(normalizedMode==='visa'||normalizedMode==='amex'){
     rows=rows.filter(c=>{
       const pm=(c.payMethodKey||'').toLowerCase();
@@ -615,7 +650,7 @@ function toggleManualForm(){
   btn.textContent=open?'✕ Cerrar':'+ Nuevo gasto';
   if(open){
     // Set today as default date
-    document.getElementById('mf-date').value=new Date().toISOString().split('T')[0];
+    document.getElementById('mf-date').value=dateToYMD(new Date());
     // Populate category select
     const catSel=document.getElementById('mf-cat');
     let mfOpts='';CATEGORY_GROUPS.forEach(g=>{mfOpts+='<optgroup label="'+g.emoji+' '+g.group+'">';g.subs.forEach(s=>{mfOpts+='<option value="'+s+'">'+s+'</option>';});mfOpts+='</optgroup>';});catSel.innerHTML=mfOpts;
@@ -656,7 +691,7 @@ function saveManualExpense(){
   // Reset form
   document.getElementById('mf-desc').value='';
   document.getElementById('mf-amount').value='';
-  document.getElementById('mf-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('mf-date').value=dateToYMD(new Date());
 }
 
 // ══ BACKUP / RESTORE ══
@@ -1067,7 +1102,7 @@ function requestGmailToken() {
 function openGmailPeriodModal() {
   const now = new Date();
   const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-  const toISO = d => d.toISOString().slice(0,10);
+  const toISO = d => dateToYMD(d);
   document.getElementById('gmail-period-from').value = toISO(firstOfMonth);
   document.getElementById('gmail-period-to').value = toISO(now);
   gmailPeriodQuick('month');
@@ -1076,7 +1111,7 @@ function openGmailPeriodModal() {
 
 function gmailPeriodQuick(preset) {
   const now = new Date();
-  const toISO = d => d.toISOString().slice(0,10);
+  const toISO = d => dateToYMD(d);
   document.querySelectorAll('.gmail-period-quick-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = document.getElementById('gp-quick-' + preset);
   if(activeBtn) activeBtn.classList.add('active');
@@ -1168,9 +1203,11 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
     const now = new Date();
     dateFrom = dateFrom || new Date(now.getFullYear(), now.getMonth(), 1);
     dateTo = dateTo || now;
-    const fmtGmail = d => d.toISOString().slice(0,10).replace(/-/g,'/');
-    const beforeDate = new Date(dateTo); beforeDate.setDate(beforeDate.getDate()+1);
-    const dateQuery = ` after:${fmtGmail(dateFrom)} before:${fmtGmail(beforeDate)}`;
+    // Rango exacto en hora local (segundos epoch): "after:AAAA/MM/DD" de Gmail usa otra zona
+    // horaria y podía traer mails de la noche anterior al primer día elegido.
+    const rangeStart = new Date(dateFrom); rangeStart.setHours(0,0,0,0);
+    const rangeEnd = new Date(dateTo); rangeEnd.setHours(23,59,59,999);
+    const dateQuery = ` after:${Math.floor(rangeStart.getTime()/1000)} before:${Math.ceil(rangeEnd.getTime()/1000)}`;
     const rules = getActiveGmailImportRules();
     if(!rules.length){
       showToast('Configurá al menos una regla Gmail activa', 'error');
@@ -1230,8 +1267,14 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
     
     const txns = [];
     const annulments = [];
+    const fromYmd = dateToYMD(rangeStart), toYmd = dateToYMD(rangeEnd);
     for (const bundle of emails) {
         const txn = parseSantanderEmail(bundle.email, txns, bundle.rule);
+        // Solo gastos con fecha dentro del período elegido (aunque el mail llegue tarde)
+        if (txn && !txn.isAnulacion) {
+          const ymd = dateToYMD(txn.date);
+          if (ymd < fromYmd || ymd > toYmd) continue;
+        }
         if (txn) {
             if (txn.isAnulacion) annulments.push(txn);
             else if (typeof isExcludedImportMerchant === 'function' && isExcludedImportMerchant(txn)) { /* comercio bloqueado (Mercado Libre): no importar */ }
@@ -1248,18 +1291,30 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
         state.gmailAnulados.push(an.gmailId);
         stateChanged = true;
 
-        // Helper: match flexible — mismo monto/moneda + descripción similar o sin comercio detectado
+        // Helper: match flexible — mismo monto/moneda + descripción similar o sin comercio detectado.
+        // Una compra en cuotas guarda el monto por cuota: el mail de anulación trae el total.
         const _anBase = (an._baseDesc||'').toLowerCase();
+        const _sameAmount = (t) => t.currency === an.currency &&
+          (Math.abs(t.amount - an.amount) < 0.01 || (t.cuotaTotalAmount && Math.abs(t.cuotaTotalAmount - an.amount) < 0.01));
         const _matchesTxn = (t) => {
-          if (t.amount !== an.amount || t.currency !== an.currency) return false;
-          const tBase = (t._baseDesc||t.description||'').toLowerCase();
+          if (!t || t.isAnulacion || !_sameAmount(t)) return false;
+          const tBase = (t._baseDesc||t.gmailMerchantRaw||t.description||'').toLowerCase();
           // Exact base match OR annulment has generic 'santander' (comercio not extracted)
           return tBase === _anBase || _anBase === 'santander' || tBase.startsWith(_anBase) || _anBase.startsWith(tBase.split(' ')[0]);
+        };
+        // La compra anulada no vuelve en la próxima sincronización, y si era en cuotas se va el plan
+        const _dropAnnulled = (t) => {
+          rememberDeletedGmailTxns([t]);
+          if (t.cuotaGroupId) {
+            state.cuotas = (state.cuotas||[]).filter(c => c.cuotaGroupId !== t.cuotaGroupId);
+            if (typeof dismissCuotaGroup === 'function') dismissCuotaGroup(t.cuotaGroupId);
+          }
         };
 
         // Buscar en la lista de nuevos (por si llegaron ambos juntos)
         let matchIdx = txns.findIndex(t => _matchesTxn(t));
         if (matchIdx !== -1) {
+            _dropAnnulled(txns[matchIdx]);
             txns.splice(matchIdx, 1);
         } else {
             // Buscar en transacciones existentes (tolerancia 5 días)
@@ -1268,6 +1323,7 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
                 Math.abs(new Date(t.date) - an.date) < 86400000 * 5
             );
             if (stateIdx !== -1) {
+                _dropAnnulled(state.transactions[stateIdx]);
                 state.transactions.splice(stateIdx, 1);
                 stateChanged = true;
             }
@@ -1421,6 +1477,9 @@ function parseSantanderEmail(email, currentBatch, rule) {
       const ptMatch = body.replace(/<[^>]+>/g, '\n').match(/Comercio\s*\n+([^\n]+)/i);
       if (ptMatch) comercio = ptMatch[1].trim();
     }
+    // El HTML del mail trae entidades (&amp;, &#39;, &nbsp;…): se guarda el texto real
+    comercio = comercio.replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"').replace(/&#39;|&apos;/gi, "'").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n));
     comercio = comercio.replace(/\s{2,}/g, ' ').trim();
     const merchantKey = typeof getSubscriptionMerchantKey === 'function' ? getSubscriptionMerchantKey(comercio) : comercio.toLowerCase().replace(/[^a-z0-9]/g,'');
 

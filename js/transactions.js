@@ -283,19 +283,19 @@ function setCardFilter(key){
 window.exportTransactionsCSV = function() {
   var txns = window.currentRenderedTxns || state.transactions || [];
   if (!txns || txns.length === 0) {
-    if(window.showToast) window.showToast(window.t('global_no_results'), 'warning');
+    if(window.showToast) window.showToast('Sin resultados', 'warning');
     return;
   }
   
-  var dateLabel = window.t('global_date');
-  var descLabel = window.t('global_description');
-  var catLabel = window.t('global_category');
-  var amtLabel = window.t('global_amount');
-  var methLabel = window.t('global_method');
+  var dateLabel = 'Fecha';
+  var descLabel = 'Descripción';
+  var catLabel = 'Categoría';
+  var amtLabel = 'Monto';
+  var methLabel = 'Medio';
 
   var data = txns.map(function(tx) {
     var row = {};
-    row[dateLabel] = tx.date || '';
+    row[dateLabel] = tx.date ? dateToYMD(tx.date) : '';
     row[descLabel] = tx.name || tx.description || '';
     row[catLabel] = tx.category || '';
     row[amtLabel] = tx.amount || 0;
@@ -307,12 +307,12 @@ window.exportTransactionsCSV = function() {
   
   var csv = '';
   if (typeof Papa !== 'undefined') {
-    csv = Papa.unparse(data);
+    csv = Papa.unparse(data, { escapeFormulae: true });
   } else {
     var headers = Object.keys(data[0]);
     csv = headers.join(',') + '\n';
     data.forEach(function(row) {
-      csv += headers.map(function(h) { return '"' + String(row[h]).replace(/"/g, '""') + '"'; }).join(',') + '\n';
+      csv += headers.map(function(h) { return '"' + csvSafeCell(row[h]).replace(/"/g, '""') + '"'; }).join(',') + '\n';
     });
   }
   
@@ -320,7 +320,7 @@ window.exportTransactionsCSV = function() {
   var url = URL.createObjectURL(blob);
   var a = document.createElement('a');
   a.setAttribute('href', url);
-  a.setAttribute('download', 'finanzas_movimientos_' + new Date().toISOString().slice(0,10) + '.csv');
+  a.setAttribute('download', 'finanzas_movimientos_' + dateToYMD(new Date()) + '.csv');
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -891,7 +891,7 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
   // ── DEDUP: merge entries that refer to the same underlying purchase ──
   // Problem cases:
   //   • CLAUDEAI = both 'suscripciones' + 'compartidos' (same sourceTxnId)
-  //   • Pantuflas Belen (manual cuota) ↔ MERPAGO*MARTINVAQUERO (shared expense) — same cuotaGroupId
+  //   • una cuota cargada a mano ↔ la misma compra importada como gasto compartido — mismo cuotaGroupId
   // Preference order when keeping ONE entry: compartidos > cuotas > suscripciones > others
   // (compartido is most informative — tells you who paid you back)
   const groupRank = {compartidos: 4, cuotas: 3, suscripciones: 2, fijos: 1};
@@ -965,7 +965,7 @@ state._dupFilterOn = state._dupFilterOn || false;
 // toggleDupFilter removed — legacy, f-dup-toggle element no longer exists
 
 function txnDupKey(t){
-  const d=t.date instanceof Date?t.date.toISOString().slice(0,10):String(t.date).slice(0,10);
+  const d=t.date instanceof Date?dateToYMD(t.date):String(t.date).slice(0,10);
   return String(t.amount)+'|'+t.currency+'|'+d;
 }
 
@@ -2001,7 +2001,7 @@ function renderMobileTransactions(txns, meta) {
   const groupMap = {};
   realTxns.forEach(tx => {
     const d = tx.date instanceof Date ? tx.date : new Date(tx.date);
-    const key = d.toISOString().slice(0, 10);
+    const key = dateToYMD(d);
     if (!groupMap[key]) groupMap[key] = [];
     groupMap[key].push(tx);
   });
@@ -2010,8 +2010,9 @@ function renderMobileTransactions(txns, meta) {
   // Day header label
   const DAYS_ES = ['DOMINGO','LUNES','MARTES','MIÉRCOLES','JUEVES','VIERNES','SÁBADO'];
   const MONTHS_ES = ['ENERO','FEBRERO','MARZO','ABRIL','MAYO','JUNIO','JULIO','AGOSTO','SEPTIEMBRE','OCTUBRE','NOVIEMBRE','DICIEMBRE'];
-  const todayKey = today.toISOString().slice(0, 10);
-  const yesterdayKey = new Date(today - 86400000).toISOString().slice(0, 10);
+  const todayKey = dateToYMD(today);
+  const _yest = new Date(today); _yest.setDate(_yest.getDate() - 1);
+  const yesterdayKey = dateToYMD(_yest);
   function dayLabel(key) {
     if (key === todayKey) return 'HOY, ' + today.getDate() + ' ' + MONTHS_ES[today.getMonth()];
     const d = new Date(key + 'T12:00:00');
@@ -3256,7 +3257,7 @@ function confirmDeleteDupes(){ showDuplicatesModal(); }
 // ── Nuevo gasto desde Movimientos ──
 function openNewExpenseModal(){
   document.getElementById('ne-desc').value='';
-  document.getElementById('ne-date').value=new Date().toISOString().split('T')[0];
+  document.getElementById('ne-date').value=dateToYMD(new Date());
   document.getElementById('ne-amount').value='';
   document.getElementById('ne-method').value='ef';
   const catSel=document.getElementById('ne-cat');

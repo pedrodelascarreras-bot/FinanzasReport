@@ -326,7 +326,7 @@ function openImportReview(txns,issues){
     const subs=state.categories.filter(c=>c.group===g.group);
     if(subs.length){
       catOpts+='<optgroup label="'+g.emoji+' '+g.group+'">';
-      subs.forEach(c=>{catOpts+='<option value="'+c.name+'">'+c.name+'</option>';});
+      subs.forEach(c=>{catOpts+='<option value="'+esc(c.name)+'">'+esc(c.name)+'</option>';});
       catOpts+='</optgroup>';
     }
   });
@@ -367,8 +367,8 @@ function openImportReview(txns,issues){
       const dateStr=new Date(t.date).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'});
       html+=`<div style="display:flex;align-items:center;gap:10px;padding:7px 10px;background:var(--surface2);border-radius:6px;font-size:12px;">
         <span style="color:var(--text3);font-family:var(--font);flex-shrink:0;width:42px;">${dateStr}</span>
-        <span style="flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${t.description}</span>
-        <span style="background:${c}22;color:${c};border-radius:6px;padding:2px 7px;font-size:10px;flex-shrink:0;">${t.category}</span>
+        <span style="flex:1;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t.description)}</span>
+        <span style="background:${c}22;color:${c};border-radius:6px;padding:2px 7px;font-size:10px;flex-shrink:0;">${esc(t.category)}</span>
         <span style="font-family:var(--font);color:var(--accent);flex-shrink:0;">${t.currency==='USD'?'U$S ':'$'}${fmtN(t.amount)}</span>
       </div>`;
     });
@@ -1078,7 +1078,7 @@ function findDuplicateGroups(){
   // Group by amount + currency + date (day) — same amount on same day
   const byAmt={};
   state.transactions.forEach(t=>{
-    const d=t.date instanceof Date?t.date.toISOString().slice(0,10):String(t.date).slice(0,10);
+    const d=t.date instanceof Date?dateToYMD(t.date):String(t.date).slice(0,10);
     const k=String(t.amount)+'|'+t.currency+'|'+d;
     if(!byAmt[k])byAmt[k]=[];
     byAmt[k].push(t);

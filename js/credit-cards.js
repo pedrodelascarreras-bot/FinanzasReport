@@ -20,39 +20,8 @@ function ccInit(){
   });
   if(!state.ccCycles) state.ccCycles=[];
   if(!state.ccActiveCard) state.ccActiveCard=state.ccCards[0]?.id||'card_1';
-  try{ _fixSantanderVisaJul2026(); }catch(e){ console.error('fixSantanderVisaJul2026:', e); }
 }
 
-function _fixSantanderVisaJul2026(){
-  let done='';
-  try{ done=localStorage.getItem('_visaJul2026FixedV4')||''; }catch(e){}
-  if(done||state._visaJul2026FixedV4) return;
-  if(!Array.isArray(state.tcCycles)) state.tcCycles=[];
-  // Remove any wrong cycles for card_1 in the current period (null-safe)
-  state.tcCycles=state.tcCycles.filter(c=>{
-    if(!c) return false;
-    if(c.cardId!=='card_1') return true;
-    if(c.closeDate==='2026-07-02'&&c.openDate==='2026-05-27'&&c.dueDate==='2026-07-14') return true;
-    if((c.closeDate||'')>='2026-06-01'&&(c.closeDate||'')<='2026-07-31') return false;
-    return true;
-  });
-  const hasCorrect=state.tcCycles.some(c=>c&&c.cardId==='card_1'&&c.closeDate==='2026-07-02'&&c.openDate==='2026-05-27'&&c.dueDate==='2026-07-14');
-  if(!hasCorrect){
-    state.tcCycles.push({id:'tc_visa_jul2026',label:'VISA · jul 2026',cardId:'card_1',openDate:'2026-05-27',closeDate:'2026-07-02',dueDate:'2026-07-14',payMethodKey:'visa',viewMode:'visa',source:'manual'});
-  }
-  if(!Array.isArray(state.hiddenTcCycles)) state.hiddenTcCycles=[];
-  // Solo ocultar el ciclo auto-generado VIEJO (día 25, de cuando closeDay todavía no
-  // estaba sincronizado). El de día 2 es el ciclo de junio correcto — un fix anterior (V3)
-  // lo ocultaba por error, haciendo desaparecer "VISA junio" del selector.
-  if(!state.hiddenTcCycles.includes('visa::card_1::2026-06-25')) state.hiddenTcCycles.push('visa::card_1::2026-06-25');
-  // Asegurar que las firmas correctas (jul actual + jun auto) no queden ocultas
-  state.hiddenTcCycles=state.hiddenTcCycles.filter(s=>s!=='visa::card_1::2026-07-02'&&s!=='visa::card_1::2026-06-02');
-  // Reset selecciones fijas para que la UI resuelva el ciclo actual
-  state.dashTcCycle=null;
-  if(window._ccViewCycle) window._ccViewCycle['card_1']=null;
-  state._visaJul2026FixedV4=true;
-  try{ localStorage.setItem('_visaJul2026FixedV4','1'); }catch(e){}
-}
 
 // ── Per-card: which cycle is being viewed ──
 // window._ccViewCycle = { cardId: cycleId }

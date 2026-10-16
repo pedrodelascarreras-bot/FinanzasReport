@@ -9,9 +9,10 @@
     "test:cuotas": "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tests/cuotas.test.js",
     "test:totals": "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tests/totals.test.js",
     "test:consistencia": "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tests/consistencia.test.js",
-    "test": "npm run test:cuotas && npm run test:totals && npm run test:consistencia && npm run test:importacion",
+    "test": "npm run test:cuotas && npm run test:totals && npm run test:consistencia && npm run test:importacion && npm run test:gmail",
     "validate": "npm run lint && npm test && npm run build",
-    "test:importacion": "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tests/importacion.test.js"
+    "test:importacion": "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tests/importacion.test.js",
+    "test:gmail": "/System/Library/Frameworks/JavaScriptCore.framework/Versions/Current/Helpers/jsc tests/gmail-sync.test.js"
   },
   "devDependencies": {
     "@eslint/js": "^9.24.0",

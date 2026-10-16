@@ -714,7 +714,7 @@ function openExtraModal(monthKey, extraId){
   const accounts = state.bankAccounts || [];
   const today = new Date();
   const targetKey = monthKey || getMonthKey(today);
-  const dateStr = today.toISOString().slice(0, 10);
+  const dateStr = dateToYMD(today);
 
   // If editing, find the extra
   let extra = null;

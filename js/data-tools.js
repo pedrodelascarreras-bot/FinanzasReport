@@ -24,7 +24,7 @@ function getImportDateValue(imp){
   const raw = String(imp.date || '').trim();
   if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
   const parsed = new Date(raw);
-  if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+  if (!Number.isNaN(parsed.getTime())) return dateToYMD(parsed);
   return '';
 }
 
@@ -263,22 +263,28 @@ function closeModalConfirm() {
 }
 
 // ══ EXPORTAR CSV ══
+// Celdas que Excel interpretaría como fórmula (=, +, -, @): se exportan como texto
+function csvSafeCell(v){
+  const str=String(v ?? '');
+  return /^[=+\-@\t\r]/.test(str) ? "'"+str : str;
+}
 function exportarCSV() {
-  const txns = state.transactions;
+  // Solo movimientos reales (no las proyecciones de suscripciones guardadas a futuro)
+  const txns = (state.transactions||[]).filter(t => !t.isPendingSubscription && !t.isPendingCuota);
   if (!txns.length) { showToast('Sin movimientos para exportar', 'error'); return; }
   const headers = ['Fecha','Descripción','Comercio','Monto','Moneda','Categoría','Medio de pago','Estado','Origen'];
   const rows = txns.map(t => [
-    t.date || '',
-    (t.description || '').replace(/"/g,'""'),
-    (t.comercio_detectado || '').replace(/"/g,'""'),
+    t.date ? dateToYMD(t.date) : '',
+    csvSafeCell(t.description || ''),
+    csvSafeCell(t.comercio_detectado || ''),
     t.amount || 0,
     t.currency || 'ARS',
-    (t.category || '').replace(/"/g,'""'),
-    (t.payMethod || '').replace(/"/g,'""'),
+    csvSafeCell(t.category || ''),
+    t.payMethod || '',
     t.estado_revision || '',
     t.origen_del_movimiento || ''
   ]);
-  const csv = [headers, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n');
+  const csv = [headers, ...rows].map(r => r.map(v => `"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');

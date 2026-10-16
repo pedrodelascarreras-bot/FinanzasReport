@@ -15,6 +15,7 @@ const entries = [
   'css',
   'js',
   'brand',
+  'design-system', // css/styles.css importa design-system/tokens/index.css
 ];
 
 async function build() {

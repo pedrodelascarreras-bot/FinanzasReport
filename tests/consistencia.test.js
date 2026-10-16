@@ -138,6 +138,17 @@ if (aIdx >= 0) {
   state.subscriptions = saved.subs; state.fixedExpenses = saved.fixed;
 }
 
+// Ciclos sin huecos: un ciclo cargado a mano entre automáticos no deja días afuera
+{
+  const savedCycles = state.tcCycles;
+  const vis = getTcCycles('visa').slice().sort((a, b) => a.closeDate.localeCompare(b.closeDate));
+  let gaps = 0;
+  for (let i = 1; i < vis.length; i++) { const d = new Date(vis[i - 1].closeDate + 'T12:00:00'); d.setDate(d.getDate() + 1); if (dateToYMD(d) !== getTcCycleOpen(vis, i)) gaps++; }
+  if (gaps) print('  ciclos: ' + vis.map(c => c.id + ' ' + (c.openDate||'?') + '→' + c.closeDate + ' ' + c.source).join(' | '));
+  eq(gaps, 0, 'ciclos Visa contiguos (sin días sin ciclo)');
+  state.tcCycles = savedCycles;
+}
+
 // La vista AMEX sobrevive a guardar y recargar
 eq(_normalizeViewMode('amex'), 'amex', 'la vista AMEX no se convierte en VISA al recargar');
 
