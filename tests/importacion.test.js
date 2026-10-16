@@ -151,5 +151,42 @@ eq(real().filter(t => /TV k1/.test(t.description)).length, 2, 'Conservar: quedan
 deleteManualCuotaById('k2', { silent: true, keepHistory: false });
 eq([real().filter(t => /TV k2/.test(t.description)).length, state.cuotas.length], [0, 0], 'Borrar todo: no queda ningún gasto');
 
+// 11) Compras en cuotas por Gmail: cada mail es una compra nueva (cuota 1), aunque se repita
+reset();
+// el cuerpo del mail va en texto plano (getEmailBody decodifica base64 en el navegador)
+getEmailBody = payload => payload.plainText;
+const mailCuota = (id, dmy) => ({ id, payload: { headers: [
+  { name: 'Subject', value: 'Pagaste $30.000 con tu tarjeta' }, { name: 'Date', value: 'Mon, 5 Oct 2026 10:00:00 -0300' }],
+  plainText: 'Comercio\nREMERAS SA\nFecha\n' + dmy + '\nHora\n10:00\nCuotas\n3\nTarjeta Santander Visa terminada en 3177' } });
+const p1 = parseSantanderEmail(mailCuota('m1', '05/10/2026'), [], null);
+const p2 = parseSantanderEmail(mailCuota('m2', '05/10/2026'), [p1], null);
+eq([p1 && p1.cuotaNum, p1 && p1.cuotaTotal, p1 && p1.amount, p2 && p2.cuotaNum], [1, 3, 10000, 1], 'mail en 3 cuotas: cuota 1 de 3, monto por cuota; el segundo mail igual también es cuota 1');
+eq(!!(p1 && p2 && p1.cuotaGroupId !== p2.cuotaGroupId), true, 'dos compras iguales = dos planes distintos');
+if (p1 && p2) {
+  finishImport([Object.assign(p1, { category: 'Ropa' }), Object.assign(p2, { category: 'Ropa' })], 'gmail', 'importado_desde_gmail');
+  eq(state.cuotas.length, 2, 'se crean 2 planes, no uno en cuota 2');
+  // el mes siguiente no llega mail: las cuotas avanzan solas
+  eq(state.cuotas.map(c => getCuotaStatus(c, D('2026-11-20')).paid), [2, 2], 'en noviembre cada plan va 2/3 sin mail nuevo');
+  eq(state.cuotas.map(c => getCuotaStatus(c, D('2027-01-20')).rem), [0, 0], 'en enero ambos terminaron');
+  // un tercer mail igual un mes después: tampoco se pega a los anteriores
+  const p3 = parseSantanderEmail(mailCuota('m3', '05/11/2026'), [], null);
+  finishImport([Object.assign(p3, { category: 'Ropa' })], 'gmail', 'importado_desde_gmail');
+  eq([state.cuotas.length, getCuotaStatus(state.cuotas[2], D('2026-11-20')).paid], [3, 1], 'compra igual al mes siguiente: plan nuevo en 1/3');
+}
+
+// 12) Datos viejos: dos compras por Gmail que habían quedado en un mismo plan como "cuota 1" y "cuota 2"
+reset();
+state.transactions = [
+  gmail('v1', '2026-08-03', 'REMERAS SA', 10000, { cuotaNum: 1, cuotaTotal: 3, cuotaGroupId: 'cg_remerassa_10000_3' }),
+  gmail('v2', '2026-09-20', 'REMERAS SA', 10000, { cuotaNum: 2, cuotaTotal: 3, cuotaGroupId: 'cg_remerassa_10000_3' })
+];
+state.cuotas = [{ id: 'auto_cg_remerassa_10000_3', cuotaGroupId: 'cg_remerassa_10000_3', name: 'Remeras', emoji: '👕', amount: 10000, total: 3, paid: 2, day: 20, lastPaidDate: '2026-09-20', currency: 'ARS', payMethod: 'visa', source: 'auto-import' }];
+migrateCuotasToSingleSource();
+eq(state.cuotas.length, 2, 'migración: se separan en 2 planes');
+eq(state.cuotas.map(c => [c.name, c.emoji, getCuotaStatus(c, D('2026-10-25')).paid]).sort(), [['Remeras', '👕', 2], ['Remeras', '👕', 3]].sort(), 'cada plan conserva nombre/emoji y su propio calendario');
+eq(real().map(t => t.cuotaNum), [1, 1], 'los dos movimientos quedan como cuota 1');
+migrateCuotasToSingleSource();
+eq(state.cuotas.length, 2, 'la migración no vuelve a cambiar nada');
+
 print((failures ? '✗ ' + failures + ' fallaron, ' : '✓ ') + passed + ' pruebas OK');
 if (failures) throw new Error(failures + ' pruebas fallaron');

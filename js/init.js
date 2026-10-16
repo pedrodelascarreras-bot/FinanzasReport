@@ -1448,17 +1448,12 @@ function parseSantanderEmail(email, currentBatch, rule) {
     let cuotaGroupId = null;
     if (cuotaTotal && cuotaTotal >= 2) {
       amount = Math.round(totalAmount / cuotaTotal);
-      // ID estable basado en comercio + monto por cuota + total (no en el emailId)
-      // Así todos los emails del mismo plan de cuotas quedan en el mismo grupo
+      // El banco manda un solo mail por compra (el de la cuota 1); las cuotas siguientes
+      // se debitan solas sin mail. Cada mail es una compra nueva → plan propio, cuota 1.
+      // El emailId en el ID separa dos compras iguales (mismo comercio, monto y cuotas).
       const _cgSlug = comercio.toLowerCase().replace(/[^a-z0-9]/g,'').substring(0,15);
-      cuotaGroupId = 'cg_' + _cgSlug + '_' + amount + '_' + cuotaTotal;
-      
-      // Determinar qué número de cuota es: contamos los reales ya existentes en el grupo
-      const _prevReal = (state.transactions||[]).filter(t => t.cuotaGroupId === cuotaGroupId && !t.isPendingCuota);
-      const _prevInBatch = (currentBatch||[]).filter(t => t.cuotaGroupId === cuotaGroupId && !t.isAnulacion);
-      cuotaNum = _prevReal.length + _prevInBatch.length + 1;
-      
-      if(cuotaNum > cuotaTotal) cuotaNum = cuotaTotal;
+      cuotaGroupId = 'cg_' + _cgSlug + '_' + amount + '_' + cuotaTotal + '_' + emailId;
+      cuotaNum = 1;
     }
 
     const baseDesc = comercio;

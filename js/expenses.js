@@ -174,9 +174,23 @@ function getCuotaNumAtDate(c, date){
   const a=getCuotaAnchor(c);
   return a.num+(date.getFullYear()-a.date.getFullYear())*12+(date.getMonth()-a.date.getMonth());
 }
+// Cada mail de compra en cuotas es una compra distinta: el banco no manda mail por las
+// cuotas siguientes. Dos planes con mails de compra distintos nunca son el mismo plan.
+function isGmailCuotaPurchaseTxn(t){
+  return !!(t && t.gmailId && !t.isAnulacion && !t.isPendingCuota && Number(t.cuotaTotal)>=2);
+}
+function getCuotaPlanGmailIds(c){
+  const groupId=c?.cuotaGroupId;
+  if(!groupId) return [];
+  return [...new Set((state.transactions||[]).filter(t=>t.cuotaGroupId===groupId && isGmailCuotaPurchaseTxn(t)).map(t=>t.gmailId))];
+}
+function cuotaPlansFromDifferentGmailPurchases(idsA, idsB){
+  return idsA.length>0 && idsB.length>0 && !idsA.some(id=>idsB.includes(id));
+}
 function findEquivalentCuota(spec, candidates=state.cuotas||[]){
   return candidates.find(c=>{
     if(spec.excludeId && c.id===spec.excludeId) return false;
+    if(spec.gmailIds && cuotaPlansFromDifferentGmailPurchases(spec.gmailIds, getCuotaPlanGmailIds(c))) return false;
     if(getCuotaTotal(c)!==spec.total) return false;
     if((c.currency||'ARS')!==(spec.currency||'ARS')) return false;
     if(!cuotaAmountsMatch(c.amount, spec.amount)) return false;
@@ -196,7 +210,8 @@ function linkTxnToEquivalentCuota(t){
     amount:Number(t.amount)||0,
     name:getCuotaTxnBaseName(t),
     date:_cuotaParseDate(t.date),
-    num:Number(t.cuotaNum)||1
+    num:Number(t.cuotaNum)||1,
+    gmailIds:isGmailCuotaPurchaseTxn(t)?[t.gmailId]:null
   });
   if(!match) return false;
   if(match.cuotaGroupId) t.cuotaGroupId=match.cuotaGroupId;
@@ -212,7 +227,7 @@ function mergeDuplicateCuotas(){
     for(let j=list.length-1;j>i;j--){
       const dup=list[j];
       const a=getCuotaAnchor(dup);
-      const same=findEquivalentCuota({total:getCuotaTotal(dup), currency:dup.currency||'ARS', amount:dup.amount, name:dup.name, date:a.date, num:a.num}, [keep]);
+      const same=findEquivalentCuota({total:getCuotaTotal(dup), currency:dup.currency||'ARS', amount:dup.amount, name:dup.name, date:a.date, num:a.num, gmailIds:getCuotaPlanGmailIds(dup)}, [keep]);
       if(!same) continue;
       // El calendario más reciente manda; el nombre del que se conserva, salvo que sea genérico
       if((dup.lastPaidDate||'')>(keep.lastPaidDate||'') && (parseInt(dup.paid,10)||0)>=(parseInt(keep.paid,10)||0)){
@@ -228,6 +243,40 @@ function mergeDuplicateCuotas(){
   }
   if(merged) console.info('[cuotas] planes duplicados fusionados:', merged);
   return merged;
+}
+
+// Antes, dos compras iguales por Gmail (mismo comercio, monto y cuotas) caían en el mismo
+// plan y la segunda se contaba como "cuota 2" de la primera. Separa cada mail en su propio
+// plan (cuota 1 a la fecha de compra). Idempotente: después de separar, cada plan tiene un mail.
+function splitMergedGmailCuotaPurchases(){
+  const byGroup=new Map();
+  (state.transactions||[]).forEach(t=>{
+    if(!t.cuotaGroupId || !isGmailCuotaPurchaseTxn(t)) return;
+    if(!byGroup.has(t.cuotaGroupId)) byGroup.set(t.cuotaGroupId, []);
+    byGroup.get(t.cuotaGroupId).push(t);
+  });
+  let split=0;
+  byGroup.forEach((txns, groupId)=>{
+    if(new Set(txns.map(t=>t.gmailId)).size<2) return;
+    const plan=(state.cuotas||[]).find(c=>c.cuotaGroupId===groupId);
+    const dismissed=!plan && isCuotaGroupDismissed(groupId, getCuotaTxnBaseName(txns[0]));
+    if(plan) state.cuotas=state.cuotas.filter(c=>c!==plan);
+    txns.sort((a,b)=>new Date(a.date)-new Date(b.date)).forEach((t, i)=>{
+      const newGroup=groupId+'_'+t.gmailId;
+      t.cuotaGroupId=newGroup;
+      if(!t.statementConfirmed) t.cuotaNum=1;
+      if(dismissed){ dismissCuotaGroup(newGroup); return; }
+      if(!plan) return;   // el paso siguiente de la migración crea el plan desde el movimiento
+      const txDate=_cuotaParseDate(t.date);
+      const copy={...plan, id:i===0?plan.id:'auto_'+newGroup, cuotaGroupId:newGroup,
+        paid:Number(t.cuotaNum)||1, lastPaidDate:txDate?dateToYMD(txDate):plan.lastPaidDate, day:txDate?txDate.getDate():plan.day};
+      delete copy.startDate;
+      state.cuotas.push(copy);
+    });
+    split++;
+  });
+  if(split) console.info('[cuotas] compras repetidas por Gmail separadas en planes propios:', split);
+  return split;
 }
 
 // ── Alta / actualización de cuotas a partir de movimientos importados ──
@@ -306,7 +355,9 @@ function migrateCuotasToSingleSource(){
     t.cuotaGroupId='cg_legacy_'+getAutoCuotaKey(null, getCuotaTxnBaseName(t));
     changed=true;
   });
-  // 2) Planes duplicados (misma compra por Gmail y por resumen)
+  // 2) Compras repetidas por Gmail que habían quedado en un solo plan; después,
+  //    planes duplicados (misma compra por Gmail y por resumen)
+  if(splitMergedGmailCuotaPurchases()) changed=true;
   if(mergeDuplicateCuotas()) changed=true;
   // 3) Planes con movimientos reales que todavía no están en state.cuotas
   const tracked=new Set(state.cuotas.map(c=>c.cuotaGroupId).filter(Boolean));
