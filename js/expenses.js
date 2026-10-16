@@ -587,8 +587,10 @@ function toggleFixedSectionVisibility(){
   renderCommitmentsPage();
   showToast(next==='1'?'Gastos fijos ocultos':'Gastos fijos visibles','info');
 }
+// Clave del comercio sin números de referencia que cambian en cada cobro
+// ("LinkedIn*P3083413982" y "LinkedIn*P3066131454" → "linkedin").
 function getSubscriptionMerchantKey(name=''){
-  return String(name||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+  return String(name||'').toLowerCase().split(/[^a-z0-9]+/).filter(tok=>!/\d{5,}/.test(tok)).join('');
 }
 function getTxnSubscriptionMatchKeys(txn){
   if(!txn) return [];
@@ -633,14 +635,45 @@ function hasRealSubscriptionChargeInMonth(sub, monthKey, txns=state.transactions
     txnMatchesSubscription(txn, sub)
   );
 }
-function getImportedSubscriptionByKey(key, ruleId){
+function getImportedSubscriptionsByKey(key){
   const normalizedKey=getSubscriptionMerchantKey(key);
-  return (state.subscriptions||[]).find(s=>
-    (s.autoManaged&&s.merchantKey&&s.merchantKey===normalizedKey)||
-    (ruleId&&s.autoManaged&&s.sourceRuleId===ruleId&&getSubscriptionMerchantKey(s.name)===normalizedKey)
-  )||null;
+  return (state.subscriptions||[]).filter(s=>s.autoManaged && (
+    getSubscriptionMerchantKey(s.merchantKey||'')===normalizedKey || getSubscriptionMerchantKey(s.name)===normalizedKey
+  ));
 }
-function upsertImportedSubscriptionFromTxn(txn){
+function _subChargeAmountsClose(a,b){
+  a=Number(a)||0; b=Number(b)||0;
+  return a>0 && b>0 ? Math.abs(a-b)/Math.max(a,b) : 1;
+}
+// Un mismo comercio puede tener varias suscripciones (p. ej. Apple U$S 1,99 y U$S 9,99).
+// El cobro va a la suscripción que no tenga ya otro cobro ese mes y cuyo precio se
+// parezca más; si todas ya cobraron ese mes, es una suscripción nueva (devuelve null).
+// `charges(sub)` devuelve los cobros reales ya vinculados a esa suscripción.
+function pickSubscriptionForCharge(candidates, txn, charges){
+  const monthKey=getMonthKey(txn.date);
+  const day=new Date(txn.date).getDate();
+  const viable=candidates.filter(sub=>!charges(sub).some(c=>c.id!==txn.id && getMonthKey(c.date)===monthKey));
+  if(!viable.length) return null;
+  const score=sub=>{
+    const own=charges(sub).filter(c=>c.id!==txn.id).sort((a,b)=>new Date(b.date)-new Date(a.date));
+    const ref=own.length?own[0].amount:sub.price;
+    const sameCurrency=(sub.currency||'ARS')===(txn.currency||'ARS')?0:1;
+    return sameCurrency*10 + _subChargeAmountsClose(ref, txn.amount) + Math.abs((parseInt(sub.day,10)||day)-day)/100;
+  };
+  return viable.sort((a,b)=>score(a)-score(b))[0];
+}
+function getSubscriptionCharges(sub, extra=[]){
+  return [...(state.transactions||[]), ...extra].filter(t=>
+    t.sourceSubscriptionId===sub.id && !t.isPendingSubscription && !t.isMaterializedCommitment);
+}
+function nextImportedSubscriptionId(merchantKey, ruleId){
+  const base='sub_auto_'+merchantKey+'_'+(ruleId||'gmail');
+  const ids=new Set((state.subscriptions||[]).map(s=>s.id));
+  if(!ids.has(base)) return base;
+  let n=2; while(ids.has(base+'_'+n)) n++;
+  return base+'_'+n;
+}
+function upsertImportedSubscriptionFromTxn(txn, batch=[]){
   if(!txn||!txn.isAutoDebit||!txn.subscriptionName)return null;
   // Skip credit card payment debits — they're not real "subscriptions",
   // they're the recurring TC payment itself (which is tracked by the TC cycle system).
@@ -661,16 +694,18 @@ function upsertImportedSubscriptionFromTxn(txn){
       })
     )
   );
-  const merchantKey=txn.merchantKey||getSubscriptionMerchantKey(txn.subscriptionName);
-  const existing=getImportedSubscriptionByKey(merchantKey,txn.importRuleId);
+  const merchantKey=getSubscriptionMerchantKey(txn.merchantKey||txn.subscriptionName);
+  const existing=pickSubscriptionForCharge(getImportedSubscriptionsByKey(merchantKey), txn, sub=>getSubscriptionCharges(sub, batch));
+  // Un mail viejo (importado después de uno más nuevo) no pisa precio ni día actuales
+  const isLatest=!existing?.lastChargeDate || dateToYMD(txn.date)>=existing.lastChargeDate;
   const nextObj={
-    id:existing?.id||('sub_auto_'+merchantKey+'_'+(txn.importRuleId||'gmail')),
-    name:txn.subscriptionName,
+    id:existing?.id||nextImportedSubscriptionId(merchantKey, txn.importRuleId),
+    name:existing&&!isLatest?existing.name:txn.subscriptionName,
     emoji:existing?.emoji||'🔁',
-    price:txn.amount,
-    currency:txn.currency||'ARS',
+    price:existing&&!isLatest?existing.price:txn.amount,
+    currency:existing&&!isLatest?(existing.currency||'ARS'):(txn.currency||'ARS'),
     freq:'monthly',
-    day:txn.subscriptionDay||new Date(txn.date).getDate(),
+    day:existing&&!isLatest?existing.day:(txn.subscriptionDay||new Date(txn.date).getDate()),
     cat:existing?.cat||'Suscripciones',
     color:existing?.color||'#5ac8fa',
     active:true,
@@ -678,8 +713,8 @@ function upsertImportedSubscriptionFromTxn(txn){
     merchantKey,
     sourceRuleId:txn.importRuleId||null,
     sourceBank:txn.sourceBank||'Gmail',
-    startDate:existing?.startDate||dateToYMD(txn.date),
-    lastChargeDate:dateToYMD(txn.date),
+    startDate:existing?.startDate && existing.startDate<dateToYMD(txn.date)?existing.startDate:dateToYMD(txn.date),
+    lastChargeDate:existing&&!isLatest?existing.lastChargeDate:dateToYMD(txn.date),
     payMethod:txn.payMethod||existing?.payMethod||null,
     ownerProfileId:txn.ownerProfileId||state.activeUserProfileId||existing?.ownerProfileId||'default-profile'
   };
@@ -687,6 +722,69 @@ function upsertImportedSubscriptionFromTxn(txn){
   if(idx>=0)state.subscriptions[idx]={...state.subscriptions[idx],...nextObj};
   else state.subscriptions.unshift(nextObj);
   return nextObj;
+}
+// Migración de suscripciones importadas: junta las que eran el mismo comercio con distinto
+// número de referencia (LinkedIn) y separa las que mezclaban dos suscripciones del mismo
+// comercio (Apple 1,99 y 9,99). Reasigna cada cobro real con pickSubscriptionForCharge.
+function normalizeImportedSubscriptions(){
+  const subs=(state.subscriptions||[]).filter(s=>s.autoManaged);
+  if(!subs.length) return false;
+  const groups=new Map();
+  subs.forEach(s=>{
+    const key=getSubscriptionMerchantKey(s.name)||getSubscriptionMerchantKey(s.merchantKey);
+    if(!key) return;
+    if(!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(s);
+  });
+  let changed=false;
+  groups.forEach((group, key)=>{
+    const ids=new Set(group.map(s=>s.id));
+    const charges=(state.transactions||[]).filter(t=>ids.has(t.sourceSubscriptionId) && !t.isPendingSubscription && !t.isMaterializedCommitment)
+      .sort((a,b)=>new Date(a.date)-new Date(b.date));
+    // Reparto de los cobros en suscripciones, en orden de fecha
+    const clusters=[];
+    charges.forEach(t=>{
+      const fake=clusters.map((c,i)=>({id:'c'+i, price:c.at(-1).amount, currency:c.at(-1).currency, day:new Date(c.at(-1).date).getDate()}));
+      const pick=pickSubscriptionForCharge(fake, t, f=>clusters[Number(f.id.slice(1))]);
+      if(pick) clusters[Number(pick.id.slice(1))].push(t); else clusters.push([t]);
+    });
+    const keysOk=group.every(s=>s.merchantKey===key);
+    const sameShape=group.length===Math.max(1,clusters.length) &&
+      clusters.every(c=>new Set(c.map(t=>t.sourceSubscriptionId)).size===1);
+    if(sameShape && keysOk) return;
+    if(!clusters.length){ group.forEach(s=>{ s.merchantKey=key; }); changed=true; return; }
+    // Cada grupo de cobros conserva la suscripción con más cobros suyos (alias, emoji, categoría…)
+    const unused=[...group];
+    const kept=[];
+    clusters.forEach(c=>{
+      const counts=new Map();
+      c.forEach(t=>counts.set(t.sourceSubscriptionId,(counts.get(t.sourceSubscriptionId)||0)+1));
+      unused.sort((a,b)=>(counts.get(b.id)||0)-(counts.get(a.id)||0));
+      const base=unused.length?unused.shift():{...group[0], id:null};
+      const last=c.at(-1);
+      const sub={...base, merchantKey:key, price:last.amount, currency:last.currency||'ARS',
+        day:new Date(last.date).getDate(), startDate:dateToYMD(c[0].date), lastChargeDate:dateToYMD(last.date)};
+      if(!sub.id){
+        sub.id='sub_auto_'+key+'_'+(sub.sourceRuleId||'gmail')+'_'+(kept.length+1);
+        state.subscriptions.push(sub);
+      } else {
+        const idx=state.subscriptions.findIndex(s=>s.id===sub.id);
+        state.subscriptions[idx]=sub;
+      }
+      c.forEach(t=>{ t.sourceSubscriptionId=sub.id; });
+      kept.push(sub);
+    });
+    // Las que sobraron: sus cobros proyectados/historial pasan a la primera que queda
+    const removed=new Set(unused.map(s=>s.id));
+    if(removed.size){
+      state.subscriptions=state.subscriptions.filter(s=>!removed.has(s.id));
+      state.transactions=(state.transactions||[]).filter(t=>!(t.isPendingSubscription && removed.has(t.sourceSubscriptionId)));
+      state.transactions.forEach(t=>{ if(removed.has(t.sourceSubscriptionId)) t.sourceSubscriptionId=kept[0].id; });
+    }
+    changed=true;
+  });
+  if(changed) console.info('[suscripciones] importadas normalizadas');
+  return changed;
 }
 function syncProjectedSubscriptionTransactions(){
   const today=new Date();

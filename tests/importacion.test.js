@@ -188,5 +188,73 @@ eq(real().map(t => t.cuotaNum), [1, 1], 'los dos movimientos quedan como cuota 1
 migrateCuotasToSingleSource();
 eq(state.cuotas.length, 2, 'la migración no vuelve a cambiar nada');
 
+// 13) Mails reales de Santander (misma estructura HTML): compra, compra en cuotas y débito automático
+reset();
+const ROW = (label, value) => '<div style="padding: 15.5px 0px; width: 288px; border-bottom: 1px solid rgb(219, 222, 225);"><div style="min-width: 50%; max-width: 50%; display: inline-block; white-space: pre-wrap; vertical-align: middle; text-align: left;">' + label + '</div><div style="min-width: 50%; max-width: 50%; display: inline-block; white-space: pre-wrap; vertical-align: middle; text-align: right;"><strong style="font-weight: bold;">' + value + '</strong></div></div>';
+const santanderHtml = (intro, rows) => '<html><head><title>2225 Aviso</title></head><body><h2>Información sobre tu pago</h2><p style="margin: 0px;">' + intro +
+  '\r\n <strong style="font-weight: 600;">Tarjeta Santander Visa Crédito</strong> terminada en\r\n <strong style="font-weight: 600;">3177.</strong></p><div><table><div>' +
+  rows.map(r => ROW(r[0], r[1])).join('') + '</div></table></div><p>Si vos no hiciste este pago, <strong style="font-weight: 600;">te pedimos que denuncies la tarjeta</strong> ingresando a la sección Tarjetas desde <strong style="font-weight: 600;">Online Banking</strong> o la <strong style="font-weight: 600;">App Santander.</strong></p></body></html>';
+const realMail = (id, subject, dateHeader, html) => ({ id, payload: { headers: [{ name: 'Subject', value: subject }, { name: 'Date', value: dateHeader }], plainText: html } });
+const compra = parseSantanderEmail(realMail('r-compra', 'Pagaste $193.651,90', 'Thu, 8 Oct 2026 17:53:10 -0300',
+  santanderHtml('Te acercamos el detalle de tu consumo con la', [['Monto', '$193.651,90'], ['Cuotas', '1'], ['Comercio', 'MERPAGO*FALCOM ARIAFERN'], ['Fecha', '08/10/2026'], ['Hora', '17:53']])), [], getDefaultGmailImportRules()[0]);
+eq([compra.amount, compra.currency, compra.description, dateToYMD(compra.date), compra.txnTime, compra.payMethod, compra.cuotaTotal, compra.isAutoDebit],
+   [193651.9, 'ARS', 'MERPAGO*FALCOM ARIAFERN', '2026-10-08', '17:53', 'visa', undefined, false], 'compra común: monto, comercio, fecha, hora, Visa, sin cuotas');
+const enCuotas = parseSantanderEmail(realMail('r-cuotas', 'Pagaste $1.007.880,00', 'Thu, 29 Jan 2026 17:45:00 -0300',
+  santanderHtml('Te acercamos el detalle de tu consumo con la', [['Monto', '$1.007.880,00'], ['Cuotas', '12'], ['Comercio', 'MEGATLON MARTINEZ'], ['Fecha', '29/01/2026'], ['Hora', '17:45']])), [], getDefaultGmailImportRules()[0]);
+eq([enCuotas.amount, enCuotas.cuotaNum, enCuotas.cuotaTotal, enCuotas.cuotaTotalAmount, enCuotas.description],
+   [83990, 1, 12, 1007880, 'MEGATLON MARTINEZ'], 'compra en 12 cuotas: cuota 1/12 de $83.990');
+finishImport([compra, enCuotas], 'gmail', 'importado_desde_gmail');
+const megatlon = state.cuotas.find(c => /MEGATLON/.test(c.name));
+eq([!!megatlon, megatlon && getCuotaStatus(megatlon, D('2026-10-16')).paid, megatlon && megatlon.payMethod], [true, 9, 'visa'], 'Megatlon: en octubre va 9/12 sin ningún mail nuevo');
+const debito = (id, monto, comercio, fecha, hora) => parseSantanderEmail(realMail(id, 'Aviso de débito automático', 'Fri, 9 Oct 2026 05:36:00 -0300',
+  santanderHtml('Te acercamos el detalle del débito con tu', [['Monto', monto], ['Comercio', comercio], ['Fecha', fecha], ['Hora', hora]])), [], getDefaultGmailImportRules()[0]);
+const bibop = debito('r-deb1', '$42.658,00', 'BIBOP SA', '09/10/2026', '05:36');
+eq([bibop.amount, bibop.currency, bibop.description, bibop.isAutoDebit, bibop.importKind, bibop.subscriptionDay], [42658, 'ARS', 'BIBOP SA', true, 'subscription', 9],
+   'débito automático: es suscripción aunque venga por la regla de compras');
+const claude = debito('r-deb2', 'U$S20,00', 'ANTHROPIC* CLAUDE SUB', '04/10/2026', '12:21');
+eq([claude.amount, claude.currency], [20, 'USD'], 'débito en dólares');
+finishImport([bibop, claude], 'gmail', 'importado_desde_gmail');
+eq(state.subscriptions.map(s => [s.name, s.price, s.currency, s.day]).sort(), [['ANTHROPIC* CLAUDE SUB', 20, 'USD', 4], ['BIBOP SA', 42658, 'ARS', 9]], 'se crean las 2 suscripciones');
+eq(getDefaultGmailImportRules().some(r => /débito automático/.test(r.query)), true, 'la regla de débitos automáticos viene por defecto');
+
+// 14) LinkedIn cambia el número de referencia cada mes: sigue siendo UNA suscripción
+reset();
+finishImport([debito('li1', 'U$S1,22', 'LinkedIn*P3048105918', '06/07/2026', '21:00')], 'gmail', 'importado_desde_gmail');
+finishImport([debito('li2', 'U$S1,21', 'LinkedIn*P3066131454', '06/08/2026', '21:00')], 'gmail', 'importado_desde_gmail');
+finishImport([debito('li3', 'U$S1,20', 'LinkedIn*P3083413982', '06/09/2026', '21:00')], 'gmail', 'importado_desde_gmail');
+eq([state.subscriptions.length, state.subscriptions[0].price], [1, 1.2], 'LinkedIn: 1 suscripción con el último precio');
+
+// 15) Apple tiene DOS suscripciones (U$S 1,99 el 25 y U$S 9,99 el 30): no se mezclan
+reset();
+finishImport([
+  debito('ap1', 'U$S9,99', 'APPLECOMBILL', '31/08/2026', '11:25'), debito('ap2', 'U$S1,99', 'APPLECOMBILL', '25/08/2026', '04:51'),
+  debito('ap3', 'U$S9,99', 'APPLECOMBILL', '30/09/2026', '11:26'), debito('ap4', 'U$S1,99', 'APPLECOM BILL', '25/09/2026', '04:51')
+], 'gmail', 'importado_desde_gmail');
+eq(state.subscriptions.map(s => [s.price, s.day]).sort((a, b) => a[0] - b[0]), [[1.99, 25], [9.99, 30]], 'Apple: 2 suscripciones, cada una con su precio y día');
+// un mail viejo importado después no pisa el precio actual
+finishImport([debito('ap0', 'U$S9,99', 'APPLECOMBILL', '31/07/2026', '11:25')], 'gmail', 'importado_desde_gmail');
+eq([state.subscriptions.length, state.subscriptions.find(s => s.price === 9.99)?.lastChargeDate], [2, '2026-09-30'], 'mail viejo: no crea otra ni retrocede la fecha');
+
+// 16) Datos viejos: LinkedIn repetido y Apple mezclado se arreglan al cargar
+reset();
+state.subscriptions = [
+  { id: 'sub_auto_linkedinp1_gmail', name: 'LinkedIn*P3048105918', merchantKey: 'linkedinp3048105918', price: 1.22, currency: 'USD', freq: 'monthly', day: 6, active: true, autoManaged: true, emoji: '💼' },
+  { id: 'sub_auto_linkedinp2_gmail', name: 'LinkedIn*P3066131454', merchantKey: 'linkedinp3066131454', price: 1.21, currency: 'USD', freq: 'monthly', day: 6, active: true, autoManaged: true },
+  { id: 'sub_auto_apple_gmail', name: 'APPLECOMBILL', merchantKey: 'applecombill', price: 9.99, currency: 'USD', freq: 'monthly', day: 30, active: true, autoManaged: true, emoji: '🍎' }
+];
+const old = (id, ymd, amount, desc, subId) => gmail(id, ymd, desc, amount, { currency: 'USD', isAutoDebit: true, sourceSubscriptionId: subId });
+state.transactions = [
+  old('l1', '2026-07-06', 1.22, 'LinkedIn*P3048105918', 'sub_auto_linkedinp1_gmail'), old('l2', '2026-08-06', 1.21, 'LinkedIn*P3066131454', 'sub_auto_linkedinp2_gmail'),
+  old('a1', '2026-08-25', 1.99, 'APPLECOMBILL', 'sub_auto_apple_gmail'), old('a2', '2026-08-31', 9.99, 'APPLECOMBILL', 'sub_auto_apple_gmail'),
+  old('a3', '2026-09-25', 1.99, 'APPLECOM BILL', 'sub_auto_apple_gmail'), old('a4', '2026-09-30', 9.99, 'APPLECOMBILL', 'sub_auto_apple_gmail')
+];
+normalizeImportedSubscriptions();
+const li = state.subscriptions.filter(s => /linkedin/i.test(s.name));
+const ap = state.subscriptions.filter(s => /apple/i.test(s.name)).sort((a, b) => a.price - b.price);
+eq([li.length, li[0].emoji, li[0].price], [1, '💼', 1.21], 'LinkedIn: queda 1, conserva el emoji, último precio');
+eq(ap.map(s => [s.price, s.day, s.emoji]), [[1.99, 25, '🍎'], [9.99, 30, '🍎']], 'Apple: se separa en 1,99 y 9,99');
+eq(state.transactions.filter(t => t.sourceSubscriptionId === ap[0].id).map(t => t.amount), [1.99, 1.99], 'los cobros de 1,99 quedan en su suscripción');
+eq(normalizeImportedSubscriptions(), false, 'segunda pasada: no cambia nada');
+
 print((failures ? '✗ ' + failures + ' fallaron, ' : '✓ ') + passed + ' pruebas OK');
 if (failures) throw new Error(failures + ' pruebas fallaron');

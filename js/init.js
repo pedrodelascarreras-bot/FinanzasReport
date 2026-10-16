@@ -795,12 +795,27 @@ function getDefaultGmailImportRules(){
     cardType: 'auto',
     processor: 'santander_email',
     active: true
-  }];
+  }, GMAIL_DEBIT_RULE];
 }
+const GMAIL_DEBIT_RULE = {
+  id: 'gmail-rule-santander-debitos',
+  name: 'Santander · Débitos automáticos',
+  bank: 'Santander Río',
+  sender: GMAIL_SENDER,
+  query: 'subject:"Aviso de débito automático"',
+  importKind: 'subscription',
+  cardType: 'auto',
+  processor: 'santander_email',
+  active: true
+};
 
 function ensureGmailImportRules(){
   if(!Array.isArray(state.gmailImportRules) || !state.gmailImportRules.length){
     state.gmailImportRules = getDefaultGmailImportRules();
+  }
+  // Los débitos automáticos (suscripciones) se leen siempre, aunque la regla se haya creado antes
+  if(!state.gmailImportRules.some(r=>/d[eé]bito autom[aá]tico/i.test(r.query||''))){
+    state.gmailImportRules.push({ ...GMAIL_DEBIT_RULE });
   }
   return state.gmailImportRules;
 }
@@ -1289,22 +1304,31 @@ function gmailFetch(url) {
   });
 }
 
+// Gmail entrega el cuerpo en base64url con bytes UTF-8 (atob solo da Latin-1: "dÃ©bito")
+function decodeGmailBase64(data) {
+  const bin = atob(String(data||'').replace(/-/g, '+').replace(/_/g, '/'));
+  try {
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return new TextDecoder('utf-8').decode(bytes);
+  } catch (e) { return bin; }
+}
 function getEmailBody(payload) {
   // Recursively find text/html or text/plain parts
   if (!payload) return '';
   if (payload.body && payload.body.data) {
-    return atob(payload.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+    return decodeGmailBase64(payload.body.data);
   }
   if (payload.parts) {
     for (const part of payload.parts) {
       // Prefer HTML for better parsing
       if (part.mimeType === 'text/html' && part.body && part.body.data) {
-        return atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+        return decodeGmailBase64(part.body.data);
       }
     }
     for (const part of payload.parts) {
       if (part.body && part.body.data) {
-        return atob(part.body.data.replace(/-/g, '+').replace(/_/g, '/'));
+        return decodeGmailBase64(part.body.data);
       }
       // Recurse into multipart
       if (part.parts) {
@@ -1324,8 +1348,10 @@ function parseSantanderEmail(email, currentBatch, rule) {
     const dateHeader = headers.find(h => h.name === 'Date')?.value || '';
 
     const isAnulacion = /anulado/i.test(subject);
-    const importKind = getGmailRuleImportKind(rule);
-    const isAutoDebit = importKind === 'subscription' || /d[eé]bito autom[aá]tico/i.test(subject);
+    // "Aviso de débito automático" = suscripción / gasto fijo, venga de la regla que venga
+    const isDebitSubject = /d[eé]bito autom[aá]tico/i.test(subject);
+    const importKind = isDebitSubject ? 'subscription' : getGmailRuleImportKind(rule);
+    const isAutoDebit = importKind === 'subscription';
 
     // Parse email body early to extract amount if necessary
     const body = getEmailBody(email.payload);
@@ -1386,7 +1412,7 @@ function parseSantanderEmail(email, currentBatch, rule) {
       if (ptMatch) comercio = ptMatch[1].trim();
     }
     comercio = comercio.replace(/\s{2,}/g, ' ').trim();
-    const merchantKey = comercio.toLowerCase().replace(/[^a-z0-9]/g,'');
+    const merchantKey = typeof getSubscriptionMerchantKey === 'function' ? getSubscriptionMerchantKey(comercio) : comercio.toLowerCase().replace(/[^a-z0-9]/g,'');
 
     // Extract Fecha (DD/MM/YYYY)
     let txnDate = new Date();
@@ -1427,7 +1453,9 @@ function parseSantanderEmail(email, currentBatch, rule) {
     };
     // 1) HTML patterns with explicit "Cuotas" label
     let m;
-    if ((m = body.match(/Cuotas[\s\S]{0,200}?<strong[^>]*>\s*(\d+)\s*<\/strong>/i))) _setIfValid(m[1]);
+    // Formato Santander: <div>Cuotas</div><div …><strong>12</strong></div>
+    if ((m = body.match(/>\s*Cuotas\s*<\/div>\s*<div[^>]*>\s*<strong[^>]*>\s*(\d+)\s*<\/strong>/i))) _setIfValid(m[1]);
+    if (cuotaTotal === null && (m = body.match(/Cuotas[\s\S]{0,200}?<strong[^>]*>\s*(\d+)\s*<\/strong>/i))) _setIfValid(m[1]);
     if (cuotaTotal === null && (m = body.match(/Cuotas[\s\S]{0,200}?<td[^>]*>\s*<strong[^>]*>\s*(\d+)\s*<\/strong>/i))) _setIfValid(m[1]);
     if (cuotaTotal === null && (m = body.match(/Cuotas[\s\S]{0,200}?<\/td>[\s\S]{0,50}?<td[^>]*>\s*(\d+)\s*<\/td>/i))) _setIfValid(m[1]);
     // 2) Plain text fallback (strip tags first)

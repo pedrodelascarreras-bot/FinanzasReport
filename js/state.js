@@ -465,6 +465,9 @@ async function loadFromDrive(){
     if(typeof migrateCuotasToSingleSource === 'function'){
       try{ migrateCuotasToSingleSource(); }catch(e){ console.warn('cuotas migration error', e); }
     }
+    if(typeof normalizeImportedSubscriptions === 'function'){
+      try{ normalizeImportedSubscriptions(); }catch(e){ console.warn('subscriptions migration error', e); }
+    }
     // Este dispositivo queda igual a la versión de Drive
     const _driveVersion=s.savedAt||new Date().toISOString();
     localStorage.setItem(LS_LOCAL_EDITED_AT,_driveVersion);
@@ -571,6 +574,9 @@ function loadState(){
     }
     if(typeof migrateCuotasToSingleSource === 'function'){
       try{ migrateCuotasToSingleSource(); }catch(e){ console.warn('cuotas migration error', e); }
+    }
+    if(typeof normalizeImportedSubscriptions === 'function'){
+      try{ normalizeImportedSubscriptions(); }catch(e){ console.warn('subscriptions migration error', e); }
     }
     // populate legacy hidden fields for dashboard compat
     const latestInc=getLatestIncomeARS();if(latestInc)state.income.ars=latestInc;

@@ -583,7 +583,7 @@ function finishImport(txns,source,origen){
   const importedSubscriptions = [];
   txns.forEach(t=>{
     if(t.importKind === 'subscription' && typeof upsertImportedSubscriptionFromTxn === 'function'){
-      const sub = upsertImportedSubscriptionFromTxn(t);
+      const sub = upsertImportedSubscriptionFromTxn(t, txns);
       if(sub){
         t.sourceSubscriptionId = sub.id;
         importedSubscriptions.push(sub.id);
