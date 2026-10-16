@@ -595,7 +595,7 @@ window.addEventListener('DOMContentLoaded',()=>{
   updateUsdRateUI();
   setChartMode(state.chartMode||'bars');
   setTxnFilterMode(state.txnFilterMode||'visa');
-  if(state.transactions.length){updateSidebarStats();renderDashboard();renderTransactions();document.getElementById('dash-empty').style.display='none';document.getElementById('dash-content').style.display='flex';setTimeout(()=>applyLayout('dashboard'),0);}
+  if(state.transactions.length){updateSidebarStats();renderDashboard();renderTransactions();document.getElementById('dash-empty').style.display='none';document.getElementById('dash-content').style.display='flex';}
   if(typeof renderProfilePage === 'function') renderProfilePage();
   if(typeof renderSecurityPage === 'function') renderSecurityPage();
   if(typeof renderAppShellProfile === 'function') renderAppShellProfile();
@@ -1180,7 +1180,8 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
     // Obtenemos los IDs de emails ya importados y anulados procesados
     const importedEmailIds = new Set([
       ...state.transactions.map(t => t.gmailId).filter(Boolean),
-      ...(state.gmailAnulados || [])
+      ...(state.gmailAnulados || []),
+      ...(state.gmailDeletedIds || [])   // gastos que el usuario borró: no vuelven
     ]);
 
     // Fetch ALL pages across active rules
@@ -1693,6 +1694,8 @@ function confirmGmailImport() {
     ...conflicts.map(c => c.incoming).filter(t => !uncheckedIds.has(t.id))
   ];
 
+  // Los que desmarcaste como duplicados no se vuelven a ofrecer en la próxima sincronización
+  rememberDeletedGmailTxns(conflicts.map(c => c.incoming).filter(t => uncheckedIds.has(t.id)));
   if (toImport.length > 0) {
     const labels = [...new Set(toImport.map(t => t.sourceBank || t.importRuleName || 'Gmail'))];
     finishImport(toImport, 'Gmail · ' + labels.join(' + '));
@@ -1840,6 +1843,8 @@ function getCurrentProfileSnapshot(){
     dismissedNotifs: cloneDeepProfileValue(state.dismissedNotifs || []),
     decisionCenterCollapsed: !!state.decisionCenterCollapsed,
     dismissedAutoCuotas: cloneDeepProfileValue(state.dismissedAutoCuotas || []),
+    gmailDeletedIds: cloneDeepProfileValue(state.gmailDeletedIds || []),
+    gmailAnulados: cloneDeepProfileValue(state.gmailAnulados || []),
     gmailClientId: state.gmailClientId || localStorage.getItem('fin_gmail_client_id') || '',
     onboardingState: cloneDeepProfileValue(state.onboardingState || {})
   };
@@ -1966,6 +1971,8 @@ function applyUserProfile(profileId){
   state.dismissedNotifs = cloneDeepProfileValue(profile.dismissedNotifs || []);
   state.decisionCenterCollapsed = !!profile.decisionCenterCollapsed;
   state.dismissedAutoCuotas = cloneDeepProfileValue(profile.dismissedAutoCuotas || []);
+  state.gmailDeletedIds = cloneDeepProfileValue(profile.gmailDeletedIds || state.gmailDeletedIds || []);
+  state.gmailAnulados = cloneDeepProfileValue(profile.gmailAnulados || state.gmailAnulados || []);
   state.dismissedCommitmentEntries = cloneDeepProfileValue(profile.dismissedCommitmentEntries || []);
   state.onboardingState = { ...(state.onboardingState || {}), ...(profile.onboardingState || {}) };
   if(profile.gmailClientId){
@@ -2428,7 +2435,7 @@ function renderOnboardingWizard(){
         </div>
         <div class="onboarding-wizard-actions">
           <button class="btn btn-primary" onclick="openBankProfileManager()">Crear perfil bancario</button>
-          <button class="btn btn-ghost" onclick="nav('credit-cards');ccSelectPageTab('config');closeModal('modal-onboarding-wizard')">Ir a tarjetas y ciclos</button>
+          <button class="btn btn-ghost" onclick="nav('credit-cards');closeModal('modal-onboarding-wizard')">Ir a tarjetas y ciclos</button>
         </div>
       </div>
     `;

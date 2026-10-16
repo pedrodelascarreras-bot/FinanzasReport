@@ -1,6 +1,7 @@
 // ══════════════════════════════════════════════════════════
 // INCOME PAGE — Rediseño v2
-// Estructura: sueldo (ARS + USD + comisiones USD) + extras
+// Estructura: sueldo fijo en USD + variables (aguinaldo, changas, etc.) que se cargan como extras.
+// Los meses viejos pueden tener sueldo en ARS y comisiones: se siguen sumando igual.
 // Schema-aware: maneja tanto V1 (legacy) como V2 (nuevo)
 // ══════════════════════════════════════════════════════════
 
@@ -150,6 +151,8 @@ function renderIncomePage(){
   const dispUSD = displayMonth ? getMonthTotalUSD(displayMonth) : 0;
   const dispCommUSD = displayMonth ? getMonthCommissionsUSD(displayMonth) : 0;
   const dispCombined = dispARS + dispUSD * TC;
+  // Variables = todo lo que no es sueldo fijo (extras + comisiones de meses viejos)
+  const dispVariable = displayMonth ? Math.max(0, dispCombined - getMonthSalaryARS(displayMonth) - getMonthSalaryUSD(displayMonth) * TC) : 0;
 
   // ── Comparativa: current vs avg of last 3 prev months ──
   const dispIdx = displayMonth ? months.indexOf(displayMonth) : -1;
@@ -367,12 +370,12 @@ function renderIncomePage(){
       <div class="inc2-kpi inc2-kpi-c3">
         <div class="inc2-kpi-h"><span class="inc2-kpi-icon">US</span> Total en USD</div>
         <div class="inc2-kpi-v">USD ${fmtN(dispUSD)}</div>
-        <div class="inc2-kpi-sub">Sueldo + comisiones + extras</div>
+        <div class="inc2-kpi-sub">Sueldo + variables en dólares</div>
       </div>
       <div class="inc2-kpi inc2-kpi-c4">
-        <div class="inc2-kpi-h"><span class="inc2-kpi-icon">%</span> Comisiones</div>
-        <div class="inc2-kpi-v">USD ${fmtN(dispCommUSD)}</div>
-        <div class="inc2-kpi-aux">≈ $${fmtN(Math.round(dispCommUSD * TC))}</div>
+        <div class="inc2-kpi-h"><span class="inc2-kpi-icon">+</span> Variables</div>
+        <div class="inc2-kpi-v">$${fmtN(Math.round(dispVariable))}</div>
+        <div class="inc2-kpi-aux">Aguinaldo, changas y otros extras</div>
       </div>
     </div>
 
@@ -522,7 +525,7 @@ function _renderAccountCard(acc, curMonth, prevMonth, TC){
   const breakdown = [];
   if (isUSD) {
     if (cur.salaryUSD > 0) breakdown.push(`<div class="inc2-acc-bd-row"><span>Sueldo</span><span>USD ${fmtN(cur.salaryUSD)}</span></div>`);
-    if (cur.commissionsUSD > 0) breakdown.push(`<div class="inc2-acc-bd-row"><span>Comisiones</span><span>USD ${fmtN(cur.commissionsUSD)}</span></div>`);
+    if (cur.commissionsUSD > 0) breakdown.push(`<div class="inc2-acc-bd-row"><span>Variables</span><span>USD ${fmtN(cur.commissionsUSD)}</span></div>`);
     if (cur.extrasUSD > 0) breakdown.push(`<div class="inc2-acc-bd-row"><span>Extras</span><span>USD ${fmtN(cur.extrasUSD)}</span></div>`);
   } else {
     if (cur.salaryARS > 0) breakdown.push(`<div class="inc2-acc-bd-row"><span>Sueldo</span><span>$${fmtN(cur.salaryARS)}</span></div>`);
@@ -549,10 +552,10 @@ function _renderAccountCard(acc, curMonth, prevMonth, TC){
 
 function _buildCompTip(diffPctTotal, diffPctSalary, commUSD){
   if (Math.abs(diffPctTotal) < 3) return 'Tu ingreso este mes es similar al promedio reciente. Estable.';
-  if (diffPctTotal > 15 && commUSD > 0) return `Tu mes superó el promedio en ${diffPctTotal}%. Buena parte vino de comisiones (USD ${fmtN(commUSD)}).`;
+  if (diffPctTotal > 15 && commUSD > 0) return `Tu mes superó el promedio en ${diffPctTotal}%. Buena parte vino de variables (USD ${fmtN(commUSD)}).`;
   if (diffPctTotal > 5) return `Tu ingreso supera al promedio en ${diffPctTotal}%. Si es por extras, ojo no acostumbrarte a ese nivel.`;
   if (diffPctTotal < -10) return `Bajaste ${Math.abs(diffPctTotal)}% vs promedio. Revisá si hay algún ingreso pendiente de cargar.`;
-  if (diffPctSalary >= 0 && diffPctTotal < 0) return 'El sueldo fijo se mantiene, pero faltaron extras o comisiones que tenías el mes pasado.';
+  if (diffPctSalary >= 0 && diffPctTotal < 0) return 'El sueldo fijo se mantiene, pero faltaron variables que tenías el mes pasado.';
   return `Diferencia del ${diffPctTotal>=0?'+':''}${diffPctTotal}% respecto al promedio reciente.`;
 }
 
@@ -562,7 +565,6 @@ function _buildCompTip(diffPctTotal, diffPctSalary, commUSD){
 function openSueldoModal(monthKey){
   ensureBankAccounts();
   const accounts = state.bankAccounts || [];
-  const arsAccounts = accounts.filter(a => a.currency === 'ARS');
   const usdAccounts = accounts.filter(a => a.currency === 'USD');
 
   // Determine target month
@@ -574,12 +576,8 @@ function openSueldoModal(monthKey){
   const existing = months.find(m => m.month === targetKey);
   const prefillSrc = existing || months.find(m => _isV2(m)) || null;
 
-  const arsAmt = existing && _isV2(existing) ? (existing.salary?.ars?.amount || 0) : (prefillSrc && _isV2(prefillSrc) ? prefillSrc.salary?.ars?.amount || 0 : 0);
-  const arsAcc = existing && _isV2(existing) ? (existing.salary?.ars?.accountId || arsAccounts[0]?.id || '') : (prefillSrc && _isV2(prefillSrc) ? prefillSrc.salary?.ars?.accountId || arsAccounts[0]?.id || '' : (arsAccounts[0]?.id || ''));
   const usdAmt = existing && _isV2(existing) ? (existing.salary?.usd?.amount || 0) : (prefillSrc && _isV2(prefillSrc) ? prefillSrc.salary?.usd?.amount || 0 : 0);
   const usdAcc = existing && _isV2(existing) ? (existing.salary?.usd?.accountId || usdAccounts[0]?.id || '') : (prefillSrc && _isV2(prefillSrc) ? prefillSrc.salary?.usd?.accountId || usdAccounts[0]?.id || '' : (usdAccounts[0]?.id || ''));
-  const commAmt = existing && _isV2(existing) ? (existing.salary?.commissions?.amount || 0) : 0;
-  const commAcc = existing && _isV2(existing) ? (existing.salary?.commissions?.accountId || usdAccounts[0]?.id || '') : (prefillSrc && _isV2(prefillSrc) ? prefillSrc.salary?.commissions?.accountId || usdAccounts[0]?.id || '' : (usdAccounts[0]?.id || ''));
 
   // Months dropdown: last 12 months + next 1
   const monthOpts = [];
@@ -588,9 +586,7 @@ function openSueldoModal(monthKey){
     monthOpts.push({ value: getMonthKey(d), label: _fmtMonthLong(getMonthKey(d)) });
   }
 
-  const arsAccOpts = arsAccounts.map(a => `<option value="${a.id}" ${a.id===arsAcc?'selected':''}>${esc(a.name)}</option>`).join('') || '<option value="">— sin cuentas ARS —</option>';
   const usdAccOpts = usdAccounts.map(a => `<option value="${a.id}" ${a.id===usdAcc?'selected':''}>${esc(a.name)}</option>`).join('') || '<option value="">— sin cuentas USD —</option>';
-  const commAccOpts = usdAccounts.map(a => `<option value="${a.id}" ${a.id===commAcc?'selected':''}>${esc(a.name)}</option>`).join('') || '<option value="">— sin cuentas USD —</option>';
 
   const modal = document.createElement('div');
   modal.className = 'inc2-modal-bg';
@@ -614,21 +610,7 @@ function openSueldoModal(monthKey){
       </div>
 
       <div class="inc2-modal-section">
-        <div class="inc2-modal-section-title">💰 Sueldo en pesos</div>
-        <div class="inc2-field-row">
-          <div class="inc2-field">
-            <label class="inc2-field-label">Monto (ARS)</label>
-            <input type="number" class="inc2-field-input" id="inc2-su-ars-amt" value="${arsAmt || ''}" placeholder="0" oninput="_updateSueldoSummary()">
-          </div>
-          <div class="inc2-field">
-            <label class="inc2-field-label">Cuenta destino</label>
-            <select class="inc2-field-select" id="inc2-su-ars-acc">${arsAccOpts}</select>
-          </div>
-        </div>
-      </div>
-
-      <div class="inc2-modal-section">
-        <div class="inc2-modal-section-title">💵 Sueldo en dólares</div>
+        <div class="inc2-modal-section-title">💵 Sueldo fijo (USD)</div>
         <div class="inc2-field-row">
           <div class="inc2-field">
             <label class="inc2-field-label">Monto (USD)</label>
@@ -641,19 +623,7 @@ function openSueldoModal(monthKey){
         </div>
       </div>
 
-      <div class="inc2-modal-section">
-        <div class="inc2-modal-section-title">📈 Comisiones del mes (USD)</div>
-        <div class="inc2-field-row">
-          <div class="inc2-field">
-            <label class="inc2-field-label">Total comisiones (USD)</label>
-            <input type="number" class="inc2-field-input" id="inc2-su-comm-amt" value="${commAmt || ''}" placeholder="0" oninput="_updateSueldoSummary()">
-          </div>
-          <div class="inc2-field">
-            <label class="inc2-field-label">Cuenta destino</label>
-            <select class="inc2-field-select" id="inc2-su-comm-acc">${commAccOpts}</select>
-          </div>
-        </div>
-      </div>
+      <div class="inc2-modal-hint">El sueldo es fijo. Aguinaldo, changas u otros ingresos van en <b>Registrar extra</b> como variable.</div>
 
       <div class="inc2-modal-summary">
         <div class="inc2-modal-summary-label">Total estimado del mes</div>
@@ -672,39 +642,34 @@ function openSueldoModal(monthKey){
 }
 
 function _updateSueldoSummary(){
-  const arsAmt = parseFloat(document.getElementById('inc2-su-ars-amt')?.value || 0);
   const usdAmt = parseFloat(document.getElementById('inc2-su-usd-amt')?.value || 0);
-  const commAmt = parseFloat(document.getElementById('inc2-su-comm-amt')?.value || 0);
   const TC = USD_TO_ARS || 1420;
-  const total = arsAmt + (usdAmt + commAmt) * TC;
+  const total = usdAmt * TC;
   const summaryEl = document.getElementById('inc2-su-summary');
   const detailEl = document.getElementById('inc2-su-summary-detail');
   if (summaryEl) summaryEl.textContent = '$' + fmtN(Math.round(total));
   if (detailEl) {
-    const parts = [];
-    if (arsAmt > 0) parts.push(`$${fmtN(arsAmt)} ARS`);
-    if (usdAmt > 0) parts.push(`USD ${fmtN(usdAmt)} sueldo`);
-    if (commAmt > 0) parts.push(`USD ${fmtN(commAmt)} comisiones`);
+    const parts = usdAmt > 0 ? [`USD ${fmtN(usdAmt)} al TC $${fmtN(TC)}`] : [];
     detailEl.textContent = parts.length ? parts.join(' · ') : 'Cargá los montos arriba';
   }
 }
 
 function saveSueldo(){
   const month = document.getElementById('inc2-su-month').value;
-  const arsAmt = parseFloat(document.getElementById('inc2-su-ars-amt').value || 0);
-  const arsAcc = document.getElementById('inc2-su-ars-acc').value;
   const usdAmt = parseFloat(document.getElementById('inc2-su-usd-amt').value || 0);
   const usdAcc = document.getElementById('inc2-su-usd-acc').value;
-  const commAmt = parseFloat(document.getElementById('inc2-su-comm-amt').value || 0);
-  const commAcc = document.getElementById('inc2-su-comm-acc').value;
 
-  if (arsAmt === 0 && usdAmt === 0 && commAmt === 0) {
-    alert('Cargá al menos un monto para registrar el sueldo.');
+  if (!(usdAmt > 0)) {
+    alert('Cargá el sueldo en dólares.');
     return;
   }
 
   if (!Array.isArray(state.incomeMonths)) state.incomeMonths = [];
   let entry = state.incomeMonths.find(m => m.month === month);
+  // Meses viejos: se conservan el sueldo en pesos y las comisiones que ya tenían
+  const prevSalary = entry && _isV2(entry) ? (entry.salary || {}) : {};
+  const arsAmt = Number(prevSalary.ars?.amount || 0), arsAcc = prevSalary.ars?.accountId || null;
+  const commAmt = Number(prevSalary.commissions?.amount || 0), commAcc = prevSalary.commissions?.accountId || null;
 
   // Preserve existing extras if entry already exists
   const existingExtras = entry && _isV2(entry) ? (entry.extras || []) : [];
@@ -736,6 +701,14 @@ function saveSueldo(){
 // ═══════════════════════════════════════════════════════════
 // MODAL: Registrar Extra
 // ═══════════════════════════════════════════════════════════
+// Ingresos fuera del sueldo fijo
+const EXTRA_INCOME_TYPES = [
+  { val: 'variable', label: 'Sueldo variable' },
+  { val: 'aguinaldo', label: 'Aguinaldo' },
+  { val: 'freelance', label: 'Changa / freelance' },
+  { val: 'regalo', label: 'Regalo' },
+  { val: 'otro', label: 'Otro' }
+];
 function openExtraModal(monthKey, extraId){
   ensureBankAccounts();
   const accounts = state.bankAccounts || [];
@@ -750,12 +723,7 @@ function openExtraModal(monthKey, extraId){
     extra = m?.extras?.find(e => e.id === extraId);
   }
 
-  const types = [
-    { val: 'aguinaldo', label: 'Aguinaldo' },
-    { val: 'freelance', label: 'Freelance' },
-    { val: 'regalo', label: 'Regalo' },
-    { val: 'otro', label: 'Otro' }
-  ];
+  const types = EXTRA_INCOME_TYPES;
 
   // Months dropdown
   const monthOpts = [];
@@ -775,7 +743,7 @@ function openExtraModal(monthKey, extraId){
       <div class="inc2-modal-h">
         <div>
           <div class="inc2-modal-title">${extra ? '✎ Editar extra' : '＋ Registrar extra'}</div>
-          <div class="inc2-modal-sub">${extra ? 'Modificar ingreso extra' : 'Agregar un ingreso fuera del sueldo'}</div>
+          <div class="inc2-modal-sub">${extra ? 'Modificar ingreso extra' : 'Variable, aguinaldo, changas u otro ingreso fuera del sueldo fijo'}</div>
         </div>
         <button class="inc2-modal-close" onclick="closeIncModal()">✕</button>
       </div>
@@ -801,7 +769,7 @@ function openExtraModal(monthKey, extraId){
       </div>
 
       <div class="inc2-field">
-        <label class="inc2-field-label">Descripción</label>
+        <label class="inc2-field-label">Descripción (opcional)</label>
         <input type="text" class="inc2-field-input" id="inc2-ex-label" value="${esc(extra?.label || '')}" placeholder="ej. Aguinaldo segundo semestre">
       </div>
 
@@ -838,13 +806,13 @@ function saveExtra(extraId){
   const month = document.getElementById('inc2-ex-month').value;
   const type = document.getElementById('inc2-ex-type').value;
   const date = document.getElementById('inc2-ex-date').value;
-  const label = document.getElementById('inc2-ex-label').value.trim();
+  const label = document.getElementById('inc2-ex-label').value.trim()
+    || (EXTRA_INCOME_TYPES.find(t => t.val === type)?.label || 'Extra');
   const amount = parseFloat(document.getElementById('inc2-ex-amount').value || 0);
   const currency = document.getElementById('inc2-ex-currency').value;
   const accountId = document.getElementById('inc2-ex-account').value;
 
   if (amount <= 0) { alert('Cargá un monto mayor a cero.'); return; }
-  if (!label) { alert('Cargá una descripción.'); return; }
 
   if (!Array.isArray(state.incomeMonths)) state.incomeMonths = [];
   let entry = state.incomeMonths.find(m => m.month === month);

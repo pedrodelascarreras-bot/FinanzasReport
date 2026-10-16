@@ -1471,7 +1471,6 @@ function renderTop5(){
 }
 
 function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLeft, compromisoTotal, projected, projInfo){
-  ensureDashboardCustomWidgets();
   const cleanTxns = (monthTxns || []).filter(t =>
     !t.isPendingCuota &&
     !t.isPendingSubscription
@@ -1609,8 +1608,7 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
   const historyWrap=document.querySelector('.dash-history-row[data-widget-key="history-kpis"]');
   const historyCard=historyWrap?historyWrap.querySelector('.dash-third-party-card'):null;
   const avgWidget=document.getElementById('dash-avg-widget');
-  const _layoutState=typeof loadLayoutState==='function'?loadLayoutState():{};
-  const _hiddenWidgets=_layoutState.dashboard?.widgetHidden||[];
+  const _hiddenWidgets=[];
   const thirdPartySummary=getThirdPartyDashboardSummary();
   const manuallyHidden=_hiddenWidgets.includes('history-kpis');
   const noTerceros=!thirdPartySummary.count;
@@ -1743,54 +1741,8 @@ function renderDashWidgets(monthTxns, arsMonth, incTotalARS, margen, pct, daysLe
     }
   }
 
-  renderDashboardCustomWidgets({
-    monthTxns,
-    cleanTxns,
-    arsMonth,
-    incTotalARS,
-    margen,
-    pct,
-    daysLeft,
-    compromisoTotal,
-    projected,
-    projInfo,
-    usdSpend,
-    usdSpendArs,
-    totalSpendArs,
-    thirdPartySummary
-  });
-  applyDashboardWidgetConfigs();
 }
 
-function ensureDashboardCustomWidgets(){
-  const row=document.getElementById('dash-widgets-row');
-  if(!row||typeof getDashboardCustomWidgets!=='function')return;
-  const customWidgets=getDashboardCustomWidgets();
-  const activeIds=new Set(customWidgets.map(w=>w.id));
-  row.querySelectorAll('.dw-card.dw-custom.layout-widget').forEach(card=>{
-    if(!activeIds.has(card.dataset.widgetKey))card.remove();
-  });
-  customWidgets.forEach(widget=>{
-    let card=row.querySelector(`.dw-card.dw-custom.layout-widget[data-widget-key="${widget.id}"]`);
-    if(!card){
-      card=document.createElement('div');
-      card.className='dw-card dw-custom layout-widget';
-      card.dataset.widgetKey=widget.id;
-      card.innerHTML=`
-        <div class="dw-label">—</div>
-        <div class="dw-value widget-value-tight" data-role="value">—</div>
-        <div class="dw-sub" data-role="sub">—</div>
-        <div class="widget-inline-row" data-role="inline">
-          <span class="dw-badge neutral" data-role="badge"></span>
-          <span class="widget-microcopy" data-role="meta"></span>
-        </div>
-        <div class="dw-bar-track" data-role="bar-track" hidden><div class="dw-bar-fill" data-role="bar"></div></div>
-        <div class="dw-footer widget-footer-tight" data-role="footer">—</div>
-      `;
-      row.appendChild(card);
-    }
-  });
-}
 
 function getDashboardHistoryAverages(){
   const historyTxns=(state.transactions||[]).filter(t=>
@@ -1846,165 +1798,7 @@ function openThirdPartyTransactions(){
   if(typeof renderTransactions==='function') renderTransactions();
 }
 
-function renderDashboardCustomWidgets(context){
-  const row=document.getElementById('dash-widgets-row');
-  if(!row||typeof getDashboardCustomWidgets!=='function')return;
-  const customWidgets=getDashboardCustomWidgets();
-  const history=getDashboardHistoryAverages();
-  const thirdPartySummary=context.thirdPartySummary||getThirdPartyDashboardSummary();
-  customWidgets.forEach(widget=>{
-    const card=row.querySelector(`.dw-card.dw-custom.layout-widget[data-widget-key="${widget.id}"]`);
-    if(!card)return;
-    const labelEl=card.querySelector('.dw-label');
-    const valueEl=card.querySelector('[data-role="value"]');
-    const subEl=card.querySelector('[data-role="sub"]');
-    const inlineEl=card.querySelector('[data-role="inline"]');
-    const badgeEl=card.querySelector('[data-role="badge"]');
-    const metaEl=card.querySelector('[data-role="meta"]');
-    const barTrack=card.querySelector('[data-role="bar-track"]');
-    const barEl=card.querySelector('[data-role="bar"]');
-    const footerEl=card.querySelector('[data-role="footer"]');
-    if(labelEl)labelEl.textContent=`${widget.icon||'✨'} ${(widget.name||'Widget custom').toUpperCase()}`;
-    if(barTrack)barTrack.hidden=true;
-    if(inlineEl)inlineEl.hidden=false;
-    if(badgeEl)badgeEl.textContent='';
-    if(metaEl)metaEl.textContent='';
 
-    const largestTxn=[...(context.cleanTxns||[])].sort((a,b)=>{
-      const aArs=(a.currency==='USD'?(a.amount||0)*(USD_TO_ARS||1420):(a.amount||0));
-      const bArs=(b.currency==='USD'?(b.amount||0)*(USD_TO_ARS||1420):(b.amount||0));
-      return bArs-aArs;
-    })[0];
-    const exposurePct=context.totalSpendArs>0&&context.usdSpend>0?Math.round((context.usdSpendArs/context.totalSpendArs)*100):0;
-    const commitmentsPct=context.incTotalARS>0?Math.min(100,Math.round(((context.compromisoTotal||0)/context.incTotalARS)*100)):0;
-
-    switch(widget.metric){
-      case 'margin_available':
-        if(valueEl)valueEl.textContent=context.margen!==null?`${context.margen>=0?'$':'−$'}${fmtN(Math.round(Math.abs(context.margen||0)))}`:'—';
-        if(subEl)subEl.textContent=context.margen!==null?`${context.daysLeft} días para cerrar el período`:'Sin ingreso configurado';
-        if(badgeEl)badgeEl.textContent=context.pct!==null?`${Math.round(Math.min(999,context.pct))}% usado`:'pendiente';
-        if(metaEl)metaEl.textContent=context.margen>0?'Todavía tenés margen':'Ya estás al límite';
-        if(footerEl)footerEl.textContent='Lo que todavía podés gastar sin pasarte del objetivo';
-        if(barTrack&&barEl){
-          barTrack.hidden=false;
-          animateProgressBar(barEl,Math.max(0,Math.min(100,Math.round(context.pct||0))));
-        }
-        break;
-      case 'usd_exposure':
-        if(valueEl)valueEl.textContent=`${exposurePct}%`;
-        if(subEl)subEl.textContent=context.usdSpend>0?`U$D ${fmtN(context.usdSpend)} del período`:'Sin gasto relevante en USD';
-        if(badgeEl)badgeEl.textContent=context.usdSpend>0?'sensibilidad FX':'estable';
-        if(metaEl)metaEl.textContent=context.usdSpend>0?`$${fmtN(Math.round(context.usdSpendArs))} equivalentes en ARS`:'';
-        if(footerEl)footerEl.textContent='Qué parte de tu gasto depende del dólar';
-        if(barTrack&&barEl){
-          barTrack.hidden=false;
-          animateProgressBar(barEl,exposurePct);
-        }
-        break;
-      case 'largest_expense':
-        if(valueEl)valueEl.textContent=largestTxn?`${largestTxn.currency==='USD'?'U$D ':'$'}${fmtN(largestTxn.amount||0)}`:'—';
-        if(subEl)subEl.textContent=largestTxn?(largestTxn.description||largestTxn.comercio_detectado||'Movimiento'):'Sin movimientos suficientes';
-        if(badgeEl)badgeEl.textContent=largestTxn?.category||'sin datos';
-        if(metaEl)metaEl.textContent=largestTxn?fmtDate(largestTxn.date):'';
-        if(footerEl)footerEl.textContent='El ticket individual más alto del período';
-        break;
-      case 'avg_daily':
-        if(valueEl)valueEl.textContent=history.daySpan?`$${fmtN(Math.round(history.dailyAvg))}`:'—';
-        if(subEl)subEl.textContent=history.daySpan?`Promedio sobre ${history.daySpan} días`:'Necesitás más historial';
-        if(badgeEl)badgeEl.textContent='histórico';
-        if(metaEl)metaEl.textContent=history.monthSpan?`${history.monthSpan} meses cargados`:'';
-        if(footerEl)footerEl.textContent='Tu ritmo diario promedio usando toda la historia';
-        break;
-      case 'avg_monthly':
-        if(valueEl)valueEl.textContent=history.monthSpan?`$${fmtN(Math.round(history.monthlyAvg))}`:'—';
-        if(subEl)subEl.textContent=history.monthSpan?`Promedio de ${history.monthSpan} ${history.monthSpan===1?'mes':'meses'}`:'Necesitás más historial';
-        if(badgeEl)badgeEl.textContent='histórico';
-        if(metaEl)metaEl.textContent=history.daySpan?`${history.daySpan} días registrados`:'';
-        if(footerEl)footerEl.textContent='Tu gasto mensual promedio con toda la historia';
-        break;
-      case 'third_party_tracker': {
-        const openCount=thirdPartySummary.pendingCount+thirdPartySummary.partialCount;
-        if(valueEl)valueEl.textContent=thirdPartySummary.count?`$${fmtN(Math.round(thirdPartySummary.pendingArs))}`:'—';
-        if(subEl)subEl.textContent=thirdPartySummary.count
-          ?`${thirdPartySummary.count} registro${thirdPartySummary.count!==1?'s':''} · ${openCount} abierto${openCount!==1?'s':''}`
-          :'No hay gastos de terceros';
-        if(badgeEl)badgeEl.textContent=thirdPartySummary.count?`${thirdPartySummary.settledCount} cobrados`:'sin casos';
-        if(metaEl)metaEl.textContent=thirdPartySummary.count?`$${fmtN(Math.round(thirdPartySummary.collectedArs))} recuperados`:'';
-        if(footerEl)footerEl.textContent=thirdPartySummary.count
-          ?`Total gestionado $${fmtN(Math.round(thirdPartySummary.totalRecoverArs))}${thirdPartySummary.hasUsd?' · incluye USD→ARS':''}`
-          :'Marcá un movimiento como tercero para seguirlo acá';
-        if(barTrack&&barEl){
-          if(thirdPartySummary.count&&thirdPartySummary.totalRecoverArs>0){
-            barTrack.hidden=false;
-            animateProgressBar(barEl,Math.round((thirdPartySummary.collectedArs/thirdPartySummary.totalRecoverArs)*100));
-          } else {
-            barTrack.hidden=true;
-          }
-        }
-        break;
-      }
-      case 'commitments_total':
-        if(valueEl)valueEl.textContent=`$${fmtN(Math.round(context.compromisoTotal||0))}`;
-        if(subEl)subEl.textContent='Compromisos del próximo mes';
-        if(badgeEl)badgeEl.textContent=`${commitmentsPct}% del ingreso`;
-        if(metaEl)metaEl.textContent=commitmentsPct>0?'peso financiero comprometido':'sin compromisos fuertes';
-        if(footerEl)footerEl.textContent='Cuánto ya está tomado antes de arrancar el próximo período';
-        if(barTrack&&barEl){
-          barTrack.hidden=false;
-          animateProgressBar(barEl,commitmentsPct);
-        }
-        break;
-      case 'projected_close':
-        if(context.projInfo?.tooEarly){
-          if(valueEl)valueEl.textContent='Muy temprano';
-          if(subEl)subEl.textContent=`Seguro hasta ahora: $${fmtN(context.projInfo.secureTotal,0)} · desde el día ${context.projInfo.minDays}`;
-        } else {
-          if(valueEl)valueEl.textContent=context.projected?`$${fmtN(Math.round(context.projected))}`:'—';
-          if(subEl)subEl.textContent='Cierre estimado al ritmo actual';
-        }
-        if(badgeEl)badgeEl.textContent=`${context.daysLeft} días`;
-        if(metaEl)metaEl.textContent=context.incTotalARS>0&&context.projected?`${Math.round((context.projected/context.incTotalARS)*100)}% del ingreso`:'';
-        if(footerEl)footerEl.textContent='Proyección automática del período activo';
-        break;
-      case 'income_total':
-      default:
-        if(valueEl)valueEl.textContent=context.incTotalARS>0?`$${fmtN(Math.round(context.incTotalARS))}`:'—';
-        if(subEl)subEl.textContent=context.incTotalARS>0?'Ingreso consolidado del período':'Todavía no cargaste ingresos';
-        if(badgeEl)badgeEl.textContent=context.pct!==null?`${Math.round(Math.min(999,context.pct))}% usado`:'pendiente';
-        if(metaEl)metaEl.textContent=context.margen!==null?`${context.margen>=0?'$'+fmtN(Math.round(context.margen)):'−$'+fmtN(Math.round(Math.abs(context.margen)))} de margen`:'';
-        if(footerEl)footerEl.textContent='Incluye ARS + USD convertidos al cambio operativo';
-        break;
-    }
-    if(inlineEl)inlineEl.hidden=!((badgeEl&&badgeEl.textContent)||(metaEl&&metaEl.textContent));
-  });
-}
-
-function applyDashboardWidgetConfigs(){
-  if(typeof getDashboardWidgetConfigs!=='function')return;
-  const configs=getDashboardWidgetConfigs()||{};
-  const metaMap=typeof getDashboardWidgetMetaMap==='function'?getDashboardWidgetMetaMap():{};
-  const customWidgets=typeof getDashboardCustomWidgets==='function'?getDashboardCustomWidgets():[];
-  const layoutState=typeof loadLayoutState==='function'?loadLayoutState():{};
-  const widgetSizes=layoutState.dashboard?.widgetSizes||{};
-  document.querySelectorAll('#dash-content .layout-widget[data-widget-key]').forEach(widget=>{
-    const key=widget.dataset.widgetKey;
-    const config=configs[key]||{};
-    const custom=customWidgets.find(w=>w.id===key)||null;
-    const variant=custom?.variant||config.variant||'default';
-    const size=widgetSizes[key]||'regular';
-    widget.classList.remove('widget-variant-default','widget-variant-minimal','widget-variant-accent','widget-variant-premium','widget-size-compact','widget-size-regular','widget-size-wide');
-    widget.classList.add(`widget-variant-${variant}`);
-    widget.classList.add(`widget-size-${size}`);
-    const selector=metaMap[key]?.titleSelector;
-    const titleEl=selector?widget.querySelector(selector):widget.querySelector('.dw-label,.chart-card-title,.dkpi-label');
-    if(titleEl){
-      if(!titleEl.dataset.baseTitle)titleEl.dataset.baseTitle=titleEl.textContent.trim();
-      const label=custom?.name||config.labelOverride||metaMap[key]?.label||titleEl.dataset.baseTitle;
-      const icon=custom?.icon||config.icon||'';
-      titleEl.textContent=(key==='usd-card' && icon)?`${icon} ${label}`:`${icon?`${icon} `:''}${label}`;
-    }
-  });
-}
 
 // Stubs para IDs que ya no existen pero podrian ser llamados desde otro lado
 

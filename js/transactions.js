@@ -611,6 +611,7 @@ function deleteTxn(id){
   showDeleteConfirm(id, label, t.amount, t.currency, t.date);
 }
 function confirmDeleteTxn(id){
+  rememberDeletedGmailTxns(state.transactions.filter(t=>t.id===id));
   state.transactions=state.transactions.filter(t=>t.id!==id);
   state.imports.forEach(imp=>{if(imp.txnIds)imp.txnIds=imp.txnIds.filter(x=>x!==id);});
   saveState();
@@ -988,6 +989,7 @@ function resolveDupInline(groupIdx, action){
   if(!ids||!ids.length)return;
   if(action==='delete'){
     const toDelete=new Set(ids.slice(1)); // keep first, delete rest
+    rememberDeletedGmailTxns(state.transactions.filter(t=>toDelete.has(t.id)));
     state.transactions=state.transactions.filter(t=>!toDelete.has(t.id));
     showToast('🗑 Duplicado eliminado','success');
   } else {
@@ -2366,6 +2368,7 @@ function bulkDelete(){
   const ids=[...state._selectedTxns];
   if(!ids.length)return;
   if(!confirm('¿Eliminar '+ids.length+' movimiento'+(ids.length!==1?'s':'')+'? Esta acción no se puede deshacer.'))return;
+  rememberDeletedGmailTxns(state.transactions.filter(t=>ids.includes(t.id)));
   state.transactions=state.transactions.filter(t=>!ids.includes(t.id));
   clearSelection();
   saveState();refreshAll();
@@ -3198,6 +3201,7 @@ function dupGroupAction(action, gKey, grpArray){
     // Keep first (index 0), delete the rest
     var toDelete = new Set();
     for(var i=1; i<grpArray.length; i++) toDelete.add(String(grpArray[i].id));
+    rememberDeletedGmailTxns(state.transactions.filter(function(t){ return toDelete.has(String(t.id)); }));
     state.transactions = state.transactions.filter(function(t){ return !toDelete.has(String(t.id)); });
     saveState(); renderTransactions(); renderDashboard();
     showToast('Duplicado' + (toDelete.size!==1?'s':'') + ' eliminado' + (toDelete.size!==1?'s':'') + ' (' + toDelete.size + ')', 'success');
@@ -3207,6 +3211,7 @@ function dupGroupAction(action, gKey, grpArray){
 
 function dupAction(action, txnId, gKey){
   if(action==='delete'||action==='del'){
+    rememberDeletedGmailTxns(state.transactions.filter(t=>t.id===txnId));
     state.transactions = state.transactions.filter(t=>t.id!==txnId);
     saveState(); renderTransactions(); renderDashboard();
     const row=document.getElementById('duprow-'+txnId);

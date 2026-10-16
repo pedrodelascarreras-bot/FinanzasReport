@@ -46,6 +46,8 @@ let state={
   dismissedNotifs: [],   // IDs of notifications the user dismissed
   decisionCenterCollapsed:false,
   dismissedAutoCuotas:[], // keys of auto-cuotas permanently dismissed
+  gmailDeletedIds:[],    // mails de Gmail cuyo gasto el usuario borró: no se vuelven a importar
+  gmailAnulados:[],      // mails de anulación ya procesados
   dismissedCommitmentEntries:[], // projected commitment entries manually hidden by the user
   smartTags: [],         // string[] — all known tag names, ordered by usage
   txnTagFilter: '',      // '' or tag name for filtering movimientos by tag
@@ -113,6 +115,8 @@ function getStateSnapshot(){
     dismissedNotifs:state.dismissedNotifs||[],
     decisionCenterCollapsed:!!state.decisionCenterCollapsed,
     dismissedAutoCuotas:state.dismissedAutoCuotas||[],
+    gmailDeletedIds:state.gmailDeletedIds||[],
+    gmailAnulados:state.gmailAnulados||[],
     dismissedCommitmentEntries:state.dismissedCommitmentEntries||[],
     tasks:state.tasks||[],
     txnCardFilter:state.txnCardFilter||'',
@@ -232,7 +236,6 @@ function initDriveClient(autoSync){
           }
           if(typeof renderSettingsPage === 'function') renderSettingsPage();
           if(typeof renderOnboardingWizard === 'function') renderOnboardingWizard();
-          if(typeof refreshSplashGoogleState === 'function') refreshSplashGoogleState(true);
           const totalMs=window._syncTrace.length?window._syncTrace[window._syncTrace.length-1].ms:0;
           if(totalMs>8000){
             console.warn('[sync] CARGA LENTA ('+Math.round(totalMs/1000)+'s) — detalle:', JSON.stringify(window._syncTrace));
@@ -440,6 +443,8 @@ async function loadFromDrive(){
     state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
+    state.gmailDeletedIds=s.gmailDeletedIds||[];
+    state.gmailAnulados=s.gmailAnulados||[];
     state.dismissedCommitmentEntries=s.dismissedCommitmentEntries||[];
     state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';
@@ -549,6 +554,8 @@ function loadState(){
     state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
+    state.gmailDeletedIds=s.gmailDeletedIds||[];
+    state.gmailAnulados=s.gmailAnulados||[];
     state.dismissedCommitmentEntries=s.dismissedCommitmentEntries||[];
     state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';

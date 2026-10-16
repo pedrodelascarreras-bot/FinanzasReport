@@ -323,7 +323,7 @@
             </div>
           ` : `<div class="settings-empty-block">Sin ciclos cargados para esta tarjeta.</div>`}
           <div class="settings-card-redesign-actions">
-            <button class="dashboard-widget-mini primary" type="button" onclick="nav('credit-cards');if(typeof ccSelectPageTab==='function')ccSelectPageTab('config')">Gestionar ciclos</button>
+            <button class="dashboard-widget-mini primary" type="button" onclick="nav('credit-cards')">Gestionar ciclos</button>
             <button class="dashboard-widget-mini" type="button" onclick="${card.legacy ? '' : `state.ccActiveCard='${esc(card.id)}';`}nav('credit-cards')">Ver tarjeta</button>
           </div>
         </div>
@@ -671,40 +671,6 @@
     }catch(_err){
       monthSelect.focus();
     }
-  }
-
-  function quickGmailImport(){
-    if(typeof window.gmailSync === 'function'){
-      window.gmailSync();
-      return;
-    }
-    window.nav?.('import');
-  }
-
-  function openQuickCategoryCreate(){
-    window.nav?.('categories');
-    requestAnimationFrame(() => {
-      if(typeof window.openCat === 'function') window.openCat();
-    });
-  }
-
-  function openQuickTaskCreate(){
-    window.nav?.('calendar');
-    requestAnimationFrame(() => {
-      const taskInput = document.getElementById('calendar-task-input');
-      const dateInput = document.getElementById('calendar-task-date');
-      const todayValue = typeof window.dateToInputValue === 'function'
-        ? window.dateToInputValue(new Date())
-        : new Date().toISOString().slice(0,10);
-      if(dateInput && !dateInput.value) dateInput.value = todayValue;
-      if(taskInput){
-        taskInput.focus();
-        const len = taskInput.value.length;
-        if(typeof taskInput.setSelectionRange === 'function'){
-          taskInput.setSelectionRange(len, len);
-        }
-      }
-    });
   }
 
   function exportSelectedData(){
@@ -1062,9 +1028,6 @@
   window.closeCreateMenu = closeCreateMenu;
   window.openQuickExpenseFlow = openQuickExpenseFlow;
   window.openDashboardMonthPicker = openDashboardMonthPicker;
-  window.quickGmailImport = quickGmailImport;
-  window.openQuickCategoryCreate = openQuickCategoryCreate;
-  window.openQuickTaskCreate = openQuickTaskCreate;
   window.exportSelectedData = exportSelectedData;
   window.toggleSettingsSetupGuide = toggleSettingsSetupGuide;
   window.deleteBankProfileById = deleteBankProfileById;

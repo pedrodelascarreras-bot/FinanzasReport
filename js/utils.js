@@ -56,6 +56,14 @@ function isImportedSubscriptionStale(s, todayRef=new Date()){
   const last=new Date(s.lastChargeDate+'T12:00:00');
   return !Number.isNaN(last.getTime()) && (todayRef-last)>IMPORTED_SUB_STALE_DAYS*86400000;
 }
+// Al borrar movimientos que vinieron de Gmail se recuerda el mail, para que la próxima
+// sincronización no los vuelva a importar.
+function rememberDeletedGmailTxns(txns){
+  const ids=(txns||[]).map(t=>t&&t.gmailId).filter(Boolean);
+  if(!ids.length) return;
+  if(!Array.isArray(state.gmailDeletedIds)) state.gmailDeletedIds=[];
+  ids.forEach(id=>{ if(!state.gmailDeletedIds.includes(id)) state.gmailDeletedIds.push(id); });
+}
 function getProjectedCommitmentEntriesForRange(opts={}){
   const startStr=opts.startStr||'';
   const endStr=opts.endStr||'';
@@ -434,8 +442,6 @@ function toggleTheme(){
     Chart.defaults.plugins.tooltip.backgroundColor = isLight ? 'rgba(255,255,255,0.95)' : 'rgba(44,44,46,0.95)';
     renderDashboard();
     if(document.getElementById('page-tendencia').classList.contains('active'))renderTendencia();
-    if(document.getElementById('page-compare').classList.contains('active'))renderCompare();
-    if(document.getElementById('page-balance')?.classList.contains('active') && typeof renderBalancePage==='function')renderBalancePage();
     if(document.getElementById('page-cuotas').classList.contains('active')){renderCuotas();renderSubs();renderFixed();renderCompromisosSummary();}
     if(document.getElementById('page-income').classList.contains('active'))renderIncomePage();
     if(document.getElementById('page-savings').classList.contains('active'))renderSavingsPage();

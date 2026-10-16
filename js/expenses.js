@@ -746,8 +746,22 @@ function purgeImportedStatementNotices(){
   console.info('[gmail] avisos de resumen importados por error, borrados:', bad.length);
   return true;
 }
+// Suscripción de Gmail sin débito hace más de 45 días = dada de baja: se pausa en toda la app
+// (calendario, compromisos, dashboard). Un débito nuevo la reactiva (upsert pone active:true).
+// Se pausa una sola vez por cada último cobro, así si la reactivás a mano no se vuelve a pausar.
+function pauseStaleImportedSubscriptions(todayRef=new Date()){
+  let changed=false;
+  (state.subscriptions||[]).forEach(s=>{
+    if(s.active===false || !isImportedSubscriptionStale(s, todayRef)) return;
+    if(s.autoPausedFor===s.lastChargeDate) return;
+    s.active=false; s.autoPausedFor=s.lastChargeDate; changed=true;
+  });
+  if(changed) console.info('[suscripciones] pausadas por no tener débitos recientes');
+  return changed;
+}
 function normalizeImportedSubscriptions(){
-  const purged=purgeImportedStatementNotices();
+  const paused=pauseStaleImportedSubscriptions();
+  const purged=purgeImportedStatementNotices() || paused;
   const subs=(state.subscriptions||[]).filter(s=>s.autoManaged);
   if(!subs.length) return purged;
   const groups=new Map();
@@ -810,7 +824,7 @@ function normalizeImportedSubscriptions(){
 function syncProjectedSubscriptionTransactions(){
   const today=new Date();
   today.setHours(0,0,0,0);
-  const activeSubs=(state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day);
+  const activeSubs=(state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day&&!isImportedSubscriptionStale(s,today));
   state.transactions=(state.transactions||[]).filter(t=>!t.isPendingSubscription);
   const projections=[];
   activeSubs.forEach(sub=>{

@@ -1,5 +1,5 @@
 // Consistencia entre pantallas: carga TODA la app (con un DOM falso) y verifica que
-// Dashboard, Movimientos, Balance, Tendencias, Reportes y Tarjetas den el mismo total.
+// Dashboard, Movimientos, Tendencias y Tarjetas den el mismo total.
 // Correr desde la raíz del repo:  npm run test:consistencia
 var window = this;
 function mk(name){
@@ -86,9 +86,6 @@ eq({ ars: mov.ars, usd: mov.usd }, expected, 'Movimientos (mes)');
 state.tendMode = 'mes';
 eq(sum(getTxnsForTendPeriod(monthKeyNow)), expected, 'Tendencias (mes)');
 eq(sum(_db2BuildMonthExpenseEntries(monthKeyNow)), expected, 'Dashboard evolución (mes)');
-state.repMode = 'mes';
-const repSel = document.getElementById('rep-period-select'); repSel.value = monthKeyNow;
-eq(sum(getRepTxns()), expected, 'Reportes (mes)');
 eq(Math.round(getDashCycleTotal()), 411800 + 30 * 1000, 'Dashboard total del período en ARS (mes)');
 
 // Ciclo Visa en curso: Super 5000 + Cena 3000 (tu parte) + Spotify 3000; sin débito, Amex ni alquiler
@@ -120,25 +117,12 @@ if (aIdx >= 0) {
   const movA = getTxnDisplaySummaryTotals({ mode: 'amex', activeCycleMeta: { openStr: open, closeStr: cyc.closeDate }, summaryTxns: [] });
   eq({ ars: movA.ars, usd: movA.usd }, amexExpected, 'Movimientos (ciclo AMEX)');
   eq(sum(getTcCycleTrendTxns(cyc, amexCycles)), amexExpected, 'Tendencias (ciclo AMEX)');
-  state.repMode = 'amex'; repSel.value = 'cycle:' + cyc.id;
-  eq(sum(getRepTxns()), amexExpected, 'Reportes (ciclo AMEX)');
   const ccA = ccGetTotals(ccGetCycleExpenses('card_amex', cyc.id));
   eq({ ars: ccA.ars, usd: ccA.usd }, amexExpected, 'Tarjetas (ciclo AMEX)');
   state.dashView = 'amex'; state.dashTcCycle = cyc.id;
   eq(Math.round(getDashCycleTotal()), amexExpected.usd * 1000, 'Dashboard total (ciclo AMEX)');
   state.dashView = 'mes'; state.dashTcCycle = null;
 }
-// Plan de ahorro: Visa + Amex juntas en las fechas del ciclo Visa (a propósito), con la receta común
-{
-  const vc = getTcCycles('visa'); const vi = vc.findIndex(c => { const o = getTcCycleOpen(vc, vc.indexOf(c)); return o && o <= todayYmd && todayYmd <= c.closeDate; });
-  if (vi >= 0) {
-    const open = getTcCycleOpen(vc, vi), close = vc[vi].closeDate;
-    const plan = Math.round(savPlanWindowTxns(open, close).reduce((s, t) => s + savPlanTxArs(t), 0));
-    const both = Math.round(getPeriodTotals({ startStr: open, endStr: close, card: 'visa' }).totalArs + getPeriodTotals({ startStr: open, endStr: close, card: 'amex' }).totalArs);
-    eq(plan, both, 'Plan de ahorro = Visa + Amex en la ventana del ciclo Visa');
-  }
-}
-
 // Compromisos: la página y el KPI del dashboard suman lo mismo (suscripción pausada, fijo sin moneda, USD)
 {
   const saved = { subs: state.subscriptions, fixed: state.fixedExpenses };
@@ -158,7 +142,7 @@ if (aIdx >= 0) {
 eq(_normalizeViewMode('amex'), 'amex', 'la vista AMEX no se convierte en VISA al recargar');
 
 // Las pantallas cargan sin errores
-['renderDashboard', 'renderBalancePage', 'renderReportesPage', 'renderTransactions', 'renderTendencia', 'renderCommitmentsPage', 'renderCalendarPage'].forEach(fn => {
+['renderDashboard', 'renderTransactions', 'renderSavingsPage', 'renderIncomePage', 'renderCreditCards', 'renderProfilePage', 'renderTendencia', 'renderCommitmentsPage', 'renderCalendarPage'].forEach(fn => {
   try { window[fn](); passed++; } catch (e) { failures++; print('✗ ' + fn + ': ' + e); }
 });
 

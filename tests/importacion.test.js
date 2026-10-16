@@ -254,7 +254,8 @@ const ap = state.subscriptions.filter(s => /apple/i.test(s.name)).sort((a, b) =>
 eq([li.length, li[0].emoji, li[0].price], [1, '💼', 1.21], 'LinkedIn: queda 1, conserva el emoji, último precio');
 eq(ap.map(s => [s.price, s.day, s.emoji]), [[1.99, 25, '🍎'], [9.99, 30, '🍎']], 'Apple: se separa en 1,99 y 9,99');
 eq(state.transactions.filter(t => t.sourceSubscriptionId === ap[0].id).map(t => t.amount), [1.99, 1.99], 'los cobros de 1,99 quedan en su suscripción');
-eq(normalizeImportedSubscriptions(), false, 'segunda pasada: no cambia nada');
+normalizeImportedSubscriptions(); // LinkedIn (último cobro en agosto) queda pausada
+eq(normalizeImportedSubscriptions(), false, 'después no cambia nada');
 
 // 17) "Tu resumen vence pronto" menciona "débito automático": NO es un gasto aunque lo traiga la regla de débitos
 reset();
@@ -286,6 +287,26 @@ const cyc = getPeriodTotals({ card: 'visa', startStr: '2026-09-30', endStr: '202
 eq(cyc.usd, 20, 'Paramount (sin cobros desde julio) y LinkedIn (no llegó el 6/10) no suman; Claude del 15/10 sí (margen de 3 días)');
 const novEntries = getProjectedCommitmentEntriesForRange({ startStr: '2026-10-30', endStr: '2026-11-29', todayRef: D('2026-10-16') });
 eq(novEntries.map(e => e.title).sort(), ['CLAUDE', 'LinkedIn'], 'a futuro se proyectan las activas; Paramount no');
+
+// 19) Un gasto de Gmail borrado no vuelve: se recuerda el mail y se guarda con el resto de los datos
+reset(); state.gmailDeletedIds = [];
+state.transactions = [gmail('del1', '2026-10-10', 'RAPPI', 16042), gmail('del2', '2026-10-11', 'UBER', 9000), gmail('del3', '2026-10-12', 'COTO', 5000)];
+confirmDeleteTxn('gmail_del1');
+state._selectedTxns = new Set(['gmail_del2']); bulkDelete = bulkDelete; confirm = () => true; bulkDelete();
+eq(state.gmailDeletedIds.sort(), ['del1', 'del2'], 'se recuerdan los mails de los gastos borrados (uno y en lote)');
+saveState();
+eq(JSON.parse(localStorage.getItem('fin_state')).gmailDeletedIds.sort(), ['del1', 'del2'], 'la lista se guarda (no se pierde al recargar)');
+
+// 20) Suscripción sin débitos hace más de 45 días: se pausa sola; un débito nuevo la reactiva
+reset();
+state.subscriptions = [{ id: 'par2', name: 'PARAMOUNT', merchantKey: 'paramount', price: 3.78, currency: 'USD', freq: 'monthly', day: 9, active: true, autoManaged: true, lastChargeDate: '2026-07-09' }];
+pauseStaleImportedSubscriptions(D('2026-10-16'));
+eq(state.subscriptions[0].active, false, 'Paramount sin cobros desde julio queda pausada');
+state.subscriptions[0].active = true; pauseStaleImportedSubscriptions(D('2026-10-16'));
+eq(state.subscriptions[0].active, true, 'si la reactivás a mano, no se vuelve a pausar');
+state.subscriptions[0].active = false;
+finishImport([debito('par-nov', 'U$S3,78', 'PARAMOUNT', '09/11/2026', '23:00')], 'gmail', 'importado_desde_gmail');
+eq([state.subscriptions.length, state.subscriptions[0].active], [1, true], 'un débito nuevo la reactiva');
 
 print((failures ? '✗ ' + failures + ' fallaron, ' : '✓ ') + passed + ' pruebas OK');
 if (failures) throw new Error(failures + ' pruebas fallaron');

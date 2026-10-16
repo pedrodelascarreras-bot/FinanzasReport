@@ -26,34 +26,12 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<link rel="stylesheet" href="css/styles.css?v=20261013c">
+<link rel="stylesheet" href="css/styles.css?v=20261017a">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 </head>
 <body>
 <script>(function(){const t=localStorage.getItem('fin_theme')||'light';if(t==='light')document.body.classList.add('light-mode');})();</script>
 
-<!-- ═══ DAILY BRIEFING SPLASH ═══ -->
-<div id="splash" style="display:none;" onclick="if(event.target===this)dismissSplash()">
-  <div class="sp-inner">
-    <!-- Branding -->
-    <div class="sp-logo fluxen-logo-wrap">
-      <img class="fluxen-logo-img fluxen-logo-img-lg" src="brand/fluxen-logo.png" alt="fluxen">
-    </div>
-
-    <!-- Dynamic content injected by splash.js -->
-    <div id="sp-content"></div>
-
-    <!-- Footer: progress + CTA -->
-    <div class="sp-footer">
-      <div class="sp-progress-wrap" style="flex:1;">
-        <div class="sp-progress-bar">
-          <div id="splash-progress-fill" class="sp-progress-fill"></div>
-        </div>
-      </div>
-    </div>
-
-  </div>
-</div>
 
 <div class="app">
 
@@ -87,9 +65,6 @@
     <button class="nav-item" id="ni-savings" onclick="nav('savings')" title="Ahorros">
       <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-0.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2"/><path d="M2 9.5a2 2 0 0 1 2-2"/></svg></span><span data-i18n="nav_savings">Ahorros</span>
     </button>
-    <button class="nav-item nav-item-hidden" id="ni-compare" onclick="nav('compare')" aria-hidden="true" tabindex="-1" title="Mes vs Mes">
-      <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3L4 7l4 4"/><path d="M4 7h16"/><path d="M16 21l4-4-4-4"/><path d="M20 17H4"/></svg></span><span data-i18n="nav_compare">Mes vs Mes</span>
-    </button>
 
     <div class="nav-section" id="ns-config">
       <button class="nav-section-header" onclick="toggleSection('ns-config')" title="Configuraciones">
@@ -98,14 +73,14 @@
         <span class="ns-arrow">›</span>
       </button>
       <div class="nav-section-body">
-        <button class="nav-item sub" id="ni-reportes" onclick="nav('reportes')" title="Reportes">
-          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg></span><span data-i18n="nav_reports">Reportes</span>
-        </button>
-        <button class="nav-item sub" id="ni-balance" onclick="nav('balance')" title="Balance mensual">
-          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M7 15V9"/><path d="M12 15V5"/><path d="M17 15v-3"/></svg></span><span data-i18n="nav_balance">Balance mensual</span>
-        </button>
         <button class="nav-item sub" id="ni-credit-cards" onclick="nav('credit-cards')" title="Tarjeta de crédito">
           <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg></span><span data-i18n="nav_credit_card">Tarjeta de crédito</span>
+        </button>
+        <button class="nav-item sub" id="ni-settings" onclick="nav('settings')" title="Configuración">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/></svg></span><span>Configuración</span>
+        </button>
+        <button class="nav-item sub" id="ni-security" onclick="nav('security')" title="Seguridad y datos">
+          <span class="nav-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg></span><span>Seguridad y datos</span>
         </button>
       </div>
     </div>
@@ -255,27 +230,6 @@
     </div>
 
     <div class="dash-control-deck dash-control-deck-compact">
-      <div class="dash-qa-group" id="dashboard-smart-toolbar" role="toolbar" aria-label="Accesos rápidos del dashboard">
-        <button class="dash-qa-btn dash-qa-btn-primary" onclick="openQuickExpenseFlow()" title="Nuevo gasto" aria-label="Registrar un gasto manual rápido">
-          <span>＋</span>
-        </button>
-        <button class="dash-qa-btn" onclick="nav('calendar')" title="Calendario" aria-label="Ir al calendario completo">
-          <span>📅</span>
-        </button>
-        <button class="dash-qa-btn" onclick="quickGmailImport()" title="Importar Gmail" aria-label="Sincronizar consumos desde Gmail">
-          <span>✉️</span>
-        </button>
-        <button class="dash-qa-btn" onclick="openQuickCategoryCreate()" title="Nueva categoría" aria-label="Crear una categoría y seguir">
-          <span>🏷️</span>
-        </button>
-        <button class="dash-qa-btn" onclick="openQuickTaskCreate()" title="Nueva task" aria-label="Crear una task y verla en el calendario">
-          <span>✅</span>
-        </button>
-        <button class="dash-qa-btn" id="db2-global-privacy-btn" onclick="toggleGlobalPrivacy()" title="Ocultar montos" aria-label="Ocultar todos los montos (Privacy Mode)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-        </button>
-      </div>
-
       <div class="header-actions dash-view-toolbar dash-view-compact">
         <div class="surface-toggle">
           <button id="dash-toggle-mes" class="surface-toggle-btn active" onclick="setDashView('mes')">Mes</button>
@@ -856,74 +810,6 @@
   </div>
 </div>
 
-<!-- DISEÑO DEL DASHBOARD -->
-<div id="page-dashboard-design" class="page">
-  <div class="page-header fade-up">
-    <div>
-      <div class="page-title">Diseño del dashboard</div>
-      <div class="page-subtitle">Armá vistas distintas, cambiá widgets y guardá configuraciones con nombre</div>
-    </div>
-    <div class="header-actions">
-      <button class="btn btn-primary" onclick="saveCurrentDashboardView()">Guardar vista</button>
-      <button class="btn btn-ghost" onclick="nav('dashboard')">← Volver al dashboard</button>
-      <button class="btn btn-ghost" onclick="resetDashboardDesign()">Restablecer</button>
-    </div>
-  </div>
-
-  <div class="dashboard-design-shell fade-up d1">
-    <div class="dashboard-design-main">
-      <div class="dashboard-design-card">
-        <div class="dashboard-design-head">
-          <div>
-            <div class="dashboard-design-kicker">Vistas</div>
-            <div class="dashboard-design-title">Elegí una base y cambiá solo lo importante</div>
-          </div>
-        </div>
-        <div id="dashboard-design-presets" class="dashboard-preset-grid"></div>
-        <div class="dashboard-design-inline-head">
-          <div class="dashboard-design-kicker">Mis vistas</div>
-          <div class="dashboard-design-note">Guardalas con nombre para alternar rápido.</div>
-        </div>
-        <div id="dashboard-design-saved" class="dashboard-saved-grid dashboard-saved-grid-simple"></div>
-      </div>
-
-      <div class="dashboard-design-card">
-        <div class="dashboard-design-head">
-          <div>
-            <div class="dashboard-design-kicker">Widgets activos</div>
-            <div class="dashboard-design-title">Mostrá, mové y ajustá tamaño</div>
-          </div>
-          <div class="dashboard-design-note">Pensado para editar rápido, sin ruido.</div>
-        </div>
-        <div id="dashboard-design-groups" class="dashboard-widget-grid-simple"></div>
-      </div>
-
-      <div class="dashboard-design-card">
-        <div class="dashboard-design-head">
-          <div>
-            <div class="dashboard-design-kicker">Biblioteca</div>
-            <div class="dashboard-design-title">Widgets disponibles</div>
-          </div>
-          <div class="dashboard-design-note">Los que saques quedan acá listos para volver.</div>
-        </div>
-        <div id="dashboard-design-library" class="dashboard-widget-grid-simple dashboard-widget-grid-hidden"></div>
-      </div>
-    </div>
-
-    <div class="dashboard-design-side">
-      <div class="dashboard-design-card">
-        <div class="dashboard-design-head">
-          <div>
-            <div class="dashboard-design-kicker">Editor</div>
-            <div class="dashboard-design-title">Editar widget</div>
-          </div>
-          <button class="btn btn-ghost btn-sm" onclick="openNewDashboardCustomWidget()">+ Nuevo widget</button>
-        </div>
-        <div id="dashboard-widget-editor" class="dashboard-widget-editor"></div>
-      </div>
-    </div>
-  </div>
-</div>
 
 <!-- CONFIGURACIÓN -->
 <div id="page-settings" class="page">
@@ -944,8 +830,7 @@
           </div>
           <div id="settings-cards-list" class="settings-fintech-list"></div>
           <div class="profile-inline-actions">
-            <button class="btn btn-primary btn-sm" onclick="nav('credit-cards');ccSelectPageTab('config')" data-i18n="manage_cards">Administrar tarjetas</button>
-            <button class="btn btn-ghost btn-sm" onclick="nav('credit-cards');ccSelectPageTab('resumen')" data-i18n="view_cycles">Ver ciclos</button>
+            <button class="btn btn-primary btn-sm" onclick="nav('credit-cards')" data-i18n="manage_cards">Administrar tarjetas</button>
           </div>
         </section>
 
@@ -1004,7 +889,7 @@
   <div class="page-header fade-up">
     <div>
       <div class="page-title" data-i18n="page_profile">Perfil</div>
-      <div class="page-subtitle" data-i18n="page_profile_sub">Identidad, preferencias y control de datos en una vista principal de ancho completo.</div>
+      <div class="page-subtitle">Tu nombre y tu email.</div>
     </div>
   </div>
 
@@ -1034,17 +919,6 @@
     </div>
 
     <div class="profile-grid profile-grid-wide">
-      <div class="profile-card profile-card-wide">
-        <div class="profile-card-head">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>
-          <span data-i18n="choose_avatar">Elegir avatar</span>
-        </div>
-        <div class="profile-avatar-source-row">
-          <button class="profile-avatar-source active" id="avatar-source-upload" onclick="activateAvatarSource('upload')" data-i18n="uploaded_image">Imagen subida</button>
-          <button class="profile-avatar-source" id="avatar-source-preset" onclick="activateAvatarSource('preset')" data-i18n="preset_avatar">Avatar predefinido</button>
-        </div>
-        <div id="profile-avatar-presets" class="profile-avatar-grid"></div>
-      </div>
       <div class="profile-card">
         <div class="profile-card-head">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
@@ -1064,52 +938,7 @@
         <button class="btn btn-primary btn-sm" style="align-self:flex-start;margin-top:8px;" onclick="saveProfileInfo()" data-i18n="save_changes">Guardar cambios</button>
       </div>
 
-      <div class="profile-card">
-        <div class="profile-card-head">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09"/></svg>
-          <span data-i18n="preferences_title">Preferencias</span>
-        </div>
-        <div class="profile-field-list">
-          <div class="profile-field">
-            <label class="profile-field-label" data-i18n="main_currency">Moneda principal</label>
-            <select class="profile-field-input" id="pf-currency">
-              <option value="ARS" selected>ARS — Peso argentino</option>
-              <option value="USD">USD — Dólar</option>
-            </select>
-          </div>
-          <div class="profile-field profile-field-row">
-            <label class="profile-field-label" data-i18n="visual_theme">Tema visual</label>
-            <select class="profile-field-input profile-field-input-inline" id="pf-theme">
-              <option value="dark">Oscuro</option>
-              <option value="light">Claro</option>
-            </select>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:center;margin-top:8px;flex-wrap:wrap;">
-          <button class="btn btn-ghost btn-sm" onclick="saveProfilePreferences()" data-i18n="save_preferences">Guardar preferencias</button>
-        </div>
-      </div>
 
-      <div class="profile-card">
-        <div class="profile-card-head">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19h16"/><path d="M4 15h16"/><path d="M7 11V7"/><path d="M12 11V5"/><path d="M17 11V8"/></svg>
-          <span data-i18n="account_control">Control de cuenta</span>
-        </div>
-        <div class="profile-status-list">
-          <div class="profile-status-item">
-            <div class="profile-status-dot profile-status-ok"></div>
-            <span>Exportación y backups disponibles desde el centro de datos.</span>
-          </div>
-          <div class="profile-status-item">
-            <div class="profile-status-dot"></div>
-            <span>El reseteo total elimina datos locales y sincronizados de esta sesión.</span>
-          </div>
-        </div>
-        <div class="profile-inline-actions">
-          <button class="btn btn-primary btn-sm" onclick="confirmarAccion('backup')" data-i18n="export_backup">Exportar backup</button>
-          <button class="btn btn-danger btn-sm" onclick="confirmarAccion('borrar')" data-i18n="reset_data">Resetear datos</button>
-        </div>
-      </div>
     </div>
   </div>
 </div>
@@ -1231,51 +1060,16 @@
 
 <!-- TARJETA DE CRÉDITO -->
 <div id="page-credit-cards" class="page">
-  <!-- Mobile Credit Cards Shell — visible only on mobile (max-width: 768px) -->
-  <div id="mob-cc-shell" class="mob-cc-shell"></div>
-
   <div class="page-header fade-up">
-    <div><div class="page-title" data-i18n="page_credit_card">Tarjeta de Crédito</div><div class="page-subtitle" id="cc-page-subtitle">Seguimiento de ciclos y gastos</div></div>
+    <div><div class="page-title" data-i18n="page_credit_card">Tarjeta de Crédito</div><div class="page-subtitle" id="cc-page-subtitle">Aperturas, cierres y vencimientos de cada tarjeta.</div></div>
     <div class="header-actions" id="cc-page-actions"></div>
   </div>
 
-  <!-- Selector de tarjeta -->
-  <div id="cc-card-tabs" class="cc-tabs-row"></div>
-
-  <!-- Tabs de sección: Resumen | Configuración | Comparar -->
-  <div class="cc-section-tabs">
-    <button class="cc-stab active" id="cpt-resumen" onclick="ccSelectPageTab('resumen')">Resumen</button>
-    <button class="cc-stab" id="cpt-config" onclick="ccSelectPageTab('config')">Configuración</button>
-    <button class="cc-stab" id="cpt-compare" onclick="ccSelectPageTab('compare')">Comparar ciclos</button>
-  </div>
-
-  <!-- Panel: Resumen -->
-  <div id="cc-panel-resumen" class="cc-page-section-stack">
-    <!-- Ciclo activo -->
-    <div id="cc-active-cycle-section" class="cc-stage-card">
-      <div id="cc-empty-state" class="cc-empty-state" style="display:none;">
-        <div class="cc-empty-icon">◫</div>
-        <div class="cc-empty-title">Sin ciclos configurados</div>
-        <div class="cc-empty-sub">Definí tus cierres y vencimientos para habilitar el seguimiento del resumen.</div>
-      </div>
-      <div id="cc-active-cycle" style="display:none;"></div>
-    </div>
-
-    <!-- Historial -->
-    <div id="cc-history-section" class="cc-history-section" style="display:none;">
-      <div class="section-kicker-inline cc-section-kicker">Historial de ciclos liquidados</div>
-      <div id="cc-history-list"></div>
-    </div>
-  </div>
-
   <!-- Panel: Configuración (Apple-style) -->
-  <div id="cc-panel-config" class="cc-page-section-stack" style="display:none;">
+  <div id="cc-panel-config" class="cc-page-section-stack">
     <div id="cc-config-panel-body"></div>
   </div>
 
-  <div id="cc-panel-history" class="cc-page-section-stack" style="display:none;">
-    <div id="cc-history-panel-body"></div>
-  </div>
 
   <!-- Legacy hidden element — renderCcTcConfig() populates this list; JS reads it for cycle management -->
   <div style="display:none;">
@@ -1287,135 +1081,9 @@
 
 
 
-<!-- Modal: Gasto manual en ciclo CC -->
-<div class="modal-overlay" id="modal-cc-expense">
-  <div class="modal modal-box">
-    <div class="modal-header"><div class="modal-title">Agregar gasto manual</div><button class="modal-close" onclick="closeModal('modal-cc-expense')">✕</button></div>
-    <div class="modal-body modal-stack">
-      <div>
-        <label class="field-label-premium">Fecha</label>
-        <input type="date" id="cc-exp-date" class="field-control-premium">
-      </div>
-      <div>
-        <label class="field-label-premium">Descripción</label>
-        <input type="text" id="cc-exp-desc" class="field-control-premium" placeholder="Ej: streaming, combustible, supermercado">
-      </div>
-      <div>
-        <label class="field-label-premium">Categoría</label>
-        <select id="cc-exp-cat" class="field-control-premium"></select>
-      </div>
-      <div class="field-grid-2">
-        <div>
-          <label class="field-label-premium">Monto ARS</label>
-          <input type="number" id="cc-exp-ars" class="field-control-premium" placeholder="0" min="0" step="0.01">
-        </div>
-        <div>
-          <label class="field-label-premium">Monto USD</label>
-          <input type="number" id="cc-exp-usd" class="field-control-premium" placeholder="0" min="0" step="0.01">
-        </div>
-      </div>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="closeModal('modal-cc-expense')">Cancelar</button>
-      <button class="btn btn-primary" onclick="ccSaveManualExpense()">Agregar</button>
-    </div>
-  </div>
-</div>
 
-<!-- REPORTES -->
-<div id="page-reportes" class="page">
-  <div class="page-header fade-up">
-    <div><div class="page-title" data-i18n="page_reports">Reportes</div><div class="page-subtitle">Prepará un informe ejecutivo listo para compartir</div></div>
-  </div>
 
-  <div class="rep-layout fade-up d1">
 
-    <!-- Panel de configuración -->
-    <div class="rep-config">
-
-      <!-- Período -->
-      <div class="rep-config-card rep-filter-card">
-        <div class="rep-filter-card-head">
-          <div>
-            <div class="rep-section-title">Reporte inteligente</div>
-            <div class="rep-filter-sub">Elegí el período, ajustá la profundidad y generá un informe completo listo para descargar o analizar con IA.</div>
-          </div>
-          <div class="rep-filter-actions">
-            <button class="btn btn-ghost rep-top-action" onclick="printReport()">Imprimir</button>
-            <button class="btn btn-primary rep-top-action" onclick="exportRepPDF()">Exportar PDF</button>
-          </div>
-        </div>
-        <div class="rep-stack">
-          <div class="rep-filter-block">
-            <div class="rep-inline-label">Tipo de período</div>
-            <div class="rep-mode-grid">
-              <button class="tft-btn rep-mode-btn active" id="rep-mode-mes" onclick="setRepMode('mes')">Mes</button>
-              <button class="tft-btn rep-mode-btn" id="rep-mode-visa" onclick="setRepMode('visa')">Vista VISA</button>
-              <button class="tft-btn rep-mode-btn" id="rep-mode-amex" onclick="setRepMode('amex')">Vista AMEX</button>
-              <button class="tft-btn rep-mode-btn" id="rep-mode-rango" onclick="setRepMode('rango')">Rango</button>
-              <button class="tft-btn rep-mode-btn" id="rep-mode-all" onclick="setRepMode('todo')">Histórico</button>
-            </div>
-          </div>
-          <div class="rep-filter-block">
-            <div class="rep-inline-label">Período puntual</div>
-            <select id="rep-period-select" class="rep-select" onchange="updateRepPreview()">
-              <option value="">Elegí un período</option>
-            </select>
-            <div id="rep-range-wrap" class="rep-range-wrap">
-              <div class="rep-range-row">
-                <div class="rep-range-field">
-                  <div class="rep-range-label">Desde</div>
-                  <input type="date" id="rep-range-from" class="rep-select" onchange="updateRepPreview()">
-                </div>
-                <span class="rep-range-arrow">→</span>
-                <div class="rep-range-field">
-                  <div class="rep-range-label">Hasta</div>
-                  <input type="date" id="rep-range-to" class="rep-select" onchange="updateRepPreview()">
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="rep-filter-block">
-            <div class="rep-inline-label">Profundidad del informe</div>
-            <div class="rep-depth-grid">
-              <button class="tft-btn rep-depth-btn" id="rep-depth-base" onclick="setRepDetailMode('base')">Claro</button>
-              <button class="tft-btn rep-depth-btn" id="rep-depth-complete" onclick="setRepDetailMode('complete')">Completo</button>
-              <button class="tft-btn rep-depth-btn" id="rep-depth-ai" onclick="setRepDetailMode('ai')">IA</button>
-            </div>
-            <label class="rep-toggle-row">
-              <input type="checkbox" id="rep-include-all-txns" onchange="toggleRepIncludeAllMovements(this.checked)">
-              <span>Incluir anexo con todos los movimientos del período</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-    </div>
-
-    <!-- Preview -->
-    <div class="rep-preview">
-      <div class="rep-preview-header">
-        <div class="rep-preview-title">Vista previa</div>
-        <div id="rep-preview-meta" class="rep-preview-meta">—</div>
-      </div>
-      <div class="rep-preview-body">
-        <div id="rep-preview-content" class="rep-preview-content"></div>
-      </div>
-    </div>
-
-  </div>
-
-  <div class="rep-ai-panel fade-up d2">
-    <div class="rep-ai-panel-head">
-      <div>
-        <div class="rep-section-title">Prompt para Análisis con IA</div>
-        <div class="rep-filter-sub">Adjuntá el PDF de este reporte en ChatGPT, Claude o la IA que uses, pegá este prompt y pedile un diagnóstico detallado del período.</div>
-      </div>
-      <button class="btn btn-primary" onclick="copyRepAiPrompt()">Copiar prompt</button>
-    </div>
-    <textarea id="rep-ai-prompt" class="rep-ai-textarea" readonly></textarea>
-  </div>
-</div>
 
 <!-- TRANSACTIONS -->
 <div id="page-transactions" class="page">
@@ -1437,8 +1105,7 @@
     </div>
   </div>
 
-  <div class="layout-edit-banner" id="banner-transactions" style="display:none;"><strong>✦ Modo edición</strong> · Toggle · <button class="btn btn-ghost btn-sm" onclick="toggleEditMode('transactions')">Listo ✓</button></div>
-  <div class="layout-section" data-page="transactions" data-key="filters" style="display:none;"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('transactions','filters',this)">● Filtros</button></div>
+  <div class="layout-section" data-page="transactions" data-key="filters" style="display:none;">
   <!-- Barra de filtros + resumen -->
   <div class="txn-filter-bar fade-up d1">
 
@@ -1519,7 +1186,7 @@
     <div id="estado-filter-tabs" class="estado-filter-tabs"></div>
   </div>
 
-  <div class="layout-section" data-page="transactions" data-key="table" style="display:none;"><div class="section-drag-handle">⠿</div><div class="section-controls"><button class="section-toggle-btn visible" onclick="toggleSection_vis('transactions','table',this)">● Tabla</button></div>
+  <div class="layout-section" data-page="transactions" data-key="table" style="display:none;">
   <!-- Bulk selection bar -->
   <div class="txn-select-bar" id="txn-select-bar">
     <span class="sb-count" id="sb-count">0 seleccionados</span>
@@ -1605,133 +1272,9 @@
   </div>
 </div>
 
-<!-- COMPARE -->
-<div id="page-compare" class="page">
-  <div class="empty-state fade-up">
-    <div class="empty-icon">⇄</div>
-    <div class="empty-title">Mes vs Mes ahora vive dentro de Balance mensual</div>
-    <p class="empty-sub">Abrí Balance mensual para comparar períodos dentro del mismo flujo de análisis.</p>
-    <div class="empty-actions">
-      <button class="btn btn-primary" onclick="setBalanceView('compare', { navigate: true })">Abrir Balance mensual</button>
-    </div>
-  </div>
-</div>
 
-<!-- BALANCE MENSUAL -->
-<div id="page-balance" class="page">
-  <div class="page-header fade-up">
-    <div>
-      <div class="page-title" data-i18n="page_balance">Balance mensual</div>
-      <div class="page-subtitle" data-i18n="page_balance_sub">Una sola vista para entender el cierre del mes, comparar contra el anterior y decidir qué hacer después.</div>
-    </div>
-    <div class="header-actions balance-header-actions">
-      <select id="balance-month-select" class="txn-select" onchange="renderBalancePage()"></select>
-      <button class="btn btn-ghost btn-sm" onclick="nav('transactions')">Ver movimientos</button>
-      <button class="btn btn-primary" onclick="renderBalancePage()">Actualizar</button>
-    </div>
-  </div>
 
-  <div id="balance-empty" class="empty-state fade-up">
-    <div class="empty-icon">◎</div>
-    <div class="empty-title">Todavía no hay un mes para cerrar</div>
-    <div class="empty-sub">Importá movimientos o registrá ingresos para construir el balance mensual completo.</div>
-    <div class="empty-actions">
-      <button class="btn btn-primary" onclick="nav('import')">Importar datos</button>
-    </div>
-  </div>
 
-  <div id="balance-content" class="balance-page-content" style="display:none;">
-    <section class="balance-topbar fade-up d1">
-      <div class="balance-topbar-main">
-        <div class="balance-context-copy">
-          <span class="balance-context-kicker">Análisis mensual</span>
-          <strong id="balance-context-title">Resumen del período</strong>
-          <p id="balance-context-sub">Leé el cierre del mes y detectá dónde conviene ajustar antes del próximo arranque.</p>
-        </div>
-        <div class="balance-top-metrics">
-          <article class="balance-top-metric">
-            <span>Promedio diario</span>
-            <strong id="balance-top-income">—</strong>
-          </article>
-          <article class="balance-top-metric">
-            <span>Promedio mensual</span>
-            <strong id="balance-top-expenses">—</strong>
-          </article>
-          <article class="balance-top-metric">
-            <span>Resultado promedio</span>
-            <strong id="balance-top-net">—</strong>
-          </article>
-        </div>
-      </div>
-      <div class="balance-view-switch" role="tablist" aria-label="Vista de balance mensual">
-        <button id="balance-tab-summary" class="balance-view-btn active" role="tab" aria-selected="true" onclick="setBalanceView('summary')">Resumen</button>
-        <button id="balance-tab-compare" class="balance-view-btn" role="tab" aria-selected="false" onclick="setBalanceView('compare')">Mes vs Mes</button>
-      </div>
-    </section>
-
-    <section id="balance-summary-view" class="balance-view-panel">
-      <div id="balance-hero" class="fade-up d1"></div>
-      <div id="balance-grid" class="fade-up d2"></div>
-      <div id="balance-next" class="fade-up d3"></div>
-    </section>
-
-    <section id="balance-compare-view" class="balance-view-panel" style="display:none;">
-      <div class="balance-compare-shell fade-up d2">
-        <div class="balance-compare-toolbar">
-          <div class="balance-compare-copy">
-            <span class="balance-panel-kicker">Comparación</span>
-            <h3>Mes vs Mes</h3>
-            <p>Compará dos períodos con el mismo marco visual para entender cuánto cambió tu gasto y en qué categorías.</p>
-          </div>
-          <div class="view-toggle balance-compare-toggle">
-            <button class="toggle-btn active" id="tog-month" onclick="setCompareMode('month')">Meses</button>
-            <button class="toggle-btn" id="tog-tc" onclick="setCompareMode('tc')">Ciclo TC</button>
-          </div>
-        </div>
-
-        <div id="compare-empty" class="empty-state fade-up">
-          <div class="empty-icon">⇄</div>
-          <div class="empty-title">Todavía no hay dos períodos para comparar</div>
-          <p class="empty-sub">Importá al menos dos meses o dos ciclos para resaltar diferencias, detectar desvíos y entender la evolución.</p>
-          <div class="empty-actions">
-            <button class="btn btn-primary" onclick="nav('import')">Importar datos</button>
-          </div>
-        </div>
-
-        <div id="compare-content" style="display:none;flex-direction:column;gap:20px;">
-          <div class="cmp-selector-row fade-up d1 balance-compare-selector">
-            <select id="cmp-a" class="txn-select" style="flex:1;max-width:220px;" onchange="renderCompare()"></select>
-            <div class="cmp-vs">vs</div>
-            <select id="cmp-b" class="txn-select" style="flex:1;max-width:220px;" onchange="renderCompare()"></select>
-          </div>
-
-          <div class="cmp-hero-row fade-up d2" id="cmp-hero"></div>
-
-          <div class="balance-compare-grid fade-up d3">
-            <div class="table-card balance-compare-card">
-              <div class="table-header" style="padding:16px 20px 0;">
-                <div class="table-title">Diferencia por categoría</div>
-                <div class="table-sub" id="cmp-cat-sub" style="font-size:11px;color:var(--text3);font-family:var(--font);margin-top:2px;"></div>
-              </div>
-              <div id="cmp-cat-diff" style="padding:12px 20px 16px;"></div>
-            </div>
-
-            <div class="chart-card balance-compare-card">
-              <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px;gap:12px;flex-wrap:wrap;">
-                <div>
-                  <div class="chart-card-title">Evolución comparada</div>
-                  <div class="chart-card-sub" id="cmp-line-sub">Gasto acumulado día a día</div>
-                </div>
-                <div id="cmp-line-legend" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;"></div>
-              </div>
-              <div class="chart-wrap" style="height:220px;"><canvas id="chart-cmp-line"></canvas></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-  </div>
-</div>
 
 <!-- CUOTAS -->
 <div id="page-cuotas" class="page">
@@ -2042,68 +1585,7 @@
   </div>
 </div>
 
-<!-- VISTA COMPARAR RESÚMENES (NUEVA) -->
-<div id="page-cc-compare" class="page">
-  <div class="page-header fade-up">
-    <div>
-      <div class="page-title" data-i18n="page_reconciliation">Tarjeta de Crédito</div>
-      <div class="page-subtitle" data-i18n="page_reconciliation_sub">Compará ciclos, resumen bancario y movimientos de la app con el mismo diseño del módulo.</div>
-    </div>
-    <div class="header-actions">
-      <div class="cc-period-picker ccc-cycle-picker">
-        <span class="cc-period-picker-label">Período</span>
-        <select id="ccc-cycle-filter" class="cc-period-picker-select"></select>
-      </div>
-    </div>
-  </div>
 
-  <div id="cc-compare-content" class="fade-up d1">
-    <div class="cc-section-tabs">
-      <button class="cc-stab" onclick="nav('credit-cards');ccSelectPageTab('resumen')">Resumen</button>
-      <button class="cc-stab" onclick="nav('credit-cards');ccSelectPageTab('config')">Configuración</button>
-      <button class="cc-stab active">Comparar resúmenes</button>
-    </div>
-    <div class="ccc-workspace">
-      <section class="cc-active-card-banner ccc-compare-banner" style="--cc-card-color:#6d4aff;">
-        <div class="cc-active-card-mark">PDF</div>
-        <div class="cc-active-card-copy">
-          <span>Comparación de ciclos</span>
-          <strong>Resumen bancario vs App</strong>
-          <small>Seleccioná un período, subí el PDF y revisá sólo las diferencias relevantes.</small>
-        </div>
-        <button onclick="nav('credit-cards');ccSelectPageTab('resumen')">Volver al resumen</button>
-      </section>
-
-      <section class="ccc-upload-layout">
-        <div class="cc-compare-card ccc-upload-card">
-          <div id="ccc-upload-area" class="upload-dropzone ccc-upload-dropzone">
-            <div class="upload-dropzone-icon">◫</div>
-            <div class="upload-dropzone-title">Subir resumen PDF</div>
-            <div class="upload-dropzone-sub">Arrastrá el extracto bancario o tocá para seleccionarlo.</div>
-            <input type="file" id="ccc-file-input" accept="application/pdf" style="display:none;">
-          </div>
-        </div>
-        <aside class="ccc-example-card">
-          <div class="ccs-section-head">
-            <div><h3>Ejemplo de comparación</h3><span>Así se ordenan los resultados después de subir el PDF</span></div>
-          </div>
-          <div class="ccc-example-list">
-            <div class="ccc-example-row is-match"><span></span><div><strong>Supermercado</strong><small>PDF y app coinciden</small></div><b>$88.279</b></div>
-            <div class="ccc-example-row is-diff"><span></span><div><strong>Mercado Pago</strong><small>Diferencia para revisar</small></div><b>+$2.100</b></div>
-            <div class="ccc-example-row is-missing"><span></span><div><strong>Cargo bancario</strong><small>Falta agregar a la app</small></div><b>$4.850</b></div>
-          </div>
-        </aside>
-      </section>
-
-      <div id="ccc-loading" class="loading-card">
-        <div class="spinner"></div>
-        <div class="loader-copy">Analizando el extracto y conciliando consumos...</div>
-      </div>
-
-      <div id="ccc-results-area" style="display:none;"></div>
-    </div>
-  </div>
-  </div>
 </div>
 
 </main>
@@ -2375,18 +1857,7 @@
   </div>
 </div>
 
-<!-- MODAL: Resumen -->
-<div class="modal-overlay" id="modal-resumen">
-  <div class="modal" style="width:560px;">
-    <div class="modal-title">📋 Resumen ejecutivo</div>
-    <div class="modal-sub" id="resumen-periodo">—</div>
-    <div id="resumen-body"></div>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('modal-resumen')">Cerrar</button>
-      <button class="btn btn-primary" onclick="copyResumen()">📋 Copiar texto</button>
-    </div>
-  </div>
-</div>
+
 
 <!-- MODAL: New cuota -->
 <div class="modal-overlay" id="modal-cuota">
@@ -2653,20 +2124,6 @@
     </div>
     <div class="modal-actions">
       <button class="btn btn-primary" onclick="closeModal('modal-sav-stages')">Listo</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: Profundizar el plan de ahorro con IA -->
-<div class="modal-overlay" id="modal-savplan-ai">
-  <div class="modal" style="width:600px;max-height:88vh;display:flex;flex-direction:column;">
-    <div class="modal-title">✨ Profundizar con IA</div>
-    <div class="modal-sub">No hace falta API key: copiá este prompt, pegalo en Claude (claude.ai) junto con el PDF que exportás, y te va a dar un plan detallado.</div>
-    <textarea id="savplan-ai-prompt" readonly style="flex:1;min-height:260px;width:100%;resize:vertical;font-family:var(--mono,monospace);font-size:11.5px;line-height:1.5;padding:12px 14px;border-radius:12px;border:1px solid var(--border);background:rgba(0,0,0,0.02);color:var(--text2);"></textarea>
-    <div class="modal-actions">
-      <button class="btn btn-ghost" onclick="closeModal('modal-savplan-ai')">Cerrar</button>
-      <button class="btn btn-sm" onclick="savPlanExportPdf()">⬇ Exportar PDF</button>
-      <button class="btn btn-primary" onclick="savPlanCopyAiPrompt()">📋 Copiar prompt</button>
     </div>
   </div>
 </div>
@@ -3171,88 +2628,9 @@
   </div>
 </div>
 
-<!-- Modal para Vincular Manualmente -->
-<div class="modal-overlay" id="modal-ccc-link">
-  <div class="modal">
-    <div class="modal-header">
-      <div class="modal-title">Vincular con App</div>
-      <button class="modal-close" onclick="closeModal('modal-ccc-link')">×</button>
-    </div>
-    <div class="modal-body">
-      <p style="font-size:13px;color:var(--text3);margin-bottom:16px;">Seleccioná un gasto registrado en este ciclo para asociarlo al movimiento del PDF.</p>
-      <div id="ccc-link-list" style="max-height:300px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;"></div>
-    </div>
-  </div>
-</div>
 
-<!-- Modal para Agregar Gasto Faltante — Diseño Apple/Fintech -->
-<div class="modal-overlay" id="modal-ccc-add-missing">
-  <div class="modal modal-add-txn">
-    <!-- Header -->
-    <div class="mat-header">
-      <div class="mat-header-icon">💳</div>
-      <div class="mat-header-text">
-        <div class="mat-title">Registrar transacción</div>
-        <div class="mat-subtitle">Del resumen bancario · Santander VISA</div>
-      </div>
-      <button class="mat-close-btn" onclick="closeModal('modal-ccc-add-missing')" aria-label="Cerrar">
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 1l12 12M13 1L1 13" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-      </button>
-    </div>
 
-    <!-- Body -->
-    <div class="mat-body">
-      <!-- Fecha -->
-      <div class="mat-field-group">
-        <label class="mat-label">
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="opacity:.5"><rect x="1" y="3" width="14" height="12" rx="2" stroke="currentColor" stroke-width="1.5"/><path d="M5 1v4M11 1v4M1 7h14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          Fecha
-        </label>
-        <input type="date" id="ccc-add-date" class="mat-input">
-      </div>
 
-      <!-- Descripción -->
-      <div class="mat-field-group">
-        <label class="mat-label">
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="opacity:.5"><path d="M2 4h12M2 8h8M2 12h6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          Descripción
-        </label>
-        <input type="text" id="ccc-add-desc" class="mat-input" placeholder="Nombre del comercio o gasto">
-      </div>
-
-      <!-- Categoría -->
-      <div class="mat-field-group">
-        <label class="mat-label">
-          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" style="opacity:.5"><circle cx="8" cy="8" r="7" stroke="currentColor" stroke-width="1.5"/><path d="M8 5v3l2 2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-          Categoría
-        </label>
-        <select id="ccc-add-cat" class="mat-input mat-select"></select>
-      </div>
-
-      <!-- Importes en dos columnas -->
-      <div class="mat-amounts-row">
-        <div class="mat-amount-block ars-block">
-          <div class="mat-amount-currency">$ ARS</div>
-          <input type="number" id="ccc-add-ars" class="mat-amount-input" step="0.01" min="0" placeholder="0.00">
-        </div>
-        <div class="mat-amount-divider"></div>
-        <div class="mat-amount-block usd-block">
-          <div class="mat-amount-currency">U$S</div>
-          <input type="number" id="ccc-add-usd" class="mat-amount-input" step="0.01" min="0" placeholder="0.00">
-        </div>
-      </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="mat-footer">
-      <button class="mat-btn-cancel" onclick="closeModal('modal-ccc-add-missing')">Cancelar</button>
-      <button class="mat-btn-save" onclick="cccSaveMissingExpense()">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none"><path d="M2 8.5l4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Guardar y conciliar
-      </button>
-    </div>
-  </div>
-</div>
 
 <script>
 // Atrapador global: si algo explota durante el arranque, mostrarlo en vez de pantalla blanca silenciosa
@@ -3269,38 +2647,33 @@ window.addEventListener('unhandledrejection',function(e){
   console.error('[boot-error] promesa rechazada:', e.reason);
 });
 </script>
-<script src="js/config.js?v=20261013a"></script>
-<script src="js/state.js?v=20261016c"></script>
-<script src="js/i18n.js?v=20261013a"></script>
-<script src="js/utils.js?v=20261016d"></script>
-<script src="js/totals.js?v=20261013d"></script>
-<script src="js/import.js?v=20261016c"></script>
-<script src="js/usd-rate.js?v=20261013a"></script>
-<script src="js/dashboard.js?v=20261014a"></script>
-<script src="js/dashboard-widgets.js?v=20261013d"></script>
-<script src="js/dashboard-mobile.js?v=20261013d"></script>
-<script src="js/calendar.js?v=20261016a"></script>
-<script src="js/global-search.js?v=20261013a"></script>
-<script src="js/transactions.js?v=20261013d"></script>
-<script src="js/analytics.js?v=20261013a"></script>
-<script src="js/expenses.js?v=20261016d"></script>
-<script src="js/income.js?v=20261013a"></script>
-<script src="js/savings.js?v=20261013a"></script>
-<script src="js/savings-plan.js?v=20261013e"></script>
-<script src="js/moving-calc.js?v=20261013a"></script>
-<script src="js/categories.js?v=20261014a"></script>
-<script src="js/reports.js?v=20261013d"></script>
-<script src="js/balance.js?v=20261013a"></script>
-<script src="js/ui.js?v=20261014a"></script>
-<script src="js/splash.js?v=20261013a"></script>
-<script src="js/shell.js?v=20261014a"></script>
-<script src="js/init.js?v=20261016d"></script>
-<script src="js/credit-cards.js?v=20261013a"></script>
+<script src="js/config.js?v=20261017a"></script>
+<script src="js/state.js?v=20261017a"></script>
+<script src="js/i18n.js?v=20261017a"></script>
+<script src="js/utils.js?v=20261017a"></script>
+<script src="js/totals.js?v=20261017a"></script>
+<script src="js/import.js?v=20261017a"></script>
+<script src="js/usd-rate.js?v=20261017a"></script>
+<script src="js/dashboard.js?v=20261017a"></script>
+<script src="js/dashboard-widgets.js?v=20261017a"></script>
+<script src="js/dashboard-mobile.js?v=20261017a"></script>
+<script src="js/calendar.js?v=20261017a"></script>
+<script src="js/global-search.js?v=20261017a"></script>
+<script src="js/transactions.js?v=20261017a"></script>
+<script src="js/analytics.js?v=20261017a"></script>
+<script src="js/expenses.js?v=20261017a"></script>
+<script src="js/income.js?v=20261017a"></script>
+<script src="js/savings.js?v=20261017a"></script>
+<script src="js/categories.js?v=20261017a"></script>
+<script src="js/data-tools.js?v=20261017a"></script>
+<script src="js/ui.js?v=20261017a"></script>
+<script src="js/shell.js?v=20261017a"></script>
+<script src="js/init.js?v=20261017a"></script>
+<script src="js/credit-cards.js?v=20261017a"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
-<script src="js/cc-compare.js?v=20261013a"></script>
-<script src="js/animations.js?v=20261013d"></script>
-<script src="js/lock.js?v=20261013a"></script>
+<script src="js/animations.js?v=20261017a"></script>
+<script src="js/lock.js?v=20261017a"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      MOBILE DRAWER — slide-in from left

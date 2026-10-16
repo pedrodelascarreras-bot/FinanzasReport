@@ -1136,5 +1136,4 @@ function afterDataLoad(){
   document.getElementById('dash-empty').style.display='none';
   document.getElementById('dash-content').style.display='flex';
   // CC alerts
-  if(typeof checkCreditCardAlerts==='function') checkCreditCardAlerts();
 }

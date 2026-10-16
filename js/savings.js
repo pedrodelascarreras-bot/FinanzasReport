@@ -645,6 +645,7 @@ function renderSavingsPage(){
       </div>
     </div>`;
 
+  const pipeCollapsed=isSavPipelineCollapsed();
   page.innerHTML = `
     <div class="sav2-shell">
       <header class="sav2-header">
@@ -697,7 +698,7 @@ function renderSavingsPage(){
         </div>
       </section>
 
-      <section class="sav-pipe-section">
+      <section class="sav-pipe-section${pipeCollapsed?' is-collapsed':''}">
         <div class="sav-pipe-hd">
           <div class="sav-pipe-hd-left">
             <div class="sav-pipe-hd-icon">🎯</div>
@@ -706,8 +707,9 @@ function renderSavingsPage(){
               <p>Tu wishlist de compras y objetivos, con seguimiento real de progreso</p>
             </div>
           </div>
+          <button class="sav2-btn" onclick="toggleSavPipelineCollapsed()" aria-expanded="${!pipeCollapsed}">${pipeCollapsed?'▸ Mostrar':'▾ Ocultar'}</button>
         </div>
-        ${statsHtml}
+        ${pipeCollapsed?'':`${statsHtml}
         <div class="sav-pipe-toolbar2">
           <div class="sav-pipe-search"><span>🔎</span><input id="sav-pipe-search-input" placeholder="Buscar meta..." value="${esc(window._savSearchQuery||'')}" oninput="setSavSearchQuery(this.value)"></div>
           <div class="sav-pipe-filters">${filterChipsHtml}</div>
@@ -721,12 +723,8 @@ function renderSavingsPage(){
             <button class="sav2-btn-primary" onclick="openSavGoalModal()">＋ Nueva meta</button>
           </div>
         </div>
-        ${pipelineView==='kanban' ? `<div class="sav-pipe-board">${boardHtml}</div>` : `<div class="sav-pipe-list">${listHtml}</div>`}
+        ${pipelineView==='kanban' ? `<div class="sav-pipe-board">${boardHtml}</div>` : `<div class="sav-pipe-list">${listHtml}</div>`}`}
       </section>
-
-      <div id="sav-plan-mount"></div>
-
-      <div id="moving-mount"></div>
 
       <section class="sav2-activity-section">
         <div class="sav2-section-head compact"><h2>Actividad reciente</h2><button>Ver todo</button></div>
@@ -734,8 +732,15 @@ function renderSavingsPage(){
       </section>
     </div>`;
 
-  if(typeof renderSavPlanSection === 'function') renderSavPlanSection();
-  if(typeof renderMovingSection === 'function') renderMovingSection();
+}
+
+// Pipeline de metas plegable (preferencia de este dispositivo)
+function isSavPipelineCollapsed(){
+  try{ return localStorage.getItem('fin_sav_pipe_collapsed')==='1'; }catch(e){ return false; }
+}
+function toggleSavPipelineCollapsed(){
+  try{ localStorage.setItem('fin_sav_pipe_collapsed', isSavPipelineCollapsed()?'0':'1'); }catch(e){}
+  renderSavingsPage();
 }
 
 // ── Depósitos CRUD ──
