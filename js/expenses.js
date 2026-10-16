@@ -759,7 +759,26 @@ function pauseStaleImportedSubscriptions(todayRef=new Date()){
   if(changed) console.info('[suscripciones] pausadas por no tener débitos recientes');
   return changed;
 }
+// Limpieza única: cuotas que una versión vieja de la app generó dos veces (mismo cobro
+// repetido o cuotas de más después de la última). Se verificaron una por una contra los
+// mails de compra; las demás cuotas viejas son cobros reales y se conservan.
+const LEGACY_DUPLICATE_CUOTA_CHARGES=[
+  'mat_manual_cuota_mq7gs0ua_1',                        // AirPods: plan cargado dos veces (julio)
+  'mat_cuota_manual_mq7gs0ua_2',                        // AirPods: plan cargado dos veces (agosto)
+  'mat_cuota_manual_auto_cg_merpagomartinva_28453_2_2', // Pantuflas Belén: 2 cuotas (mayo y junio), julio sobra
+  'mat_cuota_manual_auto_cg_merpagofmlabout_24000_2_2', // Pantuflas Pedro: 2 cuotas (mayo y junio), julio sobra
+  'mat_cuota_manual_auto_cg_dloeldon_49950_3_2'         // El Don: julio repetido (la cuota 3/3 ya está)
+];
+function removeLegacyDuplicateCuotaCharges(){
+  const ids=new Set(LEGACY_DUPLICATE_CUOTA_CHARGES);
+  const before=(state.transactions||[]).length;
+  state.transactions=(state.transactions||[]).filter(t=>!(t.isMaterializedCommitment && ids.has(t.id)));
+  const removed=before-state.transactions.length;
+  if(removed) console.info('[cuotas] cobros duplicados de la versión vieja borrados:', removed);
+  return removed>0;
+}
 function normalizeImportedSubscriptions(){
+  removeLegacyDuplicateCuotaCharges();
   const paused=pauseStaleImportedSubscriptions();
   const purged=purgeImportedStatementNotices() || paused;
   const subs=(state.subscriptions||[]).filter(s=>s.autoManaged);

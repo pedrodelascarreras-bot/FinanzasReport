@@ -308,5 +308,16 @@ state.subscriptions[0].active = false;
 finishImport([debito('par-nov', 'U$S3,78', 'PARAMOUNT', '09/11/2026', '23:00')], 'gmail', 'importado_desde_gmail');
 eq([state.subscriptions.length, state.subscriptions[0].active], [1, true], 'un débito nuevo la reactiva');
 
+// 21) Limpieza única de cuotas duplicadas de la versión vieja: solo esas 5, el resto de las cuotas viejas queda
+reset();
+state.transactions = [
+  { id: 'mat_manual_cuota_mq7gs0ua_1', isMaterializedCommitment: true, date: D('2026-07-09'), amount: 39990, currency: 'ARS', description: 'AirPods Max (Cuota 1/2)' },
+  { id: 'mat_cuota_manual_auto_cg_dloeldon_49950_3_2', isMaterializedCommitment: true, date: D('2026-07-14'), amount: 49950, currency: 'ARS', description: 'El Don' },
+  { id: 'mat_cuota_cg_dloeldon_49950_3_3', isMaterializedCommitment: true, date: D('2026-07-14'), amount: 49950, currency: 'ARS', description: 'El Don (Cuota 3/3)' },
+  { id: 'mat_cuota_manual_auto_cg_merpagoalejoagu_39950_2_2', isMaterializedCommitment: true, date: D('2026-07-09'), amount: 39950, currency: 'ARS', description: 'AirPods Max (Cuota 2/2)' }
+];
+removeLegacyDuplicateCuotaCharges();
+eq(state.transactions.map(t => t.id), ['mat_cuota_cg_dloeldon_49950_3_3', 'mat_cuota_manual_auto_cg_merpagoalejoagu_39950_2_2'], 'se borran solo los duplicados; las cuotas reales quedan');
+
 print((failures ? '✗ ' + failures + ' fallaron, ' : '✓ ') + passed + ' pruebas OK');
 if (failures) throw new Error(failures + ' pruebas fallaron');
