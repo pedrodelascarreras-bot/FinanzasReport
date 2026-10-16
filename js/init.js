@@ -813,6 +813,11 @@ function ensureGmailImportRules(){
   if(!Array.isArray(state.gmailImportRules) || !state.gmailImportRules.length){
     state.gmailImportRules = getDefaultGmailImportRules();
   }
+  // Una regla de débitos sin "subject:" busca en todo el mail y trae también los avisos de
+  // resumen ("Débito automático por el pago total"): se acota al asunto.
+  state.gmailImportRules.forEach(r=>{
+    if(/^\s*"?aviso de d[eé]bito autom[aá]tico"?\s*$/i.test(r.query||'')) r.query='subject:"Aviso de débito automático"';
+  });
   // Los débitos automáticos (suscripciones) se leen siempre, aunque la regla se haya creado antes
   if(!state.gmailImportRules.some(r=>/d[eé]bito autom[aá]tico/i.test(r.query||''))){
     state.gmailImportRules.push({ ...GMAIL_DEBIT_RULE });
@@ -1392,6 +1397,10 @@ function parseSantanderEmail(email, currentBatch, rule) {
         }
       }
       if (!subjectMatch && !isAutoDebit) return null;
+      // Solo 3 tipos de mail son gastos: "Pagaste…", "Tu pago fue anulado" y "Aviso de débito
+      // automático". Cualquier otro (p. ej. "Tu resumen vence pronto", que menciona "débito
+      // automático" en el cuerpo) se ignora aunque lo traiga una regla.
+      if (!/^\s*pagaste\b/i.test(subject) && !isDebitSubject) return null;
       if (!amount && subjectMatch) {
         const rawAmount = subjectMatch[2] || subjectMatch[1];
         amount = parseFloat(String(rawAmount || '').replace(/\./g, '').replace(',', '.'));

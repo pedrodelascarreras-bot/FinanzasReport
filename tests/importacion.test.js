@@ -256,5 +256,36 @@ eq(ap.map(s => [s.price, s.day, s.emoji]), [[1.99, 25, '🍎'], [9.99, 30, '🍎
 eq(state.transactions.filter(t => t.sourceSubscriptionId === ap[0].id).map(t => t.amount), [1.99, 1.99], 'los cobros de 1,99 quedan en su suscripción');
 eq(normalizeImportedSubscriptions(), false, 'segunda pasada: no cambia nada');
 
+// 17) "Tu resumen vence pronto" menciona "débito automático": NO es un gasto aunque lo traiga la regla de débitos
+reset();
+const aviso = parseSantanderEmail(realMail('r-resumen', 'Tu resumen vence pronto', 'Wed, 7 Oct 2026 02:04:45 -0300',
+  '<p>Te recordamos que el resumen de tu Tarjeta Santander Visa terminada en 3177 vence el 09/10/2026.</p><p>Monto en pesos $ 6.654.397,34 Monto en dólares U$S 5.919,52 Forma de pago Débito automático por el pago total</p>'),
+  [], { id: 'r1', name: 'Debito Automatico', query: 'Aviso de débito automático' });
+eq(aviso, null, 'aviso de resumen: se ignora');
+state.gmailImportRules = [{ id: 'r1', name: 'Debito Automatico', query: 'Aviso de débito automático' }];
+ensureGmailImportRules();
+eq(state.gmailImportRules.map(r => r.query), ['subject:"Aviso de débito automático"'], 'la regla de débitos sin subject: se acota al asunto');
+// datos viejos: el aviso importado como suscripción "Santander" se borra al cargar
+state.subscriptions = [{ id: 'sub_auto_santander_r1', name: 'Santander', price: 6654397.34, currency: 'ARS', freq: 'monthly', day: 7, active: true, autoManaged: true, lastChargeDate: '2026-10-07' }];
+state.transactions = [
+  gmail('res1', '2026-10-07', 'Santander', 6654397.34, { isAutoDebit: true, gmailMerchantRaw: 'Santander', sourceSubscriptionId: 'sub_auto_santander_r1' }),
+  { id: 'proj_sub_santander_nov', date: D('2026-11-07'), description: 'Santander', amount: 6654397.34, currency: 'ARS', isPendingSubscription: true, sourceSubscriptionId: 'sub_auto_santander_r1' },
+  gmail('ok1', '2026-10-09', 'BIBOP SA', 42658, { isAutoDebit: true, gmailMerchantRaw: 'BIBOP SA' })
+];
+normalizeImportedSubscriptions();
+eq([state.subscriptions.length, state.transactions.map(t => t.id)], [0, ['gmail_ok1']], 'se borran el aviso, la suscripción falsa y sus proyecciones; el débito real queda');
+
+// 18) Suscripción de Gmail dada de baja: si no llega el débito no se cuenta
+reset();
+state.subscriptions = [
+  { id: 'par', name: 'PARAMOUNT', price: 3.78, currency: 'USD', freq: 'monthly', day: 9, active: true, autoManaged: true, payMethod: 'visa', lastChargeDate: '2026-07-09' },
+  { id: 'li', name: 'LinkedIn', price: 1.2, currency: 'USD', freq: 'monthly', day: 6, active: true, autoManaged: true, payMethod: 'visa', lastChargeDate: '2026-09-06' },
+  { id: 'cl', name: 'CLAUDE', price: 20, currency: 'USD', freq: 'monthly', day: 15, active: true, autoManaged: true, payMethod: 'visa', lastChargeDate: '2026-09-15' }
+];
+const cyc = getPeriodTotals({ card: 'visa', startStr: '2026-09-30', endStr: '2026-10-29', todayRef: D('2026-10-16') });
+eq(cyc.usd, 20, 'Paramount (sin cobros desde julio) y LinkedIn (no llegó el 6/10) no suman; Claude del 15/10 sí (margen de 3 días)');
+const novEntries = getProjectedCommitmentEntriesForRange({ startStr: '2026-10-30', endStr: '2026-11-29', todayRef: D('2026-10-16') });
+eq(novEntries.map(e => e.title).sort(), ['CLAUDE', 'LinkedIn'], 'a futuro se proyectan las activas; Paramount no');
+
 print((failures ? '✗ ' + failures + ' fallaron, ' : '✓ ') + passed + ' pruebas OK');
 if (failures) throw new Error(failures + ' pruebas fallaron');

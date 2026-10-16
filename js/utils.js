@@ -49,6 +49,13 @@ function getRecurringDatesInRange(day,start,end){
   }
   return dates;
 }
+const IMPORTED_SUB_STALE_DAYS=45;
+const IMPORTED_SUB_GRACE_DAYS=3;
+function isImportedSubscriptionStale(s, todayRef=new Date()){
+  if(!s || !s.autoManaged || !s.lastChargeDate) return false;
+  const last=new Date(s.lastChargeDate+'T12:00:00');
+  return !Number.isNaN(last.getTime()) && (todayRef-last)>IMPORTED_SUB_STALE_DAYS*86400000;
+}
 function getProjectedCommitmentEntriesForRange(opts={}){
   const startStr=opts.startStr||'';
   const endStr=opts.endStr||'';
@@ -114,6 +121,9 @@ function getProjectedCommitmentEntriesForRange(opts={}){
   });
 
   (state.subscriptions||[]).filter(s=>s.active!==false&&s.freq==='monthly'&&s.day).forEach(s=>{
+    // Las suscripciones que vienen de Gmail se ven cobrar: si hace más de 45 días que no
+    // llega el débito, se dio de baja (no se proyecta más).
+    if(isImportedSubscriptionStale(s, todayRef)) return;
     getRecurringDatesInRange(s.day,start,end).forEach(dueDate=>{
       if(s.startDate){
         const startDate=new Date(s.startDate+'T00:00:00');
@@ -122,6 +132,8 @@ function getProjectedCommitmentEntriesForRange(opts={}){
       const matured=hasReachedEffectiveChargeDate(dueDate,todayRef);
       const monthKey=getMonthKey(dueDate);
       if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(s, monthKey, state.transactions||[])) return;
+      // …y si ya pasó la fecha (con 3 días de margen) y no llegó el mail del débito, ese mes no se cobró
+      if(s.autoManaged && matured && (todayRef-dueDate)>IMPORTED_SUB_GRACE_DAYS*86400000) return;
       addEntry(`sub-cycle-${s.id}-${dateToYMD(dueDate)}`,{
         date:dueDate,
         title:s.name,

@@ -680,7 +680,7 @@ function upsertImportedSubscriptionFromTxn(txn, batch=[]){
   // Avoids fake "Pago Visa Santander" / "Pago AMEX" entries showing up as overdue commitments.
   const _sname = String(txn.subscriptionName || '').toLowerCase();
   const _looksLikeCcPayment = /\bvisa\b|\bamex\b|\bmastercard\b|\bmaestro\b|\btarjeta\b|pago.*tarjeta|tarjeta.*cr[eé]dito|santander\s*(visa|amex|r[íi]o)/i.test(_sname);
-  if (_looksLikeCcPayment) return null;
+  if (_looksLikeCcPayment || _sname.trim()==='santander') return null;
   if(!state.subscriptions)state.subscriptions=[];
   const txnMonthKey=getMonthKey(txn.date);
   state.transactions=(state.transactions||[]).filter(existing=>
@@ -726,9 +726,30 @@ function upsertImportedSubscriptionFromTxn(txn, batch=[]){
 // Migración de suscripciones importadas: junta las que eran el mismo comercio con distinto
 // número de referencia (LinkedIn) y separa las que mezclaban dos suscripciones del mismo
 // comercio (Apple 1,99 y 9,99). Reasigna cada cobro real con pickSubscriptionForCharge.
+// Los avisos "Tu resumen vence pronto" mencionan "débito automático" y una regla sin
+// "subject:" los importaba como suscripción "Santander" por el total del resumen (millones).
+// Un débito real siempre trae comercio; "Santander" es el valor por defecto del parser.
+function purgeImportedStatementNotices(){
+  const isNotice=t=>t && t.gmailId && t.isAutoDebit && (t.gmailMerchantRaw||t.originalGmailMerchantName||t._baseDesc)==='Santander';
+  const bad=(state.transactions||[]).filter(isNotice);
+  if(!bad.length) return false;
+  const badIds=new Set(bad.map(t=>t.id));
+  const subIds=new Set(bad.map(t=>t.sourceSubscriptionId).filter(Boolean));
+  state.transactions=state.transactions.filter(t=>!badIds.has(t.id));
+  // La suscripción falsa se va si no le queda ningún cobro real
+  subIds.forEach(id=>{
+    const sub=(state.subscriptions||[]).find(s=>s.id===id);
+    if(!sub || !sub.autoManaged || getSubscriptionCharges(sub).length) return;
+    state.subscriptions=state.subscriptions.filter(s=>s.id!==id);
+    state.transactions=state.transactions.filter(t=>!(t.sourceSubscriptionId===id && (t.isPendingSubscription||t.isMaterializedCommitment)));
+  });
+  console.info('[gmail] avisos de resumen importados por error, borrados:', bad.length);
+  return true;
+}
 function normalizeImportedSubscriptions(){
+  const purged=purgeImportedStatementNotices();
   const subs=(state.subscriptions||[]).filter(s=>s.autoManaged);
-  if(!subs.length) return false;
+  if(!subs.length) return purged;
   const groups=new Map();
   subs.forEach(s=>{
     const key=getSubscriptionMerchantKey(s.name)||getSubscriptionMerchantKey(s.merchantKey);
@@ -784,7 +805,7 @@ function normalizeImportedSubscriptions(){
     changed=true;
   });
   if(changed) console.info('[suscripciones] importadas normalizadas');
-  return changed;
+  return changed||purged;
 }
 function syncProjectedSubscriptionTransactions(){
   const today=new Date();
