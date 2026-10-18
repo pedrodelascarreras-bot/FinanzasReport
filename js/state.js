@@ -120,6 +120,7 @@ function getStateSnapshot(){
     bankAccounts:state.bankAccounts||[],
     _bankAccountsInitialized:!!state._bankAccountsInitialized,
     sharedExpenseContacts:state.sharedExpenseContacts||[],
+    caminoPlan:state.caminoPlan||null,
     dismissedCommitmentEntries:state.dismissedCommitmentEntries||[],
     tasks:state.tasks||[],
     txnCardFilter:state.txnCardFilter||'',
@@ -469,6 +470,7 @@ async function loadFromDrive(){
     state.gmailAnulados=s.gmailAnulados||[];
     if(Array.isArray(s.bankAccounts)){ state.bankAccounts=s.bankAccounts; state._bankAccountsInitialized=!!s._bankAccountsInitialized||s.bankAccounts.length>0; }
     state.sharedExpenseContacts=s.sharedExpenseContacts||state.sharedExpenseContacts||[];
+    state.caminoPlan=s.caminoPlan||state.caminoPlan||null;
     state.dismissedNotifs=s.dismissedNotifs||state.dismissedNotifs||[];
     if(s.userName) state.userName=s.userName;
     state.dismissedCommitmentEntries=s.dismissedCommitmentEntries||[];
@@ -584,6 +586,7 @@ function loadState(){
     state.gmailAnulados=s.gmailAnulados||[];
     if(Array.isArray(s.bankAccounts)){ state.bankAccounts=s.bankAccounts; state._bankAccountsInitialized=!!s._bankAccountsInitialized||s.bankAccounts.length>0; }
     state.sharedExpenseContacts=s.sharedExpenseContacts||state.sharedExpenseContacts||[];
+    state.caminoPlan=s.caminoPlan||state.caminoPlan||null;
     state.dismissedNotifs=s.dismissedNotifs||state.dismissedNotifs||[];
     if(s.userName) state.userName=s.userName;
     state.dismissedCommitmentEntries=s.dismissedCommitmentEntries||[];

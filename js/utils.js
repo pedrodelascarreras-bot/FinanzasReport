@@ -161,7 +161,9 @@ function getProjectedCommitmentEntriesForRange(opts={}){
   });
 
   (state.fixedExpenses||[]).filter(f=>f.day).forEach(f=>{
+    const fixedStart=f.startDate?new Date(f.startDate+'T00:00:00'):null;
     getRecurringDatesInRange(f.day,start,end).forEach(dueDate=>{
+      if(fixedStart && dueDate<fixedStart) return;   // un gasto fijo que empieza más adelante
       // Si ya está el débito real de ese mes (mismo comercio/nombre), no se proyecta
       if(typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth({id:f.id||'',name:f.name,merchantKey:f.merchantKey}, getMonthKey(dueDate), sourceTxns)) return;
       const matured=hasReachedEffectiveChargeDate(dueDate,todayRef);

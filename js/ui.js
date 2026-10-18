@@ -218,6 +218,7 @@ function refreshAll(){
   if(document.getElementById('page-cuotas').classList.contains('active')) { if(typeof renderCommitmentsPage==='function') renderCommitmentsPage(); else {renderCuotas();renderSubs();renderFixed();renderCompromisosSummary();} }
   if(document.getElementById('page-income').classList.contains('active')) renderIncomePage();
   if(document.getElementById('page-savings').classList.contains('active')) renderSavingsPage();
+  if(document.getElementById('page-camino')?.classList.contains('active') && typeof renderCaminoPage==='function') renderCaminoPage();
   if(document.getElementById('page-credit-cards')&&document.getElementById('page-credit-cards').classList.contains('active')) renderCreditCards();
   if(document.getElementById('page-import')?.classList.contains('active') && typeof renderImportConfigPanel === 'function') renderImportConfigPanel();
 }
@@ -271,6 +272,7 @@ function nav(page){
   if(page==='suscripciones'){nav('cuotas');return;}
   if(page==='income')renderIncomePage();
   if(page==='savings')renderSavingsPage();
+  if(page==='camino' && typeof renderCaminoPage==='function')renderCaminoPage();
   if(page==='settings' && typeof renderSettingsPage==='function')renderSettingsPage();
   if(page==='profile' && typeof renderProfilePage==='function')renderProfilePage();
   if(page==='security' && typeof renderSecurityPage==='function')renderSecurityPage();

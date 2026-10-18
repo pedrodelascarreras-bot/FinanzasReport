@@ -2,3 +2,7 @@ node_modules/
 dist/
 .claude/worktrees/
 .DS_Store
+
+# Investigación con datos personales: no se sube al repo público
+research_notes/
+reports/
