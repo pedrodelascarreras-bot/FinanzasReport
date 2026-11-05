@@ -117,6 +117,31 @@ eq(/Préstamo A/.test(czBuildClaudePrompt()) && /Fecha de libertad/.test(czBuild
 // Seguro con fecha de inicio: no se proyecta antes de noviembre
 const octEntries = getProjectedCommitmentEntriesForRange({ startStr: '2026-10-01', endStr: '2026-10-31', todayRef: T });
 eq(octEntries.some(e => e.sourceFixedId === 'fx_t'), false, 'un gasto fijo con fecha de inicio no aparece antes');
+// Marcar pagado / desmarcar: deuda "esperando", débito automático y pago puntual
+czMarkNextPaid('W1');
+eq(czFindItem('W1').status, 'pagado', 'la deuda "esperando" se marca pagada');
+czUnmarkLastPaid('W1');
+eq(czFindItem('W1').status, 'esperando', 'desmarcar la vuelve a "esperando"');
+const paidCount = id => czSchedule(czFindItem(id)).filter(s => s.paid).length;
+const seguroAntes = paidCount('F1');
+czMarkNextPaid('F1');
+eq(paidCount('F1'), seguroAntes + 1, 'el seguro (débito automático) se puede marcar pagado antes de la fecha');
+czUnmarkLastPaid('F1'); czUnmarkLastPaid('F1');
+eq(paidCount('F1'), Math.max(0, seguroAntes - 1), 'y desmarcar (p. ej. un débito que no se cobró)');
+czUnmarkLastPaid('X1');
+eq([czFindItem('X1').status, state.transactions.some(t => t.caminoItemId === 'X1')], ['activo', false], 'desmarcar el pago puntual borra el gasto registrado');
+// Cancelar un préstamo antes de tiempo
+const cuotaA = () => state.cuotas.find(c => c.cuotaGroupId === 'cg_test_a');
+czCancelLoan('L1', 500000, '2026-11-20');
+eq([czFindItem('L1').status, cuotaA().total], ['pagado', 1], 'cancelado: queda pagado y la cuota de la app termina en la que ya se pagó');
+eq(state.transactions.filter(t => t.caminoItemId === 'L1').map(t => t.amount), [500000], 'el pago de la cancelación queda como gasto');
+const cal3 = czCalendar({ today: T });
+eq(cal3.find(c => c.mk === '2026-11').lines.filter(l => l.item.id === 'L1').map(l => l.ars), [300000, 500000], 'noviembre: la cuota pagada + la cancelación');
+eq(cal3.find(c => c.mk === '2026-12').lines.some(l => l.item.id === 'L1'), false, 'diciembre ya no tiene cuota');
+eq(czFreedom(T).date && dateToYMD(czFreedom(T).date) < '2027-01-05', true, 'la fecha de libertad se adelanta');
+eq(czRealLiving('2026-11-01', '2026-11-30', T).entries.some(e => (e.txn || {}).caminoItemId === 'L1'), false, 'la cancelación no cuenta como gasto de vida');
+czUndoCancelLoan('L1');
+eq([czFindItem('L1').status, cuotaA().total, state.transactions.some(t => t.caminoItemId === 'L1')], ['activo', 3, false], 'deshacer la cancelación vuelve todo como estaba');
 // Persistencia
 saveState();
 eq(!!JSON.parse(localStorage.getItem('fin_state')).caminoPlan, true, 'el plan se guarda');

@@ -71,7 +71,9 @@ function czSchedule(item, opts={}){
   for(let k=1;k<=n;k++){
     const date=czAddMonths(first, (k-1)*every, first.getDate());
     if(!count && date>horizonEnd) break;
-    const paid=item.autoDebit ? date<=today : k<=(parseInt(item.paidCount,10)||0);
+    let paid=item.autoDebit ? date<=today : k<=(parseInt(item.paidCount,10)||0);
+    // Marcado/desmarcado a mano (p. ej. un débito automático que no se cobró)
+    if(item.paidOverrides && typeof item.paidOverrides[k]==='boolean') paid=item.paidOverrides[k];
     out.push({date, amount:Number(item.amount)||0, currency:item.currency||'ARS', num:k, total:count||null, paid, idx:k-1});
   }
   return out;
@@ -79,7 +81,12 @@ function czSchedule(item, opts={}){
 function czItemIsDebt(item){ return item.kind==='prestamo' || item.kind==='personal'; }
 function czItemActive(item){ return item.status!=='pagado'; }
 // Pagos que entran en el calendario (los "esperando" no tienen fecha: se muestran aparte)
-function czItemCountsInCalendar(item){ return czItemActive(item) && item.status!=='esperando'; }
+// Un compromiso pagado (terminado o cancelado) sigue contando lo que pagó en su mes
+function czItemCountsInCalendar(item){ return item.status!=='esperando'; }
+function czCalendarSchedule(item, today){
+  const sch=czSchedule(item,{today});
+  return czItemActive(item) ? sch : sch.filter(s=>s.paid);
+}
 
 function czItemSummary(item, today){
   const sch=czSchedule(item,{today});
@@ -167,7 +174,7 @@ function czCalendar(opts={}){
   const rate=czRate();
   const curMk=getMonthKey(today);
   const months=czHorizonMonths(today);
-  const sched=p.items.filter(czItemCountsInCalendar).map(item=>({item, sch:czSchedule(item,{today})}));
+  const sched=p.items.filter(czItemCountsInCalendar).map(item=>({item, sch:czCalendarSchedule(item, today)}));
   let acc=Number(p.startSavingsUsd)||0;
   return months.map(mk=>{
     const lines=[];
@@ -188,7 +195,7 @@ function czCalendar(opts={}){
 // Lo que se libera por mes cuando terminan las cuotas
 function czMonthlyAfterDebts(cal){
   const p=czPlan(); const rate=czRate();
-  const fixedForever=p.items.filter(i=>czItemCountsInCalendar(i) && !(parseInt(i.count,10)>0) && !Array.isArray(i.schedule) && (parseInt(i.everyMonths,10)||1)===1)
+  const fixedForever=p.items.filter(i=>czItemActive(i) && czItemCountsInCalendar(i) && !(parseInt(i.count,10)>0) && !Array.isArray(i.schedule) && (parseInt(i.everyMonths,10)||1)===1)
     .reduce((a,i)=>a+czToArs(i.amount,i.currency),0);
   return ((Number(p.salaryUsd)||0)*rate - fixedForever - (Number(p.livingCapArs)||0))/rate;
 }
@@ -224,7 +231,7 @@ function czInsights(today){
   const p=czPlan(); const out=[]; const rate=czRate();
   // 1) Débitos de los próximos 10 días
   const soon=[];
-  p.items.filter(czItemCountsInCalendar).forEach(item=>czSchedule(item,{today}).forEach(s=>{
+  p.items.filter(i=>czItemActive(i) && czItemCountsInCalendar(i)).forEach(item=>czSchedule(item,{today}).forEach(s=>{
     const days=Math.round((s.date-today)/86400000);
     if(!s.paid && days>=0 && days<=10) soon.push({item,s,days});
   }));
@@ -239,7 +246,7 @@ function czInsights(today){
   const neg=calNeg.find(c=>!c.isPast && c.accUsd<0);
   if(neg){
     const personal=[];
-    p.items.filter(i=>i.kind==='personal' && czItemCountsInCalendar(i)).forEach(item=>czSchedule(item,{today}).forEach(s=>{
+    p.items.filter(i=>i.kind==='personal' && czItemActive(i) && czItemCountsInCalendar(i)).forEach(item=>czSchedule(item,{today}).forEach(s=>{
       if(!s.paid && getMonthKey(s.date)<=neg.mk) personal.push({item,s,usd:czToArs(s.amount,s.currency)/rate});
     }));
     if(personal.length){
@@ -289,7 +296,7 @@ function czInsights(today){
   if(usdCard>0) out.push({tone:'info', icon:'💵', title:`Tenés ${czFmtUsd(usdCard)} de consumos en dólares este mes`,
     body:`Si el resumen los cobra en pesos se suma la percepción del 30% (≈ ${czFmtArs(usdCard*0.3*rate)}). Pagando esa parte con tus dólares no la pagás: pedí "stop debit" del saldo en USD.`});
   // 6) Deudas personales con pago este mes sin marcar
-  p.items.filter(i=>i.kind==='personal' && czItemCountsInCalendar(i)).forEach(item=>{
+  p.items.filter(i=>i.kind==='personal' && czItemActive(i) && czItemCountsInCalendar(i)).forEach(item=>{
     czSchedule(item,{today}).filter(s=>!s.paid && getMonthKey(s.date)===mk).forEach(s=>{
       out.push({tone:'info', icon:'🤝', title:`Este mes toca ${czFmt(s.amount,s.currency)} a ${item.name}`,
         body:'Avisá antes si se atrasa: en las deudas con gente cercana lo que más cuida la relación es hablar a tiempo.'});
@@ -433,15 +440,16 @@ function czItemCardHtml(item, today){
   const next=s.next?`Próximo: <strong>${czFmt(s.next.amount,s.next.currency)}</strong> el ${s.next.date.toLocaleDateString('es-AR',{day:'numeric',month:'short'})}`:'';
   const progress=s.finite?`<div class="cz-bar cz-bar-thin"><div style="width:${s.pct||0}%"></div></div><div class="cz-muted">${s.paidCount} de ${s.total} pagos · quedan ${czFmt(s.remainingOrig,item.currency)}</div>`
     : `<div class="cz-muted">${czFmt(item.amount,item.currency)} ${parseInt(item.everyMonths,10)>1?'cada '+item.everyMonths+' meses':'por mes'}${item.autoDebit?' · débito automático':''}</div>`;
-  const manualPay=s.next && !item.autoDebit && item.status!=='esperando'
-    ? `<button class="cz-chip-btn" onclick="czMarkNextPaid('${item.id}')">✓ Marcar pagado</button>`:'';
+  const actions=czItemActionsHtml(item, s);
   return `<article class="cz-item cz-kind-${item.kind}">
     <div class="cz-item-top"><span class="cz-item-icon">${k.icon}</span>
       <div class="cz-item-name"><strong>${esc(item.name)}</strong><span class="cz-muted">${k.label}${item.viaCard?' · en el resumen de '+esc(item.viaCard):''}</span></div>${status}</div>
-    ${item.status==='esperando'?`<div class="cz-muted">${czFmt(item.amount,item.currency)}${item.waitingFor?' · '+esc(item.waitingFor):''}</div>`:''}
-    ${item.status!=='esperando'?`<div class="cz-item-next">${next}</div>${progress}`:''}
+    ${item.status==='esperando'?`<div class="cz-muted">${czFmt(item.amount,item.currency)}${item.waitingFor?' · '+esc(item.waitingFor):''}</div>`
+      : item.paidAt && item.prevStatus==='esperando' ? `<div class="cz-muted">${czFmt(item.amount,item.currency)} · pagado el ${czParse(item.paidAt).toLocaleDateString('es-AR',{day:'numeric',month:'short'})}</div>`
+      : `<div class="cz-item-next">${next}</div>${progress}`}
     ${item.note?`<div class="cz-note">${esc(item.note)}</div>`:''}
-    <div class="cz-item-actions">${manualPay}<button class="cz-chip-btn" onclick="openCaminoItem('${item.id}')">Editar</button></div>
+    ${item.cancelled?`<div class="cz-muted">Cancelado el ${czParse(item.cancelled.date).toLocaleDateString('es-AR',{day:'numeric',month:'short'})} con ${czFmt(item.cancelled.amount,item.currency)}</div>`:''}
+    <div class="cz-item-actions">${actions}<button class="cz-chip-btn" onclick="openCaminoItem('${item.id}')">Editar</button></div>
   </article>`;
 }
 
@@ -472,7 +480,7 @@ function czUpdateScenario(value){
   const lastMk=fr.date?getMonthKey(fr.date):cal[cal.length-1].mk;
   const end=cal.find(c=>c.mk===lastMk)||cal[cal.length-1];
   const p=czPlan(); const rate=czRate();
-  const fixedForever=p.items.filter(i=>czItemCountsInCalendar(i) && !(parseInt(i.count,10)>0) && !Array.isArray(i.schedule) && (parseInt(i.everyMonths,10)||1)===1).reduce((a,i)=>a+czToArs(i.amount,i.currency),0);
+  const fixedForever=p.items.filter(i=>czItemActive(i) && czItemCountsInCalendar(i) && !(parseInt(i.count,10)>0) && !Array.isArray(i.schedule) && (parseInt(i.everyMonths,10)||1)===1).reduce((a,i)=>a+czToArs(i.amount,i.currency),0);
   const after=((Number(p.salaryUsd)||0)*rate-fixedForever-v)/rate;
   const negMonths=cal.filter(c=>!c.isPast && c.savings<0).length;
   out.innerHTML=`<div class="cz-scn-row">
@@ -526,11 +534,32 @@ function czEmptyHtml(){
 
 // ══ ACCIONES ══
 function czFindItem(id){ return czPlan().items.find(i=>i.id===id)||null; }
+// Préstamos: se descuentan solos; se pueden cancelar antes. El resto: marcar pagado o desmarcar.
+function czItemActionsHtml(item, s){
+  const id=item.id, out=[];
+  if(item.kind==='prestamo'){
+    if(item.cancelled) out.push(`<button class="cz-chip-btn" onclick="czUndoCancelLoan('${id}')">↩ Deshacer cancelación</button>`);
+    else if(czItemActive(item) && s.next) out.push(`<button class="cz-chip-btn" onclick="czOpenCancelLoan('${id}')">Cancelar préstamo</button>`);
+    if(!item.autoDebit && s.next && czItemActive(item)) out.unshift(`<button class="cz-chip-btn" onclick="czMarkNextPaid('${id}')">✓ Marcar pagado</button>`);
+    return out.join('');
+  }
+  if(item.status==='esperando' || (czItemActive(item) && s.next)) out.push(`<button class="cz-chip-btn" onclick="czMarkNextPaid('${id}')">✓ Marcar pagado</button>`);
+  if(item.status==='pagado' || s.sch.some(x=>x.paid)) out.push(`<button class="cz-chip-btn" onclick="czUnmarkLastPaid('${id}')">↩ Desmarcar</button>`);
+  return out.join('');
+}
 function czMarkNextPaid(id){
   const item=czFindItem(id); if(!item) return;
   const today=czToday();
+  // Deuda sin fecha (p. ej. "cuando me devuelvan"): se marca pagada entera
+  if(item.status==='esperando'){
+    item.prevStatus='esperando'; item.status='pagado'; item.paidAt=czYmd(today);
+    saveState(); renderCaminoPage();
+    showToast('✓ '+item.name+': marcado como pagado','success');
+    return;
+  }
   const next=czSchedule(item,{today}).find(s=>!s.paid); if(!next) return;
   if(Array.isArray(item.schedule)) item.schedule[next.idx].paid=true;
+  else if(item.autoDebit){ item.paidOverrides={...(item.paidOverrides||{}), [next.num]:true}; }
   else item.paidCount=(parseInt(item.paidCount,10)||0)+1;
   if(item.registerAsExpense){
     const date=next.date<=today?next.date:today;
@@ -544,6 +573,103 @@ function czMarkNextPaid(id){
   if(czSchedule(item,{today}).every(s=>s.paid) && (Array.isArray(item.schedule)||parseInt(item.count,10)>0)) item.status='pagado';
   saveState(); renderCaminoPage();
   showToast('✓ '+item.name+': pago registrado','success');
+}
+
+function czUnmarkLastPaid(id){
+  const item=czFindItem(id); if(!item) return;
+  const today=czToday();
+  if(item.status==='pagado' && item.prevStatus==='esperando'){
+    item.status='esperando'; delete item.prevStatus; delete item.paidAt;
+    saveState(); renderCaminoPage(); showToast(item.name+': vuelve a pendiente','info');
+    return;
+  }
+  const last=czSchedule(item,{today}).filter(s=>s.paid).pop();
+  if(last){
+    if(Array.isArray(item.schedule)) item.schedule[last.idx].paid=false;
+    else if(item.autoDebit) item.paidOverrides={...(item.paidOverrides||{}), [last.num]:false};
+    else item.paidCount=Math.max(0,(parseInt(item.paidCount,10)||0)-1);
+    // El gasto que se registró al marcarlo pagado se va
+    const txnId='cz_'+item.id+'_'+last.num;
+    state.transactions=(state.transactions||[]).filter(t=>t.id!==txnId);
+  }
+  if(item.status==='pagado') item.status='activo';
+  saveState(); renderCaminoPage();
+  if(typeof refreshAll==='function') refreshAll();
+  showToast(item.name+': pago desmarcado','info');
+}
+
+// ── Cancelar un préstamo antes de tiempo ──
+function czOpenCancelLoan(id){
+  const item=czFindItem(id); if(!item) return;
+  const s=czItemSummary(item, czToday());
+  const m=document.createElement('div');
+  m.className='modal-overlay open'; m.id='cz-cancel-modal';
+  m.onclick=e=>{ if(e.target===m) m.remove(); };
+  m.innerHTML=`<div class="modal cz-modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Cancelar ${esc(item.name)}</div>
+    <p class="cz-muted">Cargá cuánto pagaste para cancelarlo. Las cuotas que faltaban dejan de aparecer en toda la app y este pago cuenta en el mes en que lo hiciste.</p>
+    <div class="grid-2">
+      <div class="input-group"><label class="input-label">Pagaste (${item.currency==='USD'?'USD':'$'})</label><input type="number" class="input-field" id="cz-cancel-amount" min="0" step="0.01" value="${Math.round(s.remainingOrig||0)}"></div>
+      <div class="input-group"><label class="input-label">Fecha</label><input type="date" class="input-field" id="cz-cancel-date" value="${czYmd(czToday())}"></div>
+    </div>
+    <div class="cz-muted">Quedaban ${czFmt(s.remainingOrig||0,item.currency)} en ${s.total-s.paidCount} cuota${s.total-s.paidCount!==1?'s':''}. Si te cobraron menos por cancelar antes, poné lo que pagaste de verdad.</div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="document.getElementById('cz-cancel-modal').remove()">Volver</button>
+      <button class="btn btn-primary" onclick="czConfirmCancelLoan('${item.id}')">Cancelar préstamo</button></div>
+  </div>`;
+  document.body.appendChild(m);
+}
+function czConfirmCancelLoan(id){
+  const amount=Number(document.getElementById('cz-cancel-amount')?.value)||0;
+  const date=document.getElementById('cz-cancel-date')?.value||czYmd(czToday());
+  if(amount<=0){ showToast('Poné cuánto pagaste','error'); return; }
+  czCancelLoan(id, amount, date);
+  document.getElementById('cz-cancel-modal')?.remove();
+}
+function czCancelLoan(id, amount, dateYmd){
+  const item=czFindItem(id); if(!item || item.cancelled) return false;
+  const cancelDate=czParse(dateYmd);
+  const prev={schedule:item.schedule, count:item.count, firstDate:item.firstDate, everyMonths:item.everyMonths,
+    paidCount:item.paidCount, paidOverrides:item.paidOverrides, status:item.status};
+  // Quedan los pagos hechos hasta la cancelación y se suma el pago que lo cancela
+  const paid=czSchedule(item,{today:cancelDate}).filter(s=>s.paid && s.date<=cancelDate);
+  item.schedule=[...paid.map(s=>({date:czYmd(s.date), amount:s.amount, paid:true})), {date:dateYmd, amount, paid:true, cancel:true}];
+  item.status='pagado';
+  // Las cuotas que faltaban dejan de proyectarse en toda la app (tarjeta o débito)
+  let cuotaPrev=null;
+  const cuota=item.cuotaGroupId?(state.cuotas||[]).find(c=>c.cuotaGroupId===item.cuotaGroupId):null;
+  if(cuota){
+    cuotaPrev=JSON.parse(JSON.stringify(cuota));
+    const paidN=getCuotaStatus(cuota, cancelDate).paid;
+    if(paidN>0) cuota.total=paidN;
+    else state.cuotas=state.cuotas.filter(c=>c!==cuota);
+  }
+  // El pago de la cancelación es plata que salió: queda como gasto (no cuenta en tu gasto de vida)
+  const txnId='cz_'+item.id+'_cancel';
+  state.transactions=(state.transactions||[]).filter(t=>t.id!==txnId);
+  state.transactions.push({id:txnId, date:new Date(cancelDate), description:'Cancelación '+item.name, _baseDesc:'Cancelación '+item.name,
+    amount, currency:item.currency||'ARS', category:item.category||'Préstamos', payMethod:'deb', week:getWeekKey(cancelDate), month:getMonthKey(cancelDate),
+    manual:true, caminoItemId:item.id, origen_del_movimiento:'pegado_manualmente', estado_revision:'confirmado_por_usuario'});
+  item.cancelled={date:dateYmd, amount, prev, cuotaPrev, txnId};
+  saveState(); renderCaminoPage();
+  if(typeof refreshAll==='function') refreshAll();
+  showToast('✓ '+item.name+' cancelado','success');
+  return true;
+}
+function czUndoCancelLoan(id){
+  const item=czFindItem(id); if(!item || !item.cancelled) return;
+  const c=item.cancelled;
+  ['schedule','count','firstDate','everyMonths','paidCount','paidOverrides','status'].forEach(k=>{
+    if(c.prev[k]===undefined) delete item[k]; else item[k]=c.prev[k];
+  });
+  if(c.cuotaPrev){
+    state.cuotas=(state.cuotas||[]).filter(x=>x.cuotaGroupId!==c.cuotaPrev.cuotaGroupId);
+    state.cuotas.push(c.cuotaPrev);
+  }
+  state.transactions=(state.transactions||[]).filter(t=>t.id!==c.txnId);
+  delete item.cancelled;
+  saveState(); renderCaminoPage();
+  if(typeof refreshAll==='function') refreshAll();
+  showToast(item.name+': cancelación deshecha','info');
 }
 
 // ── Editor de compromisos ──

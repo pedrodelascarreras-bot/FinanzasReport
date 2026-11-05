@@ -1634,7 +1634,8 @@ function renderTransactions(){
                 :'<select class="mv-period-select" onchange="txnSetCycleFilter(this.value)">'+cycleOptions+'</select>')
               +'<button class="mv-btn" onclick="openRulesPanel()">Crear regla</button>'
               +'<button class="mv-btn" onclick="openNewExpenseModal()">Nuevo gasto</button>'
-              +'<button class="mv-btn-primary" onclick="openCatReview()">Revisar categorías</button>'
+              +'<button class="mv-btn" onclick="openCatReview()">Revisar categorías</button>'
+              +'<button class="mv-btn-primary" onclick="openAutoCategorize()">✦ Categorizar solo</button>'
             +'</div>'
           +'</div>'
           +'<div class="mv-search-row">'
