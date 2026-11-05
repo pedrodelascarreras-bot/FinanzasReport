@@ -103,6 +103,13 @@ acApply();
 acUndo();
 eq(state.transactions.map(t => t.category), ['Procesando...', 'Procesando...', 'Procesando...'], 'deshacer vuelve todo como estaba');
 
+// 4) Buscador de categorías
+const opts = q => acPickerOptions(q).map(o => o.cat);
+eq(opts('')[0], '', 'sin buscar, la primera opción es "Sin categoría"');
+eq(opts('super'), ['Supermercado'], 'escribir filtra');
+eq(opts('EDUCACION').includes('Libros'), true, 'busca también por grupo y sin acentos');
+eq(opts('ma')[0].toLowerCase().startsWith('ma'), true, 'primero las que empiezan con lo escrito');
+eq(opts('zzzz'), [], 'sin resultados');
 if (errs.length) print('console.error: ' + errs.slice(0, 3).join(' | '));
 if (failures) { print('✗ ' + failures + ' fallaron, ' + passed + ' pruebas OK'); throw new Error(failures + ' pruebas fallaron'); }
 print('✓ ' + passed + ' pruebas OK');

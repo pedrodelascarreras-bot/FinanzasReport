@@ -103,18 +103,10 @@ function acTxnTime(id){
 function openAutoCategorize(){
   _acRows=acPendingSuggestions();
   _acLastApplied=[];
+  acClosePicker();
   if(!_acRows.length){ showToast('✓ No hay gastos sin categoría','success'); return; }
   acRender();
   openModal('modal-autocat');
-}
-function acCategoryOptions(selected){
-  let html='<option value="">— Sin categoría —</option>';
-  CATEGORY_GROUPS.filter(g=>g.group!=='Sin clasificar').forEach(g=>{
-    html+='<optgroup label="'+esc(g.emoji+' '+g.group)+'">'+g.subs.map(sub=>
-      '<option value="'+esc(sub)+'"'+(sub===selected?' selected':'')+'>'+esc(sub)+'</option>').join('')+'</optgroup>';
-  });
-  if(selected && !acCategoryExists(selected)) html+='<option value="'+esc(selected)+'" selected>'+esc(selected)+'</option>';
-  return html;
 }
 const AC_CONF_LABEL={alta:'Segura', media:'Revisala', baja:'Dudosa', none:'Sin idea'};
 function acRowHtml(r, i){
@@ -128,7 +120,7 @@ function acRowHtml(r, i){
       +'<div class="ac-meta">'+esc(d)+' · '+esc(amt)+'</div>'
     +'</div>'
     +'<div class="ac-side">'
-      +'<select class="ac-select" onchange="acSetCategory('+i+',this.value)">'+acCategoryOptions(r.category)+'</select>'
+      +acCatButtonHtml(r.category, i)
       +'<div class="ac-why"><span class="ac-chip ac-'+(r.edited?'edited':r.confidence)+'">'+(r.edited?'Elegida por vos':AC_CONF_LABEL[r.confidence])+'</span>'
         +(r.edited?'':'<span class="ac-reason">'+esc(r.reason)+'</span>')+'</div>'
     +'</div>'
@@ -180,6 +172,7 @@ function acSetCategory(i, cat){
   acRender();
 }
 function acApply(){
+  acClosePicker();
   const apply=_acRows.filter(r=>r.checked && r.category);
   if(!apply.length) return;
   _acLastApplied=[];
@@ -211,4 +204,109 @@ function acUndo(){
   if(typeof updateQrBadge==='function') updateQrBadge();
   closeModal('modal-autocat');
   showToast('Cambios deshechos','info');
+}
+
+// ── Selector de categoría con buscador ──
+// Botón con el color y el ícono de la categoría; al tocarlo se abre un panel donde podés
+// escribir para filtrar (sin importar acentos) y elegir con el mouse o con el teclado.
+function acCatButtonHtml(cat, i){
+  const color=cat?catColor(cat):'var(--text3)';
+  return '<button type="button" class="ac-cat-btn'+(cat?'':' empty')+'" style="--cat:'+color+'" onclick="acOpenPicker('+i+',this)" aria-haspopup="listbox">'
+    +'<span class="ac-cat-emoji">'+(cat?catEmoji(cat):'＋')+'</span>'
+    +'<span class="ac-cat-name">'+esc(cat||'Elegir categoría')+'</span>'
+    +'<span class="ac-cat-caret" aria-hidden="true">⌄</span></button>';
+}
+const _acNorm=v=>String(v||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+let _acPicker={row:-1, active:0, items:[]};
+function acPickerOptions(query){
+  const q=_acNorm(query).trim();
+  const out=[];
+  if(!q) out.push({cat:'', label:'Sin categoría', emoji:'⊘', color:'var(--text3)', group:null});
+  CATEGORY_GROUPS.filter(g=>g.group!=='Sin clasificar').forEach(g=>{
+    const groupHit=q && _acNorm(g.group).includes(q);
+    g.subs.forEach(sub=>{
+      if(q && !groupHit && !_acNorm(sub).includes(q)) return;
+      out.push({cat:sub, label:sub, emoji:g.emoji, color:catColor(sub), group:g.group});
+    });
+  });
+  // Las que empiezan con lo que escribiste, primero
+  if(q) out.sort((a,b)=>(_acNorm(b.label).startsWith(q)?1:0)-(_acNorm(a.label).startsWith(q)?1:0));
+  return out;
+}
+function acOpenPicker(i, btn){
+  acClosePicker();
+  const r=_acRows[i]; if(!r) return;
+  const el=document.createElement('div');
+  el.id='ac-picker'; el.className='ac-picker';
+  el.innerHTML='<div class="ac-picker-search"><span aria-hidden="true">⌕</span>'
+    +'<input type="text" id="ac-picker-q" placeholder="Buscar categoría…" autocomplete="off" role="combobox" aria-controls="ac-picker-list" aria-expanded="true"'
+    +' oninput="acPickerFilter(this.value)" onkeydown="acPickerKey(event)"></div>'
+    +'<div class="ac-picker-list" id="ac-picker-list" role="listbox"></div>';
+  document.body.appendChild(el);
+  const back=document.createElement('div');
+  back.id='ac-picker-back'; back.className='ac-picker-back';
+  back.onclick=acClosePicker;
+  document.body.appendChild(back);
+  _acPicker={row:i, active:0, items:[], current:r.category};
+  // En compu se abre debajo del botón; en el celular, como hoja desde abajo (ver CSS)
+  if(window.innerWidth>640){
+    const b=btn.getBoundingClientRect();
+    const w=Math.max(280, b.width);
+    const left=Math.min(b.left, window.innerWidth-w-12);
+    const below=window.innerHeight-b.bottom;
+    el.style.width=w+'px'; el.style.left=Math.max(12,left)+'px';
+    if(below>=340){ el.style.top=(b.bottom+6)+'px'; }
+    else { el.style.bottom=(window.innerHeight-b.top+6)+'px'; }
+  }
+  acPickerFilter('');
+  const input=document.getElementById('ac-picker-q');
+  input.focus();
+  document.getElementById('ac-body')?.addEventListener('scroll', acClosePicker, {once:true});
+}
+function acClosePicker(){
+  document.getElementById('ac-picker')?.remove();
+  document.getElementById('ac-picker-back')?.remove();
+}
+function acPickerFilter(query){
+  _acPicker.items=acPickerOptions(query);
+  const cur=_acPicker.items.findIndex(o=>o.cat===_acPicker.current);
+  _acPicker.active=query?0:Math.max(0,cur);
+  acPickerRenderList();
+}
+function acPickerRenderList(){
+  const list=document.getElementById('ac-picker-list'); if(!list) return;
+  if(!_acPicker.items.length){ list.innerHTML='<div class="ac-picker-empty">No hay categorías con ese nombre</div>'; return; }
+  let lastGroup=undefined, html='';
+  _acPicker.items.forEach((o,k)=>{
+    if(o.group!==lastGroup && o.group){ html+='<div class="ac-picker-group">'+esc(o.emoji+' '+o.group)+'</div>'; }
+    lastGroup=o.group;
+    const sel=o.cat===_acPicker.current;
+    html+='<div class="ac-picker-opt'+(k===_acPicker.active?' active':'')+(sel?' selected':'')+'" id="ac-opt-'+k+'" role="option" aria-selected="'+sel+'"'
+      +' onmousedown="event.preventDefault()" onclick="acPickerChoose('+k+')" onmousemove="acPickerHover('+k+')">'
+      +'<span class="ac-picker-dot" style="background:'+o.color+'"></span>'
+      +'<span class="ac-picker-label">'+esc(o.label)+'</span>'
+      +(sel?'<span class="ac-picker-check">✓</span>':'')+'</div>';
+  });
+  list.innerHTML=html;
+  document.getElementById('ac-picker-q')?.setAttribute('aria-activedescendant','ac-opt-'+_acPicker.active);
+  document.getElementById('ac-opt-'+_acPicker.active)?.scrollIntoView({block:'nearest'});
+}
+function acPickerHover(k){
+  if(k===_acPicker.active) return;
+  document.getElementById('ac-opt-'+_acPicker.active)?.classList.remove('active');
+  _acPicker.active=k;
+  document.getElementById('ac-opt-'+k)?.classList.add('active');
+}
+function acPickerKey(e){
+  const n=_acPicker.items.length;
+  if(e.key==='ArrowDown'){ e.preventDefault(); if(n){ _acPicker.active=(_acPicker.active+1)%n; acPickerRenderList(); } }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); if(n){ _acPicker.active=(_acPicker.active-1+n)%n; acPickerRenderList(); } }
+  else if(e.key==='Enter'){ e.preventDefault(); if(n) acPickerChoose(_acPicker.active); }
+  else if(e.key==='Escape'){ e.preventDefault(); e.stopPropagation(); acClosePicker(); }
+}
+function acPickerChoose(k){
+  const o=_acPicker.items[k]; if(!o) return;
+  const row=_acPicker.row;
+  acClosePicker();
+  acSetCategory(row, o.cat);
 }

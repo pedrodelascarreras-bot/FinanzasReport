@@ -323,13 +323,16 @@ function warnSaveFailed(e){
 }
 function safePersistLocalSnapshot(snapshot){
   try{
-    if(!isStateMeaningful(snapshot)){
-      const raw=readStoredStateRaw();
-      if(raw){
+    // "Borrar todos los datos" es a propósito: ese guardado vacío sí se permite (una sola vez)
+    const allowEmpty=window._allowEmptySaveOnce===true; window._allowEmptySaveOnce=false;
+    if(!allowEmpty && !isStateMeaningful(snapshot)){
+      // Se miran las dos copias: otra pestaña (o una versión vieja de la app) pudo escribir localStorage
+      const copies=[readStoredStateRaw(), localStorage.getItem(STATE_KEY)].filter(Boolean);
+      for(const raw of copies){
         let prev=null;
         try{ prev=JSON.parse(raw); }catch(_){}
         if(prev===null || isStateMeaningful(prev)){
-          console.warn('[guard] escritura a localStorage bloqueada: snapshot vacío sobre datos existentes');
+          console.warn('[guard] guardado bloqueado: snapshot vacío sobre datos existentes');
           return false;
         }
       }

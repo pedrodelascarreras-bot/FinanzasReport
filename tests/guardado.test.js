@@ -118,6 +118,12 @@ eq(state.subscriptions.length, 0, 'sigue sin la suscripción borrada');
 const s2 = upsertImportedSubscriptionFromTxn(debit('g3', '2026-12-30', 9.99));
 eq([state.subscriptions.length, s2 && s2.price], [1, 9.99], 'otra suscripción del mismo comercio con otro precio sí se crea');
 
+// 7) "Borrar todos los datos" sí se guarda; un guardado vacío por error no
+reset(); state.transactions = [tx('a')]; saveState();
+state.transactions = []; saveState();
+eq(stored().transactions.length, 1, 'un estado vacío no pisa los datos guardados');
+clearAllData();
+eq(stored().transactions.length, 0, 'borrar todos los datos queda guardado');
 if (errs.length) print('console.error: ' + errs.slice(0, 3).join(' | '));
 if (failures) { print('✗ ' + failures + ' fallaron, ' + passed + ' pruebas OK'); throw new Error(failures + ' pruebas fallaron'); }
 print('✓ ' + passed + ' pruebas OK');

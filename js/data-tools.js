@@ -179,6 +179,7 @@ function clearAllData(){
   state.userPrefs={ currency:'ARS', language:'es', theme:'light' };
   state.googleProfile=null;
   if(typeof normalizeCategoryState === 'function') normalizeCategoryState(state);
+  window._allowEmptySaveOnce=true;
   saveState();
   renderImportHistory();
   if(typeof renderImportHistoryMenu === 'function') renderImportHistoryMenu();
