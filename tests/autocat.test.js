@@ -58,7 +58,10 @@ function eq(actual, expected, msg){
 const D = s => new Date(s + 'T12:00:00');
 function reset(){ state.transactions = []; state.cuotas = []; state.subscriptions = []; state.fixedExpenses = []; state.imports = []; state.userProfiles = []; state.activeUserProfileId = null; state.dismissedImportedSubs = []; }
 window.scrollTo = function(){};
-const tx = (id, desc, cat, extra) => Object.assign({ id, date: D('2026-11-02'), description: desc, _baseDesc: desc, amount: 1000, currency: 'ARS', category: cat }, extra || {});
+// Los gastos de prueba caen hoy (Categorizar solo muestra solo el período actual)
+const HOY = new Date(); HOY.setHours(12, 0, 0, 0);
+state.txnFilterMode = 'mes';
+const tx = (id, desc, cat, extra) => Object.assign({ id, date: new Date(HOY), description: desc, _baseDesc: desc, amount: 1000, currency: 'ARS', category: cat }, extra || {});
 
 // 1) Aprende de los gastos ya categorizados
 reset(); state.catRules = []; state.catHistory = {};
@@ -110,6 +113,25 @@ eq(opts('super'), ['Supermercado'], 'escribir filtra');
 eq(opts('EDUCACION').includes('Libros'), true, 'busca también por grupo y sin acentos');
 eq(opts('ma')[0].toLowerCase().startsWith('ma'), true, 'primero las que empiezan con lo escrito');
 eq(opts('zzzz'), [], 'sin resultados');
+// 5) Solo el período actual: los pendientes viejos no aparecen
+reset(); state.catRules = []; state.catHistory = {}; state.txnFilterMode = 'mes';
+const hace2meses = new Date(HOY); hace2meses.setMonth(hace2meses.getMonth() - 2);
+state.transactions = [tx('hoy1', 'LUGAR NUEVO', 'Procesando...'), tx('viejo1', 'LUGAR VIEJO', 'Procesando...', { date: hace2meses })];
+openAutoCategorize();
+eq(_acRows.map(r => r.id), ['hoy1'], 'vista Mes: solo los gastos del mes en curso');
+// Vista Visa: el ciclo que incluye hoy (puede empezar el mes anterior)
+const ymd = d => dateToYMD(d);
+const abre = new Date(HOY); abre.setDate(abre.getDate() - 20);
+const cierra = new Date(HOY); cierra.setDate(cierra.getDate() + 8);
+const antesDelCiclo = new Date(abre); antesDelCiclo.setDate(antesDelCiclo.getDate() - 2);
+const _gtc = getTcCycles, _gto = getTcCycleOpen;
+getTcCycles = () => [{ id: 'c1', closeDate: ymd(cierra), label: 'Actual' }];
+getTcCycleOpen = () => ymd(abre);
+state.txnFilterMode = 'visa';
+state.transactions = [tx('enciclo', 'LUGAR A', 'Procesando...', { date: new Date(abre) }), tx('antes', 'LUGAR B', 'Procesando...', { date: antesDelCiclo })];
+openAutoCategorize();
+eq([_acRows.map(r => r.id), /ciclo Visa/.test(acCurrentPeriod().label)], [['enciclo'], true], 'vista Visa: solo el ciclo actual');
+getTcCycles = _gtc; getTcCycleOpen = _gto; state.txnFilterMode = 'mes';
 if (errs.length) print('console.error: ' + errs.slice(0, 3).join(' | '));
 if (failures) { print('✗ ' + failures + ' fallaron, ' + passed + ' pruebas OK'); throw new Error(failures + ' pruebas fallaron'); }
 print('✓ ' + passed + ' pruebas OK');

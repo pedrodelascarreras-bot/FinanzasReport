@@ -85,12 +85,36 @@ function acSuggest(t, model){
 
 // ── Pantalla de revisión ──
 let _acRows=[];        // [{id, category, confidence, reason, checked, edited}]
+let _acPeriod=null;    // período que se está revisando
 let _acLastApplied=[]; // para deshacer: [{id, category, estado_revision, cat_source}]
 
+// Solo el período actual de la vista de Movimientos: el mes en curso, o el ciclo de la
+// tarjeta (Visa/Amex) que incluye hoy. Para aprender se sigue usando todo el historial.
+function acCurrentPeriod(todayRef=new Date()){
+  const today=dateToYMD(todayRef);
+  const mode=typeof normalizeViewMode==='function'?normalizeViewMode(state.txnFilterMode||'visa'):'mes';
+  if(mode!=='mes' && typeof getTcCycles==='function'){
+    const cycles=getTcCycles(mode)||[];
+    const idx=cycles.findIndex((c,i)=>{ const op=getTcCycleOpen(cycles,i); return op && today>=op && today<=c.closeDate; });
+    if(idx>=0){
+      const c=cycles[idx], start=getTcCycleOpen(cycles,idx);
+      const fmt=v=>new Date(v+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+      return {start, end:c.closeDate, label:(mode==='amex'?'ciclo Amex':'ciclo Visa')+' del '+fmt(start)+' al '+fmt(c.closeDate)};
+    }
+  }
+  const mk=getMonthKey(todayRef), r=getMonthRange(mk);
+  return {start:r.startStr, end:r.endStr, label:todayRef.toLocaleDateString('es-AR',{month:'long'})};
+}
 function acPendingSuggestions(){
   const model=acBuildModel();
   const order={alta:0, media:1, baja:2, none:3};
-  return (state.transactions||[]).filter(acIsPending).map(t=>{
+  const period=acCurrentPeriod();
+  _acPeriod=period;
+  return (state.transactions||[]).filter(t=>{
+    if(!acIsPending(t)) return false;
+    const d=dateToYMD(new Date(t.date));
+    return d>=period.start && d<=period.end;
+  }).map(t=>{
     const s=acSuggest(t, model);
     return {id:t.id, category:s?.category||'', confidence:s?.confidence||'none', reason:s?.reason||'No encontré gastos parecidos',
       checked:!!s && s.confidence!=='baja', edited:false};
@@ -104,7 +128,7 @@ function openAutoCategorize(){
   _acRows=acPendingSuggestions();
   _acLastApplied=[];
   acClosePicker();
-  if(!_acRows.length){ showToast('✓ No hay gastos sin categoría','success'); return; }
+  if(!_acRows.length){ showToast('✓ No hay gastos sin categoría en el '+(_acPeriod?.label||'período actual'),'success'); return; }
   acRender();
   openModal('modal-autocat');
 }
@@ -137,7 +161,7 @@ function acRender(){
     return;
   }
   const withSug=_acRows.filter(r=>r.category).length;
-  document.getElementById('ac-summary').textContent='Encontré categoría para '+withSug+' de '+_acRows.length+' gastos. Revisá y tocá Aplicar: lo que destildes queda como está.';
+  document.getElementById('ac-summary').textContent='Gastos del '+(_acPeriod?.label||'período actual')+': encontré categoría para '+withSug+' de '+_acRows.length+'. Revisá y tocá Aplicar: lo que destildes queda como está.';
   const groups=[['alta','Seguras'],['media','Para revisar'],['baja','Dudosas'],['none','Sin sugerencia: elegí vos o dejalas']];
   body.innerHTML=groups.map(([conf,title])=>{
     const idx=_acRows.map((r,i)=>i).filter(i=>_acRows[i].confidence===conf);
