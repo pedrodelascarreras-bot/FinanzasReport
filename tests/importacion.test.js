@@ -7,6 +7,7 @@ function mk(name){
   return new Proxy(fn, {
     get(t, k){
       if (k === Symbol.toPrimitive) return () => '';
+      if (k === Symbol.match) return undefined;
       if (k === 'toString' || k === 'valueOf') return () => '';
       if (k === Symbol.iterator) return function*(){};
       if (k === 'length') return 0;
@@ -143,7 +144,9 @@ eq(nov.projected.ars, 50000, 'noviembre proyecta la cuota 4/12 una vez');
 
 // 10) Borrar una cuota con cuotas ya pagas: conservar o no el historial
 reset();
-const mkc = id => ({ id, name: 'TV ' + id, amount: 20000, total: 6, paid: 2, day: 5, lastPaidDate: '2026-10-05', currency: 'ARS' });
+// Relativo a hoy (countManualCuotaHistory usa la fecha real): la cuota 2 se pagó ayer
+const _ayer = new Date(); _ayer.setDate(_ayer.getDate() - 1);
+const mkc = id => ({ id, name: 'TV ' + id, amount: 20000, total: 6, paid: 2, day: _ayer.getDate(), lastPaidDate: dateToYMD(_ayer), currency: 'ARS' });
 state.cuotas = [mkc('k1'), mkc('k2')];
 eq(countManualCuotaHistory(state.cuotas[0]), 2, 'detecta 2 cuotas pagas sin movimiento');
 deleteManualCuotaById('k1', { silent: true, keepHistory: true });

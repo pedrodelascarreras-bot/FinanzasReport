@@ -547,6 +547,7 @@ async function requestDeleteSubscription(id, after){
 function deleteSubscriptionById(id, opts={}){
   const sub=(state.subscriptions||[]).find(s=>s.id===id);
   if(!sub) return false;
+  if(sub.autoManaged) rememberDismissedImportedSub(sub);
   if(opts.keepHistory!==false) materializeSubscriptionHistory(sub, opts);
   state.subscriptions=(state.subscriptions||[]).filter(s=>s.id!==id);
   syncProjectedSubscriptionTransactions();
@@ -673,6 +674,20 @@ function nextImportedSubscriptionId(merchantKey, ruleId){
   let n=2; while(ids.has(base+'_'+n)) n++;
   return base+'_'+n;
 }
+// Suscripción de Gmail borrada a mano (p. ej. un duplicado de una que cargaste vos): el próximo
+// débito del mismo comercio, moneda y precio parecido no la vuelve a crear; entra como gasto común.
+function rememberDismissedImportedSub(sub){
+  const merchantKey=getSubscriptionMerchantKey(sub.merchantKey||sub.name);
+  if(!merchantKey) return;
+  if(!Array.isArray(state.dismissedImportedSubs)) state.dismissedImportedSubs=[];
+  state.dismissedImportedSubs.push({merchantKey, price:Number(sub.price)||0, currency:sub.currency||'ARS', at:dateToYMD(new Date())});
+}
+function isDismissedImportedSubCharge(merchantKey, txn){
+  return (state.dismissedImportedSubs||[]).some(d=>
+    subscriptionKeysMatch(d.merchantKey, merchantKey) &&
+    (d.currency||'ARS')===(txn.currency||'ARS') &&
+    _subChargeAmountsClose(d.price, txn.amount)<=0.1);
+}
 function upsertImportedSubscriptionFromTxn(txn, batch=[]){
   if(!txn||!txn.isAutoDebit||!txn.subscriptionName)return null;
   // Skip credit card payment debits — they're not real "subscriptions",
@@ -682,6 +697,9 @@ function upsertImportedSubscriptionFromTxn(txn, batch=[]){
   const _looksLikeCcPayment = /\bvisa\b|\bamex\b|\bmastercard\b|\bmaestro\b|\btarjeta\b|pago.*tarjeta|tarjeta.*cr[eé]dito|santander\s*(visa|amex|r[íi]o)/i.test(_sname);
   if (_looksLikeCcPayment || _sname.trim()==='santander') return null;
   if(!state.subscriptions)state.subscriptions=[];
+  const _mk=getSubscriptionMerchantKey(txn.merchantKey||txn.subscriptionName);
+  if(isDismissedImportedSubCharge(_mk, txn) &&
+     !pickSubscriptionForCharge(getImportedSubscriptionsByKey(_mk), txn, sub=>getSubscriptionCharges(sub, batch))) return null;
   const txnMonthKey=getMonthKey(txn.date);
   state.transactions=(state.transactions||[]).filter(existing=>
     !(

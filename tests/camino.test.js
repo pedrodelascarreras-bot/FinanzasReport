@@ -6,6 +6,7 @@ function mk(name){
   return new Proxy(fn, {
     get(t, k){
       if (k === Symbol.toPrimitive) return () => '';
+      if (k === Symbol.match) return undefined;
       if (k === 'toString' || k === 'valueOf') return () => '';
       if (k === Symbol.iterator) return function*(){};
       if (k === 'length') return 0;

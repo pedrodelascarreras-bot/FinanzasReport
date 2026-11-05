@@ -46,6 +46,7 @@ let state={
   dismissedNotifs: [],   // IDs of notifications the user dismissed
   decisionCenterCollapsed:false,
   dismissedAutoCuotas:[], // keys of auto-cuotas permanently dismissed
+  dismissedImportedSubs:[], // suscripciones de Gmail borradas a mano: {merchantKey, price, currency}
   gmailDeletedIds:[],    // mails de Gmail cuyo gasto el usuario borró: no se vuelven a importar
   gmailAnulados:[],      // mails de anulación ya procesados
   dismissedCommitmentEntries:[], // projected commitment entries manually hidden by the user
@@ -82,7 +83,7 @@ function getStateSnapshot(){
   }
   return {
     savedAt:localStorage.getItem(LS_LOCAL_EDITED_AT)||null,
-    transactions:state.transactions,categories:state.categories,categoryGroups:state.categoryGroups||[],income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'visa',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],hiddenTcCycles:state.hiddenTcCycles||[],balanceView:state.balanceView||'summary',
+    ...packTxnLogos(state.transactions),categories:state.categories,categoryGroups:state.categoryGroups||[],income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'visa',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],hiddenTcCycles:state.hiddenTcCycles||[],balanceView:state.balanceView||'summary',
     txnFilterMode:state.txnFilterMode||'visa',tendMode:state.tendMode||'visa',repMode:state.repMode||'visa',
     savingsGoal:state.savingsGoal,alertThreshold:state.alertThreshold,spendPct:state.spendPct||100,insightsBufferMonths:state.insightsBufferMonths||3,tendChartMode:state.tendChartMode||'bar',imports:state.imports,
     cuotas:state.cuotas,autoCuotaConfig:state.autoCuotaConfig,subscriptions:state.subscriptions,fixedExpenses:state.fixedExpenses||[],
@@ -95,7 +96,7 @@ function getStateSnapshot(){
     bankProfiles:state.bankProfiles||[],
     importConfig:state.importConfig||{},
     automationPrefs:state.automationPrefs||{},
-    userProfiles:state.userProfiles||[],
+    userProfiles:(state.userProfiles||[]).map(p=>p&&p.id===state.activeUserProfileId?stripProfileData(p):p),
     activeUserProfileId:state.activeUserProfileId||null,
     profileTemplate:state.profileTemplate||'personal',
     onboardingState:state.onboardingState||{},
@@ -115,6 +116,7 @@ function getStateSnapshot(){
     dismissedNotifs:state.dismissedNotifs||[],
     decisionCenterCollapsed:!!state.decisionCenterCollapsed,
     dismissedAutoCuotas:state.dismissedAutoCuotas||[],
+    dismissedImportedSubs:state.dismissedImportedSubs||[],
     gmailDeletedIds:state.gmailDeletedIds||[],
     gmailAnulados:state.gmailAnulados||[],
     bankAccounts:state.bankAccounts||[],
@@ -140,6 +142,59 @@ function isStateMeaningful(s){
   ));
 }
 // Escribe fin_state salvo que el snapshot esté vacío y el guardado previo tenga datos
+// ── Tamaño de lo guardado ──
+// El navegador guarda como máximo ~5,2 millones de caracteres. Cada gasto con logo propio
+// llevaba la imagen entera (la misma imagen cientos de veces): se guarda una sola vez en
+// `logoBlobs` y el gasto apunta a ella con "@logo:N".
+const LOGO_REF='@logo:';
+function packTxnLogos(txns){
+  const blobs=[], index=new Map();
+  const transactions=(txns||[]).map(t=>{
+    const url=t&&t.customLogoUrl;
+    if(typeof url!=='string' || !url.startsWith('data:')) return t;
+    if(!index.has(url)){ index.set(url, blobs.length); blobs.push(url); }
+    return {...t, customLogoUrl:LOGO_REF+index.get(url)};
+  });
+  return {transactions, logoBlobs:blobs};
+}
+function unpackTxnLogos(txns, blobs){
+  if(!Array.isArray(blobs) || !blobs.length) return txns||[];
+  return (txns||[]).map(t=>{
+    const url=t&&t.customLogoUrl;
+    if(typeof url!=='string' || !url.startsWith(LOGO_REF)) return t;
+    return {...t, customLogoUrl:blobs[Number(url.slice(LOGO_REF.length))]||null};
+  });
+}
+// El perfil activo guardaba una copia completa de todos los datos en cada guardado
+// (duplicaba el tamaño y una copia vieja podía pisar los datos buenos al aplicarse).
+// Los datos del perfil activo son los de `state`; en el perfil solo queda su identidad.
+// Los perfiles inactivos sí conservan sus datos (ver freezeActiveProfileData en init.js).
+const PROFILE_IDENTITY_KEYS=['id','name','note','profileTemplate','userName','userEmail','manualUserEmail','userAvatar','userAvatarMode','userAvatarPreset','userPrefs','googleProfile'];
+function stripProfileData(p){
+  if(!p || typeof p!=='object') return p;
+  const out={_live:true};
+  PROFILE_IDENTITY_KEYS.forEach(k=>{ if(k in p) out[k]=p[k]; });
+  return out;
+}
+function profileHasData(p){ return !!(p && Array.isArray(p.transactions)); }
+// Achica un estado guardado (backup viejo, Drive): sin copia en el perfil activo y logos de-duplicados
+function compactStoredState(s){
+  if(!s || typeof s!=='object') return s;
+  const out={...s};
+  if(Array.isArray(out.userProfiles)) out.userProfiles=out.userProfiles.map(p=>p&&p.id===out.activeUserProfileId?stripProfileData(p):p);
+  if(Array.isArray(out.transactions) && !(Array.isArray(out.logoBlobs) && out.logoBlobs.length)){
+    Object.assign(out, packTxnLogos(out.transactions));
+  }
+  return out;
+}
+let _lastSaveErrorToast=0;
+function warnSaveFailed(e){
+  console.warn('localStorage error',e);
+  // Antes fallaba en silencio: los cambios se veían en pantalla pero se perdían al recargar
+  if(Date.now()-_lastSaveErrorToast<60000) return;
+  _lastSaveErrorToast=Date.now();
+  if(typeof showToast==='function') showToast('⚠️ No se pudieron guardar los cambios en este navegador (espacio lleno). Descargá un backup antes de cerrar.','error');
+}
 function safePersistLocalSnapshot(snapshot){
   try{
     if(!isStateMeaningful(snapshot)){
@@ -155,7 +210,7 @@ function safePersistLocalSnapshot(snapshot){
     }
     localStorage.setItem('fin_state',JSON.stringify(snapshot));
     return true;
-  }catch(e){console.warn('localStorage error',e);return false;}
+  }catch(e){warnSaveFailed(e);return false;}
 }
 // ── Sincronización segura con Drive ──
 // LS_LOCAL_EDITED_AT: última edición hecha en este dispositivo.
@@ -396,7 +451,7 @@ async function loadFromDrive(){
       }
     }
     // Apply loaded state (same as loadState logic)
-    state.transactions=(s.transactions||[]).map(t=>({...t,date:new Date(t.date)}));
+    state.transactions=unpackTxnLogos(s.transactions||[], s.logoBlobs).map(t=>({...t,date:new Date(t.date)}));
     state.categories=s.categories||[...DEFAULT_CATS];
     state.categoryGroups=s.categoryGroups||state.categoryGroups||[...DEFAULT_CATEGORY_GROUPS];
     state.income=s.income||state.income;
@@ -466,6 +521,7 @@ async function loadFromDrive(){
     state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
+    state.dismissedImportedSubs=s.dismissedImportedSubs||[];
     state.gmailDeletedIds=s.gmailDeletedIds||[];
     state.gmailAnulados=s.gmailAnulados||[];
     if(Array.isArray(s.bankAccounts)){ state.bankAccounts=s.bankAccounts; state._bankAccountsInitialized=!!s._bankAccountsInitialized||s.bankAccounts.length>0; }
@@ -526,7 +582,7 @@ async function loadFromDrive(){
 function loadState(){
   try{
     const raw=localStorage.getItem('fin_state');if(!raw)return;const s=JSON.parse(raw);
-    state.transactions=(s.transactions||[]).map(t=>({...t,date:new Date(t.date)}));
+    state.transactions=unpackTxnLogos(s.transactions||[], s.logoBlobs).map(t=>({...t,date:new Date(t.date)}));
     state.categories=s.categories||[...DEFAULT_CATS];state.categoryGroups=s.categoryGroups||state.categoryGroups||[...DEFAULT_CATEGORY_GROUPS];state.income=s.income||state.income;
     state.savingsGoal=s.savingsGoal||20;state.alertThreshold=s.alertThreshold||80;state.spendPct=s.spendPct||100;state.insightsBufferMonths=s.insightsBufferMonths||3;state.tendChartMode=s.tendChartMode||'bar';
     state.imports=s.imports||[];state.cuotas=s.cuotas||[];state.autoCuotaConfig=s.autoCuotaConfig||{};
@@ -582,6 +638,7 @@ function loadState(){
     state.googleProfile=s.googleProfile||null;
     state.decisionCenterCollapsed=!!s.decisionCenterCollapsed;
     state.dismissedAutoCuotas=s.dismissedAutoCuotas||[];
+    state.dismissedImportedSubs=s.dismissedImportedSubs||[];
     state.gmailDeletedIds=s.gmailDeletedIds||[];
     state.gmailAnulados=s.gmailAnulados||[];
     if(Array.isArray(s.bankAccounts)){ state.bankAccounts=s.bankAccounts; state._bankAccountsInitialized=!!s._bankAccountsInitialized||s.bankAccounts.length>0; }

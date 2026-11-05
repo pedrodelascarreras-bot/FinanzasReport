@@ -748,7 +748,7 @@ function importBackupJSON(event){
       const data=JSON.parse(e.target.result);
       if(!data._backup){showToast('⚠️ Archivo no válido','error');return;}
       if(!confirm('¿Restaurar backup del '+new Date(data._date).toLocaleDateString('es-AR')+'? Se reemplazarán todos los datos actuales.')){return;}
-      localStorage.setItem('fin_state',JSON.stringify(data.state));
+      localStorage.setItem('fin_state',JSON.stringify(compactStoredState(data.state)));
       localStorage.setItem('fin_last_restore', new Date().toISOString());
       loadState();
       normalizeTcCyclesForConsistency();
@@ -1915,17 +1915,36 @@ function syncActiveUserProfileFromState(saveNow=true){
   const idx = profiles.findIndex(profile => profile.id === state.activeUserProfileId);
   if(idx < 0) return;
   const current = profiles[idx];
-  profiles[idx] = {
+  // Solo la identidad: los datos del perfil activo viven en state (ver stripProfileData)
+  profiles[idx] = stripProfileData({
     ...current,
-    ...getCurrentProfileSnapshot(),
+    userName: state.userName || 'Usuario',
+    userEmail: state.userEmail || '',
+    manualUserEmail: state.manualUserEmail || '',
+    userAvatar: state.userAvatar || '',
+    userAvatarMode: state.userAvatarMode || 'generated',
+    userAvatarPreset: state.userAvatarPreset || '',
+    userPrefs: cloneDeepProfileValue(state.userPrefs || { currency:'ARS', language:'es', theme:'light' }),
+    googleProfile: cloneDeepProfileValue(state.googleProfile || null),
+    profileTemplate: state.profileTemplate || 'personal',
     name: current.name || state.userName || 'Perfil',
     note: current.note || ''
-  };
+  });
   state.userProfiles = profiles;
   if(saveNow) saveState();
 }
+// Antes de dejar de ser el perfil activo, el perfil se lleva una copia completa de sus datos
+function freezeActiveProfileData(){
+  const profiles = ensureUserProfiles();
+  const idx = profiles.findIndex(profile => profile.id === state.activeUserProfileId);
+  if(idx < 0) return;
+  const current = profiles[idx];
+  const {_live, ...rest} = current;
+  profiles[idx] = { ...rest, ...getCurrentProfileSnapshot(), name: current.name || state.userName || 'Perfil', note: current.note || '' };
+}
 
 function getUserProfileStats(profile){
+  if(!profileHasData(profile)) profile = state;
   const activeRules = (profile.gmailImportRules || []).filter(rule => rule.active !== false).length;
   const bankProfiles = (profile.bankProfiles || []).length;
   const cards = (profile.ccCards || []).length;
@@ -1948,6 +1967,7 @@ function duplicateCurrentUserProfile(){
     note:'Duplicado desde la configuración actual',
     ...getCurrentProfileSnapshot()
   };
+  freezeActiveProfileData();
   state.userProfiles = [payload, ...ensureUserProfiles()];
   state.activeUserProfileId = payload.id;
   saveState();
@@ -1960,6 +1980,15 @@ function duplicateCurrentUserProfile(){
 function applyUserProfile(profileId){
   const profile = ensureUserProfiles().find(p => p.id === profileId);
   if(!profile) return;
+  // Perfil sin datos guardados = sus datos son los de state: aplicarlo no puede borrar nada
+  if(!profileHasData(profile)){
+    state.activeUserProfileId = profile.id;
+    saveState();
+    if(typeof renderSettingsPage === 'function') renderSettingsPage();
+    renderUserProfilesModal(profile.id);
+    return;
+  }
+  if(state.activeUserProfileId && state.activeUserProfileId !== profile.id) freezeActiveProfileData();
   state.activeUserProfileId = profile.id;
   state.userName = profile.userName || profile.name || 'Usuario';
   state.userEmail = profile.userEmail || '';
@@ -2125,6 +2154,7 @@ function saveUserProfile(){
   };
   payload.userName = payload.name;
   payload.profileTemplate = document.getElementById('user-profile-template')?.value || payload.profileTemplate || 'personal';
+  if(payload.id !== state.activeUserProfileId) freezeActiveProfileData();
   const profiles = [...ensureUserProfiles()];
   const idx = profiles.findIndex(item => item.id === payload.id);
   if(idx >= 0) profiles[idx] = { ...profiles[idx], ...payload };
