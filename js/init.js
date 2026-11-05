@@ -608,7 +608,8 @@ function setPayMethod(method){
 }
 
 // ══ INIT ══
-window.addEventListener('DOMContentLoaded',()=>{
+window.addEventListener('DOMContentLoaded',async ()=>{
+  await initStateStorage();
   loadState();
   ensureViewCycleConfig();
   const tcCyclesChanged=normalizeTcCyclesForConsistency();
@@ -639,7 +640,14 @@ window.addEventListener('DOMContentLoaded',()=>{
   // Entrada: PIN de 4 dígitos (js/lock.js) sobre los datos guardados en el dispositivo.
   // Google es opcional: se conecta a mano para respaldar en Drive o importar de Gmail.
   window._appBooted=true;
+  window._stateReady=true;
+  document.dispatchEvent(new Event('fluxen:state-ready'));
 });
+// Para código que necesita los datos ya cargados (la carga espera a IndexedDB)
+function whenStateReady(fn){
+  if(window._stateReady) fn();
+  else document.addEventListener('fluxen:state-ready', ()=>fn(), {once:true});
+}
 
 // ══ MANUAL EXPENSE ══
 function toggleManualForm(){
@@ -700,7 +708,7 @@ function exportBackupJSON(){
     const now=new Date();
     const data=JSON.stringify({
       _backup:true,_version:1,_date:now.toISOString(),
-      state:JSON.parse(localStorage.getItem('fin_state')||'{}')
+      state:JSON.parse(readStoredStateRaw()||'{}')
     },null,2);
     const blob=new Blob([data],{type:'application/json'});
     const url=URL.createObjectURL(blob);
@@ -748,7 +756,7 @@ function importBackupJSON(event){
       const data=JSON.parse(e.target.result);
       if(!data._backup){showToast('⚠️ Archivo no válido','error');return;}
       if(!confirm('¿Restaurar backup del '+new Date(data._date).toLocaleDateString('es-AR')+'? Se reemplazarán todos los datos actuales.')){return;}
-      localStorage.setItem('fin_state',JSON.stringify(compactStoredState(data.state)));
+      writeStoredStateRaw(JSON.stringify(compactStoredState(data.state)));
       localStorage.setItem('fin_last_restore', new Date().toISOString());
       loadState();
       normalizeTcCyclesForConsistency();

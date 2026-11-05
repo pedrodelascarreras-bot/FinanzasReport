@@ -210,6 +210,7 @@
     document.getElementById('security-sync-time')?.replaceChildren(document.createTextNode(getSyncLabel()));
     window.updateLastBackupLabel?.();
     window.renderBackupHistory?.();
+    renderStorageUsage();
     const lastRestore = localStorage.getItem('fin_last_restore');
     document.getElementById('security-last-restore')?.replaceChildren(document.createTextNode(
       lastRestore ? formatDateTime(lastRestore, 'Nunca') : 'Nunca'
@@ -217,6 +218,19 @@
     document.getElementById('security-restore-status')?.replaceChildren(document.createTextNode(
       lastRestore ? `Última restauración: ${formatDateTime(lastRestore, 'Nunca')}` : 'Listo para restaurar desde backup'
     ));
+  }
+
+  // Cuánto ocupan tus datos y dónde se guardan (ver initStateStorage en state.js)
+  function renderStorageUsage(){
+    const el=document.getElementById('security-storage');
+    if(!el || typeof window.getStorageUsage!=='function') return;
+    window.getStorageUsage().then(u=>{
+      const mb=n=>(n/1e6).toLocaleString('es-AR',{maximumFractionDigits:1})+' MB';
+      el.textContent = u.mode==='idb'
+        ? mb(u.dataChars)+' · sin límite práctico'+(u.quota?' ('+u.pct+'% del espacio del navegador)':'')
+        : mb(u.dataChars)+' de 5,2 MB ('+u.pct+'%)';
+      el.style.color = u.pct>=70 ? 'var(--danger)' : '';
+    }).catch(()=>{});
   }
 
   function buildSetupGuideSteps(){
@@ -995,7 +1009,7 @@
     };
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  document.addEventListener('DOMContentLoaded', () => whenStateReady(() => {
     if(!window.state.userAvatarMode) window.state.userAvatarMode = window.state.userAvatar ? 'upload' : (window.state.userAvatarPreset ? 'preset' : 'generated');
     if(!window.state.manualUserEmail && !window.state.googleProfile?.email && window.state.userEmail){
       window.state.manualUserEmail = window.state.userEmail;
@@ -1008,7 +1022,7 @@
     document.getElementById('settings-language') && (document.getElementById('settings-language').value = prefs.language || 'es');
     document.getElementById('settings-theme') && (document.getElementById('settings-theme').value = prefs.theme || (document.body.classList.contains('light-mode') ? 'light' : 'dark'));
     renderSettingsCenter();
-  });
+  }));
 
   window.renderAppShellProfile = renderAppShellProfile;
   window.renderProfilePage = renderProfilePage;

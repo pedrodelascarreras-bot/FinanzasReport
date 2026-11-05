@@ -623,10 +623,10 @@ function finishImport(txns,source,origen){
   }
 }
 
-window.addEventListener('DOMContentLoaded',()=>{
+window.addEventListener('DOMContentLoaded',()=>whenStateReady(()=>{
   ensureImportConfig();
   setTimeout(renderImportConfigPanel,0);
-});
+}));
 function detectPeriod(txns){
   if(!txns.length)return{label:'Sin fecha',weekKey:'',monthKey:''};
   const dates=txns.map(t=>new Date(t.date)).filter(d=>!isNaN(d));

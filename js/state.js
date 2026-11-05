@@ -142,6 +142,132 @@ function isStateMeaningful(s){
   ));
 }
 // Escribe fin_state salvo que el snapshot esté vacío y el guardado previo tenga datos
+// ══ ALMACENAMIENTO: IndexedDB + localStorage ══
+// localStorage tiene un tope de ~5,2M caracteres por sitio (en Chrome) y cuando se llena el
+// guardado falla. Los datos se guardan en IndexedDB (cientos de MB) y, mientras entre,
+// también en localStorage: es sincrónico, así que sobrevive a cerrar la pestaña justo
+// después de un cambio. Al abrir la app se usa la copia más nueva de las dos.
+const STATE_KEY='fin_state';
+const STORAGE_WARN_PCT=70;
+const LS_SOFT_LIMIT=5200000; // caracteres que entran en localStorage de Chrome (todas las claves)
+let _idb=null;             // conexión a IndexedDB (null = solo localStorage)
+let _stateRawCache=null;   // última versión guardada, cuando hay IndexedDB
+let _lsHoldsLatest=true;   // false si la última escritura no entró en localStorage
+let _stateChannel=null;
+function _idbOpen(){
+  return new Promise((resolve,reject)=>{
+    if(typeof indexedDB==='undefined') return reject(new Error('IndexedDB no disponible'));
+    const req=indexedDB.open('fluxen',1);
+    req.onupgradeneeded=()=>req.result.createObjectStore('kv');
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+    req.onblocked=()=>reject(new Error('IndexedDB bloqueada'));
+  });
+}
+function _idbGet(key){
+  return new Promise((resolve,reject)=>{
+    const q=_idb.transaction('kv','readonly').objectStore('kv').get(key);
+    q.onsuccess=()=>resolve(q.result); q.onerror=()=>reject(q.error);
+  });
+}
+function _idbPut(key,value){
+  return new Promise((resolve,reject)=>{
+    const tx=_idb.transaction('kv','readwrite');
+    tx.objectStore('kv').put(value,key);
+    tx.oncomplete=()=>resolve(); tx.onerror=()=>reject(tx.error); tx.onabort=()=>reject(tx.error||new Error('abort'));
+  });
+}
+function _rawSavedAt(raw){
+  if(!raw) return '';
+  const m=/"savedAt":"([^"]*)"/.exec(raw.slice(0,300));
+  if(m) return m[1];
+  try{ return JSON.parse(raw).savedAt||''; }catch(_){ return ''; }
+}
+// Se llama una vez al arrancar, antes de loadState()
+async function initStateStorage(){
+  try{
+    _idb=await Promise.race([_idbOpen(), new Promise((_,rej)=>setTimeout(()=>rej(new Error('IndexedDB no respondió')),4000))]);
+    const idbRaw=await _idbGet(STATE_KEY);
+    const lsRaw=localStorage.getItem(STATE_KEY);
+    let chosen=idbRaw||lsRaw||null;
+    if(idbRaw && lsRaw && _rawSavedAt(lsRaw)>_rawSavedAt(idbRaw)) chosen=lsRaw;
+    _stateRawCache=chosen;
+    _lsHoldsLatest=!!lsRaw && chosen===lsRaw;
+    if(chosen && chosen!==idbRaw) await _idbPut(STATE_KEY, chosen); // migración (o la copia sincrónica era más nueva)
+    // Pedirle al navegador que no borre estos datos si le falta espacio en el disco
+    try{ navigator.storage?.persist?.(); }catch(_){}
+    try{
+      _stateChannel=new BroadcastChannel('fluxen-state');
+      _stateChannel.onmessage=()=>reloadStateFromOtherTab();
+    }catch(_){}
+  }catch(e){
+    console.warn('[storage] sigo solo con localStorage:', e);
+    _idb=null; _stateRawCache=null;
+  }
+}
+function readStoredStateRaw(){
+  return _idb ? _stateRawCache : localStorage.getItem(STATE_KEY);
+}
+// Devuelve false solo si no se pudo guardar en ningún lado
+function writeStoredStateRaw(raw){
+  let lsOk=true;
+  try{ localStorage.setItem(STATE_KEY, raw); }catch(e){
+    lsOk=false;
+    if(!_idb) throw e;
+    // La copia vieja ocuparía todo localStorage y no entrarían ni las claves chicas (PIN, fechas)
+    try{ localStorage.removeItem(STATE_KEY); }catch(_){}
+  }
+  if(!_idb) return true;
+  _stateRawCache=raw;
+  _lsHoldsLatest=lsOk;
+  _idbPut(STATE_KEY, raw).then(()=>{
+    try{ _stateChannel?.postMessage('saved'); }catch(_){}
+  }).catch(e=>{ if(!lsOk) warnSaveFailed(e); else console.warn('[storage] IndexedDB no guardó (quedó en localStorage)', e); });
+  checkStorageUsage(raw.length);
+  return true;
+}
+let _externalReloadTimer=null;
+function reloadStateFromOtherTab(){
+  if(!window._appBooted) return;
+  clearTimeout(_externalReloadTimer);
+  _externalReloadTimer=setTimeout(async ()=>{
+    try{
+      if(_idb) _stateRawCache=await _idbGet(STATE_KEY);
+      loadState();
+      if(typeof refreshAll==='function') refreshAll();
+      if(typeof showToast==='function') showToast('Datos actualizados desde otra ventana','info');
+    }catch(err){ console.warn('external state reload error', err); }
+  }, 300);
+}
+// Espacio: cuánto ocupan tus datos y cuánto entra
+async function getStorageUsage(){
+  const raw=readStoredStateRaw()||'';
+  const out={dataChars:raw.length, mode:_idb?'idb':'local', lsFits:_lsHoldsLatest, usage:null, quota:null, pct:0};
+  if(_idb){
+    try{ const est=await navigator.storage.estimate(); out.usage=est.usage||0; out.quota=est.quota||0; out.pct=out.quota?Math.round(out.usage/out.quota*100):0; }catch(_){}
+  } else {
+    out.pct=Math.round(raw.length/LS_SOFT_LIMIT*100);
+  }
+  return out;
+}
+let _storageWarned=false;
+function checkStorageUsage(chars){
+  if(_storageWarned) return;
+  // Sin IndexedDB, el tope real es el de localStorage
+  if(!_idb && chars/LS_SOFT_LIMIT*100>=STORAGE_WARN_PCT){
+    _storageWarned=true;
+    if(typeof showToast==='function') showToast('⚠️ Tus datos ocupan el '+Math.round(chars/LS_SOFT_LIMIT*100)+'% del espacio de este navegador. Descargá un backup.','error');
+    return;
+  }
+  if(_idb){
+    getStorageUsage().then(u=>{
+      if(_storageWarned || !u.quota || u.pct<STORAGE_WARN_PCT) return;
+      _storageWarned=true;
+      if(typeof showToast==='function') showToast('⚠️ El navegador tiene poco espacio libre ('+u.pct+'% usado). Descargá un backup.','error');
+    });
+  }
+}
+
 // ── Tamaño de lo guardado ──
 // El navegador guarda como máximo ~5,2 millones de caracteres. Cada gasto con logo propio
 // llevaba la imagen entera (la misma imagen cientos de veces): se guarda una sola vez en
@@ -198,7 +324,7 @@ function warnSaveFailed(e){
 function safePersistLocalSnapshot(snapshot){
   try{
     if(!isStateMeaningful(snapshot)){
-      const raw=localStorage.getItem('fin_state');
+      const raw=readStoredStateRaw();
       if(raw){
         let prev=null;
         try{ prev=JSON.parse(raw); }catch(_){}
@@ -208,8 +334,7 @@ function safePersistLocalSnapshot(snapshot){
         }
       }
     }
-    localStorage.setItem('fin_state',JSON.stringify(snapshot));
-    return true;
+    return writeStoredStateRaw(JSON.stringify(snapshot));
   }catch(e){warnSaveFailed(e);return false;}
 }
 // ── Sincronización segura con Drive ──
@@ -420,7 +545,7 @@ async function loadFromDrive(){
       initialLoadComplete = true;
       _syncMark('confirmado: no hay archivo en Drive (primera vez)');
       // Migrar localStorage existente a Drive para no perderlo
-      const raw=localStorage.getItem('fin_state');
+      const raw=readStoredStateRaw();
       if(raw){
         const snap=JSON.parse(raw);
         await saveToDrive(snap);
@@ -563,7 +688,7 @@ async function loadFromDrive(){
     localStorage.setItem(LS_LAST_SYNCED_AT,_driveVersion);
     // Also persist to localStorage
     try{
-      localStorage.setItem('fin_state',JSON.stringify(getStateSnapshot()));
+      writeStoredStateRaw(JSON.stringify(getStateSnapshot()));
       if(state.gmailClientId) localStorage.setItem('fin_gmail_client_id', state.gmailClientId);
     }catch(e){}
     if(typeof ensureActiveUserProfileBootstrap === 'function'){
@@ -581,7 +706,7 @@ async function loadFromDrive(){
 }
 function loadState(){
   try{
-    const raw=localStorage.getItem('fin_state');if(!raw)return;const s=JSON.parse(raw);
+    const raw=readStoredStateRaw();if(!raw)return;const s=JSON.parse(raw);
     state.transactions=unpackTxnLogos(s.transactions||[], s.logoBlobs).map(t=>({...t,date:new Date(t.date)}));
     state.categories=s.categories||[...DEFAULT_CATS];state.categoryGroups=s.categoryGroups||state.categoryGroups||[...DEFAULT_CATEGORY_GROUPS];state.income=s.income||state.income;
     state.savingsGoal=s.savingsGoal||20;state.alertThreshold=s.alertThreshold||80;state.spendPct=s.spendPct||100;state.insightsBufferMonths=s.insightsBufferMonths||3;state.tendChartMode=s.tendChartMode||'bar';
@@ -699,6 +824,7 @@ function _normalizeViewMode(mode){
 // recarga los datos guardados antes de seguir.
 window.addEventListener('storage', e => {
   if(e.key!=='fin_state' || !e.newValue || !window._appBooted) return;
+  if(_idb) return; // con IndexedDB las otras pestañas avisan por BroadcastChannel
   clearTimeout(window._externalStateTimer);
   window._externalStateTimer=setTimeout(()=>{
     try{
