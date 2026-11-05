@@ -999,6 +999,51 @@ function resolveDupInline(groupIdx, action){
   saveState();renderTransactions();renderDashboard();
 }
 
+// Cartel "Estás viendo": qué tarjeta y qué período muestra la lista, con apertura, cierre y vencimiento
+function txnPeriodBannerHtml({mode, activeCycleMeta, cardFv, searching, monthKey}){
+  const fmt=v=>new Date(v+'T12:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'});
+  const chip=(k,v,extra)=>'<div class="mv-period-chip'+(extra||'')+'"><span>'+k+'</span><strong>'+esc(v)+'</strong></div>';
+  const cardName={visa:'Visa',amex:'Amex'};
+  if(searching){
+    return '<div class="mv-card mv-period"><div class="mv-period-main"><div class="mv-period-icon">🔍</div><div><div class="mv-period-kicker">Estás viendo</div><div class="mv-period-title">Búsqueda en todos los períodos</div></div></div></div>';
+  }
+  const today=dateToYMD(new Date());
+  if(mode!=='mes' && activeCycleMeta){
+    const {cycle, openStr, closeStr}=activeCycleMeta;
+    const isCurrent=openStr<=today && today<=closeStr;
+    const daysToClose=Math.round((new Date(closeStr+'T12:00:00')-new Date(today+'T12:00:00'))/86400000);
+    const which=cardFv?cardName[cardFv]:cardName[mode];
+    const status=isCurrent
+      ? (daysToClose===0?'Cierra hoy':'Faltan '+daysToClose+' día'+(daysToClose!==1?'s':'')+' para el cierre')
+      : (closeStr<today?'Ciclo cerrado':'Ciclo que viene');
+    return '<div class="mv-card mv-period mv-period-'+esc(mode)+'">'
+      +'<div class="mv-period-main"><div class="mv-period-icon">💳</div><div>'
+        +'<div class="mv-period-kicker">Estás viendo</div>'
+        +'<div class="mv-period-title">'+esc(which)+' · '+(isCurrent?'ciclo actual':esc(cycle?.label||'ciclo'))+'</div>'
+        +'<div class="mv-period-sub">'+esc(status)+' · Compras con '+esc(which)+' (sin débito ni efectivo)</div>'
+      +'</div></div>'
+      +'<div class="mv-period-chips">'
+        +chip('Abre',fmt(openStr))
+        +chip('Cierra',fmt(closeStr),' strong')
+        +(cycle?.dueDate?chip('Vence',fmt(cycle.dueDate)):'')
+      +'</div>'
+      +(cycle?.source==='auto'?'<div class="mv-period-note">Fechas estimadas: si tu resumen dice otra cosa, ajustalas en Configuraciones → Tarjetas.</div>':'')
+    +'</div>';
+  }
+  const r=getMonthRange(monthKey||getMonthKey(new Date()));
+  if(!r) return '';
+  const monthName=new Date(r.startStr+'T12:00:00').toLocaleDateString('es-AR',{month:'long',year:'numeric'});
+  const which=cardFv?'Solo '+cardName[cardFv]:'Todas las tarjetas, débito y efectivo';
+  return '<div class="mv-card mv-period mv-period-mes">'
+    +'<div class="mv-period-main"><div class="mv-period-icon">🗓️</div><div>'
+      +'<div class="mv-period-kicker">Estás viendo</div>'
+      +'<div class="mv-period-title">'+esc(monthName.charAt(0).toUpperCase()+monthName.slice(1))+'</div>'
+      +'<div class="mv-period-sub">'+esc(which)+'</div>'
+    +'</div></div>'
+    +'<div class="mv-period-chips">'+chip('Desde',fmt(r.startStr))+chip('Hasta',fmt(r.endStr))+'</div>'
+  +'</div>';
+}
+
 function renderTransactions(){
   migrateThirdPartyToSharedExpense();
   state.lastTransactionsRefresh = new Date().toISOString();
@@ -1651,6 +1696,8 @@ function renderTransactions(){
               +'<button class="mv-chip'+((state.txnCardFilter||'')==='visa'?' active':'')+'" onclick="txnSetCardChip(\'visa\')">Solo VISA</button>'
               +'<button class="mv-chip'+((state.txnCardFilter||'')==='amex'?' active':'')+'" onclick="txnSetCardChip(\'amex\')">Solo AMEX</button>'
             +'</div>')
+          +txnPeriodBannerHtml({mode, activeCycleMeta, cardFv, searching:!!activeSearch,
+            monthKey:(()=>{ const raw=mf?.value||activeMesKey; return (raw>=range.startMonthKey&&raw<=range.currentMonthKey)?raw:range.currentMonthKey; })()})
           +(()=>{
             // Smart contextual: in TC mode show FULL (what card bills) + sublinea personal.
             // In mes mode show PERSONAL (your actual spending).
@@ -2209,6 +2256,8 @@ function renderMobileTransactions(txns, meta) {
           ${currFilter==='all'?'Filtros':'Moneda: '+currFilter}
         </button>
       </div>
+
+      ${txnPeriodBannerHtml({mode:'mes', monthKey:selectedMonthKey, cardFv:'', searching:false})}
 
       <!-- Totals strip -->
       <div class="mob-txn-totals">

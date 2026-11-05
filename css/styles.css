@@ -13580,6 +13580,13 @@ body.light-mode .mob-commit-avatar { background: rgba(93,53,243,0.08); }
 body.light-mode .mob-commit-row { border-bottom-color: rgba(0,0,0,0.06); }
 body.light-mode .mob-commits-tag { background: rgba(0,0,0,0.04); color: #9EA6C7; }
 body.light-mode .mob-commits-footer { border-top-color: rgba(0,0,0,0.06); }
+/* El texto ya era oscuro en modo claro, pero la tarjeta seguía oscura: no se leía */
+body.light-mode .mob-txn-page .mob-commits-card { background: #ffffff; border-color: rgba(0,0,0,0.06); box-shadow: 0 4px 20px rgba(15,23,42,0.06); }
+body.light-mode .mob-txn-page .mob-commits-card .mob-sec-hd,
+body.light-mode .mob-txn-page .mob-commits-card h2,
+body.light-mode .mob-txn-page .mob-commits-card h3 { color: #1a1535; }
+body.light-mode .mob-txn-page .mob-txn-empty { background: #ffffff; border-color: rgba(0,0,0,0.06); }
+body.light-mode .mob-txn-page .mob-txn-empty-text { color: #6b7280; }
 
 /* ── Totals strip ── */
 .mob-txn-totals {
@@ -14251,6 +14258,13 @@ body.light-mode .mob-dash-hamburger { color: #6b7280; }
 /* Transactions header */
 body.light-mode .mob-txn-header { background: #f5f6fa; border-bottom-color: rgba(0,0,0,0.06); }
 body.light-mode .mob-txn-ham { color: #6b7280; }
+/* Título y botones de Movimientos en modo claro: eran blancos sobre fondo claro */
+body.light-mode .mob-txn-title { color: #1a1535; }
+body.light-mode .mob-txn-subtitle { color: #6b7280; }
+body.light-mode .mob-txn-pill { color: #4b4569; }
+body.light-mode .mob-txn-pill.active,
+body.light-mode .mob-txn-pill:active { color: #5d35f3; }
+body.light-mode .mob-txn-pill-active { color: #5d35f3 !important; background: rgba(124,77,255,0.12) !important; }
 
 /* Credit cards header */
 
@@ -15493,4 +15507,31 @@ body.light-mode #app-sidebar {
   .ac-side { grid-column:2; }
   .ac-reason { white-space:normal; }
   .ac-footer .btn { flex:1; }
+}
+
+/* ══ Movimientos: cartel del período que estás viendo ══ */
+.mv-period { display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px 18px; padding:14px 18px; margin-top:12px; border-left:4px solid #5B3BFF; }
+.mv-period-amex { border-left-color:#0EA5E9; }
+.mv-period-mes { border-left-color:#10b981; }
+.mv-period-main { display:flex; align-items:center; gap:12px; min-width:0; }
+.mv-period-icon { width:38px; height:38px; flex-shrink:0; display:grid; place-items:center; border-radius:12px; background:rgba(91,59,255,.08); font-size:18px; }
+.mv-period-kicker { font-size:10.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--text3); }
+.mv-period-title { font-size:16px; font-weight:800; color:var(--text); line-height:1.25; }
+.mv-period-sub { font-size:12px; color:var(--text3); margin-top:2px; }
+.mv-period-chips { display:flex; flex-wrap:wrap; gap:8px; }
+.mv-period-chip { display:flex; flex-direction:column; gap:1px; padding:6px 12px; border-radius:12px; background:var(--surface2); border:1px solid var(--border); min-width:88px; }
+.mv-period-chip span { font-size:10px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:var(--text3); }
+.mv-period-chip strong { font-size:13px; font-weight:750; color:var(--text); white-space:nowrap; }
+.mv-period-chip.strong { border-color:rgba(91,59,255,.35); background:rgba(91,59,255,.07); }
+.mv-period-note { flex-basis:100%; font-size:11.5px; color:var(--text3); }
+.mob-txn-page .mv-period { margin:0 0 14px; background:var(--surface-solid); border:1px solid var(--border); border-left-width:4px; border-radius:18px; }
+body:not(.light-mode) .mob-txn-page .mv-period { background:linear-gradient(160deg, #111633 0%, #0B1224 100%); border-color:rgba(255,255,255,0.08); }
+body:not(.light-mode) .mob-txn-page .mv-period-mes { border-left-color:#10b981; }
+body:not(.light-mode) .mob-txn-page .mv-period-chip { background:rgba(255,255,255,0.05); border-color:rgba(255,255,255,0.08); }
+body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
+@media (max-width:640px){
+  .mv-period { padding:12px 14px; }
+  .mv-period-chips { width:100%; }
+  .mv-period-chip { flex:1; min-width:0; }
+  .mv-period-chip strong { font-size:12px; white-space:normal; }
 }
