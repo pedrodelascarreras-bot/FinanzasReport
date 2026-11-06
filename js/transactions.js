@@ -1058,8 +1058,11 @@ function txnCommittedLineHtml(commitments){
     .map(([g,l])=>[l,sum(e=>e.group===g)]).filter(([,v])=>v>0)
     .map(([l,v])=>l+' $'+fmtN(v,0)).join(' · ');
   return '<div class="mv-period-committed">'
-    +'<div><span class="mv-period-committed-k">Comprometido del período</span><strong>$'+fmtN(total,0)+'</strong>'
-      +'<span class="mv-period-committed-parts">'+esc(parts)+' · todas las tarjetas y débito</span></div>'
+    +'<div class="mv-period-main"><div class="mv-period-icon mv-period-icon-committed">📌</div><div>'
+      +'<div class="mv-period-kicker">Comprometido del período</div>'
+      +'<div class="mv-period-committed-amount"><strong>$'+fmtN(total,0)+'</strong></div>'
+      +'<div class="mv-period-sub">'+esc(parts)+' · todas las tarjetas y débito</div>'
+    +'</div></div>'
     +'<div class="mv-period-committed-state">'
       +(paid>0?'<span class="ok">✓ Cobrado $'+fmtN(paid,0)+'</span>':'')
       +(pending>0?'<span class="pend">⏳ Sin cobrar $'+fmtN(pending,0)+'</span>':'')

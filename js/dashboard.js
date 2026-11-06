@@ -236,8 +236,8 @@ function syncDashViewToggles(){
     const btn=document.getElementById('dash-toggle-'+key);
     if(!btn) return;
     const on=state.dashView===key;
-    btn.style.background=on?'var(--accent)':'transparent';
-    btn.style.color=on?'#ffffff':'var(--text3)';
+    btn.classList.toggle('active', on);
+    btn.setAttribute('aria-selected', String(on));
   });
 }
 function setDashView(mode){
