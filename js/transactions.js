@@ -688,7 +688,7 @@ function deleteTxnCycleCommitment(key){
 }
 
 
-function renderTxnCycleCommitmentsPanel(wrap, entries){
+function renderTxnCycleCommitmentsPanel(wrap, entries, opts={}){
   const oldPanel=document.getElementById('txn-cycle-commitments');
   if(oldPanel) oldPanel.remove();
   if(!wrap || !entries.length) return;
@@ -722,8 +722,8 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
   panel.innerHTML=
     '<div class="txn-cycle-panel-head">'
       +'<div>'
-        +'<div class="txn-cycle-panel-kicker">Cuotas y compromisos del ciclo</div>'
-        +'<div class="txn-cycle-panel-sub">Acá ves lo que cae dentro del ciclo actual aunque el banco no mande un mail nuevo todos los meses.</div>'
+        +'<div class="txn-cycle-panel-kicker">Cuotas y compromisos del '+(opts.card?'ciclo':'mes')+'</div>'
+        +'<div class="txn-cycle-panel-sub">Todo lo que se cobra en este período, de cualquier tarjeta o débito, aunque todavía no se haya cobrado ni llegue un mail.</div>'
       +'</div>'
       +`<div class="txn-cycle-panel-count">${entries.length} item${entries.length!==1?'s':''}</div>`
     +'</div>'
@@ -736,7 +736,7 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
             const GROUP_META={cuotas:{label:'Cuota',bg:'#7c3aed18',color:'#7c3aed'},suscripciones:{label:'Suscripción',bg:'#0ea5e918',color:'#0ea5e9'},compartidos:{label:'Compartido',bg:'#a882ff18',color:'#a882ff'},fijos:{label:'Gasto fijo',bg:'#10b98118',color:'#10b981'}};
             const list='<div class="txn-cycle-list">'+visible.map(item=>{
               const amount=(item.currency==='USD'?'U$D ':'$')+fmtN(item.amount);
-              const settled=item.isSettled===true || item.includeInTotal===true;
+              const settled=item.isSettled===true;
               // Badges: always show the primary group + any merged groups.
               // Useful especially when filtering a tab — you still see if the item
               // is also (e.g.) a Cuota even when looking at Compartidos.
@@ -757,9 +757,9 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
                 +`<div class="txn-cycle-date">${fmtDate(item.date)}</div>`
                 +'<div class="txn-cycle-copy">'
                   +`<div class="txn-cycle-title">${esc(item.title)}${badge}</div>`
-                  +`<div class="txn-cycle-meta">${esc(item.kind)} · ${esc(item.meta)}</div>`
+                  +`<div class="txn-cycle-meta">${esc(item.kind)} · ${esc(item.meta)} · <span class="txn-cycle-pay${item.inView===false?' other':''}">${esc(item.payLabel||'')}</span>${item.inView===false&&opts.card?' <span class="txn-cycle-other-note">(no va en el resumen de '+(opts.card==='amex'?'Amex':'Visa')+')</span>':''}</div>`
                 +'</div>'
-                +`<div class="txn-cycle-status ${settled?'is-settled':'is-pending'}">${settled?'✓ Cobrado':'⏳ Pendiente'}</div>`
+                +`<div class="txn-cycle-status ${settled?'is-settled':'is-pending'}">${settled?'✓ Cobrado':'⏳ Sin cobrar'}</div>`
                 +'<div style="display:flex;align-items:center;gap:10px;justify-content:flex-end;">'
                   +(item.amount>0?`<div class="txn-cycle-amount" style="color:${item.tone};">${amount}</div>`:'')
                   +`<div style="display:flex;align-items:center;gap:6px;">${actions}</div>`
@@ -767,7 +767,7 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
               +'</div>';
             }).join('')+'</div>';
             const isARS=e=>(e.currency||'ARS')!=='USD';
-            const isCob=e=>e.isSettled===true||e.includeInTotal===true;
+            const isCob=e=>e.isSettled===true;
             const totARS=visible.filter(isARS).reduce((s,e)=>s+Number(e.amount||0),0);
             const totUSD=visible.filter(e=>!isARS(e)).reduce((s,e)=>s+Number(e.amount||0),0);
             const cobARS=visible.filter(e=>isARS(e)&&isCob(e)).reduce((s,e)=>s+Number(e.amount||0),0);
@@ -778,35 +778,57 @@ function renderTxnCycleCommitmentsPanel(wrap, entries){
             const mainTotal=totARS>0?'$'+fmtN(totARS):(hasUSD?'U$D '+fmtN(totUSD):'—');
             const footer='<div class="txn-cycle-footer">'
               +'<div class="txn-cycle-footer-main">'
-                +'<span class="txn-cycle-footer-label">Total del ciclo</span>'
+                +'<span class="txn-cycle-footer-label">Total comprometido'+(opts.card?' (todas las tarjetas y débito)':'')+'</span>'
                 +`<span class="txn-cycle-footer-total">${mainTotal}</span>`
               +'</div>'
               +'<div class="txn-cycle-footer-breakdown">'
                 +(cobARS>0?`<span class="txn-cycle-footer-item" style="color:#34c759;">✓ Cobrado $${fmtN(cobARS)}</span>`:'')
-                +(pendARS>0?`<span class="txn-cycle-footer-item" style="color:#ff9500;">⏳ Pendiente $${fmtN(pendARS)}</span>`:'')
+                +(pendARS>0?`<span class="txn-cycle-footer-item" style="color:#ff9500;">⏳ Sin cobrar $${fmtN(pendARS)}</span>`:'')
                 +(cobUSD>0?`<span class="txn-cycle-footer-item" style="color:#34c759;">✓ Cobrado U$D ${fmtN(cobUSD)}</span>`:'')
-                +(pendUSD>0?`<span class="txn-cycle-footer-item" style="color:#ff9500;">⏳ Pendiente U$D ${fmtN(pendUSD)}</span>`:'')
+                +(pendUSD>0?`<span class="txn-cycle-footer-item" style="color:#ff9500;">⏳ Sin cobrar U$D ${fmtN(pendUSD)}</span>`:'')
+                +(opts.card?(()=>{ const inCard=visible.filter(e=>e.inView!==false && isARS(e)).reduce((s,e)=>s+Number(e.amount||0),0); return inCard>0?`<span class="txn-cycle-footer-item" style="color:var(--text3);">En el resumen de ${opts.card==='amex'?'Amex':'Visa'}: $${fmtN(inCard)}</span>`:''; })():'')
                 +(totARS>0&&hasUSD?`<span class="txn-cycle-footer-item" style="color:var(--text3);">+ U$D ${fmtN(totUSD)}</span>`:'')
               +'</div>'
             +'</div>';
             return list+footer;
           })()
-        : '<div class="txn-cycle-empty">No hay elementos para esta vista dentro del ciclo actual.</div>'
+        : '<div class="txn-cycle-empty">No hay elementos para esta vista dentro del período.</div>'
     );
   wrap.appendChild(panel);
 }
 
-function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef){
-  if(!(mode!=='mes' && activeCycleMeta && !searchVal)) return [];
+// Medio de pago de un compromiso, para mostrar dónde se cobra
+function txnCommitmentPayLabel(payMethod, group){
+  const pm=String(payMethod||'').toLowerCase();
+  // Un gasto fijo sin medio cargado es un débito automático de la cuenta
+  if(!pm && group==='fijos') return 'Débito';
+  if(pm==='visa') return 'Visa';
+  if(pm==='amex') return 'Amex';
+  if(pm==='deb') return 'Débito';
+  if(pm==='ef') return 'Efectivo';
+  return 'Sin medio de pago';
+}
+// Todas las cuotas y compromisos del período que se está viendo (el ciclo de la tarjeta o el
+// mes), de cualquier tarjeta o débito: los préstamos que no van por la tarjeta de la vista
+// también se ven. `inView` marca los que entran en el resumen de esa tarjeta.
+function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef, monthKey){
+  if(searchVal) return [];
+  const range=mode!=='mes'
+    ? (activeCycleMeta?{startStr:activeCycleMeta.openStr,endStr:activeCycleMeta.closeStr}:null)
+    : getMonthRange(monthKey||getMonthKey(new Date()));
+  if(!range) return [];
+  const cardOf=mode!=='mes'?mode:null;
+  activeCycleMeta=activeCycleMeta||{openStr:range.startStr, closeStr:range.endStr};
   const entries=getProjectedCommitmentEntriesForRange({
-    startStr:activeCycleMeta.openStr,
-    endStr:activeCycleMeta.closeStr,
+    startStr:range.startStr,
+    endStr:range.endStr,
     todayRef,
     txns:state.transactions||[]
   })
-    // Solo lo de la tarjeta de esta vista (un fijo sin medio de pago no es de ninguna tarjeta)
-    .filter(entry=>payMethodMatchesCard(entry.payMethod, mode, {requireExplicit:entry.group==='fijos'}))
-    .map(entry=>({...entry,_key:entry._key||`${entry.kind}-${entry.group}-${dateToYMD(entry.date)}-${entry.title}`}));
+    .map(entry=>({...entry,
+      _key:entry._key||`${entry.kind}-${entry.group}-${dateToYMD(entry.date)}-${entry.title}`,
+      payLabel:txnCommitmentPayLabel(entry.payMethod, entry.group),
+      inView:!cardOf || payMethodMatchesCard(entry.payMethod, cardOf, {requireExplicit:entry.group==='fijos'})}));
   const seenKeys=new Set(entries.map(entry=>entry._key));
 
   txns.filter(t=>!t.isPendingSubscription).forEach(t=>{
@@ -823,6 +845,8 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
       currency:t.currency||sub.currency||'ARS',
       sourceTxnId:t.id,
       sourceSubscriptionId:sub.id,
+      payLabel:txnCommitmentPayLabel(t.payMethod),
+      inView:true,
       group:'suscripciones',
       kind:'Suscripción registrada',
       meta:'Cobro ya recibido',
@@ -838,7 +862,7 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
   (state.transactions||[]).filter(t=>{
     if(!(t.sharedExpense&&t.sharedExpense.enabled)) return false;
     const ymd=dateToYMD(t.date);
-    return ymd>=activeCycleMeta.openStr && ymd<=activeCycleMeta.closeStr && payMethodMatchesCard(t.payMethod, mode);
+    return ymd>=activeCycleMeta.openStr && ymd<=activeCycleMeta.closeStr && payMethodMatchesCard(t.payMethod, cardOf);
   }).forEach(t=>{
     const splits=t.sharedExpense.splits||[];
     const totalSplitsAmt=splits.reduce((s,sp)=>s+(Number(sp.amount)||0),0);
@@ -877,6 +901,8 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
       currency:t.currency||'ARS',
       sourceTxnId:t.id,
       cuotaGroupId:t.cuotaGroupId||null,   // expose for dedup
+      payLabel:txnCommitmentPayLabel(t.payMethod),
+      inView:true,
       group:'compartidos',
       kind:'Gasto compartido',
       meta,
@@ -949,9 +975,16 @@ function getTxnDisplaySummaryTotals(opts){
     const card=opts?.cardFilter||(mode!=='mes'?mode:null);
     const personal=getPeriodTotals({...range,card,todayRef});
     const full=getPeriodTotals({...range,card,todayRef,amountMode:'full'});
+    // Cuotas, suscripciones y fijos del período que todavía no llegaron a su fecha: se ven en el
+    // total desde que abre el período ("ya estoy esta plata abajo"), marcados como sin cobrar.
+    const pend=getProjectedCommitmentEntriesForRange({...range,todayRef})
+      .filter(e=>!e.includeInTotal && payMethodMatchesCard(e.payMethod, card, {requireExplicit:e.group==='fijos'}));
+    const pendArs=pend.filter(e=>(e.currency||'ARS')!=='USD').reduce((s,e)=>s+(Number(e.amount)||0),0);
+    const pendUsd=pend.filter(e=>(e.currency||'ARS')==='USD').reduce((s,e)=>s+(Number(e.amount)||0),0);
     return {
-      ars:personal.ars, usd:personal.usd, grand:personal.ars+personal.usd*_rate, count:personal.count,
-      arsFull:full.ars, usdFull:full.usd, grandFull:full.ars+full.usd*_rate
+      ars:personal.ars+pendArs, usd:personal.usd+pendUsd, grand:personal.ars+pendArs+(personal.usd+pendUsd)*_rate, count:personal.count,
+      arsFull:full.ars+pendArs, usdFull:full.usd+pendUsd, grandFull:full.ars+pendArs+(full.usd+pendUsd)*_rate,
+      pendingArs:pendArs, pendingUsd:pendUsd, pendingGrand:pendArs+pendUsd*_rate
     };
   }
   const sumBy=(cur,fn)=>summaryTxns.filter(t=>(t.currency||'ARS')===cur&&!t.isPendingCuota&&!t.isPendingSubscription).reduce((s,t)=>s+fn(t),0);
@@ -1000,7 +1033,27 @@ function resolveDupInline(groupIdx, action){
 }
 
 // Cartel "Estás viendo": qué tarjeta y qué período muestra la lista, con apertura, cierre y vencimiento
-function txnPeriodBannerHtml({mode, activeCycleMeta, cardFv, searching, monthKey}){
+// "Ya arranco con esta plata abajo": cuotas, suscripciones y fijos del período, de cualquier tarjeta o débito
+function txnCommittedLineHtml(commitments){
+  const list=(commitments||[]).filter(e=>['cuotas','suscripciones','fijos'].includes(e.group));
+  if(!list.length) return '';
+  const rate=window.USD_TO_ARS||USD_TO_ARS||1;
+  const ars=e=>(Number(e.amount)||0)*((e.currency||'ARS')==='USD'?rate:1);
+  const sum=f=>Math.round(list.filter(f).reduce((s,e)=>s+ars(e),0));
+  const total=sum(()=>true), paid=sum(e=>e.isSettled===true), pending=total-paid;
+  const parts=[['cuotas','Cuotas'],['suscripciones','Suscripciones'],['fijos','Fijos']]
+    .map(([g,l])=>[l,sum(e=>e.group===g)]).filter(([,v])=>v>0)
+    .map(([l,v])=>l+' $'+fmtN(v,0)).join(' · ');
+  return '<div class="mv-period-committed">'
+    +'<div><span class="mv-period-committed-k">Comprometido del período</span><strong>$'+fmtN(total,0)+'</strong>'
+      +'<span class="mv-period-committed-parts">'+esc(parts)+' · todas las tarjetas y débito</span></div>'
+    +'<div class="mv-period-committed-state">'
+      +(paid>0?'<span class="ok">✓ Cobrado $'+fmtN(paid,0)+'</span>':'')
+      +(pending>0?'<span class="pend">⏳ Sin cobrar $'+fmtN(pending,0)+'</span>':'')
+    +'</div>'
+  +'</div>';
+}
+function txnPeriodBannerHtml({mode, activeCycleMeta, cardFv, searching, monthKey, commitments}){
   const fmt=v=>new Date(v+'T12:00:00').toLocaleDateString('es-AR',{weekday:'short',day:'numeric',month:'short'});
   const chip=(k,v,extra)=>'<div class="mv-period-chip'+(extra||'')+'"><span>'+k+'</span><strong>'+esc(v)+'</strong></div>';
   const cardName={visa:'Visa',amex:'Amex'};
@@ -1028,6 +1081,7 @@ function txnPeriodBannerHtml({mode, activeCycleMeta, cardFv, searching, monthKey
         +(cycle?.dueDate?chip('Vence',fmt(cycle.dueDate)):'')
       +'</div>'
       +(cycle?.source==='auto'?'<div class="mv-period-note">Fechas estimadas: si tu resumen dice otra cosa, ajustalas en Configuraciones → Tarjetas.</div>':'')
+      +txnCommittedLineHtml(commitments)
     +'</div>';
   }
   const r=getMonthRange(monthKey||getMonthKey(new Date()));
@@ -1041,6 +1095,7 @@ function txnPeriodBannerHtml({mode, activeCycleMeta, cardFv, searching, monthKey
       +'<div class="mv-period-sub">'+esc(which)+'</div>'
     +'</div></div>'
     +'<div class="mv-period-chips">'+chip('Desde',fmt(r.startStr))+chip('Hasta',fmt(r.endStr))+'</div>'
+    +txnCommittedLineHtml(commitments)
   +'</div>';
 }
 
@@ -1072,6 +1127,7 @@ function renderTransactions(){
     }).join('');
     if(!mf.value || mf.value<range.startMonthKey || mf.value>range.currentMonthKey) mf.value=mv;
   }
+  const periodMonthKey=(()=>{ const raw=mf?.value||activeMesKey; return (raw>=range.startMonthKey&&raw<=range.currentMonthKey)?raw:range.currentMonthKey; })();
   const tcf=document.getElementById('f-tc-cycle');const tcv=tcf?.value||'';
   if(tcf){
     const cycles=getTcCycles(mode);
@@ -1379,7 +1435,7 @@ function renderTransactions(){
     const periodQuotaTotal=periodQuotaTxns.reduce((s,tx)=>s+Math.abs(txnPersonalAmountArs(tx)),0);
     const syncLabel=txnSyncLabel();
     const syncItems=txnSyncMetadata();
-    const commitmentEntries=getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef);
+    const commitmentEntries=getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef, periodMonthKey);
     const quickFilter=state.txnQuickFilter||'todos';
     const activeCur=document.getElementById('f-cur')?.value||'';
     const activeCat=document.getElementById('f-cat')?.value||'';
@@ -1696,8 +1752,7 @@ function renderTransactions(){
               +'<button class="mv-chip'+((state.txnCardFilter||'')==='visa'?' active':'')+'" onclick="txnSetCardChip(\'visa\')">Solo VISA</button>'
               +'<button class="mv-chip'+((state.txnCardFilter||'')==='amex'?' active':'')+'" onclick="txnSetCardChip(\'amex\')">Solo AMEX</button>'
             +'</div>')
-          +txnPeriodBannerHtml({mode, activeCycleMeta, cardFv, searching:!!activeSearch,
-            monthKey:(()=>{ const raw=mf?.value||activeMesKey; return (raw>=range.startMonthKey&&raw<=range.currentMonthKey)?raw:range.currentMonthKey; })()})
+          +txnPeriodBannerHtml({mode, activeCycleMeta, cardFv, searching:!!activeSearch, monthKey:periodMonthKey, commitments:commitmentEntries})
           +(()=>{
             // Smart contextual: in TC mode show FULL (what card bills) + sublinea personal.
             // In mes mode show PERSONAL (your actual spending).
@@ -1730,6 +1785,7 @@ function renderTransactions(){
                 +'<button class="mv-summary-more" tabindex="-1">⋮</button>'
                 +'<div class="v">$'+fmtN(grandBig)+'</div>'
                 +'<div class="mv-summary-real"><span class="mv-summary-real-label">Gasto Real:</span> <span class="mv-summary-real-val">$'+fmtN(grandReal)+'</span></div>'
+                +(displayTotals.pendingGrand>0?'<div class="mv-summary-pending">⏳ Incluye $'+fmtN(Math.round(displayTotals.pendingGrand),0)+' que todavía no se cobró</div>':'')
               +'</div>'
             +'</div>';
           })()
@@ -1842,7 +1898,7 @@ function renderTransactions(){
       +'</div>';
     const commitmentSlot=document.getElementById('mv-commitments-slot');
     if(commitmentSlot){
-      if(commitmentEntries.length) renderTxnCycleCommitmentsPanel(commitmentSlot, commitmentEntries);
+      if(commitmentEntries.length) renderTxnCycleCommitmentsPanel(commitmentSlot, commitmentEntries, {card:mode!=='mes'?mode:null});
       else document.getElementById('txn-cycle-commitments')?.remove();
     }
     return;
@@ -1987,8 +2043,8 @@ function renderTransactions(){
   };
 
   if(mode!=='mes' && activeCycleMeta && !searchVal){
-    const entries=getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef);
-    renderTxnCycleCommitmentsPanel(wrap, entries);
+    const entries=getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, todayRef, periodMonthKey);
+    renderTxnCycleCommitmentsPanel(wrap, entries, {card:mode});
 
     if(mainEl && !searchVal){
       mainEl.textContent='$'+fmtN(grandTotal);
@@ -2257,7 +2313,8 @@ function renderMobileTransactions(txns, meta) {
         </button>
       </div>
 
-      ${txnPeriodBannerHtml({mode:'mes', monthKey:selectedMonthKey, cardFv:'', searching:false})}
+      ${txnPeriodBannerHtml({mode:'mes', monthKey:selectedMonthKey, cardFv:'', searching:false,
+        commitments:getTxnCycleCommitmentEntries('mes', null, '', [], new Date(), selectedMonthKey)})}
 
       <!-- Totals strip -->
       <div class="mob-txn-totals">

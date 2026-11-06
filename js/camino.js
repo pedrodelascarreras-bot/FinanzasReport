@@ -539,7 +539,8 @@ function czItemActionsHtml(item, s){
   const id=item.id, out=[];
   if(item.kind==='prestamo'){
     if(item.cancelled) out.push(`<button class="cz-chip-btn" onclick="czUndoCancelLoan('${id}')">↩ Deshacer cancelación</button>`);
-    else if(czItemActive(item) && s.next) out.push(`<button class="cz-chip-btn" onclick="czOpenCancelLoan('${id}')">Cancelar préstamo</button>`);
+    // Los que se pagan dentro del resumen de una tarjeta (Mercado Pago por Amex) no se pueden precancelar
+    else if(czItemActive(item) && s.next && !item.viaCard) out.push(`<button class="cz-chip-btn" onclick="czOpenCancelLoan('${id}')">Cancelar préstamo</button>`);
     if(!item.autoDebit && s.next && czItemActive(item)) out.unshift(`<button class="cz-chip-btn" onclick="czMarkNextPaid('${id}')">✓ Marcar pagado</button>`);
     return out.join('');
   }

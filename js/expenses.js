@@ -1142,6 +1142,88 @@ function commitmentsInvokeEdit(action,id){
 function commitmentsDeleteExpiredCuota(source,id){
   requestDeleteCuota(id, ok=>{ if(!ok) return; renderCommitmentsPage(); showToast('Cuota eliminada','info'); });
 }
+// ── Cancelar una deuda en cuotas antes de tiempo ──
+// Si la cuota es un préstamo de Camino a cero, la cancelación se hace ahí (czCancelLoan):
+// así el plan, la fecha de libertad y la cuota de la app quedan iguales en todos lados.
+function cuotaLinkedLoan(c){
+  const items=state.caminoPlan?.items||[];
+  return c?.cuotaGroupId ? items.find(i=>i.kind==='prestamo' && i.cuotaGroupId===c.cuotaGroupId)||null : null;
+}
+// Un préstamo que se paga dentro del resumen de la tarjeta (Mercado Pago por Amex) no se precancela desde acá
+function cuotaCanPrepay(c){
+  const loan=cuotaLinkedLoan(c);
+  return !!loan && !loan.viaCard && !loan.cancelled && loan.status!=='pagado';
+}
+function cuotaCancelInfo(c){
+  const loan=cuotaLinkedLoan(c);
+  return loan?.cancelled ? {...loan.cancelled, loanId:loan.id} : (c?.cancelled||null);
+}
+function openCancelCuota(id){
+  const c=(state.cuotas||[]).find(x=>x.id===id); if(!c) return;
+  state._commitmentsMenu='';
+  const loan=cuotaLinkedLoan(c);
+  if(loan && typeof czOpenCancelLoan==='function'){ czOpenCancelLoan(loan.id); return; }
+  const st=getCuotaStatus(c);
+  const remaining=st.rem*(Number(c.amount)||0);
+  const m=document.createElement('div');
+  m.className='modal-overlay open'; m.id='cuota-cancel-modal';
+  m.onclick=e=>{ if(e.target===m) m.remove(); };
+  m.innerHTML=`<div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-title">Cancelar ${esc(c.name)}</div>
+    <p class="modal-sub">Cargá cuánto pagaste para cancelarla. Las cuotas que faltaban dejan de aparecer y el pago queda como gasto del día que lo hiciste.</p>
+    <div class="grid-2">
+      <div class="input-group"><label class="input-label">Pagaste (${c.currency==='USD'?'USD':'$'})</label><input type="number" class="input-field" id="cuota-cancel-amount" min="0" step="0.01" value="${Math.round(remaining)}"></div>
+      <div class="input-group"><label class="input-label">Fecha</label><input type="date" class="input-field" id="cuota-cancel-date" value="${dateToYMD(new Date())}"></div>
+    </div>
+    <div class="modal-sub">Quedaban ${st.rem} cuota${st.rem!==1?'s':''} (${(c.currency==='USD'?'U$D ':'$')+fmtN(Math.round(remaining))}).</div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="document.getElementById('cuota-cancel-modal').remove()">Volver</button>
+      <button class="btn btn-primary" onclick="confirmCancelCuota('${c.id}')">Cancelar deuda</button></div>
+  </div>`;
+  document.body.appendChild(m);
+}
+function confirmCancelCuota(id){
+  const amount=Number(document.getElementById('cuota-cancel-amount')?.value)||0;
+  const date=document.getElementById('cuota-cancel-date')?.value||dateToYMD(new Date());
+  if(amount<=0){ showToast('Poné cuánto pagaste','error'); return; }
+  cancelCuota(id, amount, date);
+  document.getElementById('cuota-cancel-modal')?.remove();
+}
+function cancelCuota(id, amount, dateYmd){
+  const c=(state.cuotas||[]).find(x=>x.id===id); if(!c || c.cancelled) return false;
+  const loan=cuotaLinkedLoan(c);
+  if(loan && typeof czCancelLoan==='function') return czCancelLoan(loan.id, amount, dateYmd);
+  const date=new Date(dateYmd+'T12:00:00');
+  const prevTotal=c.total;
+  const paidN=getCuotaStatus(c, date).paid;
+  const txnId='cuota_cancel_'+c.id;
+  if(paidN>0){
+    c.cancelled={date:dateYmd, amount, prevTotal, txnId};
+    c.total=paidN;
+  } else {
+    // Cancelada antes de la primera cuota: el pago es toda la deuda y no queda nada que proyectar
+    state.cuotas=state.cuotas.filter(x=>x!==c);
+    if(c.cuotaGroupId && typeof dismissCuotaGroup==='function') dismissCuotaGroup(c.cuotaGroupId);
+  }
+  state.transactions=(state.transactions||[]).filter(t=>t.id!==txnId);
+  state.transactions.push({id:txnId, date, description:'Cancelación '+c.name, _baseDesc:'Cancelación '+c.name, amount,
+    currency:c.currency||'ARS', category:c.category||'Préstamos', payMethod:c.payMethod||'deb', week:getWeekKey(date), month:getMonthKey(date),
+    manual:true, cuotaGroupId:getCuotaGroupId(c), origen_del_movimiento:'pegado_manualmente', estado_revision:'confirmado_por_usuario'});
+  saveState(); renderCommitmentsPage(); if(typeof refreshAll==='function') refreshAll();
+  showToast('✓ '+c.name+' cancelada','success');
+  return true;
+}
+function undoCancelCuota(id){
+  const c=(state.cuotas||[]).find(x=>x.id===id);
+  const loan=c?cuotaLinkedLoan(c):null;
+  if(loan?.cancelled && typeof czUndoCancelLoan==='function'){ czUndoCancelLoan(loan.id); renderCommitmentsPage(); return; }
+  if(!c?.cancelled) return;
+  c.total=c.cancelled.prevTotal;
+  state.transactions=(state.transactions||[]).filter(t=>t.id!==c.cancelled.txnId);
+  delete c.cancelled;
+  saveState(); renderCommitmentsPage(); if(typeof refreshAll==='function') refreshAll();
+  showToast(c.name+': cancelación deshecha','info');
+}
+
 function renderCommitmentsPage(){
   const root=document.getElementById('commitments-native-root');
   if(!root) return;
@@ -1199,6 +1281,7 @@ function renderCommitmentsPage(){
   const menuHtml=(item,key)=>state._commitmentsMenu===key
     ?'<div class="cp-menu">'
       +'<button onclick="commitmentsInvokeEdit(\''+item.editAction+'\',\''+item.id+'\');event.stopPropagation();">Editar</button>'
+      +(key.startsWith('quota-')?'<button onclick="openCancelCuota(\''+item.id+'\');event.stopPropagation();">Cancelar deuda (pagar todo)</button>':'')
       +'</div>'
     :'';
   const rowMoney=(item,meta='')=>commitmentsMoneyHtml(item.amount,item.currency,meta);
@@ -1258,7 +1341,16 @@ function renderCommitmentsPage(){
       +(filteredCuotas.length?'<div class="cp-quota-list">'+filteredCuotas.map(item=>{
         const menuKey='quota-'+item.id;
         return '<article class="cp-quota-row">'
-          +'<div class="cp-quota-main">'+commitmentsAvatar(item)+'<div class="cp-row-copy"><div class="cp-row-title">'+esc(item.name)+'</div><div class="cp-row-sub">'+esc(item.subtitle)+(item.endDate?' · termina '+commitmentsFmtMonthDay(item.endDate):'')+'</div></div></div>'
+          +'<div class="cp-quota-main">'+commitmentsAvatar(item)+'<div class="cp-row-copy"><div class="cp-row-title">'+esc(item.name)+'</div><div class="cp-row-sub">'+esc(item.subtitle)+(item.endDate?' · termina '+commitmentsFmtMonthDay(item.endDate):'')+'</div>'
+            +(()=>{
+              const c=(state.cuotas||[]).find(x=>x.id===item.id);
+              const info=cuotaCancelInfo(c);
+              if(info) return '<div class="cp-cancelled-note">'+(info.date>dateToYMD(new Date())?'Se cancela el ':'Cancelada el ')
+                +new Date(info.date+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'})+' con '+commitmentsMoneyHtml(info.amount,item.currency)+'</div>'
+                +'<button class="cp-cancel-debt" onclick="undoCancelCuota(\''+esc(item.id)+'\');event.stopPropagation();">Deshacer cancelación</button>';
+              return cuotaCanPrepay(c)?'<button class="cp-cancel-debt" onclick="openCancelCuota(\''+esc(item.id)+'\');event.stopPropagation();">Cancelar deuda</button>':'';
+            })()
+          +'</div></div>'
           +'<div class="cp-quota-metric"><span class="cp-metric-label">Cuota mensual</span><strong>'+rowMoney(item)+'</strong></div>'
           +'<div class="cp-quota-progress"><span class="cp-metric-label">Progreso</span><div class="cp-progress-bar"><span style="width:'+Math.max(6,item.pct||0)+'%;background:'+esc(item.color||'#8c5cff')+';"></span></div><div class="cp-progress-meta"><span>'+item.paid+'/'+item.total+' cuotas</span><span>'+item.pct+'%</span></div></div>'
           +'<div class="cp-quota-end"><span class="cp-metric-label">Termina</span><strong>'+(item.endDate?commitmentsFmtMonthDay(item.endDate):'—')+'</strong>'+dueBadge(item)+'</div>'
@@ -1275,7 +1367,12 @@ function renderCommitmentsPage(){
         return '<article class="cp-expired-row">'
           +'<div class="cp-row-main">'+commitmentsAvatar(item)+'<div class="cp-row-copy"><div class="cp-row-title">'+esc(item.name)+'</div><div class="cp-row-sub">'+esc(item.subtitle)+(item.endDate?' · terminaba '+commitmentsFmtMonthDay(item.endDate):'')+'</div></div></div>'
           +'<div class="cp-row-meta"><div class="cp-row-amount">'+rowMoney(item)+'</div>'+dueBadge(item)+'</div>'
-          +'<button class="cp-expired-delete" onclick="commitmentsDeleteExpiredCuota(\''+esc(item.source||'manual')+'\',\''+esc(item.id)+'\')">Borrar definitivamente</button>'
+          +(()=>{
+            const info=cuotaCancelInfo((state.cuotas||[]).find(c=>c.id===item.id));
+            if(info) return '<div class="cp-cancelled-note">Cancelada el '+new Date(info.date+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'})+' con '+commitmentsMoneyHtml(info.amount,item.currency)+'</div>'
+              +'<button class="cp-expired-delete" onclick="undoCancelCuota(\''+esc(item.id)+'\')">Deshacer cancelación</button>';
+            return '<button class="cp-expired-delete" onclick="commitmentsDeleteExpiredCuota(\''+esc(item.source||'manual')+'\',\''+esc(item.id)+'\')">Borrar definitivamente</button>';
+          })()
         +'</article>';
       }).join('')+'</div>'
     +'</section>';
@@ -1373,6 +1470,8 @@ function renderCommitmentsPage(){
       +'.cp-expired-section{background:linear-gradient(180deg,#fff 0%,#fff8f8 100%);border-color:rgba(255,107,87,.14);}'
       +'.cp-expired-list{display:flex;flex-direction:column;gap:9px;}'
       +'.cp-expired-row{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:12px 14px;border:1px solid rgba(255,107,87,.11);border-radius:15px;background:#fff;}'
+      +'.cp-cancel-debt{margin-top:6px;height:30px;border-radius:999px;border:1px solid rgba(93,53,243,.25);background:rgba(93,53,243,.08);color:#5d35f3;padding:0 12px;font:800 11.4px var(--font);cursor:pointer;white-space:nowrap;}.cp-cancel-debt:hover{background:rgba(93,53,243,.14);}'
+      +'.cp-cancelled-note{font:700 11.5px var(--font);color:#16a34a;}'
       +'.cp-expired-delete{height:32px;border-radius:999px;border:1px solid rgba(255,107,87,.18);background:#fff0ef;color:#ff5a45;padding:0 12px;font:800 11.4px var(--font);cursor:pointer;}'
       +'.cp-insight-hero{padding:18px 18px 16px;background:linear-gradient(160deg,#2f1b8f,#4027b4 65%,#4d34cb);color:#fff;border:none;box-shadow:0 18px 34px rgba(63,42,183,.24);}'
       +'.cp-hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;}'
