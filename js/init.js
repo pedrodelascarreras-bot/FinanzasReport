@@ -5,7 +5,7 @@
 // state.tcCycles = [{id, label, cardId, openDate, closeDate, dueDate}] sorted desc by closeDate
 
 function normalizeViewMode(mode){
-  if(mode==='mes'||mode==='visa'||mode==='amex') return mode;
+  if(mode==='mes'||mode==='visa'||mode==='amex'||mode==='tarjetas') return mode;
   if(mode==='tc') return 'visa';
   return 'mes';
 }
@@ -34,6 +34,7 @@ function getViewModeLabel(mode){
   const key=normalizeViewMode(mode);
   if(key==='visa') return 'Vista VISA';
   if(key==='amex') return 'Vista AMEX';
+  if(key==='tarjetas') return 'Vista Tarjetas';
   return 'Vista Mes';
 }
 
@@ -312,9 +313,35 @@ function _stitchAutoCycles(rows){
   return out;
 }
 
+// Vista Tarjetas: Visa y Amex juntas. Los ciclos de las dos que cierran el mismo mes se unen:
+// abre en la primera apertura y cierra en el último cierre (casi siempre coinciden). `parts`
+// guarda las fechas de cada tarjeta para mostrarlas cuando no coinciden.
+function _getCombinedCardCycles(){
+  const byMonth=new Map();
+  ['visa','amex'].forEach(m=>{
+    const list=getTcCycles(m);
+    list.forEach((c,i)=>{
+      const mk=_tcCycleMonthKey(c.closeDate);
+      if(!mk) return;
+      if(!byMonth.has(mk)) byMonth.set(mk,{});
+      const slot=byMonth.get(mk);
+      if(!slot[m]) slot[m]={open:getTcCycleOpen(list,i)||c.closeDate, close:c.closeDate, due:c.dueDate||null, source:c.source||'manual'};
+    });
+  });
+  return [...byMonth.entries()].map(([mk,parts])=>{
+    const list=[parts.visa,parts.amex].filter(Boolean);
+    const open=list.map(x=>x.open).sort()[0];
+    const close=list.map(x=>x.close).sort().pop();
+    const monthLabel=new Date(close+'T12:00:00').toLocaleDateString('es-AR',{month:'short',year:'numeric'});
+    return {id:'tarjetas_'+mk, label:'Tarjetas · '+monthLabel, openDate:open, closeDate:close,
+      dueDate:list.map(x=>x.due).filter(Boolean).sort().pop()||null, viewMode:'tarjetas',
+      source:list.some(x=>x.source==='auto')?'auto':'manual', parts};
+  }).sort((a,b)=>(b.closeDate||'').localeCompare(a.closeDate||''));
+}
 function getTcCycles(mode){
   normalizeTcCyclesForConsistency();
   const normalizedMode=mode?normalizeViewMode(mode):null;
+  if(normalizedMode==='tarjetas') return _getCombinedCardCycles();
   const legacy=(state.tcCycles||[]).filter(c=>c&&c.closeDate).map(c=>{
     const explicitPayMethod=(c.payMethodKey||'').toLowerCase();
     const inferredMode = c.viewMode
@@ -614,7 +641,7 @@ window.addEventListener('DOMContentLoaded',async ()=>{
   ensureViewCycleConfig();
   const tcCyclesChanged=normalizeTcCyclesForConsistency();
   state.dashView=resolveUiViewMode(state.dashView||'visa');
-  state.txnFilterMode=resolveUiViewMode(state.txnFilterMode||'visa');
+  state.txnFilterMode=resolveUiViewMode(state.txnFilterMode||'tarjetas');
   state.tendMode=resolveUiViewMode(state.tendMode||'visa');
   state.repMode=resolveUiViewMode(state.repMode||'visa');
   if(tcCyclesChanged) saveState();
@@ -630,7 +657,7 @@ window.addEventListener('DOMContentLoaded',async ()=>{
   loadSidebar();
   updateUsdRateUI();
   setChartMode(state.chartMode||'bars');
-  setTxnFilterMode(state.txnFilterMode||'visa');
+  setTxnFilterMode(state.txnFilterMode||'tarjetas');
   if(state.transactions.length){updateSidebarStats();renderDashboard();renderTransactions();document.getElementById('dash-empty').style.display='none';document.getElementById('dash-content').style.display='flex';}
   if(typeof renderProfilePage === 'function') renderProfilePage();
   if(typeof renderSecurityPage === 'function') renderSecurityPage();

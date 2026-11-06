@@ -331,11 +331,11 @@ window.exportTransactionsCSV = function() {
 
 // Toggle modo filtro: 'mes' | 'tc'
 function setTxnFilterMode(mode){
-  const next=normalizeViewMode(mode||'visa');
-  // En vista de ciclo la tarjeta ya está implícita: se limpia el filtro "Solo VISA/AMEX"
-  if(next!==state.txnFilterMode && next!=='mes') state.txnCardFilter='';
+  const next=normalizeViewMode(mode||'tarjetas');
+  // La vista ya dice qué tarjeta: no quedan filtros de tarjeta aparte
+  state.txnCardFilter='';
   state.txnFilterMode=next;
-  ['mes','visa','amex'].forEach(k=>document.getElementById('tft-'+k)?.classList.toggle('active',state.txnFilterMode===k));
+  ['mes','visa','amex','tarjetas'].forEach(k=>document.getElementById('tft-'+k)?.classList.toggle('active',state.txnFilterMode===k));
   document.getElementById('txn-month-wrap').style.display=state.txnFilterMode==='mes'?'':'none';
   document.getElementById('txn-tc-wrap').style.display=state.txnFilterMode!=='mes'?'':'none';
   renderTransactions();
@@ -757,7 +757,7 @@ function renderTxnCycleCommitmentsPanel(wrap, entries, opts={}){
                 +`<div class="txn-cycle-date">${fmtDate(item.date)}</div>`
                 +'<div class="txn-cycle-copy">'
                   +`<div class="txn-cycle-title">${esc(item.title)}${badge}</div>`
-                  +`<div class="txn-cycle-meta">${esc(item.kind)} · ${esc(item.meta)} · <span class="txn-cycle-pay${item.inView===false?' other':''}">${esc(item.payLabel||'')}</span>${item.inView===false&&opts.card?' <span class="txn-cycle-other-note">(no va en el resumen de '+(opts.card==='amex'?'Amex':'Visa')+')</span>':''}</div>`
+                  +`<div class="txn-cycle-meta">${esc(item.kind)} · ${esc(item.meta)} · <span class="txn-cycle-pay${item.inView===false?' other':''}">${esc(item.payLabel||'')}</span>${item.inView===false&&opts.card?' <span class="txn-cycle-other-note">(no va en '+(opts.card==='tarjetas'?'los resúmenes de las tarjetas':'el resumen de '+(opts.card==='amex'?'Amex':'Visa'))+')</span>':''}</div>`
                 +'</div>'
                 +`<div class="txn-cycle-status ${settled?'is-settled':'is-pending'}">${settled?'✓ Cobrado':'⏳ Sin cobrar'}</div>`
                 +'<div style="display:flex;align-items:center;gap:10px;justify-content:flex-end;">'
@@ -786,7 +786,7 @@ function renderTxnCycleCommitmentsPanel(wrap, entries, opts={}){
                 +(pendARS>0?`<span class="txn-cycle-footer-item" style="color:#ff9500;">⏳ Sin cobrar $${fmtN(pendARS)}</span>`:'')
                 +(cobUSD>0?`<span class="txn-cycle-footer-item" style="color:#34c759;">✓ Cobrado U$D ${fmtN(cobUSD)}</span>`:'')
                 +(pendUSD>0?`<span class="txn-cycle-footer-item" style="color:#ff9500;">⏳ Sin cobrar U$D ${fmtN(pendUSD)}</span>`:'')
-                +(opts.card?(()=>{ const inCard=visible.filter(e=>e.inView!==false && isARS(e)).reduce((s,e)=>s+Number(e.amount||0),0); return inCard>0?`<span class="txn-cycle-footer-item" style="color:var(--text3);">En el resumen de ${opts.card==='amex'?'Amex':'Visa'}: $${fmtN(inCard)}</span>`:''; })():'')
+                +(opts.card?(()=>{ const inCard=visible.filter(e=>e.inView!==false && isARS(e)).reduce((s,e)=>s+Number(e.amount||0),0); return inCard>0?`<span class="txn-cycle-footer-item" style="color:var(--text3);">En ${opts.card==='tarjetas'?'los resúmenes de Visa y Amex':'el resumen de '+(opts.card==='amex'?'Amex':'Visa')}: $${fmtN(inCard)}</span>`:''; })():'')
                 +(totARS>0&&hasUSD?`<span class="txn-cycle-footer-item" style="color:var(--text3);">+ U$D ${fmtN(totUSD)}</span>`:'')
               +'</div>'
             +'</div>';
@@ -977,11 +977,24 @@ function getTxnDisplaySummaryTotals(opts){
     const full=getPeriodTotals({...range,card,todayRef,amountMode:'full'});
     // Cuotas, suscripciones y fijos del período que todavía no llegaron a su fecha: se ven en el
     // total desde que abre el período ("ya estoy esta plata abajo"), marcados como sin cobrar.
-    const pend=getProjectedCommitmentEntriesForRange({...range,todayRef})
-      .filter(e=>!e.includeInTotal && payMethodMatchesCard(e.payMethod, card, {requireExplicit:e.group==='fijos'}));
-    const pendArs=pend.filter(e=>(e.currency||'ARS')!=='USD').reduce((s,e)=>s+(Number(e.amount)||0),0);
-    const pendUsd=pend.filter(e=>(e.currency||'ARS')==='USD').reduce((s,e)=>s+(Number(e.amount)||0),0);
+    const projected=getProjectedCommitmentEntriesForRange({...range,todayRef});
+    const pendFor=c=>projected.filter(e=>!e.includeInTotal && payMethodMatchesCard(e.payMethod, c, {requireExplicit:e.group==='fijos'}));
+    const sumCur=(list,cur)=>list.filter(e=>((e.currency||'ARS')==='USD')===(cur==='USD')).reduce((s,e)=>s+(Number(e.amount)||0),0);
+    const pend=pendFor(card);
+    const pendArs=sumCur(pend,'ARS');
+    const pendUsd=sumCur(pend,'USD');
+    // Vista Tarjetas: lo que va a cada resumen (con lo que falta cobrar)
+    let perCard=null;
+    if(card==='tarjetas'){
+      perCard={};
+      ['visa','amex'].forEach(c=>{
+        const t=getPeriodTotals({...range,card:c,todayRef,amountMode:'full'});
+        const p=pendFor(c);
+        perCard[c]=t.ars+sumCur(p,'ARS')+(t.usd+sumCur(p,'USD'))*_rate;
+      });
+    }
     return {
+      perCard,
       ars:personal.ars+pendArs, usd:personal.usd+pendUsd, grand:personal.ars+pendArs+(personal.usd+pendUsd)*_rate, count:personal.count,
       arsFull:full.ars+pendArs, usdFull:full.usd+pendUsd, grandFull:full.ars+pendArs+(full.usd+pendUsd)*_rate,
       pendingArs:pendArs, pendingUsd:pendUsd, pendingGrand:pendArs+pendUsd*_rate
@@ -1061,6 +1074,32 @@ function txnPeriodBannerHtml({mode, activeCycleMeta, cardFv, searching, monthKey
     return '<div class="mv-card mv-period"><div class="mv-period-main"><div class="mv-period-icon">🔍</div><div><div class="mv-period-kicker">Estás viendo</div><div class="mv-period-title">Búsqueda en todos los períodos</div></div></div></div>';
   }
   const today=dateToYMD(new Date());
+  if(mode==='tarjetas' && activeCycleMeta){
+    const {cycle, openStr, closeStr}=activeCycleMeta;
+    const parts=cycle?.parts||{};
+    const isCurrent=openStr<=today && today<=closeStr;
+    const daysToClose=Math.round((new Date(closeStr+'T12:00:00')-new Date(today+'T12:00:00'))/86400000);
+    const status=isCurrent
+      ? (daysToClose===0?'Cierra hoy':'Faltan '+daysToClose+' día'+(daysToClose!==1?'s':'')+' para el cierre')
+      : (closeStr<today?'Ciclo cerrado':'Ciclo que viene');
+    const differ=parts.visa && parts.amex && (parts.visa.open!==parts.amex.open || parts.visa.close!==parts.amex.close);
+    const short=v=>new Date(v+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'});
+    const chips=differ
+      ? chip('Visa',short(parts.visa.open)+' → '+short(parts.visa.close))+chip('Amex',short(parts.amex.open)+' → '+short(parts.amex.close),' strong')
+      : chip('Abre',fmt(openStr))+chip('Cierra',fmt(closeStr),' strong');
+    const dues=(parts.visa?.due?chip('Vence Visa',fmt(parts.visa.due)):'')+(parts.amex?.due?chip('Vence Amex',fmt(parts.amex.due)):'');
+    return '<div class="mv-card mv-period mv-period-tarjetas">'
+      +'<div class="mv-period-main"><div class="mv-period-icon">💳</div><div>'
+        +'<div class="mv-period-kicker">Estás viendo</div>'
+        +'<div class="mv-period-title">Visa + Amex · '+(isCurrent?'ciclo actual':'ciclo de '+esc(String(cycle?.label||'').replace(/^Tarjetas · /,'')))+'</div>'
+        +'<div class="mv-period-sub">'+esc(status)+' · Compras con las dos tarjetas (sin débito ni efectivo)</div>'
+      +'</div></div>'
+      +'<div class="mv-period-chips">'+chips+dues+'</div>'
+      +(differ?'<div class="mv-period-note">Este ciclo las tarjetas no cierran el mismo día: se muestran juntas desde la primera apertura hasta el último cierre.</div>':'')
+      +(cycle?.source==='auto'?'<div class="mv-period-note">Fechas estimadas: si tu resumen dice otra cosa, ajustalas en Configuraciones → Tarjetas.</div>':'')
+      +txnCommittedLineHtml(commitments)
+    +'</div>';
+  }
   if(mode!=='mes' && activeCycleMeta){
     const {cycle, openStr, closeStr}=activeCycleMeta;
     const isCurrent=openStr<=today && today<=closeStr;
@@ -1743,14 +1782,10 @@ function renderTransactions(){
             +'<label class="mv-search"><span>🔍</span><input value="'+esc(activeSearch)+'" placeholder="Buscar descripción, monto o categoría..." oninput="txnSetSearch(this.value)"></label>'
           +'</div>'
           +('<div class="mv-card mv-filter-surface">'
-              +'<select class="txn-select" onchange="txnSetCurrencyFilter(this.value)"><option value="" '+(!activeCur?'selected':'')+'>ARS + USD</option><option value="ARS" '+(activeCur==='ARS'?'selected':'')+'>Solo ARS</option><option value="USD" '+(activeCur==='USD'?'selected':'')+'>Solo USD</option></select>'
+              +'<div class="mv-view-seg" role="tablist" aria-label="Qué ver"><span class="mv-view-label">Ver</span>'
+                +[['tarjetas','Tarjetas'],['visa','Visa'],['amex','Amex'],['mes','Mes']].map(([k,l])=>'<button role="tab" aria-selected="'+(activeMode===k)+'" class="mv-view-opt'+(activeMode===k?' active':'')+'" onclick="txnSetMode(\''+k+'\')">'+l+'</button>').join('')
+              +'</div>'
               +'<select class="txn-select" onchange="txnSetCategoryFilter(this.value)">'+(function(){const cats=[...new Set(state.transactions.map(t=>txnCategoryName(t)))].sort();return '<option value="">Todas las categorías</option>'+cats.map(c=>'<option value="'+esc(c)+'" '+(activeCat===c?'selected':'')+'>'+esc(c)+'</option>').join('');})()+'</select>'
-              +'<button class="mv-chip'+(activeMode==='mes'?' active':'')+'" onclick="txnSetMode(\'mes\')">Por mes</button>'
-              +'<button class="mv-chip'+(activeMode==='visa'?' active':'')+'" onclick="txnSetMode(\'visa\')">Vista VISA</button>'
-              +'<button class="mv-chip'+(activeMode==='amex'?' active':'')+'" onclick="txnSetMode(\'amex\')">Vista AMEX</button>'
-              +'<button class="mv-chip'+((state.txnCardFilter||'')===''?' active':'')+'" onclick="txnSetCardChip(\'\')">Todas</button>'
-              +'<button class="mv-chip'+((state.txnCardFilter||'')==='visa'?' active':'')+'" onclick="txnSetCardChip(\'visa\')">Solo VISA</button>'
-              +'<button class="mv-chip'+((state.txnCardFilter||'')==='amex'?' active':'')+'" onclick="txnSetCardChip(\'amex\')">Solo AMEX</button>'
             +'</div>')
           +txnPeriodBannerHtml({mode, activeCycleMeta, cardFv, searching:!!activeSearch, monthKey:periodMonthKey, commitments:commitmentEntries})
           +(()=>{
@@ -1786,6 +1821,7 @@ function renderTransactions(){
                 +'<div class="v">$'+fmtN(grandBig)+'</div>'
                 +'<div class="mv-summary-real"><span class="mv-summary-real-label">Gasto Real:</span> <span class="mv-summary-real-val">$'+fmtN(grandReal)+'</span></div>'
                 +(displayTotals.pendingGrand>0?'<div class="mv-summary-pending">⏳ Incluye $'+fmtN(Math.round(displayTotals.pendingGrand),0)+' que todavía no se cobró</div>':'')
+                +(displayTotals.perCard?'<div class="mv-summary-percard"><span>Visa $'+fmtN(Math.round(displayTotals.perCard.visa),0)+'</span><span>Amex $'+fmtN(Math.round(displayTotals.perCard.amex),0)+'</span></div>':'')
               +'</div>'
             +'</div>';
           })()

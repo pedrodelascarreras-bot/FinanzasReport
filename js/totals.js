@@ -17,6 +17,11 @@ function payMethodMatchesCard(payMethod, card, opts={}){
   if(!card) return true;
   const pm=String(payMethod||'').toLowerCase();
   if(card==='amex') return pm==='amex';
+  // Visa + Amex: todo lo que no es débito ni efectivo
+  if(card==='tarjetas'){
+    if(opts.requireExplicit) return pm==='visa'||pm==='amex'||CARD_GENERIC_PAYMETHODS.includes(pm);
+    return pm!=='deb'&&pm!=='ef';
+  }
   if(card==='visa'){
     if(opts.requireExplicit) return pm==='visa'||CARD_GENERIC_PAYMETHODS.includes(pm);
     return pm!=='deb'&&pm!=='ef'&&pm!=='amex';

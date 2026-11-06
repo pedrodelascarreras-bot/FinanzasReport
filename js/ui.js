@@ -264,7 +264,7 @@ function nav(page){
   // Mobile nav
   const mn=document.getElementById('mn-'+navTarget);if(mn)mn.classList.add('active');
   if(page==='categories'){renderCategoryManage();renderInlineColorPicker('');}
-  if(page==='transactions'){ setTxnFilterMode(state.txnFilterMode||'visa'); }
+  if(page==='transactions'){ setTxnFilterMode(state.txnFilterMode||'tarjetas'); }
   if(page==='import'){renderImportHistory();updateLastBackupLabel();if(typeof renderImportConfigPanel==='function')renderImportConfigPanel();}
   if(page==='import-history'){renderImportHistory();}
   if(page==='tendencia')renderTendencia();

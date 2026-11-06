@@ -30,7 +30,7 @@ let state={
   dashView:'visa',
   chartMode:'bars',
   dashMonth:null,
-  txnFilterMode:'visa',
+  txnFilterMode:'tarjetas',
   charts:{},_assigningTxnId:null,
   catRules:[],           // [{id, keyword, category, active, priority}]
   nameRules:[],          // [{id, keyword, renameTo, active, priority}]
@@ -84,7 +84,7 @@ function getStateSnapshot(){
   return {
     savedAt:localStorage.getItem(LS_LOCAL_EDITED_AT)||null,
     ...packTxnLogos(state.transactions),categories:state.categories,categoryGroups:state.categoryGroups||[],income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'visa',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],hiddenTcCycles:state.hiddenTcCycles||[],balanceView:state.balanceView||'summary',
-    txnFilterMode:state.txnFilterMode||'visa',tendMode:state.tendMode||'visa',repMode:state.repMode||'visa',
+    txnFilterMode:state.txnFilterMode||'tarjetas',_viewsSimplified:!!state._viewsSimplified,tendMode:state.tendMode||'visa',repMode:state.repMode||'visa',
     savingsGoal:state.savingsGoal,alertThreshold:state.alertThreshold,spendPct:state.spendPct||100,insightsBufferMonths:state.insightsBufferMonths||3,tendChartMode:state.tendChartMode||'bar',imports:state.imports,
     cuotas:state.cuotas,autoCuotaConfig:state.autoCuotaConfig,subscriptions:state.subscriptions,fixedExpenses:state.fixedExpenses||[],
     incomeSources:state.incomeSources,incomeMonths:state.incomeMonths,
@@ -661,7 +661,8 @@ async function loadFromDrive(){
     state.tasks=s.tasks||[];
     state.txnCardFilter=s.txnCardFilter||'';
     state.smartTags=s.smartTags||[];
-    state.txnFilterMode=_normalizeViewMode(s.txnFilterMode||state.txnFilterMode||'visa');
+    state.txnFilterMode=_normalizeViewMode(s.txnFilterMode||state.txnFilterMode||'tarjetas');
+    _applyViewsSimplification(s);
     state.tendMode=_normalizeViewMode(s.tendMode||state.tendMode||'visa');
     state.dashView=_normalizeViewMode(s.dashView||state.dashView||'visa');
     state.repMode=_normalizeViewMode(s.repMode||state.repMode||'visa');
@@ -779,7 +780,8 @@ function loadState(){
     state.txnCardFilter=s.txnCardFilter||'';
     state.smartTags=s.smartTags||[];
     localStorage.removeItem('fin_apikey'); // la categorización con IA se eliminó: no dejar la key guardada
-    state.txnFilterMode=_normalizeViewMode(s.txnFilterMode||state.txnFilterMode||'visa');
+    state.txnFilterMode=_normalizeViewMode(s.txnFilterMode||state.txnFilterMode||'tarjetas');
+    _applyViewsSimplification(s);
     state.tendMode=_normalizeViewMode(s.tendMode||state.tendMode||'visa');
     state.dashView=_normalizeViewMode(s.dashView||state.dashView||'visa');
     state.repMode=_normalizeViewMode(s.repMode||state.repMode||'visa');
@@ -817,8 +819,17 @@ function loadState(){
 }
 
 function _normalizeViewMode(mode){
-  if(mode==='mes'||mode==='amex') return mode;
-  return 'visa';
+  if(mode==='mes'||mode==='amex'||mode==='visa'||mode==='tarjetas') return mode;
+  return 'tarjetas';
+}
+// Una sola vez: la vista por defecto pasa a ser Tarjetas (Visa + Amex) y se sacan los chips
+// "Solo VISA/AMEX" (un filtro guardado quedaría aplicado sin forma de verlo).
+function _applyViewsSimplification(s){
+  state.txnCardFilter='';
+  if(!s._viewsSimplified){
+    if(state.txnFilterMode==='visa') state.txnFilterMode='tarjetas';
+  }
+  state._viewsSimplified=true;
 }
 
 // ── Varias ventanas abiertas a la vez (navegador + app en la pantalla de inicio) ──

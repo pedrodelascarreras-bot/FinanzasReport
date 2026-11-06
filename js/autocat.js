@@ -99,7 +99,8 @@ function acCurrentPeriod(todayRef=new Date()){
     if(idx>=0){
       const c=cycles[idx], start=getTcCycleOpen(cycles,idx);
       const fmt=v=>new Date(v+'T12:00:00').toLocaleDateString('es-AR',{day:'numeric',month:'short'});
-      return {start, end:c.closeDate, label:(mode==='amex'?'ciclo Amex':'ciclo Visa')+' del '+fmt(start)+' al '+fmt(c.closeDate)};
+      const name=mode==='amex'?'ciclo Amex':mode==='tarjetas'?'ciclo de las tarjetas':'ciclo Visa';
+      return {start, end:c.closeDate, label:name+' del '+fmt(start)+' al '+fmt(c.closeDate)};
     }
   }
   const mk=getMonthKey(todayRef), r=getMonthRange(mk);
