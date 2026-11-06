@@ -69,7 +69,7 @@ function expandPeriodYearLabel(label=''){
 }
 function cleanHeroCycleLabel(label=''){
   return String(label||'')
-    .replace(/^\s*(VISA|AMEX|Mastercard|TC)\s*[·\-–—]\s*/i,'')
+    .replace(/^\s*(VISA|AMEX|Mastercard|TC|Tarjetas)\s*[·\-–—]\s*/i,'')
     .trim();
 }
 function getIncomeSnapshot(monthKey){
@@ -232,7 +232,7 @@ function renderDecisionCenter(model){
 }
 
 function syncDashViewToggles(){
-  ['mes','visa','amex'].forEach(key=>{
+  ['tarjetas','visa','amex','mes'].forEach(key=>{
     const btn=document.getElementById('dash-toggle-'+key);
     if(!btn) return;
     const on=state.dashView===key;
@@ -405,7 +405,7 @@ function renderDashboard(){
 function _dashBuildContext(){
   renderDashNotifications();
   if(typeof ccInit==='function') ccInit();
-  state.dashView=normalizeViewMode(state.dashView||'visa');
+  state.dashView=normalizeViewMode(state.dashView||'tarjetas');
   const today=new Date();
   const todayYmd=dateToYMD(today);
   const allTcCycles=typeof getTcCycles==='function'?getTcCycles(state.dashView):[];
@@ -912,7 +912,7 @@ function _dashRenderHero(ctx){
   const dhcML=document.getElementById('dhc-month-label');
   if(dhcML){
     let label = isTcView&&activeTcCycle?expandPeriodYearLabel(cleanHeroCycleLabel(activeTcCycle.label||'')):((MNAMES[pM-1]||'')+ ' ' + pY);
-    if(isTcView) label = activeCycleMode.toUpperCase() + ' · ' + label;
+    if(isTcView) label = (activeCycleMode==='tarjetas'?'VISA + AMEX':activeCycleMode.toUpperCase()) + ' · ' + label;
     dhcML.textContent = label.toUpperCase();
   }
   if(isMasked()) {
@@ -1440,7 +1440,7 @@ function renderTop5(){
   const el=document.getElementById('top5-list');
   const sub=document.getElementById('top5-sub');
   if(!el)return;
-  const mode=normalizeViewMode(state.dashView||'visa');
+  const mode=normalizeViewMode(state.dashView||'tarjetas');
   const isTcView=mode!=='mes';
   let txns=[];
   if(isTcView){
@@ -1804,7 +1804,7 @@ function openThirdPartyTransactions(){
 
 // Gasto del período del dashboard (ciclo Visa elegido o mes), con la receta única
 function getDashCycleTotal() {
-  const view = normalizeViewMode(state.dashView || 'visa');
+  const view = normalizeViewMode(state.dashView || 'tarjetas');
   if(view !== 'mes' && state.dashTcCycle) {
     const cycles = getTcCycles(view);
     const idx = cycles.findIndex(c => c.id === state.dashTcCycle);

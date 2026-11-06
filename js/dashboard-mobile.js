@@ -32,10 +32,12 @@ function renderMobileDashboard(data) {
   if (_isTcView) {
     // Get the active cycle label
     try {
-      const _cycles = typeof getTcCycles==='function' ? getTcCycles() : [];
+      // Los ciclos de la vista elegida (Tarjetas, Visa o Amex), no los de todas las tarjetas
+      const _cycles = typeof getTcCycles==='function' ? getTcCycles(state.dashView) : [];
       const _actCyc = typeof _resolveDashboardTcCycle==='function' ? _resolveDashboardTcCycle(_cycles) : _cycles[0];
-      periodLabel = _actCyc?.label ? ('CICLO ' + (_actCyc.label||'').toUpperCase()) : 'CICLO VISA';
-    } catch(e){ periodLabel = 'CICLO VISA'; }
+      const _lbl = String(_actCyc?.label||'').replace(/^Tarjetas\s*·\s*/i,'Visa + Amex · ');
+      periodLabel = _lbl ? ('CICLO ' + _lbl.toUpperCase()) : 'CICLO DE TARJETAS';
+    } catch(e){ periodLabel = 'CICLO DE TARJETAS'; }
   } else {
     periodLabel = _MN[today.getMonth()] + ' ' + today.getFullYear();
   }

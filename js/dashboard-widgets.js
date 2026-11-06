@@ -773,9 +773,9 @@ function renderDb2EvolutionChart(){
 
   if(state.charts && state.charts.evolution){ state.charts.evolution.destroy(); state.charts.evolution = null; }
   const scope=_db2EvolutionState || {
-    mode: normalizeViewMode(state.dashView||'visa')!=='mes' ? 'tc' : 'mes',
+    mode: normalizeViewMode(state.dashView||'tarjetas')!=='mes' ? 'tc' : 'mes',
     monthKey:getActiveDashMonth(),
-    cycleMode:normalizeViewMode(state.dashView||'visa'),
+    cycleMode:normalizeViewMode(state.dashView||'tarjetas'),
     cycleId:state.dashTcCycle||null,
     totalExpenseArs:0,
     totalIncomeArs:0

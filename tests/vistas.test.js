@@ -80,6 +80,13 @@ eq([state.txnFilterMode, state.txnCardFilter, state._viewsSimplified], ['tarjeta
 state.txnFilterMode = 'visa'; saveState(); loadState();
 eq(state.txnFilterMode, 'visa', 'si después elegís Visa, se respeta');
 
+// 4) Dashboard: quien tenía VISA pasa a Tarjetas una sola vez; después se respeta lo que elijas
+reset(); state.transactions = [tx('v', 'visa', 1000)];
+state.dashView = 'visa'; state._dashTarjetasDefault = false;
+saveState(); loadState();
+eq([state.dashView, state._dashTarjetasDefault], ['tarjetas', true], 'Dashboard en Tarjetas');
+state.dashView = 'amex'; saveState(); loadState();
+eq(state.dashView, 'amex', 'si elegís Amex, se respeta');
 if (errs.length) print('console.error: ' + errs.slice(0, 3).join(' | '));
 if (failures) { print('✗ ' + failures + ' fallaron, ' + passed + ' pruebas OK'); throw new Error(failures + ' pruebas fallaron'); }
 print('✓ ' + passed + ' pruebas OK');

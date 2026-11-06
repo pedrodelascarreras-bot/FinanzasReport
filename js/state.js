@@ -27,7 +27,7 @@ let state={
   tcCycles:[],
   hiddenTcCycles:[],
   dashTcCycle:null,
-  dashView:'visa',
+  dashView:'tarjetas',
   chartMode:'bars',
   dashMonth:null,
   txnFilterMode:'tarjetas',
@@ -83,7 +83,7 @@ function getStateSnapshot(){
   }
   return {
     savedAt:localStorage.getItem(LS_LOCAL_EDITED_AT)||null,
-    ...packTxnLogos(state.transactions),categories:state.categories,categoryGroups:state.categoryGroups||[],income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'visa',dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],hiddenTcCycles:state.hiddenTcCycles||[],balanceView:state.balanceView||'summary',
+    ...packTxnLogos(state.transactions),categories:state.categories,categoryGroups:state.categoryGroups||[],income:state.income,dashMonth:state.dashMonth||null,dashView:state.dashView||'tarjetas',_dashTarjetasDefault:!!state._dashTarjetasDefault,dashTcCycle:state.dashTcCycle||null,tcCycles:state.tcCycles||[],hiddenTcCycles:state.hiddenTcCycles||[],balanceView:state.balanceView||'summary',
     txnFilterMode:state.txnFilterMode||'tarjetas',_viewsSimplified:!!state._viewsSimplified,tendMode:state.tendMode||'visa',repMode:state.repMode||'visa',
     savingsGoal:state.savingsGoal,alertThreshold:state.alertThreshold,spendPct:state.spendPct||100,insightsBufferMonths:state.insightsBufferMonths||3,tendChartMode:state.tendChartMode||'bar',imports:state.imports,
     cuotas:state.cuotas,autoCuotaConfig:state.autoCuotaConfig,subscriptions:state.subscriptions,fixedExpenses:state.fixedExpenses||[],
@@ -609,7 +609,7 @@ async function loadFromDrive(){
       };
     }
     state.dashMonth=s.dashMonth||null;
-    state.dashView=s.dashView||'visa';
+    state.dashView=s.dashView||'tarjetas';
     state.dashTcCycle=s.dashTcCycle||null;
     state.tcCycles=s.tcCycles||[];
     state.hiddenTcCycles=s.hiddenTcCycles||[];
@@ -662,9 +662,9 @@ async function loadFromDrive(){
     state.txnCardFilter=s.txnCardFilter||'';
     state.smartTags=s.smartTags||[];
     state.txnFilterMode=_normalizeViewMode(s.txnFilterMode||state.txnFilterMode||'tarjetas');
-    _applyViewsSimplification(s);
     state.tendMode=_normalizeViewMode(s.tendMode||state.tendMode||'visa');
-    state.dashView=_normalizeViewMode(s.dashView||state.dashView||'visa');
+    state.dashView=_normalizeViewMode(s.dashView||state.dashView||'tarjetas');
+    _applyViewsSimplification(s);
     state.repMode=_normalizeViewMode(s.repMode||state.repMode||'visa');
     if(typeof normalizeCategoryState === 'function'){
       try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
@@ -727,7 +727,7 @@ function loadState(){
       };
     }
     state.dashMonth=s.dashMonth||null;
-    state.dashView=s.dashView||'visa';
+    state.dashView=s.dashView||'tarjetas';
     state.dashTcCycle=s.dashTcCycle||null;
     state.tcCycles=s.tcCycles||[];
     state.hiddenTcCycles=s.hiddenTcCycles||[];
@@ -781,9 +781,9 @@ function loadState(){
     state.smartTags=s.smartTags||[];
     localStorage.removeItem('fin_apikey'); // la categorización con IA se eliminó: no dejar la key guardada
     state.txnFilterMode=_normalizeViewMode(s.txnFilterMode||state.txnFilterMode||'tarjetas');
-    _applyViewsSimplification(s);
     state.tendMode=_normalizeViewMode(s.tendMode||state.tendMode||'visa');
-    state.dashView=_normalizeViewMode(s.dashView||state.dashView||'visa');
+    state.dashView=_normalizeViewMode(s.dashView||state.dashView||'tarjetas');
+    _applyViewsSimplification(s);
     state.repMode=_normalizeViewMode(s.repMode||state.repMode||'visa');
     if(typeof normalizeCategoryState === 'function'){
       try{ normalizeCategoryState(state); }catch(e){ console.warn('category normalize error', e); }
@@ -830,6 +830,9 @@ function _applyViewsSimplification(s){
     if(state.txnFilterMode==='visa') state.txnFilterMode='tarjetas';
   }
   state._viewsSimplified=true;
+  // Dashboard: quien tenía VISA pasa a Tarjetas (Visa + Amex) una sola vez
+  if(!s._dashTarjetasDefault && state.dashView==='visa'){ state.dashView='tarjetas'; state.dashTcCycle=null; }
+  state._dashTarjetasDefault=true;
 }
 
 // ── Varias ventanas abiertas a la vez (navegador + app en la pantalla de inicio) ──

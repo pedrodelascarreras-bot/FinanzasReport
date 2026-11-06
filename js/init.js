@@ -640,7 +640,7 @@ window.addEventListener('DOMContentLoaded',async ()=>{
   loadState();
   ensureViewCycleConfig();
   const tcCyclesChanged=normalizeTcCyclesForConsistency();
-  state.dashView=resolveUiViewMode(state.dashView||'visa');
+  state.dashView=resolveUiViewMode(state.dashView||'tarjetas');
   state.txnFilterMode=resolveUiViewMode(state.txnFilterMode||'tarjetas');
   state.tendMode=resolveUiViewMode(state.tendMode||'visa');
   state.repMode=resolveUiViewMode(state.repMode||'visa');
@@ -1921,7 +1921,7 @@ function getCurrentProfileSnapshot(){
     alertThreshold: state.alertThreshold || 80,
     spendPct: state.spendPct || 100,
     insightsBufferMonths: state.insightsBufferMonths || 3,
-    dashView: resolveUiViewMode(state.dashView || 'visa'),
+    dashView: resolveUiViewMode(state.dashView || 'tarjetas'),
     dashMonth: state.dashMonth || null,
     dashTcCycle: state.dashTcCycle || null,
     chartMode: state.chartMode || 'bars',
@@ -2078,7 +2078,7 @@ function applyUserProfile(profileId){
   state.alertThreshold = profile.alertThreshold || state.alertThreshold || 80;
   state.spendPct = profile.spendPct || state.spendPct || 100;
   state.insightsBufferMonths = profile.insightsBufferMonths || state.insightsBufferMonths || 3;
-  state.dashView = resolveUiViewMode(profile.dashView || state.dashView || 'visa');
+  state.dashView = resolveUiViewMode(profile.dashView || state.dashView || 'tarjetas');
   state.dashMonth = profile.dashMonth || null;
   state.dashTcCycle = profile.dashTcCycle || null;
   state.chartMode = profile.chartMode || state.chartMode || 'bars';
