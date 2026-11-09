@@ -70,7 +70,8 @@
     const keys = [1, 2, 3, 4, 5, 6, 7, 8, 9, '', 0, '⌫'].map(k => {
       if (k === '') return '<div class="lk-key lk-key-empty"></div>';
       const isDel = k === '⌫';
-      return `<button class="lk-key${isDel ? ' lk-key-del' : ''}" onclick="window._lkDigit(${isDel ? "'del'" : k})" aria-label="${isDel ? 'Borrar' : k}">${k}</button>`;
+      const face = isDel ? '<svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 5H9l-6 7 6 7h12a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1z"/><line x1="17.5" y1="9.5" x2="12.5" y2="14.5"/><line x1="12.5" y1="9.5" x2="17.5" y2="14.5"/></svg>' : k;
+      return `<button class="lk-key${isDel ? ' lk-key-del' : ''}" onclick="window._lkDigit(${isDel ? "'del'" : k})" aria-label="${isDel ? 'Borrar' : k}">${face}</button>`;
     }).join('');
     return `
     <div class="lk-shell" id="lk-shell" role="dialog" aria-modal="true" aria-label="Acceso con PIN">

@@ -432,6 +432,7 @@ function initDriveClient(autoSync, opts={}){
         _syncMark('token recibido de Google');
         driveAccessToken = resp.access_token;
         gmailAccessToken = resp.access_token;
+        window._driveTokenExpiresAt = Date.now()+(Number(resp.expires_in)||3600)*1000;
         state.onboardingState = { ...(state.onboardingState || {}), google: true };
         safePersistLocalSnapshot(getStateSnapshot());
         _syncMark('snapshot local guardado');

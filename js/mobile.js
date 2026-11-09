@@ -50,7 +50,8 @@ function mxPeriodCommitments(period){
 }
 
 const MX_ICON={
-  menu:'<line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>',
+  trend:'<polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/>',
+  pulse:'<path d="M3 12h4l3 8 4-16 3 8h4"/>',
   down:'<path d="M12 4v11"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/>',
   home:'<path d="M3 11l9-7.5L21 11v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 20z"/>',
   list:'<line x1="9" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="9" y1="18" x2="21" y2="18"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/>',
@@ -62,15 +63,15 @@ function mxIcon(name, size){
 }
 const MX_GOOGLE='<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 7l7.1 5.5c4.2-3.9 7.2-9.6 7.2-17z"/><path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.7 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.1-5.5c-2.2 1.5-5 2.3-8.8 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
 
-// Título grande con el ícono de la pantalla (en su color) y el menú
+// Título grande sobre la franja de color de la pantalla
 function mxScreenHead(icon, title, sub, extraButton){
   return '<div class="mx-wash"></div>'
+    +'<div class="mx-status-strip"></div>'
     +'<header class="mx-head">'
       +'<div class="mx-head-row">'
         +'<span class="mx-badge">'+mxIcon(icon,19)+'</span>'
         +'<h1 class="mx-lt">'+esc(title)+'</h1>'
         +(extraButton||'')
-        +'<button class="mx-round" onclick="openMobDrawer()" aria-label="Menú">'+mxIcon('menu',19)+'</button>'
       +'</div>'
       +(sub?'<div class="mx-sub">'+esc(sub)+'</div>':'')
     +'</header>';
@@ -79,12 +80,26 @@ function mxLastImportText(){
   const last=state.lastGmailSync?new Date(state.lastGmailSync):null;
   return last&&!isNaN(last)?'Última vez: '+mxShortDate(last)+', '+last.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'';
 }
+// El acceso de Google dura una hora: pasado eso ya no está conectado de verdad
+function mxGoogleConnected(){
+  return typeof isGoogleConnected==='function' && isGoogleConnected() && Date.now()<(window._driveTokenExpiresAt||0);
+}
+function mxLastSyncText(){
+  const raw=localStorage.getItem('fin_last_synced_at');
+  const d=raw?new Date(raw):null;
+  return d&&!isNaN(d)?'Sincronizado: '+mxShortDate(d)+', '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'';
+}
 function mxGoogleGroup(){
-  const connected=typeof isGoogleConnected==='function' && isGoogleConnected();
+  const connected=mxGoogleConnected();
   const last=mxLastImportText();
-  return '<div class="mx-group mx-section">'
-    +'<button class="mx-li" onclick="mxConnectGoogle()"><span class="mx-ico mx-ico-g">'+MX_GOOGLE+'</span><span class="mx-tx"><span class="mx-act">'+(connected?'Conectado a Google · Actualizar':'Conectar con Google')+'</span></span></button>'
-    +'<button class="mx-li" onclick="mxImportGmail()"><span class="mx-ico mx-ico-mail">'+mxIcon('down',18)+'</span><span class="mx-tx"><span class="mx-act">Traer gastos de Gmail</span>'+(last?'<span class="mx-s">'+esc(last)+'</span>':'')+'</span></button>'
+  const sync=mxLastSyncText();
+  return '<div class="mx-group mx-section mx-google">'
+    +'<button class="mx-li" onclick="mxConnectGoogle()"><span class="mx-ico mx-ico-g">'+MX_GOOGLE+'</span>'
+      +'<span class="mx-tx"><span class="mx-t">'+(connected?'Conectado a Google':'Conectar con Google')+'</span>'
+      +'<span class="mx-s">'+esc(connected?(sync?sync+' · tocá para actualizar':'Tocá para actualizar'):'Sin conexión, los datos pueden estar viejos')+'</span></span>'
+      +'<span class="mx-pill '+(connected?'on':'off')+'">'+(connected?'Conectado':'Sin conectar')+'</span></button>'
+    +'<div class="mx-import-wrap"><button class="mx-primary" onclick="mxImportGmail()">'+mxIcon('down',19)+'Traer gastos de Gmail</button>'
+      +(last?'<div class="mx-import-last">'+esc(last)+'</div>':'')+'</div>'
   +'</div>';
 }
 
@@ -116,7 +131,7 @@ function mxImportGmail(){
 function mxSyncThemeColor(){
   const meta=document.querySelector('meta[name="theme-color"]');
   if(!meta || !mxIsMobile()) return;
-  const color=getComputedStyle(document.body).getPropertyValue('--mx-wash').trim();
+  const color=getComputedStyle(document.body).getPropertyValue('--mx-band').trim();
   if(color) meta.setAttribute('content', color);
 }
 
@@ -171,16 +186,16 @@ function renderMobileDashboard(){
     +'</div>'
     +mxGoogleGroup()
     +'<div class="mx-section">'
-      +'<div class="mx-sh"><span>Compromisos del período</span><b>'+esc(mxMoney(committedTotal))+'</b></div>'
+      +'<div class="mx-sh"><span>Compromisos</span><b>'+esc(mxMoney(committedTotal))+'</b></div>'
       +'<div class="mx-group">'
         +(commitments.length?'<div class="mx-bar"><i style="width:'+paidPct+'%"></i></div>'+commitments.map(mxCommitmentRow).join(''):'<div class="mx-none">No hay compromisos en este período</div>')
-        +'<div class="mx-li mx-li-total"><span class="mx-tx"><span class="mx-t">Gastado + compromisos</span></span><span class="mx-r">'+esc(mxMoney(spentWithCommitments))+'</span></div>'
+        +'<div class="mx-li mx-li-total"><span class="mx-tx"><span class="mx-t">Con compromisos</span></span><span class="mx-r">'+esc(mxMoney(spentWithCommitments))+'</span></div>'
       +'</div>'
     +'</div>'
     +'<div class="mx-twin">'
-      +'<div class="mx-tile"><span>Proyección al cierre</span><b>'+esc(mxMoney(projection.projected))+'</b>'
+      +'<div class="mx-tile strong"><i>'+mxIcon('trend',18)+'</i><span>Proyección al cierre</span><b>'+esc(mxMoney(projection.projected))+'</b>'
         +(projection.tooEarly?'<small>Se afina a partir del día '+projection.minDays+'</small>':'')+'</div>'
-      +'<div class="mx-tile"><span>Promedio diario</span><b>'+esc(mxMoney(projection.dailyVariable))+'</b></div>'
+      +'<div class="mx-tile"><i>'+mxIcon('pulse',18)+'</i><span>Promedio diario</span><b>'+esc(mxMoney(projection.dailyVariable))+'</b></div>'
     +'</div>';
 }
 
@@ -216,10 +231,10 @@ function renderMobileTransactions(){
     }).join('')+'</div></div>').join('');
   const importBtn='<button class="mx-round mx-round-accent" onclick="mxImportGmail()" aria-label="Traer gastos de Gmail">'+mxIcon('down',18)+'</button>';
   shell.innerHTML=mxScreenHead('list','Movimientos','Visa + Amex · '+mxPeriodLabel(period),importBtn)
-    +'<div class="mx-tri">'
-      +'<div><span>ARS</span><b>'+esc(mxMoney(totals.ars))+'</b></div>'
-      +'<div><span>USD</span><b>'+esc(mxMoney(totals.usd,'USD'))+'</b></div>'
-      +'<div><span>Total</span><b>'+esc(mxMoney(totals.totalArs))+'</b></div>'
+    +'<div class="mx-total"><span>Total del período</span><strong>'+esc(mxMoney(totals.totalArs))+'</strong></div>'
+    +'<div class="mx-twin mx-twin-top">'
+      +'<div class="mx-tile strong"><i class="mx-cur">$</i><span>En pesos</span><b>'+esc(mxMoney(totals.ars))+'</b></div>'
+      +'<div class="mx-tile"><i class="mx-cur">US</i><span>En dólares</span><b>'+esc(mxMoney(totals.usd,'USD'))+'</b></div>'
     +'</div>'
     +(list||'<div class="mx-group mx-section"><div class="mx-none">Todavía no hay gastos en este período</div></div>');
 }
