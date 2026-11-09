@@ -60,6 +60,7 @@ function reset(){ state.transactions = []; state.cuotas = []; state.subscription
 const stored = () => JSON.parse(store['fin_state']);
 window.innerWidth = 390; var innerWidth = 390;
 window.scrollTo = function(){};
+var getComputedStyle = function(){ return { getPropertyValue(){ return ''; } }; };
 const tx = (id, ymd, pm, amount, extra) => Object.assign({ id, date: D(ymd), description: 'Gasto ' + id, amount, currency: 'ARS', category: 'Otros', payMethod: pm }, extra || {});
 const shellHtml = id => document.getElementById(id).innerHTML;
 const hoy = new Date(); hoy.setHours(12, 0, 0, 0);
