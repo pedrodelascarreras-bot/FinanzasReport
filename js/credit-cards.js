@@ -102,6 +102,7 @@ function renderCreditCards(){
   const sub=document.getElementById('cc-page-subtitle');
   if(sub) sub.textContent='Aperturas, cierres y vencimientos de cada tarjeta.';
   renderCcConfigPanel();
+  if(typeof renderMobileCards==='function') renderMobileCards();
 }
 
 

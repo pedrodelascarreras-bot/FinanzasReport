@@ -279,6 +279,7 @@ function nav(page){
   if(page==='dashboard')renderDashboard();
   if(page==='calendar' && typeof jumpCalendarToToday==='function') jumpCalendarToToday();
   if(page==='credit-cards')renderCreditCards();
+  if(isMobileAppView()) window.scrollTo(0,0);
   requestAnimationFrame(()=>animatePageEnter(document.getElementById('page-'+page)));
 }
 

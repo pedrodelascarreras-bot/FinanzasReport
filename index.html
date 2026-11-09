@@ -24,7 +24,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="brand/icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<link rel="stylesheet" href="css/styles.css?v=20261106d">
+<link rel="stylesheet" href="css/styles.css?v=20261108a">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" integrity="sha384-D/t0ZMqQW31H3az8ktEiNb39wyKnS82iFY52QPACM+IjKW3jDUhyIgh2PApRqJZs" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
@@ -1066,6 +1066,7 @@
 
 <!-- TARJETA DE CRÉDITO -->
 <div id="page-credit-cards" class="page">
+  <div id="mob-cc-shell" class="mob-cc-shell"></div>
   <div class="page-header fade-up">
     <div><div class="page-title" data-i18n="page_credit_card">Tarjeta de Crédito</div><div class="page-subtitle" id="cc-page-subtitle">Aperturas, cierres y vencimientos de cada tarjeta.</div></div>
     <div class="header-actions" id="cc-page-actions"></div>
@@ -1601,25 +1602,11 @@
 </div>
 
 <!-- MOBILE NAV -->
-<nav class="mob-nav" id="mob-nav">
-  <div class="mob-nav-inner">
-    <button class="mob-nav-btn active" id="mn-dashboard" onclick="nav('dashboard')">
-      <span class="mn-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg></span>
-      <span class="mn-label">Inicio</span>
-    </button>
-    <button class="mob-nav-btn" id="mn-transactions" onclick="nav('transactions')">
-      <span class="mn-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1" fill="currentColor"/><circle cx="4" cy="12" r="1" fill="currentColor"/><circle cx="4" cy="18" r="1" fill="currentColor"/></svg></span>
-      <span class="mn-label">Gastos</span>
-    </button>
-    <button class="mob-nav-btn" id="mn-camino" onclick="nav('camino')">
-      <span class="mn-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><polygon points="15.5 8.5 13.5 13.5 8.5 15.5 10.5 10.5 15.5 8.5"/></svg></span>
-      <span class="mn-label">Mi plan</span>
-    </button>
-    <button class="mob-nav-btn" id="mn-cuotas" onclick="nav('cuotas')">
-      <span class="mn-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 2v4"/><path d="M16 2v4"/><path d="M9 16l2 2 4-4"/></svg></span>
-      <span class="mn-label">Compromisos</span>
-    </button>
-  </div>
+<nav class="mx-tabbar" id="mx-tabbar">
+  <button class="mob-nav-btn active" id="mn-dashboard" onclick="nav('dashboard')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Inicio</span></button>
+  <button class="mob-nav-btn" id="mn-transactions" onclick="nav('transactions')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg><span>Movimientos</span></button>
+  <button class="mob-nav-btn" id="mn-cuotas" onclick="nav('cuotas')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 2v4M16 2v4"/></svg><span>Compromisos</span></button>
+  <button class="mob-nav-btn" id="mn-credit-cards" onclick="nav('credit-cards')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span>Tarjetas</span></button>
 </nav>
 <button class="sidebar-open-btn" id="sidebar-open-btn" onclick="toggleSidebar()" title="Mostrar menú">☰</button>
 
@@ -2667,33 +2654,33 @@ window.addEventListener('unhandledrejection',function(e){
   console.error('[boot-error] promesa rechazada:', e.reason);
 });
 </script>
-<script src="js/config.js?v=20261106d"></script>
-<script src="js/state.js?v=20261106d"></script>
-<script src="js/i18n.js?v=20261106d"></script>
-<script src="js/utils.js?v=20261106d"></script>
-<script src="js/totals.js?v=20261106d"></script>
-<script src="js/import.js?v=20261106d"></script>
-<script src="js/usd-rate.js?v=20261106d"></script>
-<script src="js/dashboard.js?v=20261106d"></script>
-<script src="js/dashboard-widgets.js?v=20261106d"></script>
-<script src="js/dashboard-mobile.js?v=20261106d"></script>
-<script src="js/calendar.js?v=20261106d"></script>
-<script src="js/global-search.js?v=20261106d"></script>
-<script src="js/transactions.js?v=20261106d"></script>
-<script src="js/analytics.js?v=20261106d"></script>
-<script src="js/expenses.js?v=20261106d"></script>
-<script src="js/income.js?v=20261106d"></script>
-<script src="js/savings.js?v=20261106d"></script>
-<script src="js/camino.js?v=20261106d"></script>
-<script src="js/categories.js?v=20261106d"></script>
-<script src="js/data-tools.js?v=20261106d"></script>
-<script src="js/autocat.js?v=20261106d"></script>
-<script src="js/ui.js?v=20261106d"></script>
-<script src="js/shell.js?v=20261106d"></script>
-<script src="js/init.js?v=20261106d"></script>
-<script src="js/credit-cards.js?v=20261106d"></script>
-<script src="js/animations.js?v=20261106d"></script>
-<script src="js/lock.js?v=20261106d"></script>
+<script src="js/config.js?v=20261108a"></script>
+<script src="js/state.js?v=20261108a"></script>
+<script src="js/i18n.js?v=20261108a"></script>
+<script src="js/utils.js?v=20261108a"></script>
+<script src="js/totals.js?v=20261108a"></script>
+<script src="js/import.js?v=20261108a"></script>
+<script src="js/usd-rate.js?v=20261108a"></script>
+<script src="js/dashboard.js?v=20261108a"></script>
+<script src="js/dashboard-widgets.js?v=20261108a"></script>
+<script src="js/calendar.js?v=20261108a"></script>
+<script src="js/global-search.js?v=20261108a"></script>
+<script src="js/transactions.js?v=20261108a"></script>
+<script src="js/analytics.js?v=20261108a"></script>
+<script src="js/expenses.js?v=20261108a"></script>
+<script src="js/income.js?v=20261108a"></script>
+<script src="js/savings.js?v=20261108a"></script>
+<script src="js/camino.js?v=20261108a"></script>
+<script src="js/categories.js?v=20261108a"></script>
+<script src="js/data-tools.js?v=20261108a"></script>
+<script src="js/autocat.js?v=20261108a"></script>
+<script src="js/mobile.js?v=20261108a"></script>
+<script src="js/ui.js?v=20261108a"></script>
+<script src="js/shell.js?v=20261108a"></script>
+<script src="js/init.js?v=20261108a"></script>
+<script src="js/credit-cards.js?v=20261108a"></script>
+<script src="js/animations.js?v=20261108a"></script>
+<script src="js/lock.js?v=20261108a"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      MOBILE DRAWER — slide-in from left
@@ -2727,6 +2714,10 @@ window.addEventListener('unhandledrejection',function(e){
       <button class="mob-drawer-item" id="mdi-cuotas" onclick="closeMobDrawer();nav('cuotas')">
         <span class="mob-drawer-item-icon" style="font-size:18px;">📅</span>
         <span class="mob-drawer-item-label">Compromisos</span>
+      </button>
+      <button class="mob-drawer-item" onclick="closeMobDrawer();nav('camino')">
+        <span class="mob-drawer-item-icon" style="font-size:18px;">🧭</span>
+        <span class="mob-drawer-item-label">Mi plan</span>
       </button>
       <button class="mob-drawer-item" id="mdi-credit-cards" onclick="closeMobDrawer();nav('credit-cards')">
         <span class="mob-drawer-item-icon" style="font-size:18px;">💳</span>
@@ -2768,68 +2759,6 @@ window.addEventListener('unhandledrejection',function(e){
   </div><!-- /mob-drawer-panel -->
 </div><!-- /mob-drawer -->
 
-<!-- ══ PERIOD PICKER SHEET ══ -->
-<div id="mob-period-sheet" class="mob-theme-sheet" role="dialog" aria-modal="true" aria-label="Seleccionar período">
-  <div class="mob-theme-backdrop" onclick="closeMobPeriodPicker()"></div>
-  <div class="mob-theme-panel">
-    <div class="mob-theme-handle"></div>
-    <div class="mob-theme-title">Período</div>
-    <div class="mob-theme-options">
-      <button class="mob-theme-opt" id="mob-period-opt-visa" onclick="closeMobPeriodPicker();setDashView('visa')">
-        <span class="mob-theme-opt-icon">💳</span>
-        <span class="mob-theme-opt-label">Ciclo VISA<small>Ciclo actual de tu tarjeta</small></span>
-        <span class="mob-theme-opt-check">✓</span>
-      </button>
-      <button class="mob-theme-opt" id="mob-period-opt-amex" onclick="closeMobPeriodPicker();setDashView('amex')">
-        <span class="mob-theme-opt-icon">💳</span>
-        <span class="mob-theme-opt-label">Ciclo AMEX<small>Ciclo actual de tu Amex</small></span>
-        <span class="mob-theme-opt-check">✓</span>
-      </button>
-      <button class="mob-theme-opt" id="mob-period-opt-mes" onclick="closeMobPeriodPicker();setDashView('mes')">
-        <span class="mob-theme-opt-icon">📅</span>
-        <span class="mob-theme-opt-label">Mes actual<small>Todos los gastos del mes</small></span>
-        <span class="mob-theme-opt-check">✓</span>
-      </button>
-    </div>
-  </div>
-</div><!-- /mob-period-sheet -->
-
-<!-- ══ TRANSACTIONS PERIOD PICKER SHEET ══ -->
-<div id="mob-txn-period-sheet" class="mob-theme-sheet" role="dialog" aria-modal="true" aria-label="Seleccionar período">
-  <div class="mob-theme-backdrop" onclick="closeMobTxnPeriodPicker()"></div>
-  <div class="mob-theme-panel">
-    <div class="mob-theme-handle"></div>
-    <div class="mob-theme-title">Período</div>
-    <div class="mob-theme-options" id="mob-txn-period-opts"></div>
-  </div>
-</div><!-- /mob-txn-period-sheet -->
-
-<!-- ══ TRANSACTIONS CURRENCY FILTER SHEET ══ -->
-<div id="mob-txn-filter-sheet" class="mob-theme-sheet" role="dialog" aria-modal="true" aria-label="Filtrar movimientos">
-  <div class="mob-theme-backdrop" onclick="closeMobTxnFilterSheet()"></div>
-  <div class="mob-theme-panel">
-    <div class="mob-theme-handle"></div>
-    <div class="mob-theme-title">Filtrar por moneda</div>
-    <div class="mob-theme-options">
-      <button class="mob-theme-opt" id="mob-txn-filt-all" onclick="window._mobTxnCurrFilter='all';closeMobTxnFilterSheet();renderTransactions()">
-        <span class="mob-theme-opt-icon">🔀</span>
-        <span class="mob-theme-opt-label">Todos<small>ARS y USD</small></span>
-        <span class="mob-theme-opt-check">✓</span>
-      </button>
-      <button class="mob-theme-opt" id="mob-txn-filt-ars" onclick="window._mobTxnCurrFilter='ARS';closeMobTxnFilterSheet();renderTransactions()">
-        <span class="mob-theme-opt-icon">🇦🇷</span>
-        <span class="mob-theme-opt-label">Solo ARS<small>Gastos en pesos</small></span>
-        <span class="mob-theme-opt-check">✓</span>
-      </button>
-      <button class="mob-theme-opt" id="mob-txn-filt-usd" onclick="window._mobTxnCurrFilter='USD';closeMobTxnFilterSheet();renderTransactions()">
-        <span class="mob-theme-opt-icon">💵</span>
-        <span class="mob-theme-opt-label">Solo USD<small>Gastos en dólares</small></span>
-        <span class="mob-theme-opt-check">✓</span>
-      </button>
-    </div>
-  </div>
-</div><!-- /mob-txn-filter-sheet -->
-
 <script>
 /* ══════════════════════════════════════════════════════════════
    MOBILE DRAWER — open / close / state
@@ -2869,81 +2798,6 @@ function _updateDrawerState() {
     const t = getLockType();
     sub.textContent = t === 'pin' ? 'PIN de 4 dígitos · tocá para cambiarlo' : 'Creá tu PIN de acceso';
   }
-}
-
-/* ══════════════════════════════════════════════════════════════
-   PERIOD PICKER — bottom sheet for dashboard period selector
-   ══════════════════════════════════════════════════════════════ */
-function openMobPeriodPicker() {
-  const sheet = document.getElementById('mob-period-sheet');
-  if (!sheet) return;
-  // Mark the currently active option
-  const view = typeof state !== 'undefined' ? (state.dashView || 'visa') : 'visa';
-  ['visa','amex','mes'].forEach(function(k) {
-    document.getElementById('mob-period-opt-' + k)?.classList.toggle('active', view === k);
-  });
-  sheet.classList.add('open');
-  if (typeof _iosLock === 'function') _iosLock();
-}
-function closeMobPeriodPicker() {
-  const sheet = document.getElementById('mob-period-sheet');
-  if (!sheet) return;
-  sheet.classList.remove('open');
-  if (typeof _iosUnlock === 'function') _iosUnlock();
-}
-
-/* ══════════════════════════════════════════════════════════════
-   TRANSACTIONS PERIOD & FILTER PICKERS
-   ══════════════════════════════════════════════════════════════ */
-function openMobTxnPeriodPicker() {
-  const sheet = document.getElementById('mob-txn-period-sheet');
-  const opts  = document.getElementById('mob-txn-period-opts');
-  if (!sheet || !opts) return;
-
-  // Build last 6 months + next month options
-  const today = new Date();
-  const _MN = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-  const curKey = window._mobTxnMonthKey ||
-    (today.getFullYear() + '-' + String(today.getMonth()+1).padStart(2,'0'));
-  const months = [];
-  for (let i = 0; i <= 11; i++) {
-    const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    const key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
-    months.push({ key, label: _MN[d.getMonth()] + ' ' + d.getFullYear() });
-  }
-  opts.innerHTML = months.map(m => `
-    <button class="mob-theme-opt${m.key===curKey?' active':''}"
-            onclick="window._mobTxnMonthKey='${m.key}';closeMobTxnPeriodPicker();if(typeof renderTransactions==='function')renderTransactions()">
-      <span class="mob-theme-opt-icon">${m.key===curKey?'📍':'📅'}</span>
-      <span class="mob-theme-opt-label">${m.label}</span>
-      <span class="mob-theme-opt-check">✓</span>
-    </button>`).join('');
-
-  sheet.classList.add('open');
-  if (typeof _iosLock === 'function') _iosLock();
-}
-function closeMobTxnPeriodPicker() {
-  const sheet = document.getElementById('mob-txn-period-sheet');
-  if (!sheet) return;
-  sheet.classList.remove('open');
-  if (typeof _iosUnlock === 'function') _iosUnlock();
-}
-function openMobTxnFilterSheet() {
-  const sheet = document.getElementById('mob-txn-filter-sheet');
-  if (!sheet) return;
-  const cur = window._mobTxnCurrFilter || 'all';
-  ['all','ars','usd'].forEach(k => {
-    const el = document.getElementById('mob-txn-filt-'+k);
-    if (el) el.classList.toggle('active', k === cur.toLowerCase());
-  });
-  sheet.classList.add('open');
-  if (typeof _iosLock === 'function') _iosLock();
-}
-function closeMobTxnFilterSheet() {
-  const sheet = document.getElementById('mob-txn-filter-sheet');
-  if (!sheet) return;
-  sheet.classList.remove('open');
-  if (typeof _iosUnlock === 'function') _iosUnlock();
 }
 
 // Wrap nav() to close drawer first — done after DOMContentLoaded so all

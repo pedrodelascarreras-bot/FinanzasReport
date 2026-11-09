@@ -285,7 +285,7 @@
       );
     }
 
-    const mob = document.querySelector('.mob-nav');
+    const mob = document.querySelector('.mx-tabbar');
     if (mob) {
       gsap.fromTo(mob,
         { y: 18, opacity: 0 },

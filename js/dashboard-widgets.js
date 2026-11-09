@@ -1551,5 +1551,5 @@ function renderDb2Dashboard(data){
   renderDb2DueStrip(data.timelineData);
   renderDb2DollarSparkline();
   enforceDashboardPrivacyMask();
-  renderMobileDashboard(data);
+  renderMobileDashboard();
 }

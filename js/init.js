@@ -462,27 +462,19 @@ function addTcCycle(){
   if(document.getElementById('tc-cycle-due'))document.getElementById('tc-cycle-due').value='';
 }
 // Removed duplicate function
-function addTcCycleFromCC(){
-  const labelEl=document.getElementById('tc-cycle-label-cc');
-  const cardEl=document.getElementById('tc-cycle-card-cc');
-  const openEl=document.getElementById('tc-cycle-open-cc');
-  const closeEl=document.getElementById('tc-cycle-close-cc');
-  const dueEl=document.getElementById('tc-cycle-due-cc');
-  let label=(labelEl?labelEl.value:'').trim();
-  const cardId=(cardEl?cardEl.value:'').trim();
-  let openDate=(openEl?openEl.value:'').trim();
-  const closeDate=(closeEl?closeEl.value:'');
-  const dueDate=(dueEl?dueEl.value:'');
-  const editingId=window._tcCycleEditId||'';
-  if(!cardId||!openDate||!closeDate||!dueDate){showToast('⚠️ Completá tarjeta, apertura, cierre y vencimiento','error');return;}
+// Guarda un ciclo nuevo o editado (lo usan el formulario de la compu y el del celular)
+function saveTcCycleData(data){
+  let label=(data.label||'').trim();
+  const {cardId='',openDate='',closeDate='',dueDate='',editingId=''}=data;
+  if(!cardId||!openDate||!closeDate||!dueDate){showToast('⚠️ Completá tarjeta, apertura, cierre y vencimiento','error');return false;}
   if(!label){
     const closeD=new Date(closeDate+'T12:00:00');
     const cardName=(state.ccCards||[]).find(c=>c.id===cardId)?.name||'Tarjeta';
     const monthLabel=closeD.toLocaleDateString('es-AR',{month:'short',year:'numeric'}).replace('.', '');
     label=`${cardName.replace(/^Santander\s+/i,'')} · ${monthLabel}`;
   }
-  if(openDate>closeDate){showToast('⚠️ La apertura no puede ser posterior al cierre','error');return;}
-  if(dueDate<closeDate){showToast('⚠️ El vencimiento no puede ser anterior al cierre','error');return;}
+  if(openDate>closeDate){showToast('⚠️ La apertura no puede ser posterior al cierre','error');return false;}
+  if(dueDate<closeDate){showToast('⚠️ El vencimiento no puede ser anterior al cierre','error');return false;}
   if(!state.tcCycles)state.tcCycles=[];
   if(!state.hiddenTcCycles) state.hiddenTcCycles=[];
   const card=(state.ccCards||[]).find(c=>c.id===cardId);
@@ -501,7 +493,7 @@ function addTcCycleFromCC(){
     if(originalSignature&&getTcCycleSignature(c)===originalSignature) return false;
     return getTcCycleSignature(c)===nextSignature;
   });
-  if(duplicate){showToast('⚠️ Ya existe un ciclo para esa tarjeta con esa fecha de cierre','error');return;}
+  if(duplicate){showToast('⚠️ Ya existe un ciclo para esa tarjeta con esa fecha de cierre','error');return false;}
   _ensureTcCycleVisible(nextSignature);
   if(isAutoEdit&&originalSignature){
     if(!state.hiddenTcCycles.includes(originalSignature)) state.hiddenTcCycles.push(originalSignature);
@@ -520,6 +512,23 @@ function addTcCycleFromCC(){
   renderCcTcConfig();
   if(typeof renderCcConfigPanel==='function') renderCcConfigPanel();
   showToast(editingId?'✓ Ciclo actualizado':'✓ Ciclo agregado: '+label,'success');
+  return true;
+}
+function addTcCycleFromCC(){
+  const labelEl=document.getElementById('tc-cycle-label-cc');
+  const cardEl=document.getElementById('tc-cycle-card-cc');
+  const openEl=document.getElementById('tc-cycle-open-cc');
+  const closeEl=document.getElementById('tc-cycle-close-cc');
+  const dueEl=document.getElementById('tc-cycle-due-cc');
+  const saved=saveTcCycleData({
+    label:(labelEl?labelEl.value:'').trim(),
+    cardId:(cardEl?cardEl.value:'').trim(),
+    openDate:(openEl?openEl.value:'').trim(),
+    closeDate:closeEl?closeEl.value:'',
+    dueDate:dueEl?dueEl.value:'',
+    editingId:window._tcCycleEditId||''
+  });
+  if(!saved) return;
   if(labelEl)labelEl.value='';
   if(cardEl)cardEl.value=window._ccConfigDraftCardId||state.ccActiveCard||state.ccCards?.[0]?.id||'';
   if(openEl)openEl.value='';
@@ -667,6 +676,16 @@ window.addEventListener('DOMContentLoaded',async ()=>{
   // Entrada: PIN de 4 dígitos (js/lock.js) sobre los datos guardados en el dispositivo.
   // Google es opcional: se conecta a mano para respaldar en Drive o importar de Gmail.
   window._appBooted=true;
+  resetDataFingerprint();
+  if(typeof mxPrepareGoogle==='function' && isMobileAppView()){
+    // El celular es de lectura: la primera vez, lo que hay en Drive manda sobre lo que tenga acá
+    if(!localStorage.getItem('fin_mobile_drive_first')){
+      localStorage.removeItem(LS_LOCAL_EDITED_AT);
+      localStorage.setItem('fin_mobile_drive_first','1');
+    }
+    mxPrepareGoogle();
+    renderMobileDashboard(); // también sin datos: muestra el botón para traerlos de Google
+  }
   window._stateReady=true;
   document.dispatchEvent(new Event('fluxen:state-ready'));
 });

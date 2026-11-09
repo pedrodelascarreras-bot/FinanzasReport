@@ -234,6 +234,7 @@ function reloadStateFromOtherTab(){
     try{
       if(_idb) _stateRawCache=await _idbGet(STATE_KEY);
       loadState();
+      resetDataFingerprint();
       if(typeof refreshAll==='function') refreshAll();
       if(typeof showToast==='function') showToast('Datos actualizados desde otra ventana','info');
     }catch(err){ console.warn('external state reload error', err); }
@@ -355,9 +356,26 @@ function hasUnsyncedLocalChanges(){
   const synced=localStorage.getItem(LS_LAST_SYNCED_AT)||'';
   return !!edited && edited>synced;
 }
+// Solo los datos del usuario: actualizar el dólar o cambiar de vista no es un cambio que deba
+// competir con lo que se hizo en otro dispositivo.
+const USER_DATA_KEYS=['transactions','categories','categoryGroups','income','tcCycles','hiddenTcCycles','imports','cuotas','autoCuotaConfig','subscriptions','fixedExpenses','incomeSources','incomeMonths','savAccounts','savGoals','savDeposits','savStages','savPlan','tcConfig','viewCycleConfig','catRules','nameRules','logoRules','catHistory','ccCards','ccCycles','gmailImportRules','bankProfiles','dismissedAutoCuotas','dismissedImportedSubs','gmailDeletedIds','gmailAnulados','caminoPlan','dismissedCommitmentEntries','tasks','smartTags','bankAccounts','sharedExpenseContacts'];
+let _dataFingerprint=null;
+function _stateFingerprint(snapshot){
+  return JSON.stringify(USER_DATA_KEYS.map(k=>snapshot[k]));
+}
+function resetDataFingerprint(){
+  _dataFingerprint=_stateFingerprint(getStateSnapshot());
+}
 function saveState(){
-  markLocalEdit();
-  const snapshot = getStateSnapshot();
+  let snapshot = getStateSnapshot();
+  if(window._appBooted){
+    const fingerprint=_stateFingerprint(snapshot);
+    if(fingerprint!==_dataFingerprint){
+      markLocalEdit();
+      snapshot.savedAt=localStorage.getItem(LS_LOCAL_EDITED_AT)||snapshot.savedAt;
+      _dataFingerprint=fingerprint;
+    }
+  }
   // Always save to localStorage as backup
   safePersistLocalSnapshot(snapshot);
   // Save to Drive silently in background (debounced)
@@ -391,7 +409,7 @@ function _syncMark(step){
 
 function getDriveScopes(){ return 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/gmail.readonly'; }
 
-function initDriveClient(autoSync){
+function initDriveClient(autoSync, opts={}){
   const clientId = getGmailClientId();
   if(!clientId) return;
   _syncT0 = 0; window._syncTrace = [];
@@ -444,6 +462,7 @@ function initDriveClient(autoSync){
         });
       }
     });
+    if(opts.prepareOnly) return;
     _syncMark('pidiendo token (silencioso)…');
     driveTokenClient.requestAccessToken({prompt:''});
   });
@@ -698,6 +717,7 @@ async function loadFromDrive(){
     if(typeof ensureActiveUserProfileBootstrap === 'function'){
       try{ ensureActiveUserProfileBootstrap(); }catch(e){ console.warn('profile bootstrap error', e); }
     }
+    resetDataFingerprint(); // lo que llegó de Drive no es un cambio de este dispositivo
     _syncMark('estado aplicado ('+(state.transactions||[]).length+' txns)');
     initialLoadComplete = true;
     return true;
@@ -846,6 +866,7 @@ window.addEventListener('storage', e => {
   window._externalStateTimer=setTimeout(()=>{
     try{
       loadState();
+      resetDataFingerprint();
       if(typeof refreshAll==='function') refreshAll();
       if(typeof showToast==='function') showToast('Datos actualizados desde otra ventana','info');
     }catch(err){ console.warn('external state reload error', err); }
