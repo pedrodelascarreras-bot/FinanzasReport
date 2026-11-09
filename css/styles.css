@@ -15612,6 +15612,7 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
   .mx-import-last { text-align:center; font-size:12px; color:var(--mx-muted); margin:6px 0 12px; }
   .mx-card .mx-import-last { margin-bottom:0; }
   .mx-btn { width:100%; min-height:44px; border:1px solid var(--mx-line); border-radius:12px; background:transparent; color:var(--mx-text); font:650 14px var(--font); }
+  .mx-connect { margin-bottom:8px; }
   .mx-link { border:none; background:none; color:var(--mx-accent); font:700 14px var(--font); padding:8px 0 8px 12px; }
 
   .mx-section-head { display:flex; justify-content:space-between; align-items:baseline; gap:10px; font-size:15px; font-weight:700; color:var(--mx-text); }

@@ -79,6 +79,17 @@ const home = shellHtml('mob-dash-shell');
 eq([home.includes('$3.000'), home.includes('Proyección al cierre'), home.includes('Promedio diario'), home.includes('Traer gastos de Gmail')], [true, true, true, true], 'el inicio trae total, proyección, promedio y botón de Gmail');
 eq(home.includes('$3.300'), true, 'Gastado + compromisos suma lo que falta cobrar');
 
+eq(home.includes('Conectar con Google'), true, 'botón para conectar con Google');
+// Mismo número que el Dashboard: un gasto compartido cuenta solo tu parte
+state.transactions.push(tx('s', dia(-1), 'visa', 1000, { sharedExpense: { enabled: true, myAmount: 400, splits: [] } }));
+eq(mxPeriodTotals(period, 'tarjetas').totalArs, getPeriodTotals({ startStr: period.start, endStr: period.end, card: 'tarjetas', todayRef: mxEndOfToday() }).totalArs, 'coincide con la cuenta del Dashboard');
+state.transactions.pop();
+// Conectar pide el acceso directo en el toque y no abre la ventana de importar
+let pedidos = 0; driveTokenClient = { requestAccessToken(){ pedidos++; } }; window._gmailSyncPending = false;
+mxConnectGoogle();
+eq([pedidos, !!window._gmailSyncPending], [1, false], 'conectar solo pide el acceso');
+driveTokenClient = null;
+
 // 2) Movimientos: solo lectura, totales ARS / USD / Total
 state.transactions.push(tx('u', dia(-1), 'visa', 10, { currency: 'USD' }));
 renderMobileTransactions();

@@ -33,7 +33,7 @@ function mxPeriod(){
   return {cycle, start, end:cycle.closeDate, daysLeft};
 }
 function mxPeriodTotals(period, card){
-  return getPeriodTotals({startStr:period.start, endStr:period.end, card, todayRef:mxEndOfToday(), amountMode:'full'});
+  return getPeriodTotals({startStr:period.start, endStr:period.end, card, todayRef:mxEndOfToday()});
 }
 function mxPeriodLabel(period){
   return mxShortDate(period.start)+' al '+mxShortDate(period.end);
@@ -56,6 +56,19 @@ function mxHeader(){
     +'<img class="mx-logo" src="brand/fluxen-logo.png" alt="Fluxen">'
     +'<span class="mx-header-gap"></span>'
   +'</header>';
+}
+// Trae lo último que subió la compu. Si ya está conectado, vuelve a pedir el acceso (dura una hora)
+function mxConnectGoogle(){
+  if(!driveTokenClient){
+    mxPrepareGoogle();
+    showToast('Preparando la conexión con Google… tocá de nuevo en un segundo','info');
+    return;
+  }
+  driveTokenClient.requestAccessToken({prompt:''});
+}
+function mxConnectButton(){
+  const connected=typeof isGoogleConnected==='function' && isGoogleConnected();
+  return '<button class="mx-btn mx-connect" onclick="mxConnectGoogle()">'+(connected?'Conectado a Google · Actualizar':'Conectar con Google')+'</button>';
 }
 function mxImportButton(label){
   const last=state.lastGmailSync?new Date(state.lastGmailSync):null;
@@ -95,7 +108,7 @@ function mxEmptyHtml(){
     +'<div class="mx-card mx-empty">'
       +'<div class="mx-empty-title">Todavía no hay datos en este celular</div>'
       +'<div class="mx-empty-sub">Conectá tu cuenta de Google y traemos todo lo que tenés en la compu.</div>'
-      +mxImportButton('Conectar con Google')
+      +'<button class="mx-import" onclick="mxConnectGoogle()">Conectar con Google</button>'
     +'</div>';
 }
 
@@ -109,7 +122,7 @@ function renderMobileDashboard(){
   const all=mxPeriodTotals(period,'tarjetas');
   const visa=mxPeriodTotals(period,'visa');
   const amex=mxPeriodTotals(period,'amex');
-  const projection=getPeriodProjection({startStr:period.start, endStr:period.end, card:'tarjetas', todayRef:mxEndOfToday(), amountMode:'full'});
+  const projection=getPeriodProjection({startStr:period.start, endStr:period.end, card:'tarjetas', todayRef:mxEndOfToday()});
 
   const rate=window.USD_TO_ARS||USD_TO_ARS||1;
   const toArs=e=>(Number(e.amount)||0)*((e.currency||'ARS')==='USD'?rate:1);
@@ -139,6 +152,7 @@ function renderMobileDashboard(){
         +'<div class="mx-split-row"><span>Visa</span><strong>'+esc(mxMoney(visa.totalArs))+'</strong></div>'
         +'<div class="mx-split-row"><span>Amex</span><strong>'+esc(mxMoney(amex.totalArs))+'</strong></div>'
       +'</div>'
+      +mxConnectButton()
       +mxImportButton()
     +'</section>'
     +'<section class="mx-card">'
@@ -233,7 +247,7 @@ function renderMobileCards(){
     const current=rows.find(r=>r.open<=today && today<=r.cycle.closeDate)||rows[0]||null;
     const name=MX_PAY_LABEL[key];
     if(!current) return '<section class="mx-card"><div class="mx-section-head"><span>'+name+'</span></div><div class="mx-none">Sin ciclos cargados</div></section>';
-    const spent=getPeriodTotals({startStr:current.open, endStr:current.cycle.closeDate, card:key, todayRef:mxEndOfToday(), amountMode:'full'}).totalArs;
+    const spent=getPeriodTotals({startStr:current.open, endStr:current.cycle.closeDate, card:key, todayRef:mxEndOfToday()}).totalArs;
     const others=rows.filter(r=>r!==current).slice(0,6).map(r=>'<div class="mx-row">'
       +'<div class="mx-row-main"><div class="mx-row-title">'+esc(mxShortDate(r.open))+' al '+esc(mxShortDate(r.cycle.closeDate))+'</div>'
       +'<div class="mx-row-sub">'+(r.open>today?'Próximo · ':'')+'Vence '+esc(r.cycle.dueDate?mxShortDate(r.cycle.dueDate):'—')+'</div></div>'

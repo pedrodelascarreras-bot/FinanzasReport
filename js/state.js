@@ -457,6 +457,8 @@ function initDriveClient(autoSync, opts={}){
           } else if(typeof showToast==='function' && !loaded && !initialLoadComplete){
             showToast('⚠️ No se pudo sincronizar con Drive — tus datos locales están a salvo, recargá para reintentar','error');
           }
+          if(!loaded && initialLoadComplete && typeof showToast==='function') showToast('Todavía no hay datos en Google: conectá primero desde la compu (la G de abajo a la izquierda).','info');
+          if(typeof isMobileAppView==='function' && isMobileAppView()) renderMobileDashboard();
           // Auto-sync DESACTIVADO — nunca sincronizar automáticamente
           if(autoSync||window._gmailSyncPending){window._gmailSyncPending=false;openGmailPeriodModal();}
         });
