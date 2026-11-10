@@ -91,6 +91,16 @@ mxConnectGoogle();
 eq([pedidos, !!window._gmailSyncPending], [1, false], 'conectar solo pide el acceso');
 driveTokenClient = null;
 
+// Cuándo se conectó con Google por última vez
+const ahora = new Date(2026, 10, 10, 15, 0);
+delete store['fin_last_google_at'];
+eq(mxLastGoogle(ahora), { text: 'Nunca se conectó en este celular', stale: true }, 'nunca conectado');
+store['fin_last_google_at'] = new Date(2026, 10, 10, 14, 50).toISOString();
+eq(mxLastGoogle(ahora), { text: 'Última vez: hace 10 min', stale: false }, 'hace un rato');
+store['fin_last_google_at'] = new Date(2026, 10, 7, 9, 0).toISOString();
+eq(mxLastGoogle(ahora), { text: 'Última vez: hace 3 días', stale: true }, 'hace días: conviene actualizar');
+delete store['fin_last_google_at'];
+
 // 2) Movimientos: solo lectura, totales ARS / USD / Total
 state.transactions.push(tx('u', dia(-1), 'visa', 10, { currency: 'USD' }));
 renderMobileTransactions();

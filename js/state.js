@@ -458,6 +458,8 @@ function initDriveClient(autoSync, opts={}){
           } else if(typeof showToast==='function' && !loaded && !initialLoadComplete){
             showToast('⚠️ No se pudo sincronizar con Drive — tus datos locales están a salvo, recargá para reintentar','error');
           }
+          // Cuándo trajo datos de Google este dispositivo (el Inicio del celular lo muestra)
+          if(loaded) localStorage.setItem('fin_last_google_at', new Date().toISOString());
           if(!loaded && initialLoadComplete && typeof showToast==='function') showToast('Todavía no hay datos en Google: conectá primero desde la compu (la G de abajo a la izquierda).','info');
           if(typeof isMobileAppView==='function' && isMobileAppView()) renderMobileDashboard();
           // Auto-sync DESACTIVADO — nunca sincronizar automáticamente

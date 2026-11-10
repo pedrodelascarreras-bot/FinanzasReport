@@ -84,19 +84,31 @@ function mxLastImportText(){
 function mxGoogleConnected(){
   return typeof isGoogleConnected==='function' && isGoogleConnected() && Date.now()<(window._driveTokenExpiresAt||0);
 }
-function mxLastSyncText(){
-  const raw=localStorage.getItem('fin_last_synced_at');
+// Última vez que este celular trajo datos de Google, en palabras ("hace 5 min", "ayer, 18:40")
+function mxLastGoogle(now=new Date()){
+  const raw=localStorage.getItem('fin_last_google_at');
   const d=raw?new Date(raw):null;
-  return d&&!isNaN(d)?'Sincronizado: '+mxShortDate(d)+', '+d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'';
+  if(!d || isNaN(d)) return {text:'Nunca se conectó en este celular', stale:true};
+  const mins=Math.max(0, Math.round((now-d)/60000));
+  const hour=d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
+  const dayDiff=Math.round((new Date(dateToYMD(now)+'T12:00:00')-new Date(dateToYMD(d)+'T12:00:00'))/86400000);
+  let when;
+  if(mins<1) when='recién';
+  else if(mins<60) when='hace '+mins+' min';
+  else if(dayDiff===0) when='hoy, '+hour;
+  else if(dayDiff===1) when='ayer, '+hour;
+  else if(dayDiff<7) when='hace '+dayDiff+' días';
+  else when='el '+mxShortDate(d);
+  return {text:'Última vez: '+when, stale:mins>=24*60};
 }
 function mxGoogleGroup(){
   const connected=mxGoogleConnected();
   const last=mxLastImportText();
-  const sync=mxLastSyncText();
+  const lastGoogle=mxLastGoogle();
   return '<div class="mx-group mx-section mx-google">'
     +'<button class="mx-li" onclick="mxConnectGoogle()"><span class="mx-ico mx-ico-g">'+MX_GOOGLE+'</span>'
       +'<span class="mx-tx"><span class="mx-t">'+(connected?'Conectado a Google':'Conectar con Google')+'</span>'
-      +'<span class="mx-s">'+esc(connected?(sync?sync+' · tocá para actualizar':'Tocá para actualizar'):'Sin conexión, los datos pueden estar viejos')+'</span></span>'
+      +'<span class="mx-s'+(lastGoogle.stale&&!connected?' mx-stale':'')+'">'+esc(lastGoogle.text+(lastGoogle.stale&&!connected?' · conviene actualizar':''))+'</span></span>'
       +'<span class="mx-pill '+(connected?'on':'off')+'">'+(connected?'Conectado':'Sin conectar')+'</span></button>'
     +'<div class="mx-import-wrap"><button class="mx-primary" onclick="mxImportGmail()">'+mxIcon('down',19)+'Traer gastos de Gmail</button>'
       +(last?'<div class="mx-import-last">'+esc(last)+'</div>':'')+'</div>'

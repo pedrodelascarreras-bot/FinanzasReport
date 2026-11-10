@@ -15674,6 +15674,8 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
   .mx-pill.off { background:rgba(229,53,43,.13); color:#D0342C; }
   body:not(.light-mode) .mx-pill.on { color:#30D158; }
   body:not(.light-mode) .mx-pill.off { color:#FF6B60; }
+  .mx-s.mx-stale { color:#D47300; font-weight:600; }
+  body:not(.light-mode) .mx-s.mx-stale { color:#FF9F0A; }
   .mx-import-wrap { padding:4px 14px 14px; }
   .mx-import-last { margin-top:7px; text-align:center; font-size:12.5px; font-weight:500; color:var(--mx-muted); }
   .mx-mono { flex:0 0 36px; height:36px; border-radius:18px; display:grid; place-items:center; font-size:14px; font-weight:600; }
