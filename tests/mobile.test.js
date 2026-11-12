@@ -77,10 +77,10 @@ state.cuotas = [{ id: 'q', name: 'Prestamo', amount: 300, total: 6, day: new Dat
 eq([mxPeriodTotals(period, 'tarjetas').totalArs, mxPeriodTotals(period, 'visa').totalArs, mxPeriodTotals(period, 'amex').totalArs], [3000, 1000, 2000], 'las dos tarjetas juntas; débito afuera');
 renderMobileDashboard();
 const home = shellHtml('mob-dash-shell');
-eq([home.includes('$3.000'), home.includes('Proyección al cierre'), home.includes('Promedio diario'), home.includes('Traer gastos de Gmail')], [true, true, true, true], 'el inicio trae total, proyección, promedio y botón de Gmail');
-eq(home.includes('$3.300'), true, 'Gastado + compromisos suma lo que falta cobrar');
+eq([home.includes('$3.000'), home.includes('Proyección al cierre'), home.includes('Promedio diario'), home.includes('Traer')], [true, true, true, true], 'el inicio trae total, proyección, promedio y botón de Gmail');
+eq(home.includes('$3.300'), true, 'Con compromisos suma lo que falta cobrar');
 
-eq(home.includes('Conectar con Google'), true, 'botón para conectar con Google');
+eq(home.includes('Sin conectar') && home.includes('mxConnectGoogle()'), true, 'estado de Google y botón para conectar');
 // Mismo número que el Dashboard: un gasto compartido cuenta solo tu parte
 state.transactions.push(tx('s', dia(-1), 'visa', 1000, { sharedExpense: { enabled: true, myAmount: 400, splits: [] } }));
 eq(mxPeriodTotals(period, 'tarjetas').totalArs, getPeriodTotals({ startStr: period.start, endStr: period.end, card: 'tarjetas', todayRef: mxEndOfToday() }).totalArs, 'coincide con la cuenta del Dashboard');
@@ -94,18 +94,18 @@ driveTokenClient = null;
 // Cuándo se conectó con Google por última vez
 const ahora = new Date(2026, 10, 10, 15, 0);
 delete store['fin_last_google_at'];
-eq(mxLastGoogle(ahora), { text: 'Nunca se conectó en este celular', stale: true }, 'nunca conectado');
+eq(mxLastGoogle(ahora), { text: 'Nunca se conectó en este celular', short: 'Nunca', stale: true }, 'nunca conectado');
 store['fin_last_google_at'] = new Date(2026, 10, 10, 14, 50).toISOString();
-eq(mxLastGoogle(ahora), { text: 'Última vez: hace 10 min', stale: false }, 'hace un rato');
+eq(mxLastGoogle(ahora), { text: 'Última vez: hace 10 min', short: 'Hace 10 min', stale: false }, 'hace un rato');
 store['fin_last_google_at'] = new Date(2026, 10, 7, 9, 0).toISOString();
-eq(mxLastGoogle(ahora), { text: 'Última vez: hace 3 días', stale: true }, 'hace días: conviene actualizar');
+eq(mxLastGoogle(ahora), { text: 'Última vez: hace 3 días', short: 'Hace 3 días', stale: true }, 'hace días: conviene actualizar');
 delete store['fin_last_google_at'];
 
 // 2) Movimientos: solo lectura, totales ARS / USD / Total
 state.transactions.push(tx('u', dia(-1), 'visa', 10, { currency: 'USD' }));
 renderMobileTransactions();
 const movs = shellHtml('mob-txn-shell');
-eq([/onclick="(?!openMobDrawer|mxImportGmail)/.test(movs), movs.includes('USD 10'), movs.includes('Gasto d')], [false, true, false], 'nada se puede abrir; el débito no aparece');
+eq([/onclick="(?!openMobDrawer|mxImportGmail|mxConnectGoogle)/.test(movs), movs.includes('USD 10'), movs.includes('Gasto d')], [false, true, false], 'nada se puede abrir; el débito no aparece');
 
 // 3) Sin datos: ofrece conectar con Google
 reset(); state.transactions = []; renderMobileDashboard();

@@ -1,11 +1,12 @@
 // ══ APP DEL CELULAR ══
-// Cuatro pantallas estilo iPhone, siempre en la vista Tarjetas (Visa + Amex): Inicio,
-// Movimientos, Compromisos y Tarjetas. Cada una tiene su color (ver --mx-accent en styles.css).
-// El celular sirve para mirar y para traer gastos de Gmail; lo único que se edita
-// desde acá son los ciclos de las tarjetas.
+// Diseño "Widgets": franja de color arriba y bloques como los widgets del iPhone. Siempre en la
+// vista Tarjetas (Visa + Amex): Inicio, Movimientos, Compromisos y Tarjetas, cada una con su
+// color (--mx-c / --mx-soft en styles.css). El celular sirve para mirar y para traer gastos de
+// Gmail; lo único que se edita desde acá son los ciclos de las tarjetas.
 
 const MX_PAY_LABEL={visa:'Visa',amex:'Amex',deb:'Débito',ef:'Efectivo'};
 const MX_GROUP_LABEL={cuotas:'Cuota',suscripciones:'Suscripción',fijos:'Gasto fijo'};
+const MX_VISA='#3A63E8', MX_AMEX='#16B39A';
 
 function mxIsMobile(){ return window.innerWidth<=768; }
 function mxMoney(n, currency){
@@ -17,6 +18,7 @@ function mxShortDate(value){
   return d.toLocaleDateString('es-AR',{day:'numeric',month:'short'}).replace('.','');
 }
 function mxEndOfToday(){ const d=new Date(); d.setHours(23,59,59,999); return d; }
+function mxInitial(name){ return esc(String(name||'?').trim().charAt(0).toUpperCase()||'?'); }
 
 // El ciclo de las tarjetas que incluye hoy (o el mes, si todavía no hay ciclos)
 function mxPeriod(){
@@ -50,32 +52,15 @@ function mxPeriodCommitments(period){
 }
 
 const MX_ICON={
-  trend:'<polyline points="3 17 9 11 13 15 21 7"/><polyline points="15 7 21 7 21 13"/>',
-  pulse:'<path d="M3 12h4l3 8 4-16 3 8h4"/>',
   down:'<path d="M12 4v11"/><path d="M7 11l5 5 5-5"/><path d="M5 20h14"/>',
-  home:'<path d="M3 11l9-7.5L21 11v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 20z"/>',
-  list:'<line x1="9" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="9" y1="18" x2="21" y2="18"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/>',
-  cal:'<rect x="3" y="4.5" width="18" height="17" rx="3"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2.5" x2="8" y2="6"/><line x1="16" y1="2.5" x2="16" y2="6"/>',
-  card:'<rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/>'
+  plus:'<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>'
 };
-function mxIcon(name, size){
-  return '<svg width="'+(size||20)+'" height="'+(size||20)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">'+MX_ICON[name]+'</svg>';
+function mxIcon(name, size, width){
+  return '<svg width="'+(size||20)+'" height="'+(size||20)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+(width||2)+'" stroke-linecap="round" stroke-linejoin="round">'+MX_ICON[name]+'</svg>';
 }
-const MX_GOOGLE='<svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 7l7.1 5.5c4.2-3.9 7.2-9.6 7.2-17z"/><path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.7 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.1-5.5c-2.2 1.5-5 2.3-8.8 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
+const MX_GOOGLE='<svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.5 5.4 2.6 13.2l7.9 6.1C12.4 13.6 17.7 9.5 24 9.5z"/><path fill="#4285F4" d="M46.1 24.5c0-1.6-.1-3.1-.4-4.5H24v9h12.4c-.5 2.9-2.2 5.3-4.6 7l7.1 5.5c4.2-3.9 7.2-9.6 7.2-17z"/><path fill="#FBBC05" d="M10.5 28.7A14.5 14.5 0 0 1 9.7 24c0-1.6.3-3.2.8-4.7l-7.9-6.1A24 24 0 0 0 0 24c0 3.9.9 7.5 2.6 10.8z"/><path fill="#34A853" d="M24 48c6.5 0 11.9-2.1 15.9-5.8l-7.1-5.5c-2.2 1.5-5 2.3-8.8 2.3-6.3 0-11.6-4.2-13.5-9.9l-7.9 6.1C6.5 42.6 14.6 48 24 48z"/></svg>';
 
-// Título grande sobre la franja de color de la pantalla
-function mxScreenHead(icon, title, sub, extraButton){
-  return '<div class="mx-wash"></div>'
-    +'<div class="mx-status-strip"></div>'
-    +'<header class="mx-head">'
-      +'<div class="mx-head-row">'
-        +'<span class="mx-badge">'+mxIcon(icon,19)+'</span>'
-        +'<h1 class="mx-lt">'+esc(title)+'</h1>'
-        +(extraButton||'')
-      +'</div>'
-      +(sub?'<div class="mx-sub">'+esc(sub)+'</div>':'')
-    +'</header>';
-}
+// ── Google ──
 function mxLastImportText(){
   const last=state.lastGmailSync?new Date(state.lastGmailSync):null;
   return last&&!isNaN(last)?'Última vez: '+mxShortDate(last)+', '+last.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'}):'';
@@ -88,7 +73,7 @@ function mxGoogleConnected(){
 function mxLastGoogle(now=new Date()){
   const raw=localStorage.getItem('fin_last_google_at');
   const d=raw?new Date(raw):null;
-  if(!d || isNaN(d)) return {text:'Nunca se conectó en este celular', stale:true};
+  if(!d || isNaN(d)) return {text:'Nunca se conectó en este celular', short:'Nunca', stale:true};
   const mins=Math.max(0, Math.round((now-d)/60000));
   const hour=d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
   const dayDiff=Math.round((new Date(dateToYMD(now)+'T12:00:00')-new Date(dateToYMD(d)+'T12:00:00'))/86400000);
@@ -99,24 +84,10 @@ function mxLastGoogle(now=new Date()){
   else if(dayDiff===1) when='ayer, '+hour;
   else if(dayDiff<7) when='hace '+dayDiff+' días';
   else when='el '+mxShortDate(d);
-  return {text:'Última vez: '+when, stale:mins>=24*60};
+  return {text:'Última vez: '+when, short:when.charAt(0).toUpperCase()+when.slice(1), stale:mins>=24*60};
 }
-function mxGoogleGroup(){
-  const connected=mxGoogleConnected();
-  const last=mxLastImportText();
-  const lastGoogle=mxLastGoogle();
-  return '<div class="mx-group mx-section mx-google">'
-    +'<button class="mx-li" onclick="mxConnectGoogle()"><span class="mx-ico mx-ico-g">'+MX_GOOGLE+'</span>'
-      +'<span class="mx-tx"><span class="mx-t">'+(connected?'Conectado a Google':'Conectar con Google')+'</span>'
-      +'<span class="mx-s'+(lastGoogle.stale&&!connected?' mx-stale':'')+'">'+esc(lastGoogle.text+(lastGoogle.stale&&!connected?' · conviene actualizar':''))+'</span></span>'
-      +'<span class="mx-pill '+(connected?'on':'off')+'">'+(connected?'Conectado':'Sin conectar')+'</span></button>'
-    +'<div class="mx-import-wrap"><button class="mx-primary" onclick="mxImportGmail()">'+mxIcon('down',19)+'Traer gastos de Gmail</button>'
-      +(last?'<div class="mx-import-last">'+esc(last)+'</div>':'')+'</div>'
-  +'</div>';
-}
-
-// ── Google: el navegador del teléfono solo abre la ventana de Google si sale directo del toque,
-// así que la conexión se deja preparada al abrir la app ──
+// El navegador del teléfono solo abre la ventana de Google si sale directo del toque,
+// así que la conexión se deja preparada al abrir la app
 function mxPrepareGoogle(){
   if(typeof driveTokenClient==='undefined' || driveTokenClient) return;
   try{ initDriveClient(false,{prepareOnly:true}); }catch(e){ console.warn('[mobile] Google no disponible', e); }
@@ -139,38 +110,57 @@ function mxImportGmail(){
   gmailSync();
 }
 
-// La barra del teléfono toma el tinte de la pantalla que estás viendo
+// La barra del teléfono toma el color de la pantalla que estás viendo
 function mxSyncThemeColor(){
   const meta=document.querySelector('meta[name="theme-color"]');
   if(!meta || !mxIsMobile()) return;
-  const color=getComputedStyle(document.body).getPropertyValue('--mx-band').trim();
+  const color=getComputedStyle(document.body).getPropertyValue('--mx-c').trim();
   if(color) meta.setAttribute('content', color);
 }
 
+// ── Piezas del diseño ──
+// Franja de color con el título y, a la derecha, cuándo se conectó con Google
+function mxBand(title){
+  const g=mxLastGoogle();
+  const ok=mxGoogleConnected() && !g.stale;
+  return '<div class="mx-band"></div><div class="mx-status-strip"></div>'
+    +'<header class="mx-hd"><h2>'+esc(title)+'</h2>'
+    +'<button class="mx-dot" onclick="mxConnectGoogle()" aria-label="Google: '+esc(g.text)+'"><i class="'+(ok?'ok':'')+'"></i>'+esc(g.short)+'</button></header>';
+}
+function mxSeg(parts){
+  return '<div class="mx-seg">'+parts.filter(p=>p.value>0).map(p=>'<i style="flex:'+p.value+';background:'+p.color+'"></i>').join('')+'</div>';
+}
+function mxGauge(pct){
+  const p=Math.max(0, Math.min(1, pct||0)), C=Math.PI*56;
+  return '<svg class="mx-gauge" viewBox="0 0 140 76" width="100%" height="70"><path d="M14 70a56 56 0 0 1 112 0" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="12" stroke-linecap="round"/>'
+    +'<path d="M14 70a56 56 0 0 1 112 0" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+(C*p).toFixed(1)+' '+C.toFixed(1)+'"/></svg>';
+}
+function mxItem(lead, title, sub, right, rightSmall, smallClass){
+  return '<div class="mx-it"><div class="mx-ib">'+lead+'</div>'
+    +'<div class="mx-tx"><div class="mx-t">'+esc(title)+'</div><div class="mx-s">'+esc(sub||'')+'</div></div>'
+    +'<div class="mx-r">'+esc(right)+(rightSmall?'<small class="'+(smallClass||'')+'">'+esc(rightSmall)+'</small>':'')+'</div></div>';
+}
+function mxSh(title, pill, small){
+  return '<div class="mx-sh"><h3'+(small?' class="small"':'')+'>'+esc(title)+'</h3>'+(pill?'<b>'+esc(pill)+'</b>':'')+'</div>';
+}
 function mxHasData(){
   return !!((state.transactions||[]).length || (state.cuotas||[]).length || (state.subscriptions||[]).length);
 }
-function mxEmptyHtml(icon, title){
-  return mxScreenHead(icon, title)
-    +'<div class="mx-group mx-empty">'
-      +'<div class="mx-empty-title">Todavía no hay datos en este celular</div>'
-      +'<div class="mx-empty-sub">Conectá tu cuenta de Google y traemos todo lo que tenés en la compu.</div>'
-      +'<button class="mx-primary" onclick="mxConnectGoogle()">Conectar con Google</button>'
-    +'</div>';
+function mxEmptyHtml(title){
+  return mxBand(title)
+    +'<div class="mx-grid"><div class="mx-w full mx-empty">'
+      +'<div class="mx-md">Todavía no hay datos en este celular</div>'
+      +'<div class="mx-sub">Conectá tu cuenta de Google y traemos todo lo que tenés en la compu.</div>'
+      +'<button class="mx-go wide" onclick="mxConnectGoogle()">Conectar con Google</button>'
+    +'</div></div>';
 }
 
 // ── Inicio ──
-function mxCommitmentRow(e){
-  const settled=e.isSettled===true;
-  const sub=[mxShortDate(e.date), e.payLabel==='Sin medio de pago'?'':e.payLabel].filter(Boolean).join(' · ');
-  return '<div class="mx-li"><span class="mx-tx"><span class="mx-t">'+esc(e.title)+'</span><span class="mx-s">'+esc(sub)+'</span></span>'
-    +'<span class="mx-r">'+esc(mxMoney(e.amount,e.currency))+'<small class="'+(settled?'ok':'wa')+'">'+(settled?'Cobrado':'Sin cobrar')+'</small></span></div>';
-}
 function renderMobileDashboard(){
   const shell=document.getElementById('mob-dash-shell');
   if(!shell || !mxIsMobile()) return;
   mxSyncThemeColor();
-  if(!mxHasData()){ shell.innerHTML=mxEmptyHtml('home','Este ciclo'); return; }
+  if(!mxHasData()){ shell.innerHTML=mxEmptyHtml('Este ciclo'); return; }
   const period=mxPeriod();
   const all=mxPeriodTotals(period,'tarjetas');
   const visa=mxPeriodTotals(period,'visa');
@@ -181,34 +171,38 @@ function renderMobileDashboard(){
   const toArs=e=>(Number(e.amount)||0)*((e.currency||'ARS')==='USD'?rate:1);
   const commitments=mxPeriodCommitments(period);
   const committedTotal=commitments.reduce((s,e)=>s+toArs(e),0);
-  const paid=commitments.filter(e=>e.isSettled===true).reduce((s,e)=>s+toArs(e),0);
   // Lo ya cobrado en las tarjetas está en el gasto; se suma el resto (lo que falta y lo que va por débito)
   const notInSpent=commitments.filter(e=>!(e.inView!==false && e.isSettled===true)).reduce((s,e)=>s+toArs(e),0);
   const spentWithCommitments=all.totalArs+notInSpent;
-  const paidPct=committedTotal>0?Math.round(paid/committedTotal*100):0;
   const left=period.daysLeft!=null&&period.daysLeft>=0?' · faltan '+period.daysLeft+' día'+(period.daysLeft===1?'':'s'):'';
-  const amexPart=period.cycle?.parts?.amex;
+  const totalDays=projection.daysElapsed+projection.daysLeft;
+  const g=mxLastGoogle();
+  const connected=mxGoogleConnected();
+  const fresh=connected&&!g.stale;
 
-  shell.innerHTML=mxScreenHead('home','Este ciclo',mxPeriodLabel(period)+left)
-    +'<div class="mx-total"><span>Gastado con tus tarjetas</span><strong>'+esc(mxMoney(all.totalArs))+'</strong></div>'
-    +'<div class="mx-wallet">'
-      +'<div class="mx-cc visa"><div class="mx-cc-row"><span>Visa</span><strong>'+esc(mxMoney(visa.totalArs))+'</strong></div></div>'
-      +'<div class="mx-cc amex"><div class="mx-cc-row"><span>Amex</span><strong>'+esc(mxMoney(amex.totalArs))+'</strong></div>'
-        +(amexPart?'<small>Cierra el '+esc(mxShortDate(amexPart.close))+(amexPart.due?' · vence el '+esc(mxShortDate(amexPart.due)):'')+'</small>':'')+'</div>'
+  const rows=commitments.map(e=>{
+    const settled=e.isSettled===true;
+    const sub=[mxShortDate(e.date), e.payLabel==='Sin medio de pago'?'':e.payLabel].filter(Boolean).join(' · ');
+    return mxItem(String(new Date(e.date).getDate()), e.title, sub, mxMoney(e.amount,e.currency), settled?'Cobrado':'Sin cobrar', settled?'ok':'wa');
+  }).join('');
+
+  shell.innerHTML=mxBand('Este ciclo')
+    +'<div class="mx-grid">'
+      +'<div class="mx-w full"><div class="mx-lb">Gastado con tus tarjetas'+esc(left)+'</div><div class="mx-big">'+esc(mxMoney(all.totalArs))+'</div>'
+        +mxSeg([{value:visa.totalArs,color:MX_VISA},{value:amex.totalArs,color:MX_AMEX}])
+        +'<div class="mx-leg"><span><i style="background:'+MX_VISA+'"></i>Visa <b>'+esc(mxMoney(visa.totalArs))+'</b></span><span><i style="background:'+MX_AMEX+'"></i>Amex <b>'+esc(mxMoney(amex.totalArs))+'</b></span></div></div>'
+      +'<div class="mx-w tint"><div class="mx-lb">Proyección al cierre</div>'+mxGauge(projection.projected>0?all.totalArs/projection.projected:0)
+        +'<div class="mx-md under">'+esc(mxMoney(projection.projected))+'</div></div>'
+      +'<div class="mx-w soft"><div class="mx-lb">Promedio diario</div><div class="mx-md spaced">'+esc(mxMoney(projection.dailyVariable))+'</div>'
+        +'<div class="mx-sub">'+projection.daysElapsed+' de '+totalDays+' días</div></div>'
+      +'<div class="mx-w full"><div class="mx-goo">'
+        +'<button class="mx-goo-l" onclick="mxConnectGoogle()"><span class="mx-g">'+MX_GOOGLE+'</span><span><span class="mx-goo-t">'+(connected?'Conectado':'Sin conectar')+'</span>'
+        +'<span class="mx-goo-s'+(fresh?' fresh':'')+'">'+esc(g.text)+'</span></span></button>'
+        +'<button class="mx-go" onclick="mxImportGmail()">'+mxIcon('down',17,2.6)+'Traer</button></div></div>'
     +'</div>'
-    +mxGoogleGroup()
-    +'<div class="mx-section">'
-      +'<div class="mx-sh"><span>Compromisos</span><b>'+esc(mxMoney(committedTotal))+'</b></div>'
-      +'<div class="mx-group">'
-        +(commitments.length?'<div class="mx-bar"><i style="width:'+paidPct+'%"></i></div>'+commitments.map(mxCommitmentRow).join(''):'<div class="mx-none">No hay compromisos en este período</div>')
-        +'<div class="mx-li mx-li-total"><span class="mx-tx"><span class="mx-t">Con compromisos</span></span><span class="mx-r">'+esc(mxMoney(spentWithCommitments))+'</span></div>'
-      +'</div>'
-    +'</div>'
-    +'<div class="mx-twin">'
-      +'<div class="mx-tile strong"><i>'+mxIcon('trend',18)+'</i><span>Proyección al cierre</span><b>'+esc(mxMoney(projection.projected))+'</b>'
-        +(projection.tooEarly?'<small>Se afina a partir del día '+projection.minDays+'</small>':'')+'</div>'
-      +'<div class="mx-tile"><i>'+mxIcon('pulse',18)+'</i><span>Promedio diario</span><b>'+esc(mxMoney(projection.dailyVariable))+'</b></div>'
-    +'</div>';
+    +mxSh('Compromisos', mxMoney(committedTotal))
+    +'<div class="mx-list">'+(rows||'<div class="mx-none">No hay compromisos en este período</div>')+'</div>'
+    +'<div class="mx-with"><span>Con compromisos</span><b>'+esc(mxMoney(spentWithCommitments))+'</b></div>';
 }
 
 // ── Movimientos: solo lectura ──
@@ -222,7 +216,7 @@ function mxDayLabel(ymd){
 function renderMobileTransactions(){
   const shell=document.getElementById('mob-txn-shell');
   if(!shell || !mxIsMobile()) return;
-  if(!mxHasData()){ shell.innerHTML=mxEmptyHtml('list','Movimientos'); return; }
+  if(!mxHasData()){ shell.innerHTML=mxEmptyHtml('Movimientos'); return; }
   const period=mxPeriod();
   const totals=mxPeriodTotals(period,'tarjetas');
   const byDay=new Map();
@@ -231,45 +225,41 @@ function renderMobileTransactions(){
     if(!byDay.has(day)) byDay.set(day,[]);
     byDay.get(day).push(e);
   });
-  const list=[...byDay.entries()].map(([day,rows])=>'<div class="mx-section">'
-    +'<div class="mx-day">'+esc(mxDayLabel(day))+'</div>'
-    +'<div class="mx-group">'+rows.map(e=>{
+  const list=[...byDay.entries()].map(([day,rows])=>mxSh(mxDayLabel(day),'',true)
+    +'<div class="mx-list">'+rows.map(e=>{
       const pay=String(e.payMethod||'').toLowerCase();
       const tag=[MX_PAY_LABEL[pay]||'', e.isProjected?MX_GROUP_LABEL[e.group]||'':e.category||''].filter(Boolean).join(' · ');
       const name=e.description||'Movimiento';
-      return '<div class="mx-li"><span class="mx-mono '+(pay==='amex'?'amex':'visa')+'">'+esc(name.trim().charAt(0).toUpperCase())+'</span>'
-        +'<span class="mx-tx"><span class="mx-t">'+esc(name)+'</span><span class="mx-s">'+esc(tag)+'</span></span>'
-        +'<span class="mx-r">'+esc(mxMoney(e.amount,e.currency))+'</span></div>';
-    }).join('')+'</div></div>').join('');
-  const importBtn='<button class="mx-round mx-round-accent" onclick="mxImportGmail()" aria-label="Traer gastos de Gmail">'+mxIcon('down',18)+'</button>';
-  shell.innerHTML=mxScreenHead('list','Movimientos','Visa + Amex · '+mxPeriodLabel(period),importBtn)
-    +'<div class="mx-total"><span>Total del período</span><strong>'+esc(mxMoney(totals.totalArs))+'</strong></div>'
-    +'<div class="mx-twin mx-twin-top">'
-      +'<div class="mx-tile strong"><i class="mx-cur">$</i><span>En pesos</span><b>'+esc(mxMoney(totals.ars))+'</b></div>'
-      +'<div class="mx-tile"><i class="mx-cur">US</i><span>En dólares</span><b>'+esc(mxMoney(totals.usd,'USD'))+'</b></div>'
+      return mxItem(mxInitial(name), name, tag, mxMoney(e.amount,e.currency));
+    }).join('')+'</div>').join('');
+  shell.innerHTML=mxBand('Movimientos')
+    +'<div class="mx-grid">'
+      +'<div class="mx-w full"><div class="mx-lb">Total del período · Visa + Amex</div><div class="mx-big">'+esc(mxMoney(totals.totalArs))+'</div><div class="mx-sub">'+esc(mxPeriodLabel(period))+'</div></div>'
+      +'<div class="mx-w tint"><div class="mx-lb">En pesos</div><div class="mx-md">'+esc(mxMoney(totals.ars))+'</div></div>'
+      +'<div class="mx-w soft"><div class="mx-lb">En dólares</div><div class="mx-md">'+esc(mxMoney(totals.usd,'USD'))+'</div></div>'
     +'</div>'
-    +(list||'<div class="mx-group mx-section"><div class="mx-none">Todavía no hay gastos en este período</div></div>');
+    +(list||mxSh('Hoy','',true)+'<div class="mx-list"><div class="mx-none">Todavía no hay gastos en este período</div></div>');
 }
 
 // ── Compromisos ──
 function renderMobileCompromisos(){
   const shell=document.getElementById('mob-comp-shell');
   if(!shell || !mxIsMobile()) return;
-  if(!mxHasData()){ shell.innerHTML=mxEmptyHtml('cal','Compromisos'); return; }
+  if(!mxHasData()){ shell.innerHTML=mxEmptyHtml('Compromisos'); return; }
   const {fixedItems,subsItems,cuotaItems,allActive}=commitmentsBuildData();
   const sum=list=>list.reduce((s,i)=>s+(Number(i.amountArs)||0),0);
   const section=(title,items)=>{
     if(!items.length) return '';
     const rows=[...items].sort((a,b)=>(a.due?.sortDays??999)-(b.due?.sortDays??999)).map(item=>{
-      const status=item.due?.status==='overdue'?'bad':item.due?.status==='soon'?'wa':'';
-      const progress=item.type==='quota'&&item.total?item.paid+' de '+item.total+' cuotas':'';
-      return '<div class="mx-li"><span class="mx-tx"><span class="mx-t">'+esc(item.name)+'</span>'+(progress?'<span class="mx-s">'+esc(progress)+'</span>':'')+'</span>'
-        +'<span class="mx-r">'+esc(mxMoney(item.amount,item.currency))+(item.due?.label?'<small class="'+status+'">'+esc(item.due.label)+'</small>':'')+'</span></div>';
+      const sub=item.type==='quota'&&item.total?item.paid+' de '+item.total:'Mensual';
+      return mxItem(mxInitial(item.name), item.name, sub, mxMoney(item.amount,item.currency), item.due?.label||'', 'due');
     }).join('');
-    return '<div class="mx-section"><div class="mx-sh"><span>'+esc(title)+'</span><b>'+esc(mxMoney(sum(items)))+'</b></div><div class="mx-group">'+rows+'</div></div>';
+    return mxSh(title, mxMoney(sum(items)))+'<div class="mx-list">'+rows+'</div>';
   };
-  shell.innerHTML=mxScreenHead('cal','Compromisos')
-    +'<div class="mx-total"><span>Total por mes</span><strong>'+esc(mxMoney(sum(allActive)))+'</strong></div>'
+  shell.innerHTML=mxBand('Compromisos')
+    +'<div class="mx-grid"><div class="mx-w full"><div class="mx-lb">Total por mes</div><div class="mx-big">'+esc(mxMoney(sum(allActive)))+'</div>'
+      +mxSeg([{value:sum(cuotaItems),color:'var(--mx-c)'},{value:sum(subsItems),color:'#F5B26B'},{value:sum(fixedItems),color:'#1A1B20'}])
+      +'<div class="mx-leg"><span><i style="background:var(--mx-c)"></i>Cuotas</span><span><i style="background:#F5B26B"></i>Suscrip.</span><span><i style="background:#1A1B20"></i>Fijos</span></div></div></div>'
     +section('Cuotas',cuotaItems)+section('Suscripciones',subsItems)+section('Gastos fijos',fixedItems);
 }
 
@@ -290,30 +280,24 @@ function renderMobileCards(){
   const block=key=>{
     const rows=mxCardCycles(key);
     const current=rows.find(r=>r.open<=today && today<=r.cycle.closeDate)||rows[0]||null;
-    const name=MX_PAY_LABEL[key];
-    if(!current) return '<div class="mx-section"><div class="mx-group"><div class="mx-none">'+name+': sin ciclos cargados</div></div></div>';
+    const name=MX_PAY_LABEL[key], color=key==='amex'?'#0E9F86':MX_VISA;
+    if(!current) return '<div class="mx-w full"><div class="mx-lb card" style="color:'+color+'">'+name+'</div><div class="mx-sub">Sin ciclos cargados</div></div>';
     const spent=getPeriodTotals({startStr:current.open, endStr:current.cycle.closeDate, card:key, todayRef:mxEndOfToday()}).totalArs;
-    const others=rows.filter(r=>r!==current).slice(0,6).map(r=>'<div class="mx-li">'
-      +'<span class="mx-tx"><span class="mx-t">'+esc(mxShortDate(r.open))+' al '+esc(mxShortDate(r.cycle.closeDate))+'</span>'
-      +'<span class="mx-s">'+(r.open>today?'Próximo · ':'')+'Vence '+esc(r.cycle.dueDate?mxShortDate(r.cycle.dueDate):'—')+'</span></span>'
-      +'<button class="mx-act" onclick="mxOpenCycleEditor(\''+key+'\',\''+esc(r.cycle.id)+'\')">Editar</button>'
-    +'</div>').join('');
-    return '<div class="mx-section">'
-      +'<div class="mx-cc solo '+key+'"><div class="mx-cc-row"><span>'+name+'</span><strong>'+esc(mxMoney(spent))+'</strong></div><small>Ciclo actual</small></div>'
-      +'<div class="mx-group">'
-        +'<div class="mx-dates">'
-          +'<div><span>Abre</span><b>'+esc(mxShortDate(current.open))+'</b></div>'
-          +'<div><span>Cierra</span><b>'+esc(mxShortDate(current.cycle.closeDate))+'</b></div>'
-          +'<div><span>Vence</span><b>'+esc(current.cycle.dueDate?mxShortDate(current.cycle.dueDate):'—')+'</b></div>'
-        +'</div>'
-        +'<button class="mx-li" onclick="mxOpenCycleEditor(\''+key+'\',\''+esc(current.cycle.id)+'\')"><span class="mx-tx"><span class="mx-act">Editar este ciclo</span></span></button>'
-        +(others?'<details class="mx-more"><summary class="mx-li"><span class="mx-tx"><span class="mx-t">Otros ciclos</span></span></summary>'+others+'</details>':'')
-      +'</div>'
+    const span=new Date(current.cycle.closeDate+'T12:00:00')-new Date(current.open+'T12:00:00');
+    const done=Math.max(0, Math.min(1, span>0?(new Date(today+'T12:00:00')-new Date(current.open+'T12:00:00'))/span:0));
+    return '<div class="mx-w full">'
+      +'<div class="mx-card-top"><div class="mx-lb card" style="color:'+color+'">'+name+'</div><div class="mx-md flat">'+esc(mxMoney(spent))+'</div></div>'
+      +'<div class="mx-cyc"><i style="width:'+Math.round(done*100)+'%"></i></div>'
+      +'<div class="mx-dts"><div><span>Abre</span><b>'+esc(mxShortDate(current.open))+'</b></div>'
+        +'<div><span>Cierra</span><b>'+esc(mxShortDate(current.cycle.closeDate))+'</b></div>'
+        +'<div><span>Vence</span><b>'+esc(current.cycle.dueDate?mxShortDate(current.cycle.dueDate):'—')+'</b></div></div>'
+      +'<button class="mx-edit" onclick="mxOpenCycleEditor(\''+key+'\',\''+esc(current.cycle.id)+'\')">Editar ciclo</button>'
     +'</div>';
   };
-  shell.innerHTML=mxScreenHead('card','Tarjetas')
-    +block('visa')+block('amex')
-    +'<div class="mx-group mx-section"><button class="mx-li" onclick="mxOpenCycleEditor(\'visa\')"><span class="mx-tx"><span class="mx-act">Agregar un ciclo</span></span></button></div>';
+  shell.innerHTML=mxBand('Tarjetas')
+    +'<div class="mx-grid">'+block('visa')+block('amex')
+      +'<button class="mx-w full tint mx-add" onclick="mxOpenCycleEditor(\'visa\')">'+mxIcon('plus',19,2.6)+' Agregar un ciclo</button>'
+    +'</div>';
 }
 function mxAddMonth(ymd, n){
   const d=new Date(ymd+'T12:00:00'); const day=d.getDate();
@@ -334,17 +318,17 @@ function mxOpenCycleEditor(key, cycleId){
   const row=cycleId?mxCardCycles(key).find(r=>r.cycle.id===cycleId):null;
   const values=row?{open:row.open, close:row.cycle.closeDate, due:row.cycle.dueDate||''}:mxNewCycleDefaults(key);
   _mxEditor={key, cycleId:cycleId||''};
-  const field=(label,id,value)=>'<label class="mx-li mx-field"><span class="mx-t">'+label+'</span><input type="date" id="'+id+'" value="'+esc(value)+'"></label>';
+  const field=(label,id,value)=>'<label class="mx-it mx-field"><span class="mx-t">'+label+'</span><input type="date" id="'+id+'" value="'+esc(value)+'"></label>';
   const el=document.createElement('div');
   el.id='mx-sheet'; el.className='mx-sheet';
   el.innerHTML='<div class="mx-sheet-back" onclick="mxCloseCycleEditor()"></div>'
     +'<div class="mx-sheet-panel" role="dialog" aria-modal="true">'
-      +'<div class="mx-sheet-top"><button class="mx-act" onclick="mxCloseCycleEditor()">Cancelar</button>'
+      +'<div class="mx-sheet-top"><button onclick="mxCloseCycleEditor()">Cancelar</button>'
         +'<strong>'+(row?'Editar ciclo':'Agregar ciclo')+'</strong>'
-        +'<button class="mx-act mx-act-strong" onclick="mxSaveCycle()">Guardar</button></div>'
+        +'<button class="strong" onclick="mxSaveCycle()">Guardar</button></div>'
       +(row?'<div class="mx-sheet-card">'+MX_PAY_LABEL[key]+'</div>'
-        :'<div class="mx-seg">'+['visa','amex'].map(k=>'<button id="mx-seg-'+k+'" class="'+(k===key?'active':'')+'" onclick="mxPickEditorCard(\''+k+'\')">'+MX_PAY_LABEL[k]+'</button>').join('')+'</div>')
-      +'<div class="mx-group">'+field('Abre','mx-open',values.open)+field('Cierra','mx-close',values.close)+field('Vence','mx-due',values.due)+'</div>'
+        :'<div class="mx-segctl">'+['visa','amex'].map(k=>'<button id="mx-seg-'+k+'" class="'+(k===key?'active':'')+'" onclick="mxPickEditorCard(\''+k+'\')">'+MX_PAY_LABEL[k]+'</button>').join('')+'</div>')
+      +'<div class="mx-list sheet">'+field('Abre','mx-open',values.open)+field('Cierra','mx-close',values.close)+field('Vence','mx-due',values.due)+'</div>'
     +'</div>';
   document.body.appendChild(el);
 }
@@ -371,10 +355,10 @@ function mxSaveCycle(){
   if(!saved) return;
   mxCloseCycleEditor();
   renderMobileCards();
-  if(typeof isGoogleConnected==='function' && !isGoogleConnected()) showToast('Guardado en este celular. Tocá "Conectar con Google" para que llegue a la compu.','info');
+  if(typeof isGoogleConnected==='function' && !isGoogleConnected()) showToast('Guardado en este celular. Tocá "Sin conectar" arriba para que llegue a la compu.','info');
 }
 
-// Cambia la barra del teléfono al pasar de pantalla o de tema
+// Cambia la barra del teléfono al pasar de pantalla
 if(typeof MutationObserver!=='undefined' && document.body && document.body.addEventListener){
   try{ new MutationObserver(mxSyncThemeColor).observe(document.body,{attributes:true,attributeFilter:['class','data-active-page']}); }catch(_){}
 }

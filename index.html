@@ -24,7 +24,7 @@
 <link rel="icon" type="image/png" sizes="192x192" href="brand/icon-192.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js" integrity="sha384-g4NTh/Iv5PPU4xPyhEWqPcwtNXOvdaDI8LLnyYfyNZOjKJeYQyjzQ9X5275eBjpt" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js" integrity="sha384-bs/nf9FbdNouRbMiFcrcZfLXYPKiPaGVGplVbv7dLGECccEXDW+S3zjqSKR5ZEaD" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-<link rel="stylesheet" href="css/styles.css?v=20261110b">
+<link rel="stylesheet" href="css/styles.css?v=20261111a">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js" integrity="sha384-D/t0ZMqQW31H3az8ktEiNb39wyKnS82iFY52QPACM+IjKW3jDUhyIgh2PApRqJZs" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body>
@@ -1603,10 +1603,10 @@
 
 <!-- MOBILE NAV -->
 <nav class="mx-tabbar" id="mx-tabbar">
-  <button class="mob-nav-btn active" id="mn-dashboard" onclick="nav('dashboard')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10l9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span>Inicio</span></button>
-  <button class="mob-nav-btn" id="mn-transactions" onclick="nav('transactions')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg><span>Movimientos</span></button>
-  <button class="mob-nav-btn" id="mn-cuotas" onclick="nav('cuotas')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M8 2v4M16 2v4"/></svg><span>Compromisos</span></button>
-  <button class="mob-nav-btn" id="mn-credit-cards" onclick="nav('credit-cards')"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span>Tarjetas</span></button>
+  <button class="mob-nav-btn active" id="mn-dashboard" onclick="nav('dashboard')"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11l9-7.5L21 11v9a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 20z"/></svg><span>Inicio</span></button>
+  <button class="mob-nav-btn" id="mn-transactions" onclick="nav('transactions')"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="9" y1="6" x2="21" y2="6"/><line x1="9" y1="12" x2="21" y2="12"/><line x1="9" y1="18" x2="21" y2="18"/><circle cx="4.5" cy="6" r="1.3" fill="currentColor"/><circle cx="4.5" cy="12" r="1.3" fill="currentColor"/><circle cx="4.5" cy="18" r="1.3" fill="currentColor"/></svg><span>Movimientos</span></button>
+  <button class="mob-nav-btn" id="mn-cuotas" onclick="nav('cuotas')"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4.5" width="18" height="17" rx="3"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="2.5" x2="8" y2="6"/><line x1="16" y1="2.5" x2="16" y2="6"/></svg><span>Compromisos</span></button>
+  <button class="mob-nav-btn" id="mn-credit-cards" onclick="nav('credit-cards')"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span>Tarjetas</span></button>
 </nav>
 <button class="sidebar-open-btn" id="sidebar-open-btn" onclick="toggleSidebar()" title="Mostrar menú">☰</button>
 
@@ -2654,33 +2654,33 @@ window.addEventListener('unhandledrejection',function(e){
   console.error('[boot-error] promesa rechazada:', e.reason);
 });
 </script>
-<script src="js/config.js?v=20261110b"></script>
-<script src="js/state.js?v=20261110b"></script>
-<script src="js/i18n.js?v=20261110b"></script>
-<script src="js/utils.js?v=20261110b"></script>
-<script src="js/totals.js?v=20261110b"></script>
-<script src="js/import.js?v=20261110b"></script>
-<script src="js/usd-rate.js?v=20261110b"></script>
-<script src="js/dashboard.js?v=20261110b"></script>
-<script src="js/dashboard-widgets.js?v=20261110b"></script>
-<script src="js/calendar.js?v=20261110b"></script>
-<script src="js/global-search.js?v=20261110b"></script>
-<script src="js/transactions.js?v=20261110b"></script>
-<script src="js/analytics.js?v=20261110b"></script>
-<script src="js/expenses.js?v=20261110b"></script>
-<script src="js/income.js?v=20261110b"></script>
-<script src="js/savings.js?v=20261110b"></script>
-<script src="js/camino.js?v=20261110b"></script>
-<script src="js/categories.js?v=20261110b"></script>
-<script src="js/data-tools.js?v=20261110b"></script>
-<script src="js/autocat.js?v=20261110b"></script>
-<script src="js/mobile.js?v=20261110b"></script>
-<script src="js/ui.js?v=20261110b"></script>
-<script src="js/shell.js?v=20261110b"></script>
-<script src="js/init.js?v=20261110b"></script>
-<script src="js/credit-cards.js?v=20261110b"></script>
-<script src="js/animations.js?v=20261110b"></script>
-<script src="js/lock.js?v=20261110b"></script>
+<script src="js/config.js?v=20261111a"></script>
+<script src="js/state.js?v=20261111a"></script>
+<script src="js/i18n.js?v=20261111a"></script>
+<script src="js/utils.js?v=20261111a"></script>
+<script src="js/totals.js?v=20261111a"></script>
+<script src="js/import.js?v=20261111a"></script>
+<script src="js/usd-rate.js?v=20261111a"></script>
+<script src="js/dashboard.js?v=20261111a"></script>
+<script src="js/dashboard-widgets.js?v=20261111a"></script>
+<script src="js/calendar.js?v=20261111a"></script>
+<script src="js/global-search.js?v=20261111a"></script>
+<script src="js/transactions.js?v=20261111a"></script>
+<script src="js/analytics.js?v=20261111a"></script>
+<script src="js/expenses.js?v=20261111a"></script>
+<script src="js/income.js?v=20261111a"></script>
+<script src="js/savings.js?v=20261111a"></script>
+<script src="js/camino.js?v=20261111a"></script>
+<script src="js/categories.js?v=20261111a"></script>
+<script src="js/data-tools.js?v=20261111a"></script>
+<script src="js/autocat.js?v=20261111a"></script>
+<script src="js/mobile.js?v=20261111a"></script>
+<script src="js/ui.js?v=20261111a"></script>
+<script src="js/shell.js?v=20261111a"></script>
+<script src="js/init.js?v=20261111a"></script>
+<script src="js/credit-cards.js?v=20261111a"></script>
+<script src="js/animations.js?v=20261111a"></script>
+<script src="js/lock.js?v=20261111a"></script>
 
 <!-- ═══════════════════════════════════════════════════════
      MOBILE DRAWER — slide-in from left
