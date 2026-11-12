@@ -131,6 +131,7 @@ state.gmailImportRules = [{ id: 'r', name: 'Santander · Compras', sender: 's', 
   let ok = await fetchSantanderEmails(new Date(2026, 9, 1), new Date(2026, 9, 31), { auto: true });
   eq([ok, shown, real().map(t => t.gmailId), !!state.lastGmailSync], [true, null, ['q1'], true], 'automático: importa directo y anota la última sincronización');
   eq(real()[0].estado_revision, 'pendiente_de_revision', 'automático: queda para categorizar como cualquier gasto de Gmail');
+  eq([isNewTxn(real()[0]), isNewTxn(real()[0], Date.now() + 25 * 3600 * 1000), isNewTxn({})], [true, false, false], 'lo importado se marca "Nuevo" solo las primeras 24 horas');
 
   // 8) Abrir de nuevo no repite nada
   ok = await fetchSantanderEmails(new Date(2026, 9, 1), new Date(2026, 9, 31), { auto: true });

@@ -15749,3 +15749,7 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
 .settings-auto-import input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
 .settings-auto-import span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: var(--text); }
 .settings-auto-import small { font-size: 12px; line-height: 1.4; color: var(--text3); }
+
+/* Movimiento que entró a la app en las últimas 24 h (isNewTxn) */
+.new-txn-badge { display:inline-block; margin-left:8px; padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:700; letter-spacing:.2px; vertical-align:2px; color:#fff; background:var(--accent); }
+.mx-r small.new { display:table; margin:4px 0 0 auto; padding:1px 8px; border-radius:999px; color:#fff; background:var(--mx-c, var(--accent)); font-size:11px; font-weight:700; }

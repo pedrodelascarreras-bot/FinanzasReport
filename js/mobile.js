@@ -233,7 +233,8 @@ function renderMobileTransactions(){
       const pay=String(e.payMethod||'').toLowerCase();
       const tag=[MX_PAY_LABEL[pay]||'', e.isProjected?MX_GROUP_LABEL[e.group]||'':e.category||''].filter(Boolean).join(' · ');
       const name=e.description||'Movimiento';
-      return mxItem(mxInitial(name), name, tag, mxMoney(e.amount,e.currency));
+      const fresh=!e.isProjected && isNewTxn(e.txn);
+      return mxItem(mxInitial(name), name, tag, mxMoney(e.amount,e.currency), fresh?'Nuevo':'', fresh?'new':'');
     }).join('')+'</div>').join('');
   shell.innerHTML=mxBand('Movimientos')
     +'<div class="mx-grid">'

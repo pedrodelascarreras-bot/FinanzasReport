@@ -221,6 +221,17 @@ function hideToast(immediate=false){
   }
   finish();
 }
+// Un movimiento es "nuevo" durante las 24 horas después de entrar a la app (importado
+// de Gmail o de un resumen). Se ve como "Nuevo" en Movimientos, en la compu y en el celular.
+const NEW_TXN_MS = 24 * 60 * 60 * 1000;
+function isNewTxn(t, now){
+  const at = t && t.importedAt ? new Date(t.importedAt).getTime() : NaN;
+  if(!isFinite(at)) return false;
+  const age = (now || Date.now()) - at;
+  return age >= 0 && age < NEW_TXN_MS;
+}
+function newTxnBadge(t){ return isNewTxn(t) ? '<span class="new-txn-badge">Nuevo</span>' : ''; }
+
 function showToast(msg,type='info'){
   const t=document.getElementById('toast');
   if(!t) return;

@@ -1924,7 +1924,7 @@ function renderTransactions(){
                   return '<div class="mv-row'+_markedClass+'" onclick="openTxnDetail(\''+tx.id+'\')">'
                     +txnMerchantAvatar(tx)
                     +'<div class="mv-time">'+txnTimeLabel(tx)+'</div>'
-                    +'<div><div class="mv-merchant">'+_markedFlag+esc(txnMerchantName(tx))+'</div><div class="mv-meta"><button class="mv-cat" style="background:'+catColor(cat)+'18;color:'+catColor(cat)+';" onclick="event.stopPropagation();openAssignModal(\''+tx.id+'\',this)" title="Cambiar categoría"><span style="font-size:7px;">◆</span>'+esc(cat)+'</button>'+(_hasSub?'<span class="mv-subcat"> · '+esc(_grp)+'</span>':'')+(txnNoteText(tx)?'<span class="mv-note">↪ '+esc(txnNoteText(tx))+'</span>':'')+'</div></div>'
+                    +'<div><div class="mv-merchant">'+_markedFlag+esc(txnMerchantName(tx))+newTxnBadge(tx)+'</div><div class="mv-meta"><button class="mv-cat" style="background:'+catColor(cat)+'18;color:'+catColor(cat)+';" onclick="event.stopPropagation();openAssignModal(\''+tx.id+'\',this)" title="Cambiar categoría"><span style="font-size:7px;">◆</span>'+esc(cat)+'</button>'+(_hasSub?'<span class="mv-subcat"> · '+esc(_grp)+'</span>':'')+(txnNoteText(tx)?'<span class="mv-note">↪ '+esc(txnNoteText(tx))+'</span>':'')+'</div></div>'
                     +'<div class="mv-amount"><div class="mv-amount-main'+amountClass+'">'+txnAmountLabel(tx)+'</div>'+(((tx.currency||'ARS')==='USD')?'<div class="mv-amount-sub">'+txnEquivalentLabel(tx)+'</div>':'')+_gcSharedHtml+'</div>'
                     +'<div style="position:relative;"><button class="mv-menu-btn" onclick="event.stopPropagation();toggleTxnActionMenu(\''+tx.id+'\')">⋮</button>'+menuForTxn(tx.id)+'</div>'
                   +'</div>';
@@ -2034,7 +2034,7 @@ function renderTransactions(){
             +'<td style="padding:0 6px;"><input type="checkbox" class="txn-cb" data-id="'+t.id+'"'+_checked+' onclick="event.stopPropagation();toggleSelectTxn(\''+t.id+'\')"></td>'
             +'<td style="font-family:var(--font);font-size:13px;font-weight:500;color:var(--text3);white-space:nowrap;">'+fmtDate(t.date)+'</td>'
             +'<td class="td-main">'
-              +'<span class="td-desc-primary">'+highlight(t.description,searchVal)+'</span>'
+              +'<span class="td-desc-primary">'+highlight(t.description,searchVal)+newTxnBadge(t)+'</span>'
               +comercioHtml
             +'</td>'
             +'<td><span class="cat-badge" style="'+catStyle(t.category)+';cursor:pointer;" onclick="event.stopPropagation();openAssignModal(\''+t.id+'\',this)">'

@@ -567,7 +567,9 @@ function finishImport(txns,source,origen){
   if(!isGmail) normalizeImportedCuotas(txns);
   const config = ensureImportConfig();
   const bankProfile = (state.bankProfiles || []).find(profile => profile.id === config.bankProfileId) || null;
+  const importedAt = new Date().toISOString();
   txns.forEach(t=>{
+    t.importedAt = t.importedAt || importedAt; // para marcarlo "Nuevo" 24 h (isNewTxn)
     // Gmail imports: skip auto-categorization, leave for manual review
     if(!isGmail && (t.category==='Procesando...' || !t.category)) t.category=ruleBasedCategory(t.description);
     enrichTransaction(t, origenVal);
