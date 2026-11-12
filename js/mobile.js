@@ -272,7 +272,14 @@ function renderMobileTransactions(){
     if(!byDay.has(day)) byDay.set(day,[]);
     byDay.get(day).push(e);
   });
-  const list=[...byDay.entries()].map(([day,rows])=>mxSh(mxDayLabel(day),'',true)
+  // Total de cada día al lado de la fecha (pesos y, si hubo, dólares aparte)
+  const dayTotal=rows=>{
+    const ars=rows.filter(e=>(e.currency||'ARS')!=='USD').reduce((a,e)=>a+(Number(e.amount)||0),0);
+    const usd=rows.filter(e=>e.currency==='USD').reduce((a,e)=>a+(Number(e.amount)||0),0);
+    return [ars||!usd?mxMoney(ars):'', usd?mxMoney(usd,'USD'):''].filter(Boolean).join(' + ');
+  };
+  const list=[...byDay.entries()].map(([day,rows])=>'<div class="mx-sh mx-day"><h3 class="small">'+esc(mxDayLabel(day))
+      +'<small>'+rows.length+' movimiento'+(rows.length===1?'':'s')+'</small></h3><b>'+esc(dayTotal(rows))+'</b></div>'
     +'<div class="mx-list">'+rows.map(e=>{
       const pay=String(e.payMethod||'').toLowerCase();
       const name=e.description||'Movimiento';
@@ -486,6 +493,10 @@ function mxSaveCycle(){
 // ── Hojas que suben desde abajo (comparten #mx-sheet con el editor de ciclos) ──
 // Sube con un deslizamiento suave (clase "open") y baja igual al cerrar con Cancelar o el fondo
 function mxOpenSheet(inner, extraClass){
+  // Al agregar la hoja al final de la página el navegador la bajaba hasta abajo de todo:
+  // se guarda dónde estabas y se te deja ahí mientras la hoja está abierta y al cerrarla.
+  const se=document.scrollingElement||document.documentElement;
+  const keepY=se && typeof se.scrollTop==='number' ? se.scrollTop : null;
   mxCloseSheet();
   const el=document.createElement('div');
   el.id='mx-sheet'; el.className='mx-sheet mx-anim'+(extraClass?' '+extraClass:'');
@@ -494,8 +505,16 @@ function mxOpenSheet(inner, extraClass){
   document.body.appendChild(el);
   if(typeof requestAnimationFrame==='function') requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList&&el.classList.add('open')));
   mxSwipeToClose(el);
+  if(keepY!=null){
+    _mxKeepY=keepY;
+    const back=()=>{ if(_mxKeepY!=null && Math.abs(se.scrollTop-_mxKeepY)>1) se.scrollTop=_mxKeepY; };
+    back();
+    if(typeof requestAnimationFrame==='function') requestAnimationFrame(back);
+    setTimeout(back, 60); setTimeout(back, 300);
+  }
   return el;
 }
+let _mxKeepY=null;
 // Deslizar hacia abajo cierra la hoja, como en el iPhone. Desde la lista solo arranca si
 // ya está arriba de todo (si no, el dedo hace scroll normal).
 function mxSwipeToClose(el){
@@ -683,6 +702,36 @@ function mxPickCat(el){
   const hc=document.getElementById('mx-hero-cat'); if(hc) hc.innerHTML=mxHeroCat(_mxTxn.cat);
   if(navigator.vibrate) try{ navigator.vibrate(8); }catch(_){}
 }
+// Al guardar, la lista se vuelve a dibujar (y el teclado se cierra): sin esto la pantalla
+// saltaba. Se mide dónde estaba la fila en pantalla y se la vuelve a dejar en el mismo lugar.
+function mxScroller(el){
+  let n=el && el.parentElement;
+  for(let i=0; i<25 && n && n!==document.body; i++, n=n.parentElement){
+    const oy=getComputedStyle(n).overflowY;
+    if((oy==='auto'||oy==='scroll') && n.scrollHeight>n.clientHeight) return n;
+  }
+  return document.scrollingElement||document.documentElement;
+}
+function mxKeepRowInPlace(id, render){
+  const sel='.mx-it[data-id="'+String(id).replace(/"/g,'\\"')+'"]';
+  const before=document.querySelector && document.querySelector(sel);
+  const rect=before && typeof before.getBoundingClientRect==='function' ? before.getBoundingClientRect() : null;
+  const top=rect && typeof rect.top==='number' ? rect.top : null;
+  const scroller=top!=null?mxScroller(before):null;
+  const savedScroll=scroller?scroller.scrollTop:null;
+  render();
+  if(top==null) return;
+  const fix=()=>{
+    if(scroller && savedScroll!=null) scroller.scrollTop=savedScroll;
+    const after=document.querySelector(sel);
+    if(!after) return;
+    const diff=after.getBoundingClientRect().top-top;
+    if(Math.abs(diff)>1) mxScroller(after).scrollTop+=diff;
+  };
+  fix();
+  if(typeof requestAnimationFrame==='function') requestAnimationFrame(fix);
+  setTimeout(fix, 120); setTimeout(fix, 400); // cuando termina de cerrarse el teclado
+}
 function mxSaveTxn(){
   if(!_mxTxn) return;
   const t=mxFindTxn(_mxTxn.id);
@@ -709,9 +758,8 @@ function mxSaveTxn(){
   mxDismissSheet();
   if(!changed) return;
   t.estado_revision=mxPendingCat(t.category)?'pendiente_de_revision':'confirmado_por_usuario';
-  saveState();
-  refreshAll();
-  renderMobileTransactions();
+  if(document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  mxKeepRowInPlace(t.id, ()=>{ saveState(); refreshAll(); renderMobileTransactions(); });
   showToast('✓ Movimiento guardado','success');
 }
 

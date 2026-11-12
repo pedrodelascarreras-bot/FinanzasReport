@@ -109,6 +109,7 @@ state.transactions.push(tx('u', dia(-1), 'visa', 10, { currency: 'USD' }));
 renderMobileTransactions();
 const movs = shellHtml('mob-txn-shell');
 eq([/onclick="(?!openMobDrawer|mxImportGmail|mxConnectGoogle|mxOpenSettings|mxOpenTxn)/.test(movs), movs.includes('mxOpenTxn'), movs.includes('USD 10'), movs.includes('Gasto d')], [false, true, true, false], 'cada movimiento se abre; el débito no aparece');
+eq([movs.includes('mx-day'), movs.includes('USD 10'), /\$1\.000 \+ USD 10/.test(movs)], [true, true, true], 'total del día al lado de la fecha (pesos + dólares)');
 // Lo nuevo dice "Nuevo" (nunca "Procesando"); lo viejo sin categoría dice "Sin categoría"
 state.transactions.push(tx('n', dia(-1), 'visa', 700, { category: 'Procesando...', importedAt: new Date().toISOString() }));
 state.transactions.push(tx('o', dia(-2), 'visa', 800, { category: 'Procesando...' }));
