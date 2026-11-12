@@ -79,6 +79,7 @@ renderMobileDashboard();
 const home = shellHtml('mob-dash-shell');
 eq([home.includes('$3.000'), home.includes('Proyección al cierre'), home.includes('Promedio diario')], [true, true, true], 'el inicio trae total, proyección y promedio');
 eq(home.includes('$3.300'), true, 'Con compromisos suma lo que falta cobrar');
+eq([home.includes('Total del ciclo con compromisos'), home.includes('En qué gastaste'), home.includes('Prestamo')], [true, true, false], 'inicio: total con compromisos y categorías, sin la lista de compromisos');
 
 eq([home.includes('Desconectado') && home.includes('mx-dot-logo'), home.includes('mxOpenSettings()'), home.includes('Traer'), home.includes('mx-avisos')], [true, true, false, false], 'el inicio solo dice si Google está conectado; los botones van a la hoja');
 const ajustes = mxSettingsInner();

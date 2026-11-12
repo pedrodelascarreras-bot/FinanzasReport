@@ -15878,3 +15878,21 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
 .mx-confirm-del, .mx-confirm-cancel { display:block; width:100%; min-height:0; height:56px; border:none; background:transparent; font:400 19px -apple-system,BlinkMacSystemFont,var(--mx-sf); }
 .mx-confirm-del { color:#E5383B; }
 .mx-confirm-cancel { border-radius:14px; background:#fff; color:#7C4DFF; font-weight:600; }
+
+/* Inicio: total con compromisos y en qué gastaste */
+.mx-total .mx-seg { margin-top:12px; }
+.mx-trow { display:flex; justify-content:space-between; align-items:center; margin-top:8px; font-size:14px; font-weight:600; color:#5B5E68; }
+.mx-trow span { display:flex; align-items:center; gap:8px; }
+.mx-trow i { width:9px; height:9px; border-radius:3px; }
+.mx-trow b { font-family:var(--mx-rd); font-size:16px; font-weight:800; color:#101114; }
+.mx-cats-w { margin:0 14px; padding:14px 16px 6px; }
+.mx-cats-w .mx-seg { margin:0 0 10px; height:14px; border-radius:7px; }
+.mx-crow2 { display:flex; align-items:center; gap:12px; padding:9px 0; }
+.mx-cic2 { flex:0 0 36px; height:36px; border-radius:11px; display:grid; place-items:center; font:800 17px var(--mx-rd); }
+.mx-cbody { flex:1; min-width:0; }
+.mx-ctop { display:flex; justify-content:space-between; gap:10px; }
+.mx-ctop b { font:700 15.5px var(--mx-rd); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mx-ctop span { font:800 15.5px var(--mx-rd); white-space:nowrap; }
+.mx-cbar { display:flex; align-items:center; gap:8px; margin-top:6px; }
+.mx-cbar i { display:block; height:7px; border-radius:4px; transition:width .6s cubic-bezier(.3,.9,.3,1); }
+.mx-cbar em { font-style:normal; font-size:12px; font-weight:700; color:#8E8E93; }

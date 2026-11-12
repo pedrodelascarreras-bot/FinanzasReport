@@ -184,17 +184,13 @@ function renderMobileDashboard(){
   const rate=window.USD_TO_ARS||USD_TO_ARS||1;
   const toArs=e=>(Number(e.amount)||0)*((e.currency||'ARS')==='USD'?rate:1);
   const commitments=mxPeriodCommitments(period);
-  const committedTotal=commitments.reduce((s,e)=>s+toArs(e),0);
   // Lo ya cobrado en las tarjetas está en el gasto; se suma el resto (lo que falta y lo que va por débito)
   const notInSpent=commitments.filter(e=>!(e.inView!==false && e.isSettled===true)).reduce((s,e)=>s+toArs(e),0);
   const spentWithCommitments=all.totalArs+notInSpent;
   const left=period.daysLeft!=null&&period.daysLeft>=0?' · faltan '+period.daysLeft+' día'+(period.daysLeft===1?'':'s'):'';
   const totalDays=projection.daysElapsed+projection.daysLeft;
-  const rows=commitments.map(e=>{
-    const settled=e.isSettled===true;
-    const sub=[mxShortDate(e.date), e.payLabel==='Sin medio de pago'?'':e.payLabel].filter(Boolean).join(' · ');
-    return mxItem(String(new Date(e.date).getDate()), e.title, sub, mxMoney(e.amount,e.currency), settled?'Cobrado':'Sin cobrar', settled?'ok':'wa');
-  }).join('');
+  const pendingCount=commitments.filter(e=>!(e.inView!==false && e.isSettled===true)).length;
+  const closeTxt=period.cycle?'Cierra el '+mxShortDate(period.end):'Fin de mes: '+mxShortDate(period.end);
 
   shell.innerHTML=mxBand('Este ciclo', true)
     +'<div class="mx-grid">'
@@ -205,13 +201,52 @@ function renderMobileDashboard(){
         +'<div class="mx-md under">'+esc(mxMoney(projection.projected))+'</div></div>'
       +'<div class="mx-w soft"><div class="mx-lb">Promedio diario</div><div class="mx-md spaced">'+esc(mxMoney(projection.dailyVariable))+'</div>'
         +'<div class="mx-sub">'+projection.daysElapsed+' de '+totalDays+' días</div></div>'
+      // Total con compromisos: lo gastado + lo que todavía falta cobrar en el ciclo
+      +'<div class="mx-w full mx-total">'
+        +'<div class="mx-lb">Total del ciclo con compromisos</div>'
+        +'<div class="mx-big">'+esc(mxMoney(spentWithCommitments))+'</div>'
+        +'<div class="mx-sub">'+esc(closeTxt)+'</div>'
+        +mxSeg([{value:all.totalArs,color:'var(--mx-c)'},{value:notInSpent,color:'#F5A35C'}])
+        +'<div class="mx-trow"><span><i style="background:var(--mx-c)"></i>Ya gastado</span><b>'+esc(mxMoney(all.totalArs))+'</b></div>'
+        +'<div class="mx-trow"><span><i style="background:#F5A35C"></i>Compromisos por cobrar'+(pendingCount?' ('+pendingCount+')':'')+'</span><b>'+esc(mxMoney(notInSpent))+'</b></div>'
+      +'</div>'
     +'</div>'
-    +mxSh('Compromisos', mxMoney(committedTotal))
-    +'<div class="mx-list">'+(rows||'<div class="mx-none">No hay compromisos en este período</div>')+'</div>'
-    +'<div class="mx-with"><span>Con compromisos</span><b>'+esc(mxMoney(spentWithCommitments))+'</b></div>';
+    +mxCategoriesHtml(all.entries);
   // Con datos nuevos se recalculan los avisos (js/avisos.js)
   if(typeof avisosQueue==='function') avisosQueue();
   mxRefreshSettings();
+}
+
+// En qué se fue la plata del ciclo: las 5 categorías más grandes y el resto en "Otras"
+function mxCategoriesHtml(entries){
+  const rate=window.USD_TO_ARS||(typeof USD_TO_ARS!=='undefined'?USD_TO_ARS:1)||1;
+  const by=new Map();
+  (entries||[]).forEach(e=>{
+    const ars=(Number(e.amount)||0)*((e.currency||'ARS')==='USD'?rate:1);
+    if(!(ars>0)) return;
+    const cat=e.isProjected?(MX_GROUP_LABEL[e.group]?MX_GROUP_LABEL[e.group]==='Cuota'?'Cuotas':MX_GROUP_LABEL[e.group]==='Suscripción'?'Suscripciones':'Gastos fijos':'Compromisos'):(mxPendingCat(e.category)?'Sin categoría':e.category);
+    by.set(cat,(by.get(cat)||0)+ars);
+  });
+  const total=[...by.values()].reduce((a,b)=>a+b,0);
+  if(!total) return mxSh('En qué gastaste','',false)+'<div class="mx-list"><div class="mx-none">Todavía no hay gastos en este ciclo</div></div>';
+  const sorted=[...by.entries()].sort((a,b)=>b[1]-a[1]);
+  const top=sorted.slice(0,5);
+  const rest=sorted.slice(5).reduce((a,[,v])=>a+v,0);
+  const PALETTE_FALLBACK={ 'Sin categoría':'#A0A4AE', 'Otras':'#C3C6CE', 'Cuotas':'#8C5CFF', 'Suscripciones':'#F5A35C', 'Gastos fijos':'#3A3D46' };
+  const rows=top.map(([cat,v])=>{ const m=mxCatMeta(cat); return {cat, v, color:PALETTE_FALLBACK[cat]||m.color, emoji:m.emoji}; });
+  if(rest>0) rows.push({cat:'Otras', v:rest, color:PALETTE_FALLBACK['Otras'], emoji:'⋯'});
+  const max=rows[0].v;
+  return mxSh('En qué gastaste', sorted.length+' categoría'+(sorted.length===1?'':'s'))
+    +'<div class="mx-w mx-cats-w">'
+      +mxSeg(rows.map(r=>({value:r.v, color:r.color})))
+      +rows.map(r=>{
+        const pct=Math.round(r.v/total*100);
+        return '<div class="mx-crow2">'
+          +'<span class="mx-cic2" style="background:'+esc(mxTint(r.color,20))+';color:'+esc(r.color)+'">'+esc(r.emoji||r.cat.charAt(0))+'</span>'
+          +'<div class="mx-cbody"><div class="mx-ctop"><b>'+esc(r.cat)+'</b><span>'+esc(mxMoney(r.v))+'</span></div>'
+          +'<div class="mx-cbar"><i style="width:'+Math.max(3,Math.round(r.v/max*100))+'%;background:'+esc(r.color)+'"></i><em>'+pct+'%</em></div></div></div>';
+      }).join('')
+    +'</div>';
 }
 
 // ── Movimientos: tocando uno se cambia el nombre, la categoría o se borra ──
