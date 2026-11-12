@@ -15842,3 +15842,18 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
 .mx-tag.none { background:#EEF0F4; color:#8E8E93; }
 .mx-sheet.mx-txn .mx-sheet-panel { height:92vh; }
 .mx-sheet.mx-txn .mx-sheet-scroll { flex:1; }
+
+/* Compromisos: cobrado / no cobrado */
+.mx-st { display:inline-flex; align-items:center; gap:4px; margin-top:5px; padding:3px 9px 3px 7px; border-radius:999px; font:700 11.5px var(--mx-rd); white-space:nowrap; }
+.mx-it .mx-r:has(.mx-st) { display:flex; flex-direction:column; align-items:flex-end; }
+.mx-st.ok { background:#E3F7EA; color:#169C4B; }
+.mx-st.wait { background:#FFF1E0; color:#D46B00; }
+.mx-it.done .mx-t { color:#5B5E68; }
+.mx-it.done .mx-ib { opacity:.75; }
+.mx-paid-top { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
+.mx-paid-r { text-align:right; }
+.mx-paid-r .mx-md { color:#D46B00; }
+.mx-paid-top > div:first-child .mx-md { color:#169C4B; }
+.mx-paid-bar { height:10px; margin-top:12px; border-radius:5px; background:#FFF1E0; overflow:hidden; }
+.mx-paid-bar i { display:block; height:100%; border-radius:5px; background:linear-gradient(90deg,#22C55E,#16A34A); transition:width .6s cubic-bezier(.3,.9,.3,1); }
+.mx-sh b.all { background:#E3F7EA; color:#169C4B; }

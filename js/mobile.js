@@ -264,26 +264,90 @@ function renderMobileTransactions(){
     +(list||mxSh('Hoy','',true)+'<div class="mx-list"><div class="mx-none">Todavía no hay gastos en este período</div></div>');
 }
 
-// ── Compromisos ──
+// ── Compromisos: con cada cobro del mes marcado ──
+function mxDaysUntil(date, today){
+  return Math.round((new Date(dateToYMD(date)+'T12:00:00')-new Date(dateToYMD(today)+'T12:00:00'))/86400000);
+}
+function mxWhen(date, today){
+  const n=mxDaysUntil(date, today);
+  if(n===0) return 'hoy';
+  if(n===1) return 'mañana';
+  return 'el '+mxShortDate(date)+(n>1&&n<=7?' (en '+n+' días)':'');
+}
+// Estado del cobro de este mes: misma regla que el resto de la app. Cuenta como cobrado si ya
+// llegó el cargo real (Gmail / resumen) o si ya pasó su fecha.
+function mxCommitStatus(item, today){
+  today=today||new Date();
+  const monthStart=new Date(today.getFullYear(), today.getMonth(), 1);
+  const monthEnd=new Date(today.getFullYear(), today.getMonth()+1, 0, 23, 59, 59);
+  const mk=getMonthKey(today);
+  const txns=state.transactions||[];
+  let thisDate=null, real=false, next=null;
+  if(item.type==='quota'){
+    const c=(state.cuotas||[]).find(x=>x.id===item.id);
+    if(!c) return null;
+    const inst=getCuotaInstallmentsInRange(c, monthStart, monthEnd)[0]||null;
+    if(inst){
+      thisDate=inst.date;
+      real=hasRealCuotaChargeForInstallment(getCuotaGroupId(c), inst.num, txns);
+      const after=getCuotaInstallmentsInRange(c, new Date(today.getFullYear(), today.getMonth()+1, 1), new Date(today.getFullYear()+5, 0, 1))[0];
+      next=after?after.date:null;
+    } else {
+      next=getCuotaStatus(c, today).nextDate||null;
+    }
+  } else {
+    const src=item.type==='subscription'?(state.subscriptions||[]).find(x=>x.id===item.id):(state.fixedExpenses||[]).find(x=>x.id===item.id);
+    const day=parseInt(src&&src.day,10);
+    if(!src || !day) return null;
+    thisDate=getRecurringDatesInRange(day, monthStart, monthEnd)[0]||null;
+    real=typeof hasRealSubscriptionChargeInMonth==='function' && hasRealSubscriptionChargeInMonth(item.type==='subscription'?src:{id:src.id||'',name:src.name,merchantKey:src.merchantKey}, mk, txns);
+    next=getRecurringDatesInRange(day, new Date(today.getFullYear(), today.getMonth()+1, 1), new Date(today.getFullYear(), today.getMonth()+2, 0))[0]||null;
+  }
+  if(!thisDate) return {charged:false, upcoming:true, date:next, label:next?'Arranca '+mxWhen(next,today):'Sin fecha'};
+  const charged=real || hasReachedEffectiveChargeDate(thisDate, today);
+  return charged
+    ? {charged:true, date:next, label:next?'Próximo cobro: '+mxShortDate(next):'Era el último'}
+    : {charged:false, date:thisDate, label:'Se cobra '+mxWhen(thisDate,today)};
+}
+const MX_TICK='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const MX_CLOCK='<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
 function renderMobileCompromisos(){
   const shell=document.getElementById('mob-comp-shell');
   if(!shell || !mxIsMobile()) return;
   if(!mxHasData()){ shell.innerHTML=mxEmptyHtml('Compromisos'); return; }
   const {fixedItems,subsItems,cuotaItems,allActive}=commitmentsBuildData();
+  const today=new Date();
   const sum=list=>list.reduce((s,i)=>s+(Number(i.amountArs)||0),0);
+  const withStatus=list=>list.map(item=>({item, st:mxCommitStatus(item, today)||{charged:false, date:null, label:''}}));
+  const all=withStatus(allActive);
+  const paidArs=all.filter(x=>x.st.charged).reduce((s,x)=>s+(Number(x.item.amountArs)||0),0);
+  const totalArs=sum(allActive);
+  const pct=totalArs>0?Math.round(paidArs/totalArs*100):0;
   const section=(title,items)=>{
     if(!items.length) return '';
-    const rows=[...items].sort((a,b)=>(a.due?.sortDays??999)-(b.due?.sortDays??999)).map(item=>{
-      const sub=item.type==='quota'&&item.total?item.paid+' de '+item.total:'Mensual';
-      const tap='onclick="mxOpenCommitment(this.dataset.type,this.dataset.id)" data-type="'+esc(item.type)+'" data-id="'+esc(String(item.id))+'"';
-      return mxItem(mxInitial(item.name), item.name, sub, mxMoney(item.amount,item.currency), item.due?.label||'', 'due', tap);
-    }).join('');
-    return mxSh(title, mxMoney(sum(items)))+'<div class="mx-list">'+rows+'</div>';
+    const rows=withStatus(items)
+      // Primero lo que falta cobrar (lo más cercano arriba), después lo ya cobrado
+      .sort((a,b)=>(a.st.charged-b.st.charged) || ((a.st.date?+new Date(a.st.date):9e15)-(b.st.date?+new Date(b.st.date):9e15)))
+      .map(({item, st})=>{
+        const tap='onclick="mxOpenCommitment(this.dataset.type,this.dataset.id)" data-type="'+esc(item.type)+'" data-id="'+esc(String(item.id))+'"';
+        const quota=item.type==='quota'&&item.total?'Cuota '+Math.min(item.total, item.paid+(st.charged?0:1))+' de '+item.total+' · ':'';
+        const pill=st.charged?'<span class="mx-st ok">'+MX_TICK+'Cobrado</span>':'<span class="mx-st wait">'+MX_CLOCK+'No cobrado</span>';
+        return '<div class="mx-it tap'+(st.charged?' done':'')+'" role="button" '+tap+'><div class="mx-ib">'+mxInitial(item.name)+'</div>'
+          +'<div class="mx-tx"><div class="mx-t">'+esc(item.name)+'</div><div class="mx-s">'+esc(quota+st.label)+'</div></div>'
+          +'<div class="mx-r">'+esc(mxMoney(item.amount,item.currency))+pill+'</div></div>';
+      }).join('');
+    const done=withStatus(items).filter(x=>x.st.charged).length;
+    const count=done+' de '+items.length+' cobrad'+(title==='Cuotas'||title==='Suscripciones'?'as':'os');
+    return '<div class="mx-sh"><h3>'+esc(title)+'</h3><b class="'+(done===items.length?'all':'')+'">'+esc(count)+'</b></div><div class="mx-list">'+rows+'</div>';
   };
   shell.innerHTML=mxBand('Compromisos')
-    +'<div class="mx-grid"><div class="mx-w full"><div class="mx-lb">Total por mes</div><div class="mx-big">'+esc(mxMoney(sum(allActive)))+'</div>'
+    +'<div class="mx-grid"><div class="mx-w full"><div class="mx-lb">Total por mes</div><div class="mx-big">'+esc(mxMoney(totalArs))+'</div>'
       +mxSeg([{value:sum(cuotaItems),color:'var(--mx-c)'},{value:sum(subsItems),color:'#F5B26B'},{value:sum(fixedItems),color:'#1A1B20'}])
-      +'<div class="mx-leg"><span><i style="background:var(--mx-c)"></i>Cuotas</span><span><i style="background:#F5B26B"></i>Suscrip.</span><span><i style="background:#1A1B20"></i>Fijos</span></div></div></div>'
+      +'<div class="mx-leg"><span><i style="background:var(--mx-c)"></i>Cuotas</span><span><i style="background:#F5B26B"></i>Suscrip.</span><span><i style="background:#1A1B20"></i>Fijos</span></div></div>'
+      +'<div class="mx-w full mx-paid"><div class="mx-paid-top"><div><div class="mx-lb">Cobrado este mes</div><div class="mx-md">'+esc(mxMoney(paidArs))+'</div></div>'
+        +'<div class="mx-paid-r"><div class="mx-lb">Falta cobrar</div><div class="mx-md">'+esc(mxMoney(totalArs-paidArs))+'</div></div></div>'
+        +'<div class="mx-paid-bar"><i style="width:'+pct+'%"></i></div></div>'
+    +'</div>'
     +section('Cuotas',cuotaItems)+section('Suscripciones',subsItems)+section('Gastos fijos',fixedItems);
 }
 

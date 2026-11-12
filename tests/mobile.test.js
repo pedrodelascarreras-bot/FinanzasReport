@@ -136,6 +136,14 @@ state.transactions = state.transactions.filter(t => t.id !== 'n');
 state.fixedExpenses = [{ id: 'f1', name: 'Alquiler', amount: 1000, day: 5, currency: 'ARS' }];
 renderMobileCompromisos();
 eq(shellHtml('mob-comp-shell').includes('mxOpenCommitment'), true, 'cada compromiso se abre');
+// Cobrado / no cobrado: con la fecha del mes ya pasada está cobrado y dice el próximo
+const ref = new Date(2026, 10, 12, 12);
+const stOk = mxCommitStatus({ type: 'fixed', id: 'f1' }, ref);
+eq([stOk.charged, stOk.label], [true, 'Próximo cobro: ' + mxShortDate(new Date(2026, 11, 5))], 'fijo del día 5: cobrado y próximo en diciembre');
+state.fixedExpenses.push({ id: 'f2', name: 'Expensas', amount: 500, day: 20, currency: 'ARS' });
+const stNo = mxCommitStatus({ type: 'fixed', id: 'f2' }, ref);
+eq([stNo.charged, stNo.label], [false, 'Se cobra el ' + mxShortDate(new Date(2026, 10, 20))], 'fijo del día 20: no cobrado y cuándo se cobra');
+state.fixedExpenses.pop();
 mxOpenCommitment('fixed', 'f1'); mxDeleteCommitment();
 eq(state.fixedExpenses.length, 0, 'gasto fijo borrado');
 
