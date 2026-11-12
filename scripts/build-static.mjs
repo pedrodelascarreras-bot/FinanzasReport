@@ -12,6 +12,7 @@ const distDir = path.join(rootDir, 'dist');
 const entries = [
   'index.html',
   'manifest.json',
+  'privacidad.html', // la pide Google para publicar la app de OAuth
   'css',
   'js',
   'brand',
