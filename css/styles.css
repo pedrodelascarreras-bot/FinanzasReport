@@ -15783,3 +15783,62 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
 .mx-dot-logo { display:grid; place-items:center; width:16px; height:16px; }
 .mx-dot.mx-dot-g i { background:#E5383B; }
 .mx-dot.mx-dot-g i.ok { background:#22C55E; }
+
+/* ══ Celular: hojas estilo iOS (suben suaves) y editor de movimiento ══ */
+.mx-sheet.mx-anim .mx-sheet-back { opacity:0; transition:opacity .32s ease; }
+.mx-sheet.mx-anim .mx-sheet-panel { transform:translateY(105%); transition:transform .42s cubic-bezier(.32,.72,0,1); will-change:transform; }
+.mx-sheet.mx-anim.open .mx-sheet-back { opacity:1; }
+.mx-sheet.mx-anim.open .mx-sheet-panel { transform:translateY(0); }
+.mx-sheet.mx-anim:not(.open) .mx-sheet-panel { transition-duration:.3s; transition-timing-function:cubic-bezier(.4,0,1,1); }
+.mx-sheet .mx-sheet-back { background:rgba(10,12,20,.32); -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px); }
+.mx-sheet .mx-sheet-panel { padding-top:8px; border-radius:30px 30px 0 0; background:#F2F2F7; box-shadow:0 -10px 40px -12px rgba(0,0,0,.25); }
+.mx-grab { width:38px; height:5px; border-radius:3px; background:#C7C7CC; margin:0 auto 10px; }
+.mx-sheet.mx-tall .mx-sheet-panel { max-height:92vh; }
+
+/* Barra Cancelar / Guardar */
+.mx-nav { display:flex; justify-content:space-between; align-items:center; padding:0 18px 4px; }
+.mx-nav button { min-height:0; padding:6px 2px; border:none; background:none; color:#7C4DFF; font:500 17px -apple-system,BlinkMacSystemFont,var(--mx-sf); }
+.mx-nav button.strong { font-weight:700; }
+
+/* Cabecera: ícono de la categoría, monto grande, fecha y categoría elegida */
+.mx-hero { display:flex; flex-direction:column; align-items:center; text-align:center; padding:6px 20px 18px; }
+.mx-hero-ic { width:62px; height:62px; border-radius:20px; display:grid; place-items:center; background:#E5E5EA; color:#3A3A3C; font:800 28px var(--mx-rd); transition:background .25s, color .25s, transform .25s; animation:mxPop .35s cubic-bezier(.3,1.5,.5,1); }
+@keyframes mxPop { from { transform:scale(.85); } to { transform:scale(1); } }
+.mx-hero-amt { margin-top:12px; font-family:var(--mx-rd); font-size:38px; font-weight:800; letter-spacing:-1px; color:#101114; }
+.mx-hero-sub { margin-top:2px; font-size:14.5px; color:#8E8E93; text-transform:none; }
+.mx-hero-sub::first-letter { text-transform:uppercase; }
+#mx-hero-cat { margin-top:10px; min-height:28px; }
+.mx-hero-cat { display:inline-block; padding:5px 12px; border-radius:999px; font:700 13.5px var(--mx-rd); transition:all .25s; }
+.mx-hero-cat.none { background:#E5E5EA; color:#8E8E93; }
+
+/* Grupos tipo Ajustes del iPhone */
+.mx-cap { margin:14px 32px 7px; font-size:13px; font-weight:600; letter-spacing:.2px; text-transform:uppercase; color:#8E8E93; }
+.mx-card { margin:0 16px; border-radius:14px; background:#fff; overflow:hidden; }
+.mx-name { display:block; width:100%; box-sizing:border-box; height:50px; padding:0 16px; border:none; background:transparent; color:#101114; font:600 17px -apple-system,BlinkMacSystemFont,var(--mx-sf); outline:none; }
+.mx-search { display:flex; align-items:center; gap:8px; margin:0 16px 10px; height:40px; padding:0 12px; border-radius:12px; background:#E3E3E8; color:#8E8E93; }
+.mx-search input { flex:1; min-width:0; height:100%; border:none; background:transparent; color:#101114; font:400 17px -apple-system,BlinkMacSystemFont,var(--mx-sf); outline:none; -webkit-appearance:none; appearance:none; }
+.mx-search input::-webkit-search-cancel-button { -webkit-appearance:none; }
+.mx-ch { margin:14px 32px 6px; font-size:12.5px; font-weight:600; color:#8E8E93; }
+.mx-cgroup { margin:0 16px; border-radius:14px; background:#fff; overflow:hidden; }
+.mx-crow { display:flex; align-items:center; gap:12px; width:100%; min-height:0; padding:9px 14px; border:none; background:#fff; text-align:left; color:#101114; font:inherit; position:relative; transition:background .15s; }
+.mx-crow + .mx-crow::before { content:''; position:absolute; top:0; left:58px; right:0; height:.5px; background:#D1D1D6; }
+.mx-crow:active { background:#E9E9EE; }
+.mx-cic { flex:0 0 32px; height:32px; border-radius:9px; display:grid; place-items:center; font-size:17px; }
+.mx-ctx { flex:1; min-width:0; display:flex; flex-direction:column; }
+.mx-ctx b { font:600 16px -apple-system,BlinkMacSystemFont,var(--mx-sf); }
+.mx-ctx small { font-size:12.5px; color:#8E8E93; }
+.mx-ck { opacity:0; transform:scale(.6); transition:opacity .18s, transform .25s cubic-bezier(.3,1.6,.5,1); }
+.mx-crow.on .mx-ck { opacity:1; transform:scale(1); }
+.mx-crow.on .mx-ctx b { font-weight:700; }
+.mx-cempty { margin:4px 16px; padding:18px; border-radius:14px; background:#fff; text-align:center; font-size:15px; color:#8E8E93; }
+.mx-txn .mx-del-zone { margin:22px 16px 8px; }
+.mx-txn .mx-del { border-radius:14px; height:50px; font:600 17px -apple-system,BlinkMacSystemFont,var(--mx-sf); }
+
+/* Lista de movimientos: categoría con su color */
+.mx-ib.none { background:#EEF0F4; color:#8E8E93; }
+.mx-s-tags { display:flex; align-items:center; gap:6px; margin-top:3px; min-width:0; }
+.mx-s-tags > span:first-child:not(.mx-tag) { flex-shrink:0; }
+.mx-tag { display:inline-block; max-width:100%; padding:2px 8px; border-radius:999px; font:700 11.5px var(--mx-rd); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.mx-tag.none { background:#EEF0F4; color:#8E8E93; }
+.mx-sheet.mx-txn .mx-sheet-panel { height:92vh; }
+.mx-sheet.mx-txn .mx-sheet-scroll { flex:1; }

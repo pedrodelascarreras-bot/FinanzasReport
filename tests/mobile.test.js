@@ -121,6 +121,12 @@ mxPickCat({ dataset: { cat: 'Delivery' } });
 mxSaveTxn();
 const n = state.transactions.find(t => t.id === 'n');
 eq([n.description, n.category, n._descEditedByUser, n.estado_revision], ['Cafe', 'Delivery', true, 'confirmado_por_usuario'], 'nombre y categoría guardados');
+// Buscar categoría escribiendo (sin importar tildes)
+const busc = mxCategoryRows('deliv', '');
+eq([busc.includes('Delivery'), busc.includes('Uber'), mxCategoryRows('farmácia', '').includes('Farmacia'), mxCategoryRows('zzz', '').includes('No hay categorías')], [true, false, true, true], 'buscar categoría');
+// Movimiento con categoría: etiqueta con su color
+renderMobileTransactions();
+eq(shellHtml('mob-txn-shell').includes('mx-tag" style="background:color-mix'), true, 'la categoría se ve con su color');
 // Borrar un movimiento
 mxOpenTxn('o'); mxDeleteTxn();
 eq(state.transactions.some(t => t.id === 'o'), false, 'movimiento borrado');

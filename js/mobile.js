@@ -240,11 +240,20 @@ function renderMobileTransactions(){
       const pay=String(e.payMethod||'').toLowerCase();
       const name=e.description||'Movimiento';
       const fresh=!e.isProjected && isNewTxn(e.txn);
-      // Sin categoría todavía: si es nuevo lo dice el cartel "Nuevo"; si no, "Sin categoría"
-      const cat=e.isProjected?MX_GROUP_LABEL[e.group]||'':(mxPendingCat(e.category)?(fresh?'':'Sin categoría'):e.category);
-      const tag=[MX_PAY_LABEL[pay]||'', cat].filter(Boolean).join(' · ');
       const tap=!e.isProjected && e.txn && e.txn.id!=null?'onclick="mxOpenTxn(this.dataset.id)" data-id="'+esc(String(e.txn.id))+'"':'';
-      return mxItem(mxInitial(name), name, tag, mxMoney(e.amount,e.currency), fresh?'Nuevo':'', fresh?'new':'', tap);
+      const payLabel=MX_PAY_LABEL[pay]||'';
+      if(e.isProjected) return mxItem(mxInitial(name), name, [payLabel, MX_GROUP_LABEL[e.group]||''].filter(Boolean).join(' · '), mxMoney(e.amount,e.currency), '', '', tap);
+      // Con categoría: ícono y etiqueta con su color. Sin categoría: si es nuevo lo dice
+      // el cartel "Nuevo"; si no, "Sin categoría" en gris
+      const has=!mxPendingCat(e.category);
+      const m=has?mxCatMeta(e.category):null;
+      const lead=has?'<div class="mx-ib" style="background:'+esc(mxTint(m.color,22))+';color:'+esc(m.color)+'">'+esc(m.emoji||mxInitial(e.category))+'</div>'
+        :'<div class="mx-ib none">'+mxInitial(name)+'</div>';
+      const catTag=has?'<span class="mx-tag" style="background:'+esc(mxTint(m.color,18))+';color:'+esc(m.color)+'">'+esc(e.category)+'</span>'
+        :(fresh?'':'<span class="mx-tag none">Sin categoría</span>');
+      return '<div class="mx-it'+(tap?' tap" role="button" '+tap:'"')+'>'+lead
+        +'<div class="mx-tx"><div class="mx-t">'+esc(name)+'</div><div class="mx-s mx-s-tags">'+(payLabel?'<span>'+esc(payLabel)+'</span>':'')+catTag+'</div></div>'
+        +'<div class="mx-r">'+esc(mxMoney(e.amount,e.currency))+(fresh?'<small class="new">Nuevo</small>':'')+'</div></div>';
     }).join('')+'</div>').join('');
   shell.innerHTML=mxBand('Movimientos')
     +'<div class="mx-grid">'
@@ -374,16 +383,26 @@ function mxSaveCycle(){
 }
 
 // ── Hojas que suben desde abajo (comparten #mx-sheet con el editor de ciclos) ──
+// Sube con un deslizamiento suave (clase "open") y baja igual al cerrar con Cancelar o el fondo
 function mxOpenSheet(inner, extraClass){
   mxCloseSheet();
   const el=document.createElement('div');
-  el.id='mx-sheet'; el.className='mx-sheet'+(extraClass?' '+extraClass:'');
-  el.innerHTML='<div class="mx-sheet-back" onclick="mxCloseSheet()"></div>'
-    +'<div class="mx-sheet-panel" role="dialog" aria-modal="true">'+inner+'</div>';
+  el.id='mx-sheet'; el.className='mx-sheet mx-anim'+(extraClass?' '+extraClass:'');
+  el.innerHTML='<div class="mx-sheet-back" onclick="mxDismissSheet()"></div>'
+    +'<div class="mx-sheet-panel" role="dialog" aria-modal="true"><div class="mx-grab"></div>'+inner+'</div>';
   document.body.appendChild(el);
+  if(typeof requestAnimationFrame==='function') requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList&&el.classList.add('open')));
   return el;
 }
 function mxCloseSheet(){ document.getElementById('mx-sheet')?.remove(); _mxEditor=null; _mxTxn=null; _mxCommit=null; }
+function mxDismissSheet(){
+  const el=document.getElementById('mx-sheet');
+  if(!el || !el.classList || !el.classList.contains('open')){ mxCloseSheet(); return; }
+  el.classList.remove('open');
+  el.id='mx-sheet-closing';
+  setTimeout(()=>el.remove(), 320);
+  _mxEditor=null; _mxTxn=null; _mxCommit=null;
+}
 function mxSheetTop(title, left, right){
   return '<div class="mx-sheet-top">'+(left||'<span></span>')+'<strong>'+esc(title)+'</strong>'+(right||'<span></span>')+'</div>';
 }
@@ -392,7 +411,7 @@ function mxSheetTop(title, left, right){
 function mxSettingsInner(){
   const g=mxLastGoogle();
   const linked=mxGoogleLinked();
-  return mxSheetTop('Google y avisos', '', '<button class="strong" onclick="mxCloseSheet()">Listo</button>')
+  return mxSheetTop('Google y avisos', '', '<button class="strong" onclick="mxDismissSheet()">Listo</button>')
     +'<div class="mx-sheet-stack">'
       +'<div class="mx-w full"><div class="mx-goo">'
         +'<button class="mx-goo-l" onclick="mxConnectGoogle()"><span class="mx-g">'+MX_GOOGLE+'</span><span><span class="mx-goo-t">'+(linked?'Conectado':'Sin conectar')+'</span>'
@@ -413,35 +432,88 @@ function mxRefreshSettings(){
 // Movimiento: nombre, categoría y borrar
 let _mxTxn=null;
 function mxFindTxn(id){ return (state.transactions||[]).find(x=>String(x.id)===String(id))||null; }
-function mxCategoryChips(current){
-  if(typeof normalizeCategoryState==='function') normalizeCategoryState(state);
-  return (CATEGORY_GROUPS||[]).filter(g=>g.group!=='Sin clasificar' && (g.subs||[]).length).map(g=>
-    '<div class="mx-cat-group"><div class="mx-cat-h">'+esc(g.emoji||'')+' '+esc(g.group)+'</div><div class="mx-chips">'
-      +g.subs.map(c=>'<button class="mx-chip'+(c===current?' active':'')+'" data-cat="'+esc(c)+'" onclick="mxPickCat(this)">'+esc(c)+'</button>').join('')
-    +'</div></div>').join('');
+// Color y emoji de una categoría (los mismos de la compu)
+function mxCatMeta(name){
+  const c=name && typeof getCategoryByName==='function' ? getCategoryByName(name) : null;
+  return { color:(c && c.color) || '#9AA0AC', emoji:(c && (c.emoji||c.icon)) || '', group:(c && c.group) || '' };
+}
+function mxTint(color, pct){ return 'color-mix(in srgb, '+color+' '+(pct||16)+'%, white)'; }
+function mxNorm(v){ return String(v||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim(); }
+function mxCatList(){
+  if(typeof normalizeCategoryState!=='function') return [];
+  const {categoryGroups, categories}=normalizeCategoryState(state);
+  const order=new Map(categoryGroups.map((g,i)=>[g.name,i]));
+  // En el mismo orden que la compu: por grupo y, dentro del grupo, como estén ordenadas
+  return categories.filter(c=>c.active!==false && c.group!=='Sin clasificar' && !mxPendingCat(c.name))
+    .map((c,i)=>({c,i})).sort((a,b)=>(order.get(a.c.group)??99)-(order.get(b.c.group)??99) || a.i-b.i).map(x=>x.c);
+}
+const MX_CHECK='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const MX_SEARCH='<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>';
+function mxCatRow(c, current, showGroup){
+  return '<button class="mx-crow'+(c.name===current?' on':'')+'" data-cat="'+esc(c.name)+'" onclick="mxPickCat(this)">'
+    +'<span class="mx-cic" style="background:'+esc(mxTint(c.color,22))+';color:'+esc(c.color)+'">'+esc(c.emoji||'•')+'</span>'
+    +'<span class="mx-ctx"><b>'+esc(c.name)+'</b>'+(showGroup?'<small>'+esc(c.group)+'</small>':'')+'</span>'
+    +'<span class="mx-ck" style="color:'+esc(c.color)+'">'+MX_CHECK+'</span></button>';
+}
+// Sin texto: todas, por grupo. Escribiendo: las que coinciden por nombre o grupo
+function mxCategoryRows(query, current){
+  const q=mxNorm(query);
+  const cats=mxCatList();
+  if(q){
+    const hits=cats.filter(c=>mxNorm(c.name).includes(q) || mxNorm(c.group).includes(q))
+      .sort((a,b)=>(mxNorm(b.name).startsWith(q)?1:0)-(mxNorm(a.name).startsWith(q)?1:0));
+    return hits.length ? '<div class="mx-cgroup">'+hits.map(c=>mxCatRow(c,current,true)).join('')+'</div>'
+      : '<div class="mx-cempty">No hay categorías con “'+esc(query)+'”</div>';
+  }
+  const groups=new Map();
+  cats.forEach(c=>{ if(!groups.has(c.group)) groups.set(c.group,[]); groups.get(c.group).push(c); });
+  return [...groups.entries()].map(([g,list])=>'<div class="mx-ch">'+esc((list[0].emoji||'')+' '+g)+'</div><div class="mx-cgroup">'+list.map(c=>mxCatRow(c,current)).join('')+'</div>').join('');
+}
+function mxHeroIcon(t, cat){
+  if(cat){ const m=mxCatMeta(cat); return '<div class="mx-hero-ic" id="mx-hero-ic" style="background:'+esc(mxTint(m.color,22))+';color:'+esc(m.color)+'">'+esc(m.emoji||mxInitial(cat))+'</div>'; }
+  return '<div class="mx-hero-ic" id="mx-hero-ic">'+mxInitial(t.description)+'</div>';
+}
+function mxHeroCat(cat){
+  if(!cat) return '<span class="mx-hero-cat none">Sin categoría</span>';
+  const m=mxCatMeta(cat);
+  return '<span class="mx-hero-cat" style="background:'+esc(mxTint(m.color,18))+';color:'+esc(m.color)+'">'+esc(cat)+'</span>';
 }
 function mxOpenTxn(id){
   const t=mxFindTxn(id);
   if(!t) return;
   const current=mxPendingCat(t.category)?'':t.category;
   const pay=MX_PAY_LABEL[String(t.payMethod||'').toLowerCase()]||'';
-  const info=[mxMoney(t.amount,t.currency), mxShortDate(t.date), pay].filter(Boolean).join(' · ');
+  const when=new Date(t.date instanceof Date?t.date:String(t.date).length===10?t.date+'T12:00:00':t.date)
+    .toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
   mxOpenSheet(
-    mxSheetTop('Movimiento', '<button onclick="mxCloseSheet()">Cancelar</button>', '<button class="strong" onclick="mxSaveTxn()">Guardar</button>')
-    +'<div class="mx-sheet-scroll">'
-      +'<div class="mx-list sheet"><label class="mx-it mx-field"><span class="mx-t">Nombre</span><input type="text" id="mx-txn-name" value="'+esc(t.description||'')+'" autocomplete="off"></label>'
-        +'<div class="mx-it"><span class="mx-s">'+esc(info)+'</span></div></div>'
-      +mxSh('Categoría','',true)
-      +'<div class="mx-list sheet mx-cats">'+mxCategoryChips(current)+'</div>'
+    '<div class="mx-nav"><button onclick="mxDismissSheet()">Cancelar</button><button class="strong" onclick="mxSaveTxn()">Guardar</button></div>'
+    +'<div class="mx-sheet-scroll" id="mx-txn-scroll">'
+      +'<div class="mx-hero">'+mxHeroIcon(t,current)
+        +'<div class="mx-hero-amt">'+esc(mxMoney(t.amount,t.currency))+'</div>'
+        +'<div class="mx-hero-sub">'+esc([when, pay].filter(Boolean).join(' · '))+'</div>'
+        +'<div id="mx-hero-cat">'+mxHeroCat(current)+'</div></div>'
+      +'<div class="mx-cap">Nombre</div>'
+      +'<div class="mx-card"><input class="mx-name" type="text" id="mx-txn-name" value="'+esc(t.description||'')+'" autocomplete="off" enterkeyhint="done" placeholder="Nombre del movimiento"></div>'
+      +'<div class="mx-cap">Categoría</div>'
+      +'<label class="mx-search">'+MX_SEARCH+'<input type="search" id="mx-cat-q" placeholder="Buscar categoría" autocomplete="off" oninput="mxFilterCats(this.value)"></label>'
+      +'<div id="mx-cats">'+mxCategoryRows('',current)+'</div>'
       +'<div id="mx-del-zone" class="mx-del-zone"><button class="mx-del" onclick="mxAskDelete(\'txn\')">Borrar movimiento</button></div>'
-    +'</div>', 'mx-tall');
+    +'</div>', 'mx-tall mx-txn');
   _mxTxn={id:t.id, cat:current}; // después de abrir: abrir una hoja limpia lo anterior
+}
+function mxFilterCats(q){
+  const box=document.getElementById('mx-cats');
+  if(box && _mxTxn) box.innerHTML=mxCategoryRows(q,_mxTxn.cat);
 }
 function mxPickCat(el){
   if(!_mxTxn || !el) return;
   const cat=el.dataset.cat;
   _mxTxn.cat=_mxTxn.cat===cat?'':cat;
-  document.querySelectorAll('.mx-chip').forEach(b=>b.classList.toggle('active', b.dataset.cat===_mxTxn.cat));
+  document.querySelectorAll('.mx-crow').forEach(b=>b.classList.toggle('on', b.dataset.cat===_mxTxn.cat));
+  const t=mxFindTxn(_mxTxn.id);
+  const ic=document.getElementById('mx-hero-ic'); if(ic && t) ic.outerHTML=mxHeroIcon(t,_mxTxn.cat);
+  const hc=document.getElementById('mx-hero-cat'); if(hc) hc.innerHTML=mxHeroCat(_mxTxn.cat);
+  if(navigator.vibrate) try{ navigator.vibrate(8); }catch(_){}
 }
 function mxSaveTxn(){
   if(!_mxTxn) return;
@@ -466,7 +538,7 @@ function mxSaveTxn(){
     }
     changed=true;
   }
-  mxCloseSheet();
+  mxDismissSheet();
   if(!changed) return;
   t.estado_revision=mxPendingCat(t.category)?'pendiente_de_revision':'confirmado_por_usuario';
   saveState();
@@ -487,7 +559,7 @@ function mxOpenCommitment(type, id){
   if(!c) return;
   const amount=type==='subscription'?c.price:c.amount;
   mxOpenSheet(
-    mxSheetTop(MX_COMMIT_LABEL[type]||'Compromiso', '<button onclick="mxCloseSheet()">Cancelar</button>', '')
+    mxSheetTop(MX_COMMIT_LABEL[type]||'Compromiso', '<button onclick="mxDismissSheet()">Cancelar</button>', '')
     +'<div class="mx-list sheet"><div class="mx-it"><div class="mx-ib">'+mxInitial(c.name)+'</div><div class="mx-tx"><div class="mx-t">'+esc(c.name||'')+'</div>'
       +'<div class="mx-s">'+esc(mxMoney(amount,c.currency))+(c.day?' · día '+esc(c.day):'')+'</div></div></div></div>'
     +'<div id="mx-del-zone" class="mx-del-zone"><button class="mx-del" onclick="mxAskDelete(\'commit\')">Borrar '+esc((MX_COMMIT_LABEL[type]||'compromiso').toLowerCase())+'</button></div>');
@@ -509,14 +581,14 @@ function mxCancelDelete(kind){
 function mxDeleteTxn(){
   if(!_mxTxn) return;
   const id=_mxTxn.id;
-  mxCloseSheet();
+  mxDismissSheet();
   confirmDeleteTxn(id); // la misma de la compu: también evita que Gmail lo vuelva a traer
   renderMobileTransactions();
 }
 function mxDeleteCommitment(){
   if(!_mxCommit) return;
   const {type, id}=_mxCommit;
-  mxCloseSheet();
+  mxDismissSheet();
   const done=ok=>{ if(!ok) return; renderMobileCompromisos(); showToast(MX_COMMIT_LABEL[type]+(type==='fixed'?' borrado':' borrada'),'info'); };
   // Cuotas y suscripciones con cobros pasados preguntan si conservarlos como gastos
   if(type==='quota') requestDeleteCuota(id, done);
