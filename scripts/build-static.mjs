@@ -13,6 +13,7 @@ const entries = [
   'index.html',
   'manifest.json',
   'privacidad.html', // la pide Google para publicar la app de OAuth
+  'sw.js', // avisos del celular (js/avisos.js lo registra)
   'css',
   'js',
   'brand',
