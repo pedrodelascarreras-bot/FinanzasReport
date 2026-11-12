@@ -15840,7 +15840,7 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
 .mx-s-tags > span:first-child:not(.mx-tag) { flex-shrink:0; }
 .mx-tag { display:inline-block; max-width:100%; padding:2px 8px; border-radius:999px; font:700 11.5px var(--mx-rd); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .mx-tag.none { background:#EEF0F4; color:#8E8E93; }
-.mx-sheet.mx-txn .mx-sheet-panel { height:92vh; }
+.mx-sheet.mx-txn .mx-sheet-panel { height:auto; min-height:62vh; max-height:92vh; }
 .mx-sheet.mx-txn .mx-sheet-scroll { flex:1; }
 
 /* Compromisos: cobrado / no cobrado */
@@ -15857,3 +15857,24 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
 .mx-paid-bar { height:10px; margin-top:12px; border-radius:5px; background:#FFF1E0; overflow:hidden; }
 .mx-paid-bar i { display:block; height:100%; border-radius:5px; background:linear-gradient(90deg,#22C55E,#16A34A); transition:width .6s cubic-bezier(.3,.9,.3,1); }
 .mx-sh b.all { background:#E3F7EA; color:#169C4B; }
+
+/* Editor de movimiento: borrar arriba, "Ver todas" y confirmación estilo iPhone */
+.mx-nav-r { display:flex; align-items:center; gap:14px; }
+.mx-nav button.mx-trash { width:36px; height:36px; padding:0; border-radius:50%; display:grid; place-items:center; background:#FFE5E5; color:#E5383B; }
+.mx-nav button.mx-trash:active { background:#FFD0D0; }
+.mx-more { display:flex; align-items:center; justify-content:center; gap:6px; width:calc(100% - 32px); margin:2px 16px 8px; min-height:0; height:44px; border:none; border-radius:12px; background:#fff; color:#7C4DFF; font:600 15.5px -apple-system,BlinkMacSystemFont,var(--mx-sf); }
+.mx-more svg { transition:transform .25s; }
+.mx-more:active { background:#E9E9EE; }
+.mx-sheet .mx-sheet-panel { touch-action:pan-y; }
+.mx-confirm { position:absolute; inset:0; z-index:5; display:flex; flex-direction:column; justify-content:flex-end; gap:8px; padding:0 10px calc(14px + env(safe-area-inset-bottom)); border-radius:inherit; overflow:hidden; }
+.mx-confirm-back { position:absolute; inset:0; background:rgba(10,12,20,.35); opacity:0; transition:opacity .25s; }
+.mx-confirm-card, .mx-confirm-cancel { position:relative; transform:translateY(140%); transition:transform .35s cubic-bezier(.32,.72,0,1); }
+.mx-confirm.open .mx-confirm-back { opacity:1; }
+.mx-confirm.open .mx-confirm-card, .mx-confirm.open .mx-confirm-cancel { transform:translateY(0); }
+.mx-confirm-card { border-radius:14px; background:rgba(255,255,255,.96); overflow:hidden; }
+.mx-confirm-msg { display:flex; flex-direction:column; gap:3px; padding:14px 16px; text-align:center; border-bottom:.5px solid #D1D1D6; }
+.mx-confirm-msg b { font:600 14px -apple-system,BlinkMacSystemFont,var(--mx-sf); color:#3C3C43; }
+.mx-confirm-msg span { font-size:13px; color:#8E8E93; }
+.mx-confirm-del, .mx-confirm-cancel { display:block; width:100%; min-height:0; height:56px; border:none; background:transparent; font:400 19px -apple-system,BlinkMacSystemFont,var(--mx-sf); }
+.mx-confirm-del { color:#E5383B; }
+.mx-confirm-cancel { border-radius:14px; background:#fff; color:#7C4DFF; font-weight:600; }

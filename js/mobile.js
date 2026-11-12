@@ -456,7 +456,45 @@ function mxOpenSheet(inner, extraClass){
     +'<div class="mx-sheet-panel" role="dialog" aria-modal="true"><div class="mx-grab"></div>'+inner+'</div>';
   document.body.appendChild(el);
   if(typeof requestAnimationFrame==='function') requestAnimationFrame(()=>requestAnimationFrame(()=>el.classList&&el.classList.add('open')));
+  mxSwipeToClose(el);
   return el;
+}
+// Deslizar hacia abajo cierra la hoja, como en el iPhone. Desde la lista solo arranca si
+// ya está arriba de todo (si no, el dedo hace scroll normal).
+function mxSwipeToClose(el){
+  const panel=el && el.querySelector && el.querySelector('.mx-sheet-panel');
+  if(!panel || !panel.addEventListener) return;
+  let y0=0, t0=0, dy=0, drag=false, armed=false;
+  panel.addEventListener('touchstart', e=>{
+    if(e.touches.length!==1 || e.target.closest('input')) { armed=false; return; }
+    const sc=e.target.closest('.mx-sheet-scroll');
+    armed=!sc || sc.scrollTop<=0;
+    y0=e.touches[0].clientY; t0=Date.now(); dy=0; drag=false;
+  }, {passive:true});
+  panel.addEventListener('touchmove', e=>{
+    if(!armed) return;
+    dy=e.touches[0].clientY-y0;
+    if(!drag){
+      if(dy>8){ drag=true; panel.style.transition='none'; }
+      else if(dy<-4){ armed=false; return; }
+      else return;
+    }
+    if(e.cancelable) e.preventDefault();
+    panel.style.transform='translateY('+Math.max(0,dy)+'px)';
+    const back=el.querySelector('.mx-sheet-back');
+    if(back) back.style.opacity=String(Math.max(0, 1-dy/(panel.offsetHeight||600)));
+  }, {passive:false});
+  panel.addEventListener('touchend', ()=>{
+    if(!drag) return;
+    drag=false; armed=false;
+    const fast=dy/(Math.max(1, Date.now()-t0))>0.6;
+    panel.style.transition=''; panel.style.transform='';
+    const back=el.querySelector('.mx-sheet-back'); if(back) back.style.opacity='';
+    if(dy>Math.min(140, (panel.offsetHeight||600)*0.25) || (fast && dy>40)){
+      panel.style.transform='translateY('+dy+'px)';
+      requestAnimationFrame(()=>{ panel.style.transform=''; mxDismissSheet(); });
+    }
+  });
 }
 function mxCloseSheet(){ document.getElementById('mx-sheet')?.remove(); _mxEditor=null; _mxTxn=null; _mxCommit=null; }
 function mxDismissSheet(){
@@ -512,6 +550,7 @@ function mxCatList(){
     .map((c,i)=>({c,i})).sort((a,b)=>(order.get(a.c.group)??99)-(order.get(b.c.group)??99) || a.i-b.i).map(x=>x.c);
 }
 const MX_CHECK='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+const MX_TRASH='<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/></svg>';
 const MX_SEARCH='<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.6-3.6"/></svg>';
 function mxCatRow(c, current, showGroup){
   return '<button class="mx-crow'+(c.name===current?' on':'')+'" data-cat="'+esc(c.name)+'" onclick="mxPickCat(this)">'
@@ -520,7 +559,7 @@ function mxCatRow(c, current, showGroup){
     +'<span class="mx-ck" style="color:'+esc(c.color)+'">'+MX_CHECK+'</span></button>';
 }
 // Sin texto: todas, por grupo. Escribiendo: las que coinciden por nombre o grupo
-function mxCategoryRows(query, current){
+function mxCategoryRows(query, current, showAll){
   const q=mxNorm(query);
   const cats=mxCatList();
   if(q){
@@ -529,9 +568,12 @@ function mxCategoryRows(query, current){
     return hits.length ? '<div class="mx-cgroup">'+hits.map(c=>mxCatRow(c,current,true)).join('')+'</div>'
       : '<div class="mx-cempty">No hay categorías con “'+esc(query)+'”</div>';
   }
+  const toggle='<button class="mx-more" onclick="mxToggleAllCats()">'+(showAll?'Ocultar categorías':'Ver todas las categorías')
+    +'<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="transform:rotate('+(showAll?180:0)+'deg)"><path d="M6 9l6 6 6-6"/></svg></button>';
+  if(!showAll) return toggle;
   const groups=new Map();
   cats.forEach(c=>{ if(!groups.has(c.group)) groups.set(c.group,[]); groups.get(c.group).push(c); });
-  return [...groups.entries()].map(([g,list])=>'<div class="mx-ch">'+esc((list[0].emoji||'')+' '+g)+'</div><div class="mx-cgroup">'+list.map(c=>mxCatRow(c,current)).join('')+'</div>').join('');
+  return toggle+[...groups.entries()].map(([g,list])=>'<div class="mx-ch">'+esc((list[0].emoji||'')+' '+g)+'</div><div class="mx-cgroup">'+list.map(c=>mxCatRow(c,current)).join('')+'</div>').join('');
 }
 function mxHeroIcon(t, cat){
   if(cat){ const m=mxCatMeta(cat); return '<div class="mx-hero-ic" id="mx-hero-ic" style="background:'+esc(mxTint(m.color,22))+';color:'+esc(m.color)+'">'+esc(m.emoji||mxInitial(cat))+'</div>'; }
@@ -550,7 +592,9 @@ function mxOpenTxn(id){
   const when=new Date(t.date instanceof Date?t.date:String(t.date).length===10?t.date+'T12:00:00':t.date)
     .toLocaleDateString('es-AR',{weekday:'long',day:'numeric',month:'long'});
   mxOpenSheet(
-    '<div class="mx-nav"><button onclick="mxDismissSheet()">Cancelar</button><button class="strong" onclick="mxSaveTxn()">Guardar</button></div>'
+    '<div class="mx-nav"><button onclick="mxDismissSheet()">Cancelar</button>'
+      +'<span class="mx-nav-r"><button class="mx-trash" onclick="mxConfirmDeleteTxn()" aria-label="Borrar movimiento">'+MX_TRASH+'</button>'
+      +'<button class="strong" onclick="mxSaveTxn()">Guardar</button></span></div>'
     +'<div class="mx-sheet-scroll" id="mx-txn-scroll">'
       +'<div class="mx-hero">'+mxHeroIcon(t,current)
         +'<div class="mx-hero-amt">'+esc(mxMoney(t.amount,t.currency))+'</div>'
@@ -560,14 +604,37 @@ function mxOpenTxn(id){
       +'<div class="mx-card"><input class="mx-name" type="text" id="mx-txn-name" value="'+esc(t.description||'')+'" autocomplete="off" enterkeyhint="done" placeholder="Nombre del movimiento"></div>'
       +'<div class="mx-cap">Categoría</div>'
       +'<label class="mx-search">'+MX_SEARCH+'<input type="search" id="mx-cat-q" placeholder="Buscar categoría" autocomplete="off" oninput="mxFilterCats(this.value)"></label>'
-      +'<div id="mx-cats">'+mxCategoryRows('',current)+'</div>'
-      +'<div id="mx-del-zone" class="mx-del-zone"><button class="mx-del" onclick="mxAskDelete(\'txn\')">Borrar movimiento</button></div>'
+      +'<div id="mx-cats">'+mxCategoryRows('',current,false)+'</div>'
     +'</div>', 'mx-tall mx-txn');
-  _mxTxn={id:t.id, cat:current}; // después de abrir: abrir una hoja limpia lo anterior
+  _mxTxn={id:t.id, cat:current, all:false}; // después de abrir: abrir una hoja limpia lo anterior
 }
 function mxFilterCats(q){
   const box=document.getElementById('mx-cats');
-  if(box && _mxTxn) box.innerHTML=mxCategoryRows(q,_mxTxn.cat);
+  if(box && _mxTxn) box.innerHTML=mxCategoryRows(q,_mxTxn.cat,_mxTxn.all);
+}
+function mxToggleAllCats(){
+  if(!_mxTxn) return;
+  _mxTxn.all=!_mxTxn.all;
+  mxFilterCats(document.getElementById('mx-cat-q')?.value||'');
+}
+// Confirmación estilo iPhone dentro de la hoja
+function mxConfirmDeleteTxn(){
+  const panel=document.querySelector('#mx-sheet .mx-sheet-panel');
+  if(!panel || document.getElementById('mx-confirm')) return;
+  const box=document.createElement('div');
+  box.id='mx-confirm'; box.className='mx-confirm';
+  box.innerHTML='<div class="mx-confirm-back" onclick="mxCloseConfirm()"></div>'
+    +'<div class="mx-confirm-card"><div class="mx-confirm-msg"><b>¿Borrar este movimiento?</b><span>No se puede deshacer.</span></div>'
+      +'<button class="mx-confirm-del" onclick="mxDeleteTxn()">Borrar movimiento</button></div>'
+    +'<button class="mx-confirm-cancel" onclick="mxCloseConfirm()">Cancelar</button>';
+  panel.appendChild(box);
+  if(typeof requestAnimationFrame==='function') requestAnimationFrame(()=>requestAnimationFrame(()=>box.classList.add('open')));
+}
+function mxCloseConfirm(){
+  const box=document.getElementById('mx-confirm');
+  if(!box) return;
+  box.classList.remove('open');
+  setTimeout(()=>box.remove(), 250);
 }
 function mxPickCat(el){
   if(!_mxTxn || !el) return;

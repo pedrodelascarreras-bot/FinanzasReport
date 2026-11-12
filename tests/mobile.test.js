@@ -124,6 +124,7 @@ eq([n.description, n.category, n._descEditedByUser, n.estado_revision], ['Cafe',
 // Buscar categoría escribiendo (sin importar tildes)
 const busc = mxCategoryRows('deliv', '');
 eq([busc.includes('Delivery'), busc.includes('Uber'), mxCategoryRows('farmácia', '').includes('Farmacia'), mxCategoryRows('zzz', '').includes('No hay categorías')], [true, false, true, true], 'buscar categoría');
+eq([mxCategoryRows('', '', false).includes('Ver todas'), mxCategoryRows('', '', false).includes('Delivery'), mxCategoryRows('', '', true).includes('Delivery')], [true, false, true], 'sin buscar solo el botón "Ver todas"; al tocarlo, todas');
 // Movimiento con categoría: etiqueta con su color
 renderMobileTransactions();
 eq(shellHtml('mob-txn-shell').includes('mx-tag" style="background:color-mix'), true, 'la categoría se ve con su color');
