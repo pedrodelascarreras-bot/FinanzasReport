@@ -411,16 +411,13 @@ function getDriveScopes(){ return 'https://www.googleapis.com/auth/drive.appdata
 
 function initDriveClient(autoSync, opts={}){
   const clientId = getGmailClientId();
-  if(!clientId) return;
+  // Modo servidor (js/google-session.js): la conexión queda guardada y no hace falta Client ID acá
+  const serverMode = typeof gsIsServerMode==='function' && gsIsServerMode();
+  if(!clientId && !serverMode) return;
   _syncT0 = 0; window._syncTrace = [];
   initialLoadComplete = false; // reconexión = volver a verificar qué hay en Drive
   _syncMark('inicio conexión Google');
-  loadGoogleScript(()=>{
-    _syncMark('script de Google cargado');
-    driveTokenClient = google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: getDriveScopes(),
-      callback:(resp)=>{
+  const onToken=(resp)=>{
         const _wasReconnect=!!window._driveReconnecting;
         window._driveReconnecting=false;
         if(resp.error){
@@ -433,6 +430,7 @@ function initDriveClient(autoSync, opts={}){
         driveAccessToken = resp.access_token;
         gmailAccessToken = resp.access_token;
         window._driveTokenExpiresAt = Date.now()+(Number(resp.expires_in)||3600)*1000;
+        if(serverMode) gsScheduleRefresh(resp.expires_in);
         state.onboardingState = { ...(state.onboardingState || {}), google: true };
         safePersistLocalSnapshot(getStateSnapshot());
         _syncMark('snapshot local guardado');
@@ -462,14 +460,27 @@ function initDriveClient(autoSync, opts={}){
           if(loaded) localStorage.setItem('fin_last_google_at', new Date().toISOString());
           if(!loaded && initialLoadComplete && typeof showToast==='function') showToast('Todavía no hay datos en Google: conectá primero desde la compu (la G de abajo a la izquierda).','info');
           if(typeof isMobileAppView==='function' && isMobileAppView()) renderMobileDashboard();
-          // Auto-sync DESACTIVADO — nunca sincronizar automáticamente
           if(autoSync||window._gmailSyncPending){window._gmailSyncPending=false;openGmailPeriodModal();}
+          // Al abrir con Google ya conectado: gastos nuevos de Gmail (si el interruptor está prendido).
+          // Solo después de confirmar qué hay en Drive, para no repetir lo que importó otro dispositivo.
+          else if(window._gsBootImport && initialLoadComplete && typeof gsAutoImportGmail==='function'){
+            window._gsBootImport=false;
+            gsAutoImportGmail();
+          }
         });
-      }
-    });
+  };
+  const start=(client)=>{
+    driveTokenClient = client;
     if(opts.prepareOnly) return;
     _syncMark('pidiendo token (silencioso)…');
     driveTokenClient.requestAccessToken({prompt:''});
+  };
+  if(serverMode){ start(gsCreateTokenClient(onToken)); return; }
+  loadGoogleScript(()=>{
+    _syncMark('script de Google cargado');
+    // Si mientras cargaba se confirmó el modo servidor, manda la conexión guardada
+    if(typeof gsIsServerMode==='function' && gsIsServerMode()){ start(gsCreateTokenClient(onToken)); return; }
+    start(google.accounts.oauth2.initTokenClient({ client_id: clientId, scope: getDriveScopes(), callback:onToken }));
   });
 }
 

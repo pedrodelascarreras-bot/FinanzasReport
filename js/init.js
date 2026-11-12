@@ -1046,6 +1046,7 @@ async function fetchGoogleProfile(force){
 
 function disconnectGoogleAccess(){
   const token = driveAccessToken || gmailAccessToken;
+  if(typeof gsIsServerMode==='function' && gsIsServerMode()) gsDisconnect();
   const finalize = ()=>{
     driveAccessToken = null;
     gmailAccessToken = null;
@@ -1192,7 +1193,12 @@ function confirmGmailPeriod() {
 function gmailSync() {
   const clientId = getGmailClientId();
   if (!clientId) { openModal('modal-gmail-setup'); return; }
-  if (gmailAccessToken) { openGmailPeriodModal(); return; }
+  if (gmailAccessToken) {
+    // Con la conexión guardada, si el permiso está por vencer se renueva antes de buscar
+    const expiring = (Number(window._driveTokenExpiresAt) || 0) - Date.now() < 2 * 60 * 1000;
+    if (expiring && typeof gsIsServerMode==='function' && gsIsServerMode()) { gsRefreshQuietly().then(()=>openGmailPeriodModal()); return; }
+    openGmailPeriodModal(); return;
+  }
   if (driveTokenClient) {
     window._gmailSyncPending = true;
     driveTokenClient.requestAccessToken({ prompt: '' });
@@ -1251,7 +1257,10 @@ function _getLastSyncTag() {
   return `Sincronizado: ${date} ${time}`;
 }
 
-async function fetchSantanderEmails(dateFrom, dateTo) {
+// opts.auto: la importación al abrir la app (js/google-session.js). Sin carteles cuando no hay
+// nada nuevo y sin la lista para revisar: lo seguro entra directo. Devuelve true si terminó bien.
+async function fetchSantanderEmails(dateFrom, dateTo, opts = {}) {
+  const auto = !!opts.auto;
   updateGmailBtn('syncing');
   try {
     const now = new Date();
@@ -1264,8 +1273,8 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
     const dateQuery = ` after:${Math.floor(rangeStart.getTime()/1000)} before:${Math.ceil(rangeEnd.getTime()/1000)}`;
     const rules = getActiveGmailImportRules();
     if(!rules.length){
-      showToast('Configurá al menos una regla Gmail activa', 'error');
-      updateGmailBtn('connected'); return;
+      if(!auto) showToast('Configurá al menos una regla Gmail activa', 'error');
+      updateGmailBtn('connected'); return false;
     }
     
     // Obtenemos los IDs de emails ya importados y anulados procesados
@@ -1295,14 +1304,16 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
     }
 
     if (!allMessages.length) {
-      showToast('No se encontraron correos en ese período', 'error');
-      updateGmailBtn('connected'); return;
+      if (auto) { state.lastGmailSync = new Date().toISOString(); saveState(); }
+      else showToast('No se encontraron correos en ese período', 'error');
+      updateGmailBtn('connected'); return true;
     }
     const newMessages = allMessages.filter(m => !importedEmailIds.has(m.id));
     const totalFound = allMessages.length;
     if (newMessages.length === 0) {
-      showToast(`✓ Sin correos nuevos — los ${totalFound} ya están importados`, 'success');
-      updateGmailBtn('done'); return;
+      if (auto) { state.lastGmailSync = new Date().toISOString(); saveState(); }
+      else showToast(`✓ Sin correos nuevos — los ${totalFound} ya están importados`, 'success');
+      updateGmailBtn('done'); return true;
     }
     // Fetch todos los correos nuevos en batches de 25 para evitar rate limiting
     const BATCH_SIZE = 25;
@@ -1388,26 +1399,40 @@ async function fetchSantanderEmails(dateFrom, dateTo) {
 
     if (!txns.length) {
       if (annulments.length > 0) {
-        showToast('Correos procesados. Se registraron anulaciones sin gastos extra.', 'success');
-      } else {
+        showToast(auto ? 'Gmail: se registraron compras anuladas' : 'Correos procesados. Se registraron anulaciones sin gastos extra.', 'success');
+      } else if (!auto) {
         showToast('✓ No se encontraron movimientos nuevos', 'success');
       }
       updateGmailBtn('connected');
       state.lastGmailSync = new Date().toISOString(); // Update last sync even if no new txns
       saveState();
-      return;
+      return true;
+    }
+    if (auto) {
+      gsFinishAutoImport(txns, dateFrom, dateTo);
+      updateGmailBtn('done');
+      return true;
     }
     pendingGmailTxns = txns;
     showGmailResultModal(txns, totalFound, dateFrom, dateTo);
     updateGmailBtn('done');
+    return true;
   } catch(err) {
+    if (auto) {
+      // Al abrir no se molesta con errores: queda el botón para sincronizar a mano
+      console.warn('Importación automática de Gmail:', err);
+      updateGmailBtn('connected');
+      return false;
+    }
     console.error('Gmail sync error:', err);
     if (err.message && err.message.includes('401')) {
       gmailAccessToken = null;
       showToast('Sesión expirada — reconectando…', 'error');
-      if(gmailTokenClient) gmailTokenClient.requestAccessToken({ prompt: '' });
+      const client = (typeof gsIsServerMode==='function' && gsIsServerMode()) ? driveTokenClient : gmailTokenClient;
+      if(client) client.requestAccessToken({ prompt: '' });
     } else { showToast('Error al conectar con Gmail', 'error'); }
     updateGmailBtn('connected');
+    return false;
   }
 }
 

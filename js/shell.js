@@ -410,6 +410,8 @@
     renderSettingsGoogleSection();
     renderSettingsCardsList();
     renderSettingsGmailRulesList();
+    const autoOpen = document.getElementById('settings-gmail-auto-open');
+    if(autoOpen && typeof gsAutoImportEnabled === 'function') autoOpen.checked = gsAutoImportEnabled();
     renderSetupGuide();
   }
 

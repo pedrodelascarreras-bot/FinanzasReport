@@ -15577,15 +15577,20 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
     --mx-sf:-apple-system,BlinkMacSystemFont,'SF Pro Text','Helvetica Neue',sans-serif;
     --mx-rd:ui-rounded,'SF Pro Rounded',-apple-system,BlinkMacSystemFont,sans-serif;
     --mx-top:max(calc(env(safe-area-inset-top) + 6px), 18px);
-    background:#EEF0F5 !important;
+    /* iOS 26 pinta la zona de la hora con el fondo de la página: que sea el color de la franja */
+    background:var(--mx-c) !important;
   }
   body[data-active-page="dashboard"] { --mx-c:#1F6FEB; --mx-soft:#E3EEFF; }
   body[data-active-page="transactions"] { --mx-c:#6246EA; --mx-soft:#ECE8FF; }
   body[data-active-page="cuotas"] { --mx-c:#E8730C; --mx-soft:#FFEEDC; }
   body[data-active-page="credit-cards"] { --mx-c:#0E9F86; --mx-soft:#DDF5EF; }
 
-  html, html:has(body.light-mode) { background:#EEF0F5 !important; }
+  html, html:has(body.light-mode) { background:#1F6FEB !important; }
+  html:has(body[data-active-page="transactions"]) { background:#6246EA !important; }
+  html:has(body[data-active-page="cuotas"]) { background:#E8730C !important; }
+  html:has(body[data-active-page="credit-cards"]) { background:#0E9F86 !important; }
   .app, .main, .page { background:#EEF0F5 !important; }
+  .app { min-height:100vh; min-height:100dvh; }
   .main { padding:0 !important; }
   #page-dashboard, #page-transactions, #page-cuotas, #page-credit-cards { padding:0 !important; margin:0 !important; }
 
@@ -15723,3 +15728,7 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
 }
 
 /* Configuración → Reglas Gmail: interruptor "Actualizar gastos al abrir" */
+.settings-auto-import { display: flex; gap: 10px; align-items: flex-start; margin: 12px 0 4px; cursor: pointer; }
+.settings-auto-import input { width: 16px; height: 16px; margin-top: 2px; accent-color: var(--accent); flex-shrink: 0; cursor: pointer; }
+.settings-auto-import span { display: flex; flex-direction: column; gap: 2px; font-size: 14px; color: var(--text); }
+.settings-auto-import small { font-size: 12px; line-height: 1.4; color: var(--text3); }

@@ -124,6 +124,36 @@ state.gmailImportRules = [{ id: 'r', name: 'Santander · Compras', sender: 's', 
   await fetchSantanderEmails(new Date(2026, 9, 1), new Date(2026, 9, 31));
   eq([shown, real().length], [null, 0], 'el aviso del resumen no se importa');
 
+  // 7) Al abrir la app (automático): la compra nueva entra directo, sin la lista para revisar
+  reset(); state.gmailDeletedIds = []; state.gmailAnulados = []; state.lastGmailSync = null;
+  inbox = [mail('q1', 'Pagaste $3.000,00', [['Monto', '$3.000,00'], ['Cuotas', '1'], ['Comercio', 'CAFE'], ['Fecha', '07/10/2026'], ['Hora', '09:00']])];
+  shown = null;
+  let ok = await fetchSantanderEmails(new Date(2026, 9, 1), new Date(2026, 9, 31), { auto: true });
+  eq([ok, shown, real().map(t => t.gmailId), !!state.lastGmailSync], [true, null, ['q1'], true], 'automático: importa directo y anota la última sincronización');
+  eq(real()[0].estado_revision, 'pendiente_de_revision', 'automático: queda para categorizar como cualquier gasto de Gmail');
+
+  // 8) Abrir de nuevo no repite nada
+  ok = await fetchSantanderEmails(new Date(2026, 9, 1), new Date(2026, 9, 31), { auto: true });
+  eq([ok, shown, real().length], [true, null, 1], 'automático: abrir otra vez no duplica');
+
+  // 9) Si algo parece repetido, eso no entra solo: se muestra para decidir; lo demás sí entra
+  reset(); state.gmailDeletedIds = []; state.gmailAnulados = [];
+  state.transactions.push(stmt('m1', '2026-10-08', 'SUPER', 8000, { category: 'Supermercado' }));
+  inbox = [mail('q2', 'Pagaste $8.000,00', [['Monto', '$8.000,00'], ['Cuotas', '1'], ['Comercio', 'SUPER'], ['Fecha', '08/10/2026'], ['Hora', '18:00']]),
+           mail('q3', 'Pagaste $1.500,00', [['Monto', '$1.500,00'], ['Cuotas', '1'], ['Comercio', 'FARMACIA'], ['Fecha', '09/10/2026'], ['Hora', '12:00']])];
+  shown = null;
+  await fetchSantanderEmails(new Date(2026, 9, 1), new Date(2026, 9, 31), { auto: true });
+  eq([shown, real().filter(t => t.gmailId).map(t => t.gmailId)], [['q2'], ['q3']], 'automático: el posible repetido se muestra, el resto entra');
+
+  // 10) Desde cuándo busca: la última vez con 7 días de margen; la primera vez, desde el 1 del mes
+  localStorage.removeItem('fin_gmail_auto_at'); state.lastGmailSync = null;
+  eq(dateToYMD(gsAutoImportRange(new Date(2026, 10, 11, 10)).from), '2026-11-01', 'primera vez: desde el 1 del mes');
+  localStorage.setItem('fin_gmail_auto_at', new Date(2026, 10, 9, 10).toISOString());
+  eq(dateToYMD(gsAutoImportRange(new Date(2026, 10, 11, 10)).from), '2026-11-02', 'después: última vez menos 7 días');
+  localStorage.setItem('fin_gmail_auto_at', new Date(2026, 0, 1).toISOString());
+  eq(dateToYMD(gsAutoImportRange(new Date(2026, 10, 11, 10)).from), '2026-09-12', 'nunca más de 60 días para atrás');
+  localStorage.removeItem('fin_gmail_auto_at');
+
   print((failures ? '✗ ' + failures + ' fallaron, ' : '✓ ') + passed + ' pruebas OK');
   if (failures) throw new Error(failures + ' pruebas fallaron');
 })().catch(e => { print('✗ ERROR ' + e + '\n' + (e.stack||'')); throw e; });

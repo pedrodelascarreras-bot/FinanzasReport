@@ -865,6 +865,13 @@
             <span data-i18n="gmail_rules_title">Reglas Gmail y automatización</span>
           </div>
           <div id="settings-gmail-rules-list" class="settings-fintech-list"></div>
+          <label class="settings-auto-import">
+            <input type="checkbox" id="settings-gmail-auto-open" onchange="gsSetAutoImport(this.checked)">
+            <span>
+              <strong>Actualizar gastos al abrir</strong>
+              <small>Con Google conectado, cada vez que abrís la app se traen los gastos nuevos de Gmail. Si alguno parece repetido, te lo muestra para que decidas.</small>
+            </span>
+          </label>
           <div class="profile-inline-actions">
             <button class="btn btn-primary btn-sm" onclick="openGmailRuleManager()" data-i18n="new_rule_btn">Nueva regla</button>
             <button class="btn btn-ghost btn-sm" onclick="gmailSync()" data-i18n="test_sync_btn">Probar sincronización</button>
@@ -2674,6 +2681,7 @@ window.addEventListener('unhandledrejection',function(e){
 <script src="js/categories.js?v=20261111a"></script>
 <script src="js/data-tools.js?v=20261111a"></script>
 <script src="js/autocat.js?v=20261111a"></script>
+<script src="js/google-session.js?v=20261111a"></script>
 <script src="js/mobile.js?v=20261111a"></script>
 <script src="js/ui.js?v=20261111a"></script>
 <script src="js/shell.js?v=20261111a"></script>
