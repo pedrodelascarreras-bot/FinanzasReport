@@ -225,8 +225,14 @@ function avDeviceToken(){
   }
   return t;
 }
+// Publicada en Vercel la app usa su propio puente (api/push.js): el Worker solo acepta
+// pedidos directos desde la dirección vieja de GitHub Pages o desde la compu en local.
+function avEndpoint(){
+  const host = String((typeof location !== 'undefined' && location.hostname) || '');
+  return /\.github\.io$|^localhost$|^127\.0\.0\.1$/.test(host) ? AVISOS_ENDPOINT : '/api/push';
+}
 function avCall(body, keepalive){
-  return fetch(AVISOS_ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: !!keepalive })
+  return fetch(avEndpoint(), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: !!keepalive })
     .then(r => { if(!r.ok) throw new Error('avisos ' + r.status); return r.json(); });
 }
 function avKeyBytes(b64url){

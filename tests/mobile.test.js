@@ -77,10 +77,12 @@ state.cuotas = [{ id: 'q', name: 'Prestamo', amount: 300, total: 6, day: new Dat
 eq([mxPeriodTotals(period, 'tarjetas').totalArs, mxPeriodTotals(period, 'visa').totalArs, mxPeriodTotals(period, 'amex').totalArs], [3000, 1000, 2000], 'las dos tarjetas juntas; débito afuera');
 renderMobileDashboard();
 const home = shellHtml('mob-dash-shell');
-eq([home.includes('$3.000'), home.includes('Proyección al cierre'), home.includes('Promedio diario'), home.includes('Traer')], [true, true, true, true], 'el inicio trae total, proyección, promedio y botón de Gmail');
+eq([home.includes('$3.000'), home.includes('Proyección al cierre'), home.includes('Promedio diario')], [true, true, true], 'el inicio trae total, proyección y promedio');
 eq(home.includes('$3.300'), true, 'Con compromisos suma lo que falta cobrar');
 
-eq(home.includes('Sin conectar') && home.includes('mxConnectGoogle()'), true, 'estado de Google y botón para conectar');
+eq([home.includes('Google sin conectar'), home.includes('mxOpenSettings()'), home.includes('Traer'), home.includes('mx-avisos')], [true, true, false, false], 'el inicio solo dice si Google está conectado; los botones van a la hoja');
+const ajustes = mxSettingsInner();
+eq([ajustes.includes('mxConnectGoogle()'), ajustes.includes('mxImportGmail()'), ajustes.includes('mx-avisos')], [true, true, true], 'la hoja tiene Google, Traer y los avisos');
 // Mismo número que el Dashboard: un gasto compartido cuenta solo tu parte
 state.transactions.push(tx('s', dia(-1), 'visa', 1000, { sharedExpense: { enabled: true, myAmount: 400, splits: [] } }));
 eq(mxPeriodTotals(period, 'tarjetas').totalArs, getPeriodTotals({ startStr: period.start, endStr: period.end, card: 'tarjetas', todayRef: mxEndOfToday() }).totalArs, 'coincide con la cuenta del Dashboard');
@@ -105,7 +107,31 @@ delete store['fin_last_google_at'];
 state.transactions.push(tx('u', dia(-1), 'visa', 10, { currency: 'USD' }));
 renderMobileTransactions();
 const movs = shellHtml('mob-txn-shell');
-eq([/onclick="(?!openMobDrawer|mxImportGmail|mxConnectGoogle)/.test(movs), movs.includes('USD 10'), movs.includes('Gasto d')], [false, true, false], 'nada se puede abrir; el débito no aparece');
+eq([/onclick="(?!openMobDrawer|mxImportGmail|mxConnectGoogle|mxOpenSettings|mxOpenTxn)/.test(movs), movs.includes('mxOpenTxn'), movs.includes('USD 10'), movs.includes('Gasto d')], [false, true, true, false], 'cada movimiento se abre; el débito no aparece');
+// Lo nuevo dice "Nuevo" (nunca "Procesando"); lo viejo sin categoría dice "Sin categoría"
+state.transactions.push(tx('n', dia(-1), 'visa', 700, { category: 'Procesando...', importedAt: new Date().toISOString() }));
+state.transactions.push(tx('o', dia(-2), 'visa', 800, { category: 'Procesando...' }));
+renderMobileTransactions();
+const movs2 = shellHtml('mob-txn-shell');
+eq([movs2.includes('Procesando'), movs2.includes('class="new">Nuevo'), movs2.includes('Sin categoría')], [false, true, true], 'cartel Nuevo y sin "Procesando"');
+// Renombrar y categorizar desde el celular
+mxOpenTxn('n');
+document.getElementById('mx-txn-name').value = 'Cafe';
+mxPickCat({ dataset: { cat: 'Delivery' } });
+mxSaveTxn();
+const n = state.transactions.find(t => t.id === 'n');
+eq([n.description, n.category, n._descEditedByUser, n.estado_revision], ['Cafe', 'Delivery', true, 'confirmado_por_usuario'], 'nombre y categoría guardados');
+// Borrar un movimiento
+mxOpenTxn('o'); mxDeleteTxn();
+eq(state.transactions.some(t => t.id === 'o'), false, 'movimiento borrado');
+state.transactions = state.transactions.filter(t => t.id !== 'n');
+
+// Compromisos: se pueden borrar
+state.fixedExpenses = [{ id: 'f1', name: 'Alquiler', amount: 1000, day: 5, currency: 'ARS' }];
+renderMobileCompromisos();
+eq(shellHtml('mob-comp-shell').includes('mxOpenCommitment'), true, 'cada compromiso se abre');
+mxOpenCommitment('fixed', 'f1'); mxDeleteCommitment();
+eq(state.fixedExpenses.length, 0, 'gasto fijo borrado');
 
 // 3) Sin datos: ofrece conectar con Google
 reset(); state.transactions = []; renderMobileDashboard();

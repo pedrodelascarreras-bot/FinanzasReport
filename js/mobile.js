@@ -2,7 +2,9 @@
 // Diseño "Widgets": franja de color arriba y bloques como los widgets del iPhone. Siempre en la
 // vista Tarjetas (Visa + Amex): Inicio, Movimientos, Compromisos y Tarjetas, cada una con su
 // color (--mx-c / --mx-soft en styles.css). El celular sirve para mirar y para traer gastos de
-// Gmail; lo único que se edita desde acá son los ciclos de las tarjetas.
+// Gmail. Desde acá se editan los ciclos de las tarjetas, los movimientos (nombre, categoría o
+// borrar) y se borran compromisos. Google y los avisos viven en una hoja que se abre tocando
+// el estado de Google arriba a la derecha (en el Inicio solo se ve si está conectado).
 
 const MX_PAY_LABEL={visa:'Visa',amex:'Amex',deb:'Débito',ef:'Efectivo'};
 const MX_GROUP_LABEL={cuotas:'Cuota',suscripciones:'Suscripción',fijos:'Gasto fijo'};
@@ -69,6 +71,10 @@ function mxLastImportText(){
 function mxGoogleConnected(){
   return typeof isGoogleConnected==='function' && isGoogleConnected() && Date.now()<(window._driveTokenExpiresAt||0);
 }
+// Conectado "para siempre" (Vercel guarda la llave): cuenta aunque el permiso de una hora haya vencido
+function mxGoogleLinked(){
+  return mxGoogleConnected() || (typeof gsIsServerMode==='function' && gsIsServerMode() && typeof gsConnected!=='undefined' && gsConnected===true);
+}
 // Última vez que este celular trajo datos de Google, en palabras ("hace 5 min", "ayer, 18:40")
 function mxLastGoogle(now=new Date()){
   const raw=localStorage.getItem('fin_last_google_at');
@@ -119,13 +125,16 @@ function mxSyncThemeColor(){
 }
 
 // ── Piezas del diseño ──
-// Franja de color con el título y, a la derecha, cuándo se conectó con Google
-function mxBand(title){
+// Franja de color con el título y, a la derecha, el estado de Google. Tocándolo se abre la hoja
+// de Google y avisos. En el Inicio dice si está conectado; en el resto, cuándo se actualizó.
+function mxBand(title, home){
   const g=mxLastGoogle();
-  const ok=mxGoogleConnected() && !g.stale;
+  const linked=mxGoogleLinked();
+  const ok=home?linked:(linked && !g.stale);
+  const label=home?(linked?'Google conectado':'Google sin conectar'):g.short;
   return '<div class="mx-band"></div><div class="mx-status-strip"></div>'
     +'<header class="mx-hd"><h2>'+esc(title)+'</h2>'
-    +'<button class="mx-dot" onclick="mxConnectGoogle()" aria-label="Google: '+esc(g.text)+'"><i class="'+(ok?'ok':'')+'"></i>'+esc(g.short)+'</button></header>';
+    +'<button class="mx-dot" onclick="mxOpenSettings()" aria-label="Google: '+esc(g.text)+'"><i class="'+(ok?'ok':'')+'"></i>'+esc(label)+'</button></header>';
 }
 function mxSeg(parts){
   return '<div class="mx-seg">'+parts.filter(p=>p.value>0).map(p=>'<i style="flex:'+p.value+';background:'+p.color+'"></i>').join('')+'</div>';
@@ -135,8 +144,9 @@ function mxGauge(pct){
   return '<svg class="mx-gauge" viewBox="0 0 140 76" width="100%" height="70"><path d="M14 70a56 56 0 0 1 112 0" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="12" stroke-linecap="round"/>'
     +'<path d="M14 70a56 56 0 0 1 112 0" fill="none" stroke="#fff" stroke-width="12" stroke-linecap="round" stroke-dasharray="'+(C*p).toFixed(1)+' '+C.toFixed(1)+'"/></svg>';
 }
-function mxItem(lead, title, sub, right, rightSmall, smallClass){
-  return '<div class="mx-it"><div class="mx-ib">'+lead+'</div>'
+// tap: atributos ya armados (onclick y data-*) para que la fila se pueda tocar
+function mxItem(lead, title, sub, right, rightSmall, smallClass, tap){
+  return '<div class="mx-it'+(tap?' tap" role="button" '+tap:'"')+'><div class="mx-ib">'+lead+'</div>'
     +'<div class="mx-tx"><div class="mx-t">'+esc(title)+'</div><div class="mx-s">'+esc(sub||'')+'</div></div>'
     +'<div class="mx-r">'+esc(right)+(rightSmall?'<small class="'+(smallClass||'')+'">'+esc(rightSmall)+'</small>':'')+'</div></div>';
 }
@@ -176,17 +186,13 @@ function renderMobileDashboard(){
   const spentWithCommitments=all.totalArs+notInSpent;
   const left=period.daysLeft!=null&&period.daysLeft>=0?' · faltan '+period.daysLeft+' día'+(period.daysLeft===1?'':'s'):'';
   const totalDays=projection.daysElapsed+projection.daysLeft;
-  const g=mxLastGoogle();
-  const connected=mxGoogleConnected();
-  const fresh=connected&&!g.stale;
-
   const rows=commitments.map(e=>{
     const settled=e.isSettled===true;
     const sub=[mxShortDate(e.date), e.payLabel==='Sin medio de pago'?'':e.payLabel].filter(Boolean).join(' · ');
     return mxItem(String(new Date(e.date).getDate()), e.title, sub, mxMoney(e.amount,e.currency), settled?'Cobrado':'Sin cobrar', settled?'ok':'wa');
   }).join('');
 
-  shell.innerHTML=mxBand('Este ciclo')
+  shell.innerHTML=mxBand('Este ciclo', true)
     +'<div class="mx-grid">'
       +'<div class="mx-w full"><div class="mx-lb">Gastado con tus tarjetas'+esc(left)+'</div><div class="mx-big">'+esc(mxMoney(all.totalArs))+'</div>'
         +mxSeg([{value:visa.totalArs,color:MX_VISA},{value:amex.totalArs,color:MX_AMEX}])
@@ -195,20 +201,17 @@ function renderMobileDashboard(){
         +'<div class="mx-md under">'+esc(mxMoney(projection.projected))+'</div></div>'
       +'<div class="mx-w soft"><div class="mx-lb">Promedio diario</div><div class="mx-md spaced">'+esc(mxMoney(projection.dailyVariable))+'</div>'
         +'<div class="mx-sub">'+projection.daysElapsed+' de '+totalDays+' días</div></div>'
-      +'<div class="mx-w full"><div class="mx-goo">'
-        +'<button class="mx-goo-l" onclick="mxConnectGoogle()"><span class="mx-g">'+MX_GOOGLE+'</span><span><span class="mx-goo-t">'+(connected?'Conectado':'Sin conectar')+'</span>'
-        +'<span class="mx-goo-s'+(fresh?' fresh':'')+'">'+esc(g.text)+'</span></span></button>'
-        +'<button class="mx-go" onclick="mxImportGmail()">'+mxIcon('down',17,2.6)+'Traer</button></div></div>'
-      +(typeof avisosWidgetHtml==='function'?avisosWidgetHtml():'')
     +'</div>'
     +mxSh('Compromisos', mxMoney(committedTotal))
     +'<div class="mx-list">'+(rows||'<div class="mx-none">No hay compromisos en este período</div>')+'</div>'
     +'<div class="mx-with"><span>Con compromisos</span><b>'+esc(mxMoney(spentWithCommitments))+'</b></div>';
   // Con datos nuevos se recalculan los avisos (js/avisos.js)
   if(typeof avisosQueue==='function') avisosQueue();
+  mxRefreshSettings();
 }
 
-// ── Movimientos: solo lectura ──
+// ── Movimientos: tocando uno se cambia el nombre, la categoría o se borra ──
+function mxPendingCat(cat){ return !cat || cat==='Procesando...' || cat==='Uncategorized' || cat==='Sin categoría'; }
 function mxDayLabel(ymd){
   const today=dateToYMD(new Date());
   const y=new Date(); y.setDate(y.getDate()-1);
@@ -231,10 +234,13 @@ function renderMobileTransactions(){
   const list=[...byDay.entries()].map(([day,rows])=>mxSh(mxDayLabel(day),'',true)
     +'<div class="mx-list">'+rows.map(e=>{
       const pay=String(e.payMethod||'').toLowerCase();
-      const tag=[MX_PAY_LABEL[pay]||'', e.isProjected?MX_GROUP_LABEL[e.group]||'':e.category||''].filter(Boolean).join(' · ');
       const name=e.description||'Movimiento';
       const fresh=!e.isProjected && isNewTxn(e.txn);
-      return mxItem(mxInitial(name), name, tag, mxMoney(e.amount,e.currency), fresh?'Nuevo':'', fresh?'new':'');
+      // Sin categoría todavía: si es nuevo lo dice el cartel "Nuevo"; si no, "Sin categoría"
+      const cat=e.isProjected?MX_GROUP_LABEL[e.group]||'':(mxPendingCat(e.category)?(fresh?'':'Sin categoría'):e.category);
+      const tag=[MX_PAY_LABEL[pay]||'', cat].filter(Boolean).join(' · ');
+      const tap=!e.isProjected && e.txn && e.txn.id!=null?'onclick="mxOpenTxn(this.dataset.id)" data-id="'+esc(String(e.txn.id))+'"':'';
+      return mxItem(mxInitial(name), name, tag, mxMoney(e.amount,e.currency), fresh?'Nuevo':'', fresh?'new':'', tap);
     }).join('')+'</div>').join('');
   shell.innerHTML=mxBand('Movimientos')
     +'<div class="mx-grid">'
@@ -256,7 +262,8 @@ function renderMobileCompromisos(){
     if(!items.length) return '';
     const rows=[...items].sort((a,b)=>(a.due?.sortDays??999)-(b.due?.sortDays??999)).map(item=>{
       const sub=item.type==='quota'&&item.total?item.paid+' de '+item.total:'Mensual';
-      return mxItem(mxInitial(item.name), item.name, sub, mxMoney(item.amount,item.currency), item.due?.label||'', 'due');
+      const tap='onclick="mxOpenCommitment(this.dataset.type,this.dataset.id)" data-type="'+esc(item.type)+'" data-id="'+esc(String(item.id))+'"';
+      return mxItem(mxInitial(item.name), item.name, sub, mxMoney(item.amount,item.currency), item.due?.label||'', 'due', tap);
     }).join('');
     return mxSh(title, mxMoney(sum(items)))+'<div class="mx-list">'+rows+'</div>';
   };
@@ -360,6 +367,162 @@ function mxSaveCycle(){
   mxCloseCycleEditor();
   renderMobileCards();
   if(typeof isGoogleConnected==='function' && !isGoogleConnected()) showToast('Guardado en este celular. Tocá "Sin conectar" arriba para que llegue a la compu.','info');
+}
+
+// ── Hojas que suben desde abajo (comparten #mx-sheet con el editor de ciclos) ──
+function mxOpenSheet(inner, extraClass){
+  mxCloseSheet();
+  const el=document.createElement('div');
+  el.id='mx-sheet'; el.className='mx-sheet'+(extraClass?' '+extraClass:'');
+  el.innerHTML='<div class="mx-sheet-back" onclick="mxCloseSheet()"></div>'
+    +'<div class="mx-sheet-panel" role="dialog" aria-modal="true">'+inner+'</div>';
+  document.body.appendChild(el);
+  return el;
+}
+function mxCloseSheet(){ document.getElementById('mx-sheet')?.remove(); _mxEditor=null; _mxTxn=null; _mxCommit=null; }
+function mxSheetTop(title, left, right){
+  return '<div class="mx-sheet-top">'+(left||'<span></span>')+'<strong>'+esc(title)+'</strong>'+(right||'<span></span>')+'</div>';
+}
+
+// Google y avisos: fuera del Inicio, en una hoja que se abre desde el estado de Google
+function mxSettingsInner(){
+  const g=mxLastGoogle();
+  const linked=mxGoogleLinked();
+  return mxSheetTop('Google y avisos', '', '<button class="strong" onclick="mxCloseSheet()">Listo</button>')
+    +'<div class="mx-sheet-stack">'
+      +'<div class="mx-w full"><div class="mx-goo">'
+        +'<button class="mx-goo-l" onclick="mxConnectGoogle()"><span class="mx-g">'+MX_GOOGLE+'</span><span><span class="mx-goo-t">'+(linked?'Conectado':'Sin conectar')+'</span>'
+        +'<span class="mx-goo-s'+(linked&&!g.stale?' fresh':'')+'">'+esc(g.text)+'</span></span></button>'
+        +'<button class="mx-go" onclick="mxImportGmail()">'+mxIcon('down',17,2.6)+'Traer</button></div></div>'
+      +(typeof avisosWidgetHtml==='function'?avisosWidgetHtml():'')
+    +'</div>';
+}
+function mxOpenSettings(){ mxOpenSheet(mxSettingsInner(), 'mx-settings'); }
+// Si la hoja está abierta y cambia algo (se conectó, trajo gastos), se actualiza sola
+function mxRefreshSettings(){
+  const sheet=document.getElementById('mx-sheet');
+  if(!sheet || !sheet.classList || !sheet.classList.contains('mx-settings')) return;
+  const panel=sheet.querySelector('.mx-sheet-panel');
+  if(panel) panel.innerHTML=mxSettingsInner();
+}
+
+// Movimiento: nombre, categoría y borrar
+let _mxTxn=null;
+function mxFindTxn(id){ return (state.transactions||[]).find(x=>String(x.id)===String(id))||null; }
+function mxCategoryChips(current){
+  if(typeof normalizeCategoryState==='function') normalizeCategoryState(state);
+  return (CATEGORY_GROUPS||[]).filter(g=>g.group!=='Sin clasificar' && (g.subs||[]).length).map(g=>
+    '<div class="mx-cat-group"><div class="mx-cat-h">'+esc(g.emoji||'')+' '+esc(g.group)+'</div><div class="mx-chips">'
+      +g.subs.map(c=>'<button class="mx-chip'+(c===current?' active':'')+'" data-cat="'+esc(c)+'" onclick="mxPickCat(this)">'+esc(c)+'</button>').join('')
+    +'</div></div>').join('');
+}
+function mxOpenTxn(id){
+  const t=mxFindTxn(id);
+  if(!t) return;
+  const current=mxPendingCat(t.category)?'':t.category;
+  const pay=MX_PAY_LABEL[String(t.payMethod||'').toLowerCase()]||'';
+  const info=[mxMoney(t.amount,t.currency), mxShortDate(t.date), pay].filter(Boolean).join(' · ');
+  mxOpenSheet(
+    mxSheetTop('Movimiento', '<button onclick="mxCloseSheet()">Cancelar</button>', '<button class="strong" onclick="mxSaveTxn()">Guardar</button>')
+    +'<div class="mx-sheet-scroll">'
+      +'<div class="mx-list sheet"><label class="mx-it mx-field"><span class="mx-t">Nombre</span><input type="text" id="mx-txn-name" value="'+esc(t.description||'')+'" autocomplete="off"></label>'
+        +'<div class="mx-it"><span class="mx-s">'+esc(info)+'</span></div></div>'
+      +mxSh('Categoría','',true)
+      +'<div class="mx-list sheet mx-cats">'+mxCategoryChips(current)+'</div>'
+      +'<div id="mx-del-zone" class="mx-del-zone"><button class="mx-del" onclick="mxAskDelete(\'txn\')">Borrar movimiento</button></div>'
+    +'</div>', 'mx-tall');
+  _mxTxn={id:t.id, cat:current}; // después de abrir: abrir una hoja limpia lo anterior
+}
+function mxPickCat(el){
+  if(!_mxTxn || !el) return;
+  const cat=el.dataset.cat;
+  _mxTxn.cat=_mxTxn.cat===cat?'':cat;
+  document.querySelectorAll('.mx-chip').forEach(b=>b.classList.toggle('active', b.dataset.cat===_mxTxn.cat));
+}
+function mxSaveTxn(){
+  if(!_mxTxn) return;
+  const t=mxFindTxn(_mxTxn.id);
+  if(!t){ mxCloseSheet(); return; }
+  const name=String(document.getElementById('mx-txn-name')?.value||'').trim();
+  if(!name){ showToast('Poné un nombre','error'); return; }
+  let changed=false;
+  if(name!==String(t.description||'').trim()){
+    t.description=name;
+    // Igual que en la compu: el nombre que le pusiste no se pisa con el del mail al recargar
+    t._descEditedByUser=true; t._baseDesc=name;
+    changed=true;
+  }
+  const prevCat=mxPendingCat(t.category)?'':t.category;
+  if(_mxTxn.cat!==prevCat){
+    if(_mxTxn.cat){
+      t.category=_mxTxn.cat;
+      if(typeof learnFromConfirmation==='function') learnFromConfirmation(t, _mxTxn.cat);
+    } else {
+      t.category='Procesando...';
+    }
+    changed=true;
+  }
+  mxCloseSheet();
+  if(!changed) return;
+  t.estado_revision=mxPendingCat(t.category)?'pendiente_de_revision':'confirmado_por_usuario';
+  saveState();
+  refreshAll();
+  renderMobileTransactions();
+  showToast('✓ Movimiento guardado','success');
+}
+
+// Compromiso: se puede borrar
+let _mxCommit=null;
+const MX_COMMIT_LABEL={quota:'Cuota',subscription:'Suscripción',fixed:'Gasto fijo'};
+function mxFindCommitment(type, id){
+  const list=type==='quota'?state.cuotas:type==='subscription'?state.subscriptions:type==='fixed'?state.fixedExpenses:null;
+  return (list||[]).find(x=>String(x.id)===String(id))||null;
+}
+function mxOpenCommitment(type, id){
+  const c=mxFindCommitment(type, id);
+  if(!c) return;
+  const amount=type==='subscription'?c.price:c.amount;
+  mxOpenSheet(
+    mxSheetTop(MX_COMMIT_LABEL[type]||'Compromiso', '<button onclick="mxCloseSheet()">Cancelar</button>', '')
+    +'<div class="mx-list sheet"><div class="mx-it"><div class="mx-ib">'+mxInitial(c.name)+'</div><div class="mx-tx"><div class="mx-t">'+esc(c.name||'')+'</div>'
+      +'<div class="mx-s">'+esc(mxMoney(amount,c.currency))+(c.day?' · día '+esc(c.day):'')+'</div></div></div></div>'
+    +'<div id="mx-del-zone" class="mx-del-zone"><button class="mx-del" onclick="mxAskDelete(\'commit\')">Borrar '+esc((MX_COMMIT_LABEL[type]||'compromiso').toLowerCase())+'</button></div>');
+  _mxCommit={type, id:c.id};
+}
+
+// Borrar pide confirmar en la misma hoja: un toque de más no borra nada
+function mxAskDelete(kind){
+  const zone=document.getElementById('mx-del-zone');
+  if(!zone) return;
+  zone.innerHTML='<div class="mx-del-q">¿Seguro? No se puede deshacer.</div>'
+    +'<div class="mx-del-row"><button class="mx-del ghost" onclick="mxCancelDelete(\''+kind+'\')">No</button>'
+    +'<button class="mx-del strong" onclick="'+(kind==='txn'?'mxDeleteTxn()':'mxDeleteCommitment()')+'">Sí, borrar</button></div>';
+}
+function mxCancelDelete(kind){
+  const zone=document.getElementById('mx-del-zone');
+  if(zone) zone.innerHTML='<button class="mx-del" onclick="mxAskDelete(\''+kind+'\')">'+(kind==='txn'?'Borrar movimiento':'Borrar '+esc((MX_COMMIT_LABEL[_mxCommit?.type]||'compromiso').toLowerCase()))+'</button>';
+}
+function mxDeleteTxn(){
+  if(!_mxTxn) return;
+  const id=_mxTxn.id;
+  mxCloseSheet();
+  confirmDeleteTxn(id); // la misma de la compu: también evita que Gmail lo vuelva a traer
+  renderMobileTransactions();
+}
+function mxDeleteCommitment(){
+  if(!_mxCommit) return;
+  const {type, id}=_mxCommit;
+  mxCloseSheet();
+  const done=ok=>{ if(!ok) return; renderMobileCompromisos(); showToast(MX_COMMIT_LABEL[type]+(type==='fixed'?' borrado':' borrada'),'info'); };
+  // Cuotas y suscripciones con cobros pasados preguntan si conservarlos como gastos
+  if(type==='quota') requestDeleteCuota(id, done);
+  else if(type==='subscription') requestDeleteSubscription(id, done);
+  else if(type==='fixed'){
+    state.fixedExpenses=(state.fixedExpenses||[]).filter(f=>String(f.id)!==String(id));
+    saveState();
+    refreshAll();
+    done(true);
+  }
 }
 
 // Cambia la barra del teléfono al pasar de pantalla
