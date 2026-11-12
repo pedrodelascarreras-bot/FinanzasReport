@@ -131,10 +131,14 @@ function mxBand(title, home){
   const g=mxLastGoogle();
   const linked=mxGoogleLinked();
   const ok=home?linked:(linked && !g.stale);
-  const label=home?(linked?'Google conectado':'Google sin conectar'):g.short;
+  // En el Inicio: logo de Google + "Conectado" / "Desconectado", en una pastilla blanca
+  const pill=home
+    ?'<button class="mx-dot mx-dot-g" onclick="mxOpenSettings()" aria-label="Google '+(linked?'conectado':'desconectado')+'">'
+      +'<span class="mx-dot-logo">'+MX_GOOGLE.replace(/width="20" height="20"/,'width="16" height="16"')+'</span>'
+      +(linked?'Conectado':'Desconectado')+'<i class="'+(ok?'ok':'')+'"></i></button>'
+    :'<button class="mx-dot" onclick="mxOpenSettings()" aria-label="Google: '+esc(g.text)+'"><i class="'+(ok?'ok':'')+'"></i>'+esc(g.short)+'</button>';
   return '<div class="mx-band"></div><div class="mx-status-strip"></div>'
-    +'<header class="mx-hd"><h2>'+esc(title)+'</h2>'
-    +'<button class="mx-dot" onclick="mxOpenSettings()" aria-label="Google: '+esc(g.text)+'"><i class="'+(ok?'ok':'')+'"></i>'+esc(label)+'</button></header>';
+    +'<header class="mx-hd"><h2>'+esc(title)+'</h2>'+pill+'</header>';
 }
 function mxSeg(parts){
   return '<div class="mx-seg">'+parts.filter(p=>p.value>0).map(p=>'<i style="flex:'+p.value+';background:'+p.color+'"></i>').join('')+'</div>';

@@ -15778,3 +15778,8 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
 .mx-sheet .mx-sheet-top { display:grid; grid-template-columns:1fr auto 1fr; }
 .mx-sheet .mx-sheet-top > :first-child { justify-self:start; }
 .mx-sheet .mx-sheet-top > :last-child { justify-self:end; }
+/* Inicio: estado de Google con su logo */
+.mx-dot.mx-dot-g { gap:7px; padding:6px 11px 6px 7px; background:#fff; color:#101114; box-shadow:0 4px 12px -6px rgba(0,0,0,.35); }
+.mx-dot-logo { display:grid; place-items:center; width:16px; height:16px; }
+.mx-dot.mx-dot-g i { background:#E5383B; }
+.mx-dot.mx-dot-g i.ok { background:#22C55E; }

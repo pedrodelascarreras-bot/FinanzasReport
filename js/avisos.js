@@ -7,10 +7,9 @@
 //  · Para frenarte a tiempo (en el momento en que llegan los gastos): tope del mes del Camino a
 //    cero al 50/75/90/100 %, ritmo por encima del tope, una categoría por encima de lo normal y
 //    un día mucho más caro que el promedio.
-//  · Para no olvidarte (con fecha): cierre de cada tarjeta 3 días antes, vencimiento el día
-//    anterior, pagos del plan el día anterior y suscripciones que subieron de precio.
-//  · Para motivarte: resumen del domingo a la noche, "vas bien" a mitad de mes y cada cuota
-//    que se paga del plan.
+//  · Para no olvidarte (con fecha): cierre de cada tarjeta 3 días antes y vencimiento el día
+//    anterior.
+//  · Para motivarte: resumen del domingo a la noche y "vas bien" a mitad de mes.
 
 const AVISOS_ENDPOINT = 'https://fluxen-push.pedrotasks.workers.dev/api/push';
 const AV_TOKEN_KEY = 'fluxen_push_device';
@@ -107,7 +106,6 @@ function avFrenarte(now, out){
 function avNoOlvidarte(now, out){
   const today = new Date(now); today.setHours(12, 0, 0, 0);
   const ymd = avYmd(today);
-  const instant = new Date(now.getTime() + 5000);
 
   // Cierre (3 días antes) y vencimiento (el día anterior) de cada tarjeta
   Object.keys(AV_CARDS).forEach(card => {
@@ -127,39 +125,11 @@ function avNoOlvidarte(now, out){
       }
     });
   });
-
-  // Pagos del plan (préstamos, deudas, fijos): el día anterior
-  if(avHasPlan()){
-    (state.caminoPlan.items || []).filter(it => it && it.status !== 'pagado' && it.status !== 'esperando').forEach(it => {
-      czSchedule(it, { today }).filter(s => !s.paid).forEach(s => {
-        const date = avYmd(s.date);
-        if(date <= ymd || date > avAddDays(ymd, 40)) return;
-        out.push({ key: 'pago-' + it.id + '-' + s.num, at: avAt(avAddDays(date, -1), AV_HOUR_MORNING), page: 'cuotas',
-          title: 'Mañana se paga ' + (it.name || 'un compromiso'), body: avMoney(s.amount, s.currency) + (s.total ? ' · cuota ' + s.num + ' de ' + s.total : '') + '.' });
-      });
-    });
-  }
-
-  // Suscripción que subió: el último cobro es más caro que el anterior
-  if(typeof txnMatchesSubscription === 'function'){
-    (state.subscriptions || []).filter(s => s && s.active !== false).forEach(sub => {
-      const charges = (state.transactions || []).filter(t => !t.isPendingSubscription && txnMatchesSubscription(t, sub))
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
-      if(charges.length < 2) return;
-      const last = charges[charges.length - 1], prev = charges[charges.length - 2];
-      if((last.currency || 'ARS') !== (prev.currency || 'ARS')) return;
-      if(avAddDays(avYmd(new Date(last.date)), 35) < ymd) return;
-      if(!(Number(last.amount) > Number(prev.amount) * 1.03)) return;
-      out.push({ key: 'sub-' + sub.id + '-' + last.id, at: instant, page: 'cuotas', title: (sub.name || 'Una suscripción') + ' subió',
-        body: 'De ' + avMoney(prev.amount, prev.currency) + ' a ' + avMoney(last.amount, last.currency) + ' (+' + Math.round((last.amount / prev.amount - 1) * 100) + '%).' });
-    });
-  }
 }
 
 function avMotivarte(now, out){
   const today = new Date(now); today.setHours(12, 0, 0, 0);
   const ymd = avYmd(today);
-  const instant = new Date(now.getTime() + 5000);
 
   // Resumen del domingo a las 20: lo de esta semana contra los mismos días de la anterior
   const dow = today.getDay();
@@ -175,23 +145,6 @@ function avMotivarte(now, out){
       body += diff <= -1 ? ' ' + (-diff) + '% menos que la semana pasada 👏' : diff >= 1 ? ' ' + diff + '% más que la semana pasada.' : ' Igual que la semana pasada.';
     }
     out.push({ key: 'semana-' + monday, at: avAt(sunday, AV_HOUR_EVENING), page: 'dashboard', title: 'Tu semana', body });
-  }
-
-  // Cada cuota del plan que se paga: los débitos automáticos a las 18 del día, las marcadas a mano en el momento
-  if(avHasPlan()){
-    (state.caminoPlan.items || []).filter(it => it && czItemIsDebt(it)).forEach(it => {
-      czSchedule(it, { today }).forEach(s => {
-        if(!s.total) return;
-        const date = avYmd(s.date);
-        const left = s.total - s.num;
-        const body = 'Se pagó la cuota ' + s.num + ' de ' + s.total + ' de ' + (it.name || 'tu plan') + '. ' + (left ? 'Faltan ' + left + '.' : '¡Era la última!');
-        if(it.autoDebit && !s.paid && date > ymd && date <= avAddDays(ymd, 40)){
-          out.push({ key: 'hecho-' + it.id + '-' + s.num, at: avAt(date, '18:00'), page: 'dashboard', title: left ? 'Una cuota menos 🎉' : 'Terminaste de pagar 🎉', body });
-        } else if(s.paid && date >= avAddDays(ymd, -2) && date <= ymd){
-          out.push({ key: 'hecho-' + it.id + '-' + s.num, at: instant, page: 'dashboard', title: left ? 'Una cuota menos 🎉' : 'Terminaste de pagar 🎉', body });
-        }
-      });
-    });
   }
 }
 
@@ -308,7 +261,7 @@ function avisosWidgetHtml(){
   const st = avisosStatus();
   const bell = '<svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>';
   const t = { on: 'Avisos activados', off: 'Avisos', denied: 'Avisos bloqueados', install: 'Avisos' }[st];
-  const s = { on: 'Topes, cierres, cuotas y tu semana', off: 'Te avisamos antes de pasarte del tope', denied: 'Permitilos en Ajustes del iPhone → Fluxen', install: 'Abrí Fluxen desde el ícono de inicio' }[st];
+  const s = { on: 'Topes, cierres y tu semana', off: 'Te avisamos antes de pasarte del tope', denied: 'Permitilos en Ajustes del iPhone → Fluxen', install: 'Abrí Fluxen desde el ícono de inicio' }[st];
   const btn = st === 'on' ? '<button class="mx-go ghost" onclick="avisosTest()">Probar</button>'
     : st === 'off' ? '<button class="mx-go" onclick="avisosEnable()">Activar</button>' : '';
   return '<div class="mx-w full" id="mx-avisos"><div class="mx-goo"><div class="mx-goo-l"><span class="mx-g mx-bell' + (st === 'on' ? ' on' : '') + '">' + bell + '</span><span>'

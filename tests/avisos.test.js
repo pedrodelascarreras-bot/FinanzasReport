@@ -81,7 +81,8 @@ getTcCycles = card => card === 'tarjetas' ? [] : [
 const avisos = avisosBuild(now);
 const byKey = Object.fromEntries(avisos.map(a => [a.key, a]));
 const keys = avisos.map(a => a.key).sort();
-eq(keys, ['cat-2026-11-Delivery', 'cierre-visa-2026-11-26', 'dia-2026-11-20', 'hecho-p1-1', 'hecho-p1-2', 'pago-p1-1', 'pago-p1-2', 'ritmo-2026-11-s3', 'semana-2026-11-16', 'sub-sub1-nf2', 'tope-2026-11-75', 'vence-visa-2026-11-23'].sort(), 'los avisos que tocan, con las cuotas de los próximos 40 días (Amex sin gastos no avisa)');
+eq(keys, ['cat-2026-11-Delivery', 'cierre-visa-2026-11-26', 'dia-2026-11-20', 'ritmo-2026-11-s3', 'semana-2026-11-16', 'tope-2026-11-75', 'vence-visa-2026-11-23'].sort(), 'los avisos que tocan (Amex sin gastos no avisa)');
+eq(keys.some(k => /^(pago|sub|hecho)-/.test(k)), false, 'sin pagos del plan, suscripciones que subieron ni cuotas pagadas');
 
 // Para frenarte a tiempo: en el momento, solo el escalón más alto del tope
 eq(Date.parse(byKey['tope-2026-11-75'].at) - now.getTime(), 5000, 'el tope avisa en el momento');
@@ -95,13 +96,10 @@ eq(byKey['dia-2026-11-20'].title, 'Día caro', 'día caro');
 eq(new Date(byKey['cierre-visa-2026-11-26'].at).toString().slice(0, 21), new Date(2026, 10, 23, 10, 0).toString().slice(0, 21), 'cierre 3 días antes a las 10');
 eq(byKey['vence-visa-2026-11-23'].title, 'Mañana vence la Visa', 'vencimiento');
 eq(new Date(byKey['vence-visa-2026-11-23'].at).getDate(), 22, 'vencimiento el día anterior');
-eq(byKey['pago-p1-1'].body, '$100.000 · cuota 1 de 6.', 'pago del plan con su cuota');
-eq(byKey['sub-sub1-nf2'].body, 'De $8.000 a $9.500 (+19%).', 'suscripción que subió');
 
 // Para motivarte
 eq(new Date(byKey['semana-2026-11-16'].at).getDay(), 0, 'resumen el domingo');
 eq(new Date(byKey['semana-2026-11-16'].at).getHours(), 20, 'a las 20');
-eq(byKey['hecho-p1-1'].body, 'Se pagó la cuota 1 de 6 de Préstamo X. Faltan 5.', 'cuota pagada del plan');
 eq(/semana/.test(byKey['semana-2026-11-16'].body) && /más que la semana pasada/.test(byKey['semana-2026-11-16'].body), true, 'compara con la semana anterior');
 
 // Mes tranquilo: "vas bien" y ningún aviso de frenar
