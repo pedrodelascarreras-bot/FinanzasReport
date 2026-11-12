@@ -410,6 +410,11 @@ function _syncMark(step){
 function getDriveScopes(){ return 'https://www.googleapis.com/auth/drive.appdata https://www.googleapis.com/auth/gmail.readonly'; }
 
 function initDriveClient(autoSync, opts={}){
+  // Primero saber si hay conexión guardada (Vercel): en ese modo no se carga el script de Google
+  if(typeof gsCheckServer==='function' && typeof gsMode!=='undefined' && gsMode==='unknown'){
+    gsCheckServer().then(()=>initDriveClient(autoSync, opts));
+    return;
+  }
   const clientId = getGmailClientId();
   // Modo servidor (js/google-session.js): la conexión queda guardada y no hace falta Client ID acá
   const serverMode = typeof gsIsServerMode==='function' && gsIsServerMode();
