@@ -5,7 +5,8 @@
 // Variables de entorno en Vercel:
 //   GOOGLE_CLIENT_ID      el mismo Client ID que usa la app
 //   GOOGLE_CLIENT_SECRET  la clave secreta de ese Client ID (Google Cloud → Credenciales)
-//   COOKIE_SECRET         una frase larga al azar, solo para cifrar la cookie
+//   COOKIE_SECRET         (opcional) frase larga al azar para cifrar la cookie; si no está,
+//                         se deriva del GOOGLE_CLIENT_SECRET
 const crypto = require('node:crypto');
 
 const COOKIE_NAME = 'fx_google';
@@ -19,7 +20,7 @@ const SCOPES = 'https://www.googleapis.com/auth/drive.appdata https://www.google
 function config() {
   const clientId = process.env.GOOGLE_CLIENT_ID || '';
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
-  const cookieSecret = process.env.COOKIE_SECRET || '';
+  const cookieSecret = process.env.COOKIE_SECRET || (clientSecret ? 'fx-cookie:' + clientSecret : '');
   return { clientId, clientSecret, cookieSecret, ready: !!(clientId && clientSecret && cookieSecret.length >= 16) };
 }
 

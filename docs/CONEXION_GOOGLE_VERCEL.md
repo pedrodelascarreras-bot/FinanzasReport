@@ -41,7 +41,7 @@ En el proyecto: **Settings → Environment Variables** (para Production):
 |---|---|
 | `GOOGLE_CLIENT_ID` | el Client ID de la app (el mismo que figura en Configuración) |
 | `GOOGLE_CLIENT_SECRET` | el secreto del paso 3 |
-| `COOKIE_SECRET` | una frase larga al azar: en la Terminal, `openssl rand -base64 32` |
+| `COOKIE_SECRET` | opcional: una frase larga al azar (`openssl rand -base64 32`). Si no está, se usa el secreto de Google |
 
 Después: **Deployments → … → Redeploy** para que tome las variables.
 
