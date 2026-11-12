@@ -6,6 +6,8 @@ self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim(
 self.addEventListener('push', (event) => {
   let data = {};
   try { data = event.data.json(); } catch (e) { data = { body: event.data && event.data.text() }; }
+  // El de prueba viene del Worker con título "Fluxen": que tenga título y detalle como los demás
+  if (data.key === 'test') { data.title = 'Avisos activados ✓'; data.body = 'Te vamos a avisar de topes, cierres de tarjeta y tu semana.'; }
   event.waitUntil(self.registration.showNotification(data.title || 'Fluxen', {
     body: data.body || '',
     tag: data.key || undefined,

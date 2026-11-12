@@ -54,7 +54,7 @@ export class Device extends DurableObject {
   async test() {
     const sub = await this.ctx.storage.get('subscription');
     if (!sub) return { ok: false };
-    const status = await sendPush(sub, { title: 'Fluxen', body: 'Los avisos funcionan. Te vamos a avisar cuando haga falta.', key: 'test' }, this.vapid());
+    const status = await sendPush(sub, { title: 'Avisos activados ✓', body: 'Te vamos a avisar de topes, cierres de tarjeta y tu semana.', key: 'test' }, this.vapid());
     return { ok: status >= 200 && status < 300, status };
   }
 
