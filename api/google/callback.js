@@ -15,11 +15,19 @@ module.exports = async (req, res) => {
   const state = url.searchParams.get('state') || '';
   if (url.searchParams.get('error')) return redirect(res, '/?google=cancelled', [clearState]);
   // El "state" prueba que el pedido salió de esta app y de este navegador
-  if (!code || !state || state !== readCookie(req, STATE_COOKIE)) return redirect(res, '/?google=error', [clearState]);
+  if (!code || !state || state !== readCookie(req, STATE_COOKIE)) {
+    console.error('[google] callback: state no coincide', { hasCode: !!code, hasState: !!state, hasCookie: !!readCookie(req, STATE_COOKIE) });
+    return redirect(res, '/?google=error&reason=state', [clearState]);
+  }
 
   const { ok, data } = await googleToken({ code, grant_type: 'authorization_code', redirect_uri: callbackUrl(req) });
   const refreshToken = (ok && data.refresh_token) || readRefreshToken(req);
-  if (!refreshToken) return redirect(res, '/?google=error', [clearState]);
+  if (!refreshToken) {
+    // Solo el código de error de Google (nunca claves ni tokens)
+    const reason = !ok ? String(data.error || 'exchange') : 'no_refresh_token';
+    console.error('[google] callback: canje fallido', { reason, description: data.error_description || '', redirectUri: callbackUrl(req) });
+    return redirect(res, '/?google=error&reason=' + encodeURIComponent(reason), [clearState]);
+  }
 
   redirect(res, '/?google=connected', [clearState, sessionCookie(seal(refreshToken, cfg.cookieSecret))]);
 };

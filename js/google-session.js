@@ -169,8 +169,12 @@ function gsReadReturnParam(){
   try{
     const url = new URL(window.location.href);
     result = url.searchParams.get('google') || '';
+    const reason = url.searchParams.get('reason') || '';
+    if(reason) console.warn('[google] no se pudo conectar:', reason);
+    window._gsLastError = reason || null;
     if(result){
       url.searchParams.delete('google');
+      url.searchParams.delete('reason');
       window.history.replaceState(null, '', url.pathname + url.search + url.hash);
     }
   }catch(_){}
