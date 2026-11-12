@@ -15579,6 +15579,7 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
     --mx-top:max(calc(env(safe-area-inset-top) + 6px), 18px);
     /* iOS 26 pinta la zona de la hora con el fondo de la página: que sea el color de la franja */
     background:var(--mx-c) !important;
+    transition:none !important;
   }
   body[data-active-page="dashboard"] { --mx-c:#1F6FEB; --mx-soft:#E3EEFF; }
   body[data-active-page="transactions"] { --mx-c:#6246EA; --mx-soft:#ECE8FF; }
