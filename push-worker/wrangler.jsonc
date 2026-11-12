@@ -1,0 +1,13 @@
+// Worker de avisos de Fluxen. Publicar: cd push-worker && npx wrangler deploy
+// La llave privada va como secreto: npx wrangler secret put VAPID_PRIVATE (está en .dev.vars, que no se sube).
+{
+  "name": "fluxen-push",
+  "main": "index.js",
+  "compatibility_date": "2026-11-01",
+  "durable_objects": { "bindings": [{ "name": "DEVICE", "class_name": "Device" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["Device"] }],
+  "vars": {
+    "VAPID_PUBLIC": "BJYri1TF1goM5TmueX1Wgj6AG95PyUyrbhcC_EaNdjoPATsf6RNCyhEe72-0noMsXrCEcN6EWx0Zv89xF5QRf84",
+    "VAPID_SUBJECT": "https://pedrodelascarreras-bot.github.io/FinanzasReport/"
+  }
+}

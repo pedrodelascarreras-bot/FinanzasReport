@@ -199,10 +199,13 @@ function renderMobileDashboard(){
         +'<button class="mx-goo-l" onclick="mxConnectGoogle()"><span class="mx-g">'+MX_GOOGLE+'</span><span><span class="mx-goo-t">'+(connected?'Conectado':'Sin conectar')+'</span>'
         +'<span class="mx-goo-s'+(fresh?' fresh':'')+'">'+esc(g.text)+'</span></span></button>'
         +'<button class="mx-go" onclick="mxImportGmail()">'+mxIcon('down',17,2.6)+'Traer</button></div></div>'
+      +(typeof avisosWidgetHtml==='function'?avisosWidgetHtml():'')
     +'</div>'
     +mxSh('Compromisos', mxMoney(committedTotal))
     +'<div class="mx-list">'+(rows||'<div class="mx-none">No hay compromisos en este período</div>')+'</div>'
     +'<div class="mx-with"><span>Con compromisos</span><b>'+esc(mxMoney(spentWithCommitments))+'</b></div>';
+  // Con datos nuevos se recalculan los avisos (js/avisos.js)
+  if(typeof avisosQueue==='function') avisosQueue();
 }
 
 // ── Movimientos: solo lectura ──

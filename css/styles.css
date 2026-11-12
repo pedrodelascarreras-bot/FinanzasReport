@@ -15646,6 +15646,9 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
   .mx-goo-s { display:block; font-size:13px; font-weight:600; color:#C26A00; }
   .mx-goo-s.fresh { color:#7A7C86; }
   .mx-go { flex-shrink:0; margin-left:auto; height:40px; padding:0 14px; border:none; border-radius:12px; background:var(--mx-c); color:#fff; font:800 14.5px var(--mx-rd); display:flex; align-items:center; gap:6px; }
+  .mx-go.ghost { background:var(--mx-soft); color:var(--mx-c); }
+  .mx-bell { color:#7A7C86; }
+  .mx-bell.on { background:var(--mx-soft); color:var(--mx-c); }
   .mx-go.wide { width:100%; justify-content:center; height:48px; margin-top:14px; font-size:16px; }
   .mx-empty .mx-md { white-space:normal; margin:0 0 6px; }
 

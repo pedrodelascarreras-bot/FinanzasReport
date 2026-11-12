@@ -6,3 +6,8 @@ dist/
 # Investigación con datos personales: no se sube al repo público
 research_notes/
 reports/
+
+# Llaves de los avisos (nunca al repo)
+.dev.vars
+push-worker/.dev.vars
+push-worker/.wrangler/
