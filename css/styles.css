@@ -15722,6 +15722,19 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
 .lk-key:active, body.light-mode .lk-key:active { background:rgba(255,255,255,.34); transform:scale(.94); }
 .lk-key-empty, .lk-key-del, body.light-mode .lk-key-del, body.light-mode .lk-key-empty { background:transparent; }
 .lk-setup-back { color:#fff; }
+.lk-key-face { background:transparent !important; }
+.lk-key-face button { width:100%; height:100%; border:none; border-radius:50%; background:transparent; color:#fff; display:grid; place-items:center; padding:0; }
+.lk-key-face button:active { background:rgba(255,255,255,.2); }
+.lk-key-face svg { width:42px; height:42px; }
+.lk-offering .lk-label, .lk-offering .lk-dots, .lk-offering .lk-error, .lk-offering .lk-keypad, .lk-offering .lk-setup-back { display:none !important; }
+.lk-offer { display:flex; flex-direction:column; align-items:center; text-align:center; max-width:320px; color:#fff; font-family:-apple-system,BlinkMacSystemFont,sans-serif; }
+.lk-offer[hidden] { display:none; }
+.lk-offer-icon { width:84px; height:84px; border-radius:24px; background:rgba(255,255,255,.14); display:grid; place-items:center; margin-bottom:18px; }
+.lk-offer-icon svg { width:50px; height:50px; }
+.lk-offer-t { margin:0 0 8px; font:700 25px ui-rounded,'SF Pro Rounded',-apple-system,BlinkMacSystemFont,sans-serif; }
+.lk-offer-s { margin:0 0 26px; font-size:15px; line-height:1.4; color:rgba(255,255,255,.75); }
+.lk-offer-yes { width:100%; height:54px; border:none; border-radius:16px; background:#fff; color:#1A1548; font:800 17px ui-rounded,'SF Pro Rounded',-apple-system,BlinkMacSystemFont,sans-serif; }
+.lk-offer-no { margin-top:10px; height:46px; border:none; background:none; color:rgba(255,255,255,.8); font:600 16px -apple-system,BlinkMacSystemFont,sans-serif; }
 @media (max-height:700px){
   .lk-brand { margin-bottom:16px; }
   .lk-keypad { grid-template-columns:repeat(3,76px); gap:12px 22px; }
