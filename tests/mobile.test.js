@@ -78,7 +78,7 @@ eq([mxPeriodTotals(period, 'tarjetas').totalArs, mxPeriodTotals(period, 'visa').
 renderMobileDashboard();
 const home = shellHtml('mob-dash-shell');
 eq([home.includes('$3.000'), home.includes('Proyección al cierre'), home.includes('Promedio diario')], [true, true, true], 'el inicio trae total, proyección y promedio');
-eq(home.includes('$3.300'), true, 'Con compromisos suma lo que falta cobrar');
+eq([home.includes('$3.300'), home.includes('Compromisos por cobrar</span>')], [false, true], 'un compromiso por débito no va al resumen de la tarjeta: no suma');
 eq([home.includes('Total del ciclo con compromisos'), home.includes('En qué gastaste'), home.includes('Prestamo')], [true, true, false], 'inicio: total con compromisos y categorías, sin la lista de compromisos');
 
 eq([home.includes('Desconectado') && home.includes('mx-dot-logo'), home.includes('mxOpenSettings()'), home.includes('Traer'), home.includes('mx-avisos')], [true, true, false, false], 'el inicio solo dice si Google está conectado; los botones van a la hoja');
@@ -148,6 +148,27 @@ eq([stNo.charged, stNo.label], [false, 'Se cobra el ' + mxShortDate(new Date(202
 state.fixedExpenses.pop();
 mxOpenCommitment('fixed', 'f1'); mxDeleteCommitment();
 eq(state.fixedExpenses.length, 0, 'gasto fijo borrado');
+
+// Compromisos fuera del ciclo de su tarjeta van al próximo resumen: no suman
+(function(){
+  const save = getTcCycles;
+  const parts = { visa: { open: '2026-11-01', close: '2026-11-26' }, amex: { open: '2026-11-03', close: '2026-11-20' } };
+  getTcCycles = m => m === 'tarjetas' ? [{ id: 'tarjetas_x', openDate: '2026-11-01', closeDate: '2026-11-26', parts }] : [];
+  const keepT = state.transactions, keepS = state.subscriptions, keepF = state.fixedExpenses, keepC = state.cuotas;
+  state.transactions = []; state.cuotas = []; state.fixedExpenses = [];
+  state.subscriptions = [
+    { id: 'sv', name: 'Spotify', price: 1000, currency: 'ARS', freq: 'monthly', day: 23, active: true, payMethod: 'visa' },
+    { id: 'sa', name: 'Netflix', price: 2000, currency: 'ARS', freq: 'monthly', day: 23, active: true, payMethod: 'amex' },
+    { id: 'sa2', name: 'Disney', price: 4000, currency: 'ARS', freq: 'monthly', day: 18, active: true, payMethod: 'amex' },
+    { id: 'sd', name: 'Gym', price: 8000, currency: 'ARS', freq: 'monthly', day: 23, active: true, payMethod: 'deb' }
+  ];
+  const ref = new Date(2026, 10, 12, 12);
+  const pr = getPeriodProjection({ startStr: '2026-11-01', endStr: '2026-11-26', card: 'tarjetas', todayRef: ref });
+  eq(pr.futureCommitted, 5000, 'suma Spotify (Visa, 23) y Disney (Amex, 18); no Netflix (Amex, 23 > cierre 20) ni el débito');
+  const ents = getTxnCycleCommitmentEntries('tarjetas', { cycle: { parts }, openStr: '2026-11-01', closeStr: '2026-11-26' }, '', [], ref, '');
+  eq(ents.filter(e => e.inView !== false && !e.isSettled).map(e => e.title).sort(), ['Disney', 'Spotify'], 'la lista del ciclo tampoco muestra lo del próximo resumen');
+  getTcCycles = save; state.transactions = keepT; state.subscriptions = keepS; state.fixedExpenses = keepF; state.cuotas = keepC;
+})();
 
 // 3) Sin datos: ofrece conectar con Google
 reset(); state.transactions = []; renderMobileDashboard();

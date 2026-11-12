@@ -184,12 +184,14 @@ function renderMobileDashboard(){
   const rate=window.USD_TO_ARS||USD_TO_ARS||1;
   const toArs=e=>(Number(e.amount)||0)*((e.currency||'ARS')==='USD'?rate:1);
   const commitments=mxPeriodCommitments(period);
-  // Lo ya cobrado en las tarjetas está en el gasto; se suma el resto (lo que falta y lo que va por débito)
-  const notInSpent=commitments.filter(e=>!(e.inView!==false && e.isSettled===true)).reduce((s,e)=>s+toArs(e),0);
+  // Se suma lo que todavía falta cobrar en el resumen de cada tarjeta. Lo que cae después del
+  // cierre de su tarjeta ya quedó afuera (va al próximo resumen) y el débito no va a ninguno.
+  const pendingCard=commitments.filter(e=>e.inView!==false && e.isSettled!==true);
+  const notInSpent=pendingCard.reduce((s,e)=>s+toArs(e),0);
   const spentWithCommitments=all.totalArs+notInSpent;
   const left=period.daysLeft!=null&&period.daysLeft>=0?' · faltan '+period.daysLeft+' día'+(period.daysLeft===1?'':'s'):'';
   const totalDays=projection.daysElapsed+projection.daysLeft;
-  const pendingCount=commitments.filter(e=>!(e.inView!==false && e.isSettled===true)).length;
+  const pendingCount=pendingCard.length;
   const closeTxt=period.cycle?'Cierra el '+mxShortDate(period.end):'Fin de mes: '+mxShortDate(period.end);
 
   shell.innerHTML=mxBand('Este ciclo', true)

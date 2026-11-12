@@ -819,12 +819,15 @@ function getTxnCycleCommitmentEntries(mode, activeCycleMeta, searchVal, txns, to
   if(!range) return [];
   const cardOf=mode!=='mes'?mode:null;
   activeCycleMeta=activeCycleMeta||{openStr:range.startStr, closeStr:range.endStr};
+  // Visa + Amex: lo que cae después del cierre de su tarjeta va al próximo resumen (js/totals.js)
+  const cycleParts=cardOf==='tarjetas'?(activeCycleMeta.cycle?.parts||getCardCycleParts('tarjetas', range.startStr, range.endStr)):null;
   const entries=getProjectedCommitmentEntriesForRange({
     startStr:range.startStr,
     endStr:range.endStr,
     todayRef,
     txns:state.transactions||[]
   })
+    .filter(entry=>!cycleParts || !payMethodMatchesCard(entry.payMethod, 'tarjetas', {requireExplicit:entry.group==='fijos'}) || commitmentInCardCycle(entry, cycleParts))
     .map(entry=>({...entry,
       _key:entry._key||`${entry.kind}-${entry.group}-${dateToYMD(entry.date)}-${entry.title}`,
       payLabel:txnCommitmentPayLabel(entry.payMethod, entry.group),

@@ -37,6 +37,34 @@ function getMonthRange(monthKey){
   return {startStr:`${year}-${mm}-01`, endStr:`${year}-${mm}-${String(lastDay).padStart(2,'0')}`};
 }
 
+// ── Compromisos y el resumen de cada tarjeta ──
+// Con Visa + Amex juntas ('tarjetas') el período va de la apertura más temprana al cierre
+// más tardío. Un compromiso solo cuenta si su fecha cae en el ciclo de SU tarjeta: si cae
+// después de ese cierre entra en el próximo resumen. Débito y efectivo no van a ningún
+// resumen de tarjeta. Devuelve null si no hay un ciclo combinado para ese rango.
+function getCardCycleParts(card, startStr, endStr){
+  if(card!=='tarjetas' || typeof getTcCycles!=='function') return null;
+  try{
+    const c=(getTcCycles('tarjetas')||[]).find(x=>x && x.openDate===startStr && x.closeDate===endStr);
+    return c && c.parts ? c.parts : null;
+  }catch(_){ return null; }
+}
+function commitmentCardOf(entry){
+  const pm=entry && entry.payMethod;
+  if(payMethodMatchesCard(pm,'amex')) return 'amex';
+  if(payMethodMatchesCard(pm,'visa',{requireExplicit:entry && entry.group==='fijos'})) return 'visa';
+  return null;
+}
+function commitmentInCardCycle(entry, parts){
+  if(!parts) return true;
+  const card=commitmentCardOf(entry);
+  if(!card) return false;
+  const p=parts[card];
+  if(!p) return true; // esa tarjeta no tiene ciclo cargado: no hay con qué comparar
+  const ymd=dateToYMD(entry.date);
+  return ymd>=p.open && ymd<=p.close;
+}
+
 function _periodUsdRate(){
   if(typeof USD_TO_ARS!=='undefined' && USD_TO_ARS) return USD_TO_ARS;
   return state.usdRate||1420;
@@ -76,9 +104,11 @@ function getPeriodExpenseEntries(opts={}){
   });
 
   if(opts.includeProjected!==false){
+    const parts=getCardCycleParts(card, startStr, endStr);
     getProjectedCommitmentEntriesForRange({startStr, endStr, todayRef, txns}).forEach(e=>{
       if(!e.includeInTotal) return;
       if(!payMethodMatchesCard(e.payMethod, card, {requireExplicit:e.group==='fijos'})) return;
+      if(!commitmentInCardCycle(e, parts)) return;
       const fullAmount=Number(e.amount)||0;
       const personalAmount=e.personalAmount!=null?Number(e.personalAmount)||0:fullAmount;
       entries.push({
@@ -173,8 +203,9 @@ function getPeriodProjection(opts={}){
   const totals=getPeriodTotals(opts);
   const variableSpent=totals.entries.filter(e=>!e.isProjected && !isCommitmentTxn(e.txn)).reduce((s,e)=>s+toArs(e),0);
   const committedSpent=totals.totalArs-variableSpent;
+  const parts=getCardCycleParts(opts.card||null, opts.startStr, opts.endStr);
   const futureCommitted=getProjectedCommitmentEntriesForRange({startStr:opts.startStr,endStr:opts.endStr,todayRef,txns:state.transactions||[]})
-    .filter(e=>!e.includeInTotal && payMethodMatchesCard(e.payMethod, opts.card||null, {requireExplicit:e.group==='fijos'}))
+    .filter(e=>!e.includeInTotal && payMethodMatchesCard(e.payMethod, opts.card||null, {requireExplicit:e.group==='fijos'}) && commitmentInCardCycle(e, parts))
     .reduce((s,e)=>s+((e.currency||'ARS')==='USD'?(Number(e.amount)||0)*rate:(Number(e.amount)||0)),0);
   const start=new Date(opts.startStr+'T00:00:00');
   const end=new Date(opts.endStr+'T23:59:59');
