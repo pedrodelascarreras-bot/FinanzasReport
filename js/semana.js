@@ -227,7 +227,15 @@ function wkCommitmentsInRange(startStr, endStr){
   out.total=out.cuotas+out.suscripciones+out.fijos+out.plan;
   return out;
 }
-function wkRecommend(which, todayRef){
+// Calculadora: gastos extra que vas a tener y cuánto querés ahorrar (se guardan para la próxima)
+function wkCalc(){
+  if(!state.weeklyLimitCalc || typeof state.weeklyLimitCalc!=='object') state.weeklyLimitCalc={extras:[], savings:0};
+  const c=state.weeklyLimitCalc;
+  if(!Array.isArray(c.extras)) c.extras=[];
+  c.savings=Math.max(0, Number(c.savings)||0);
+  return c;
+}
+function wkRecommend(which, todayRef, opts){
   const today=wkNoon(todayRef||new Date());
   const periods=wkCyclePeriods(today);
   const p=which==='current'?periods.current:periods.next;
@@ -241,11 +249,14 @@ function wkRecommend(which, todayRef){
   }
   const days=wkDiffDays(startStr, p.close)+1;
   const weeks=days/7;
-  const available=income.ars-com.total-spent;
+  const calc=opts||{extras:[], savings:0};
+  const extras=(calc.extras||[]).reduce((a,e)=>a+(Number(e.amount)||0),0);
+  const savings=Math.max(0, Number(calc.savings)||0);
+  const available=income.ars-com.total-spent-extras-savings;
   const raw=weeks>0?available/weeks:0;
   const weekly=raw>0?Math.floor(raw/5000)*5000:0;
   return {which, open:p.open, close:p.close, startStr, endStr:p.close, days, weeks, byCard:periods.byCard,
-    income:income.ars, incomeSource:income.source, commitments:com, spent, available, weekly, raw};
+    income:income.ars, incomeSource:income.source, commitments:com, spent, extras, savings, available, weekly, raw};
 }
 
 // ── Consejos: los más importantes primero, como mucho cuatro ──
@@ -331,13 +342,11 @@ function renderSemanaPage(){
 
 // ══ Celular ══
 function wkMobileEmpty(){
-  const r=wkRecommend('next');
   return mxBand('Semana')
     +'<div class="mx-grid"><div class="mx-w full mx-empty wk-empty">'
       +'<div class="wk-empty-ic">🎯</div>'
       +'<div class="mx-md">Poné tu límite semanal</div>'
       +'<div class="mx-sub">Elegís cuánto querés gastar por semana en el día a día, desde qué fecha y, si querés, hasta cuándo. Te vamos diciendo cuánto te queda, cuánto podés gastar hoy y cómo venís. Las cuotas, suscripciones y gastos fijos no cuentan: ya están comprometidos.</div>'
-      +(r.weekly>0?'<div class="wk-rec-mini">Para tu próximo resumen te recomendamos <b>'+esc(wkMoney(r.weekly))+'</b> por semana</div>':'')
       +'<button class="mx-go wide" onclick="wkOpenEditor()">Poner límite</button>'
     +'</div></div>';
 }
@@ -424,8 +433,9 @@ function wkOpenEditor(fresh){
   const c=wkConfig();
   const today=dateToYMD(wkNoon(new Date()));
   const keep=!!(c && Number(c.amount)>0 && !fresh);
-  _wkForm={amount:keep?c.amount:0, startDate:keep?c.startDate:today, endDate:keep?(c.endDate||''):'', rec:'next'};
-  if(!keep){ const r=wkRecommend('next'); if(r.weekly>0) _wkForm.amount=r.weekly; }
+  // El monto es siempre el tuyo: el último que guardaste (también al empezar uno nuevo).
+  // El recomendado solo se usa si tocás "Usar este límite" en la calculadora.
+  _wkForm={amount:c&&Number(c.amount)>0?Number(c.amount):0, startDate:keep?c.startDate:today, endDate:keep?(c.endDate||''):'', rec:'next', recOpen:false, adding:false};
   if(typeof mxOpenSheet==='function' && mxIsMobile()) mxOpenSheet(wkEditorInner(true), 'wk-sheet mx-tall');
   else wkOpenDesktopEditor();
 }
@@ -442,6 +452,7 @@ function wkEditorInner(mobile){
         +'<button class="wk-clear" onclick="wkClearEnd()" aria-label="Sin fecha de fin"'+(f.endDate?'':' hidden')+'>✕</button></span></div>'
       +'<div class="mx-sub wk-date-hint" id="wk-date-hint">'+esc(wkFormHint())+'</div></div>'
     +'<div id="wk-rec">'+wkRecHtml()+'</div>'
+    +(mobile?'<button class="wk-save" onclick="wkSaveEditor()">Guardar límite</button>':'')
   +'</div></div>';
 }
 function wkFormHint(){
@@ -455,12 +466,18 @@ function wkFormHint(){
 }
 function wkRecHtml(){
   const f=_wkForm;
-  const r=wkRecommend(f.rec);
+  if(!f.recOpen){
+    return '<button class="mx-w full wk-card wk-rec-closed" onclick="wkToggleRec(true)">'
+      +'<span class="wk-rec-closed-ic">🧮</span><span class="wk-rec-closed-tx"><b>¿No sabés cuánto poner?</b>'
+      +'<small>Calculadora: tu sueldo, tus cuotas, gastos extra y lo que quieras ahorrar.</small></span><span class="wk-rec-closed-go">Abrir ›</span></button>';
+  }
+  const calc=wkCalc();
+  const r=wkRecommend(f.rec, null, calc);
+  const head='<div class="wk-rec-head"><div class="wk-rec-h">🧮 Calculadora de límite</div><button class="wk-link" onclick="wkToggleRec(false)">Ocultar</button></div>';
   const seg='<div class="wk-seg"><button class="'+(f.rec==='current'?'active':'')+'" onclick="wkPickRec(\'current\')">'+(r.byCard?'Resumen actual':'Este mes')+'</button>'
     +'<button class="'+(f.rec==='next'?'active':'')+'" onclick="wkPickRec(\'next\')">'+(r.byCard?'Próximo resumen':'Mes que viene')+'</button></div>';
-  const head='<div class="wk-rec-h">✨ Límite recomendado</div>';
   if(!(r.income>0)){
-    return '<div class="mx-w full wk-card wk-rec">'+head+seg+'<div class="mx-sub">Para recomendarte un límite necesitamos tu ingreso: cargalo en Ingresos (o en Camino a cero) y volvé acá.</div></div>';
+    return '<div class="mx-w full wk-card wk-rec">'+head+seg+'<div class="mx-sub">Para calcularlo necesitamos tu ingreso: cargalo en Ingresos (o en Camino a cero) y volvé acá.</div></div>';
   }
   const row=(label, v, cls)=>'<div class="wk-rec-row'+(cls?' '+cls:'')+'"><span>'+esc(label)+'</span><b>'+esc(v)+'</b></div>';
   const c=r.commitments;
@@ -470,19 +487,49 @@ function wkRecHtml(){
   if(c.suscripciones) lines.push(row('Suscripciones', '−'+wkMoney(c.suscripciones), 'neg'));
   if(c.fijos) lines.push(row('Gastos fijos', '−'+wkMoney(c.fijos), 'neg'));
   if(r.spent) lines.push(row('Ya gastado en el período', '−'+wkMoney(r.spent), 'neg'));
-  lines.push(row('Te queda para el día a día', wkMoney(r.available), 'sum'));
+  // Gastos extra que vas a tener
+  const extras=calc.extras.map((e,i)=>'<div class="wk-rec-row neg wk-extra"><span>'+esc(e.name||'Gasto extra')+'</span><b>−'+esc(wkMoney(e.amount))+'</b>'
+    +'<button class="wk-x" onclick="wkRemoveExtra('+i+')" aria-label="Quitar">✕</button></div>').join('');
+  const addForm=f.adding
+    ?'<div class="wk-add"><input id="wk-extra-name" type="text" placeholder="¿Qué gasto?" autocomplete="off" maxlength="40">'
+      +'<input id="wk-extra-amount" type="text" inputmode="numeric" placeholder="$ monto" autocomplete="off" oninput="wkFormatInput(this)">'
+      +'<div class="wk-add-btns"><button class="wk-link" onclick="wkCancelExtra()">Cancelar</button><button class="wk-add-ok" onclick="wkAddExtra()">Agregar</button></div></div>'
+    :'<button class="wk-add-btn" onclick="wkStartExtra()">＋ Agregar un gasto extra</button>';
+  // Ahorro: monto o un porcentaje del ingreso
+  const pcts=[0,5,10,15].map(p=>{ const v=Math.round(r.income*p/100/1000)*1000; return '<button class="'+(Math.abs(calc.savings-v)<1?'active':'')+'" onclick="wkSetSavings('+v+')">'+(p?p+'%':'Nada')+'</button>'; }).join('');
   const wks=Math.round(r.weeks*10)/10;
   const weeksTxt=wks.toLocaleString('es-AR')+' semana'+(wks===1?'':'s');
   return '<div class="mx-w full wk-card wk-rec">'+head+seg
     +'<div class="mx-sub wk-rec-period">'+esc(wkDayLabel(r.startStr)+' al '+wkDayLabel(r.endStr))+' · '+esc(weeksTxt)+'</div>'
     +lines.join('')
+    +'<div class="wk-rec-sub">Gastos extra del período</div>'+extras+addForm
+    +'<div class="wk-rec-sub">Quiero ahorrar</div>'
+    +'<div class="wk-sav"><span>$</span><input id="wk-savings" type="text" inputmode="numeric" placeholder="0" autocomplete="off" value="'+(calc.savings?esc(Math.round(calc.savings).toLocaleString('es-AR')):'')+'" oninput="wkFormatInput(this)" onchange="wkSetSavings(wkParseAmount(this.value))"></div>'
+    +'<div class="wk-chips">'+pcts+'</div>'
+    +row('Te queda para el día a día', wkMoney(r.available), 'sum')
     +(r.weekly>0
-      ?'<div class="wk-rec-big"><span>Por semana</span><b>'+esc(wkMoney(r.weekly))+'</b></div>'
-        +'<button class="wk-rec-use" onclick="wkUseRec()">Usar '+esc(wkMoney(r.weekly))+' del '+esc(wkDayMonth(r.startStr))+' al '+esc(wkDayMonth(r.endStr))+'</button>'
-      :'<div class="wk-rec-warn">Con lo comprometido no queda margen para el día a día en este período.</div>')
+      ?'<div class="wk-rec-big"><span>Podés gastar por semana</span><b>'+esc(wkMoney(r.weekly))+'</b></div>'
+        +'<button class="wk-rec-use" onclick="wkUseRec()">Usar este límite</button>'
+        +'<div class="wk-rec-note">Al usarlo se completa el monto y las fechas del '+esc(wkDayMonth(r.startStr))+' al '+esc(wkDayMonth(r.endStr))+'. Después tocá Guardar.</div>'
+      :'<div class="wk-rec-warn">Con estos gastos no queda margen para el día a día'+(r.savings?': probá ahorrar menos o sacar algún gasto extra.':' en este período.')+'</div>')
     +'<div class="wk-rec-note">'+esc(r.incomeSource)+'. Compromisos según lo cargado en Compromisos y Camino a cero.</div>'
   +'</div>';
 }
+function wkRecRefresh(){ const el=document.getElementById('wk-rec'); if(el) el.innerHTML=wkRecHtml(); }
+function wkToggleRec(open){ wkReadForm(); _wkForm.recOpen=!!open; _wkForm.adding=false; wkRecRefresh(); }
+function wkStartExtra(){ _wkForm.adding=true; wkRecRefresh(); setTimeout(()=>document.getElementById('wk-extra-name')?.focus(),50); }
+function wkCancelExtra(){ _wkForm.adding=false; wkRecRefresh(); }
+function wkAddExtra(){
+  const name=String(document.getElementById('wk-extra-name')?.value||'').trim();
+  const amount=wkParseAmount(document.getElementById('wk-extra-amount')?.value);
+  if(!(amount>0)){ showToast('Poné el monto del gasto','error'); return; }
+  wkCalc().extras.push({name:name||'Gasto extra', amount});
+  _wkForm.adding=false;
+  saveState();
+  wkRecRefresh();
+}
+function wkRemoveExtra(i){ wkCalc().extras.splice(i,1); saveState(); wkRecRefresh(); }
+function wkSetSavings(v){ wkCalc().savings=Math.max(0, Math.round(Number(v)||0)); saveState(); wkRecRefresh(); }
 function wkReadForm(){
   if(!_wkForm) return;
   const a=document.getElementById('wk-amount'); if(a) _wkForm.amount=wkParseAmount(a.value);
@@ -497,10 +544,11 @@ function wkFormDates(){
   const h=document.getElementById('wk-date-hint'); if(h) h.textContent=wkFormHint();
 }
 function wkClearEnd(){ const e=document.getElementById('wk-end'); if(e) e.value=''; wkFormDates(); }
-function wkPickRec(which){ wkReadForm(); _wkForm.rec=which; const el=document.getElementById('wk-rec'); if(el) el.innerHTML=wkRecHtml(); }
+function wkPickRec(which){ wkReadForm(); _wkForm.rec=which; wkRecRefresh(); }
 function wkUseRec(){
   wkReadForm();
-  const r=wkRecommend(_wkForm.rec);
+  const sv=document.getElementById('wk-savings'); if(sv) wkCalc().savings=wkParseAmount(sv.value);
+  const r=wkRecommend(_wkForm.rec, null, wkCalc());
   if(!(r.weekly>0)) return;
   _wkForm.amount=r.weekly; _wkForm.startDate=r.startStr; _wkForm.endDate=r.endStr;
   const a=document.getElementById('wk-amount'); if(a) a.value=Math.round(r.weekly).toLocaleString('es-AR');
@@ -508,6 +556,7 @@ function wkUseRec(){
   const e=document.getElementById('wk-end'); if(e) e.value=r.endStr;
   wkFormDates();
   showToast('Listo: tocá Guardar para usarlo','info');
+  const amt=document.getElementById('wk-amount'); if(amt && amt.scrollIntoView) amt.scrollIntoView({behavior:'smooth', block:'center'});
 }
 function wkFormatInput(el){
   const digits=String(el.value||'').replace(/\D/g,'').slice(0,12);
@@ -544,11 +593,9 @@ function renderSemanaDesktop(){
   const w=wkCompute();
   const head=(sub, btn)=>'<header class="wk-d-head"><div><h1>Límite semanal</h1><p>'+esc(sub)+'</p></div>'+(btn||'')+'</header>';
   if(!w){
-    const r=wkRecommend('next');
     root.innerHTML='<div class="wk-d-shell">'+head('Un tope para el gasto del día a día, semana a semana.')
       +'<section class="wk-d-card wk-d-empty"><div class="wk-empty-ic">🎯</div><h2>Poné tu límite semanal</h2>'
       +'<p>Elegís cuánto querés gastar por semana, desde qué fecha y, si querés, hasta cuándo. Te vamos diciendo cuánto te queda, cuánto podés gastar hoy y cómo venís. Las cuotas, suscripciones y gastos fijos no cuentan: ya están comprometidos.</p>'
-      +(r.weekly>0?'<p class="wk-rec-mini">Para tu próximo resumen te recomendamos <b>'+esc(wkMoney(r.weekly))+'</b> por semana.</p>':'')
       +'<button class="btn btn-primary" onclick="wkOpenEditor()">Poner límite</button></section></div>';
     return;
   }
