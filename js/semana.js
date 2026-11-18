@@ -356,7 +356,8 @@ function renderMobileSemana(){
         +'<div class="mx-sub">Primera semana: '+esc(wkDayLabel(w.first.start))+' al '+esc(wkDayLabel(w.first.end))+'</div>'
         +'<div class="wk-obj">'+esc(wkObjectiveLabel(w))+(w.totalWeeks?' · '+w.totalWeeks+' semana'+(w.totalWeeks===1?'':'s'):'')+'</div>'
       +'</div></div>'
-      +'<div class="wk-foot">Hasta entonces no cuenta nada. Podés cambiar el monto o las fechas tocando el límite.</div>';
+      +'<div class="wk-foot">Hasta entonces no cuenta nada. Podés cambiar el monto o las fechas tocando el límite.</div>'
+      +wkActionsHtml(true);
     return;
   }
   if(w.phase==='ended'){
@@ -369,7 +370,8 @@ function renderMobileSemana(){
         +'<button class="mx-go wide" onclick="wkOpenEditor(true)">Nuevo objetivo</button>'
       +'</div></div>'
       +mxSh('Cómo te fue', '', true)
-      +'<div class="mx-list">'+w.weeks.slice().reverse().map(h=>wkHistItem(h)).join('')+'</div>';
+      +'<div class="mx-list">'+w.weeks.slice().reverse().map(h=>wkHistItem(h)).join('')+'</div>'
+      +wkActionsHtml(true);
     return;
   }
   const over=w.left<0;
@@ -406,7 +408,8 @@ function renderMobileSemana(){
           +'<div class="mx-tx"><div class="mx-t">'+esc(e.description||'Movimiento')+'</div><div class="mx-s">'+esc(mxDayLabel(dateToYMD(e.date)))+(e.excluded?' · No cuenta en el límite':'')+'</div></div>'
           +'<div class="mx-r">'+esc(wkMoney(e.ars))+'</div></div>';
       }).join(''):'<div class="mx-none">Todavía no hay gastos esta semana</div>')+'</div>'
-    +'<div class="wk-foot">'+esc(wkObjectiveLabel(w))+'.<br>Cuenta tarjetas, débito y efectivo. No cuenta cuotas, suscripciones ni gastos fijos. Tocá un gasto para dejarlo afuera del límite.</div>';
+    +'<div class="wk-foot">'+esc(wkObjectiveLabel(w))+'.<br>Cuenta tarjetas, débito y efectivo. No cuenta cuotas, suscripciones ni gastos fijos. Tocá un gasto para dejarlo afuera del límite.</div>'
+    +wkActionsHtml(true);
 }
 function wkHistItem(h){
   return '<div class="mx-it"><div class="mx-ib wk-hist"><span class="wk-hist-ic '+(h.met?'ok':'bad')+'">'+(h.met?'✓':'✕')+'</span></div>'
@@ -553,14 +556,14 @@ function renderSemanaDesktop(){
   if(w.phase==='upcoming'){
     root.innerHTML='<div class="wk-d-shell">'+head(wkObjectiveLabel(w), editBtn)
       +'<section class="wk-d-hero wk-d-hero-one"><div class="wk-d-hero-main"><div class="wk-d-kicker">Tu límite arranca '+(w.daysToStart===1?'mañana':'en '+w.daysToStart+' días')+'</div>'
-      +'<div class="wk-d-amount">'+esc(wkMoney(w.first.limit))+'</div><div class="wk-d-muted">Primera semana: '+esc(wkDayLabel(w.first.start))+' al '+esc(wkDayLabel(w.first.end))+(w.totalWeeks?' · '+w.totalWeeks+' semana'+(w.totalWeeks===1?'':'s')+' en total':'')+'</div></div></section></div>';
+      +'<div class="wk-d-amount">'+esc(wkMoney(w.first.limit))+'</div><div class="wk-d-muted">Primera semana: '+esc(wkDayLabel(w.first.start))+' al '+esc(wkDayLabel(w.first.end))+(w.totalWeeks?' · '+w.totalWeeks+' semana'+(w.totalWeeks===1?'':'s')+' en total':'')+'</div></div></section>'+wkActionsHtml(false)+'</div>';
     return;
   }
   if(w.phase==='ended'){
     root.innerHTML='<div class="wk-d-shell">'+head(wkObjectiveLabel(w), '<button class="btn btn-primary btn-sm" onclick="wkOpenEditor(true)">Nuevo objetivo</button>')
       +'<section class="wk-d-hero wk-d-hero-one"><div class="wk-d-hero-main"><div class="wk-d-kicker">Terminó tu objetivo</div><div class="wk-d-amount">'+w.met+' de '+w.weeks.length+' semanas</div>'
       +'<div class="wk-d-muted">Gastaste '+esc(wkMoney(w.spent))+' de '+esc(wkMoney(w.limit))+'</div></div></section>'
-      +'<section class="wk-d-card">'+wkDesktopHist(w.weeks.slice().reverse())+'</section></div>';
+      +'<section class="wk-d-card">'+wkDesktopHist(w.weeks.slice().reverse())+'</section>'+wkActionsHtml(false)+'</div>';
     return;
   }
   const over=w.left<0;
@@ -599,6 +602,7 @@ function renderSemanaDesktop(){
       </section>
     </div>
     <p class="wk-d-foot">Cuenta tarjetas, débito y efectivo. No cuenta cuotas, suscripciones ni gastos fijos.</p>
+    ${wkActionsHtml(false)}
   </div>`;
 }
 function wkDesktopHist(list, streak){
@@ -620,3 +624,32 @@ function wkOpenDesktopEditor(){
   setTimeout(()=>document.getElementById('wk-amount')?.focus(), 50);
 }
 function closeWkDesktopEditor(){ document.getElementById('wk-modal')?.remove(); }
+
+// ── Empezar uno nuevo o borrar el actual ──
+// Borrar pide confirmar en el mismo lugar: un toque de más no borra nada.
+function wkActionsHtml(mobile){
+  return '<div class="wk-actions'+(mobile?'':' desk')+'" id="wk-actions">'+wkActionsButtons(mobile)+'</div>';
+}
+function wkActionsButtons(mobile){
+  return mobile
+    ?'<button class="mx-del ghost" onclick="wkOpenEditor(true)">Empezar un límite nuevo</button>'
+      +'<button class="mx-del" onclick="wkAskReset(true)">Borrar este límite</button>'
+    :'<button class="btn btn-ghost btn-sm" onclick="wkOpenEditor(true)">Empezar un límite nuevo</button>'
+      +'<button class="btn btn-ghost btn-sm wk-danger" onclick="wkAskReset(false)">Borrar este límite</button>';
+}
+function wkAskReset(mobile){
+  document.querySelectorAll('#wk-actions').forEach(zone=>{
+    zone.innerHTML='<div class="mx-del-q wk-reset-q">¿Borrar tu límite semanal? Se pierden el monto, las fechas y el historial de semanas. Tus gastos no se tocan.</div>'
+      +'<div class="mx-del-row wk-reset-row">'
+        +(mobile?'<button class="mx-del ghost" onclick="wkCancelReset(true)">No</button><button class="mx-del strong" onclick="wkReset()">Sí, borrar</button>'
+          :'<button class="btn btn-ghost btn-sm" onclick="wkCancelReset(false)">No</button><button class="btn btn-sm wk-danger-strong" onclick="wkReset()">Sí, borrar</button>')
+      +'</div>';
+  });
+}
+function wkCancelReset(mobile){ document.querySelectorAll('#wk-actions').forEach(z=>{ z.innerHTML=wkActionsButtons(mobile); }); }
+function wkReset(){
+  state.weeklyLimit=null;
+  saveState();
+  renderSemanaPage();
+  showToast('Límite borrado. Podés poner uno nuevo cuando quieras','info');
+}

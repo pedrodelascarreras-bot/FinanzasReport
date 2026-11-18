@@ -16115,3 +16115,20 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
 .acm-done-s { margin-top:6px; font-size:14px; color:#7A7C86; }
 .acm-undo { margin-top:20px; max-width:220px; }
 .wk-modal .wk-input input#wk-amount { font-size:30px !important; }
+
+/* Categorizar solo (celular): la lista scrollea dentro de la hoja */
+.acm-sheet .mx-sheet-panel { max-height:92vh; display:flex; flex-direction:column; }
+.acm-sheet #acm-root { display:flex; flex-direction:column; flex:1 1 auto; min-height:0; }
+.acm-sheet #acm-root > .mx-sheet-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; padding-bottom:calc(16px + env(safe-area-inset-bottom)); }
+.wk-sheet .mx-sheet-panel { max-height:92vh; display:flex; flex-direction:column; }
+.wk-sheet .mx-sheet-panel > .mx-sheet-scroll { flex:1 1 auto; min-height:0; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+
+/* Límite semanal: empezar uno nuevo o borrarlo */
+.wk-actions { display:grid; gap:10px; margin:18px 14px 0; }
+.wk-actions .mx-del-row { margin-top:2px; }
+.wk-actions.desk { display:flex; justify-content:center; flex-wrap:wrap; gap:10px; margin:4px 0 0; }
+.wk-actions.desk .wk-reset-q { width:100%; text-align:center; color:var(--text2); font-size:13.5px; }
+.wk-actions.desk .wk-reset-row { display:flex; gap:10px; justify-content:center; }
+.wk-danger { color:#E5383B !important; }
+.wk-danger-strong { background:#E5383B !important; color:#fff !important; border:none !important; }
+.wk-reset-q { line-height:1.4; padding:0 6px; }

@@ -189,5 +189,11 @@ eq([cel.includes('Hoy podés gastar'), cel.includes('Día por día'), cel.includ
 renderSemanaDesktop();
 eq(shellHtml('wk-desktop').includes('Límite semanal'), true, 'compu');
 
+// 10) Borrar el límite y empezar de nuevo
+eq(shellHtml('mob-week-shell').includes('Borrar este límite') && shellHtml('mob-week-shell').includes('Empezar un límite nuevo'), true, 'abajo están las opciones de empezar de nuevo y borrar');
+wkReset();
+eq([state.weeklyLimit, stored().weeklyLimit, wkCompute(HOY)], [null, null, null], 'borrar deja la app sin límite (y se guarda)');
+renderMobileSemana();
+eq(shellHtml('mob-week-shell').includes('Poné tu límite semanal'), true, 'vuelve a la pantalla para ponerlo');
 if (errs.length) { failures++; print('✗ errores en consola: ' + errs.slice(0, 3).join(' | ')); }
 print(failures ? ('✗ ' + failures + ' fallas, ' + passed + ' OK') : ('✓ ' + passed + ' pruebas OK'));
