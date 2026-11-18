@@ -16164,3 +16164,29 @@ body:not(.light-mode) .mob-txn-page .mv-period-chip strong { color:#eef2ff; }
 .wk-modal .wk-chips button { background:var(--surface); color:var(--text); border-color:var(--border); }
 .wk-modal .wk-chips button.active { background:var(--wk-soft); color:var(--wk-c); border-color:var(--wk-c); }
 .wk-modal .wk-add-btn { border-color:var(--border); }
+
+/* Límite semanal: ¿este gasto cuenta? */
+.wk-ask { margin:0 14px 12px; padding:14px 16px; border-radius:20px; background:#fff; border:2px solid #F7C99B; box-shadow:0 1px 3px rgba(16,17,20,.05); }
+.wk-ask.desk { margin:0; background:var(--surface); border-color:rgba(232,115,12,.45); }
+.wk-ask-top { display:flex; gap:12px; align-items:center; }
+.wk-ask-ic { flex:0 0 40px; height:40px; border-radius:12px; display:grid; place-items:center; background:#FFEEDC; font-size:20px; }
+.wk-ask-tx { min-width:0; display:flex; flex-direction:column; gap:2px; }
+.wk-ask-tx b { font-family:ui-rounded,-apple-system,BlinkMacSystemFont,sans-serif; font-size:16.5px; font-weight:800; color:#101114; }
+.wk-ask-tx span { font-size:13.5px; font-weight:600; color:#5B5E68; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.wk-ask-msg { margin:10px 0 12px; font-size:13.5px; line-height:1.4; color:#5B5E68; }
+.wk-ask-btns { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.wk-ask-btns button { min-height:44px; border:none; border-radius:13px; font:800 15px ui-rounded,-apple-system,BlinkMacSystemFont,sans-serif; cursor:pointer; }
+.wk-ask-no { background:#E8730C; color:#fff; }
+.wk-ask-yes { background:#F1F2F6; color:#101114; }
+.wk-ask.desk .wk-ask-tx b { color:var(--text); }
+.wk-ask.desk .wk-ask-tx span, .wk-ask.desk .wk-ask-msg { color:var(--text2); }
+.wk-ask.desk .wk-ask-yes { background:var(--surface2); color:var(--text); }
+.wk-ask.desk .wk-ask-btns { max-width:420px; }
+.wk-tog-card { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 16px !important; }
+.wk-tog-tx { min-width:0; display:flex; flex-direction:column; gap:2px; }
+.wk-tog-tx b { font-size:15.5px; font-weight:700; color:#101114; }
+.wk-tog-tx span { font-size:12.5px; color:#7A7C86; }
+.wk-switch { position:relative; flex:0 0 51px; width:51px; height:31px; min-height:0 !important; padding:0; border:none; border-radius:16px; background:#E4E6EC; cursor:pointer; transition:background .2s; }
+.wk-switch i { position:absolute; top:2px; left:2px; width:27px; height:27px; border-radius:50%; background:#fff; box-shadow:0 2px 5px rgba(0,0,0,.18); transition:transform .2s cubic-bezier(.32,.72,0,1); }
+.wk-switch.on { background:#34C759; }
+.wk-switch.on i { transform:translateX(20px); }

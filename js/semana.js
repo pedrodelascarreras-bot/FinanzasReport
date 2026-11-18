@@ -14,6 +14,7 @@ const WK_DAY_SHORT=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const WK_DAY_LONG=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 const WK_DAY_LETTER=['D','L','M','M','J','V','S'];
 const WK_HISTORY_WEEKS=8;
+const WK_BIG_SHARE=0.5; // un gasto de la mitad del límite o más pregunta si cuenta
 
 // ── Fechas ──
 function wkNoon(d){ const x=d instanceof Date?new Date(d):new Date(String(d).slice(0,10)+'T12:00:00'); x.setHours(12,0,0,0); return x; }
@@ -30,6 +31,7 @@ function wkConfig(){
   const c=state.weeklyLimit;
   if(!c || typeof c!=='object') return null;
   if(!Array.isArray(c.excluded)) c.excluded=[];
+  if(!Array.isArray(c.kept)) c.kept=[];
   // Versión anterior: solo el día de la semana. Se pasa a una fecha: el último de ese día.
   if(!wkValidYmd(c.startDate)){
     const day=Number(c.weekStart)>=0 && Number(c.weekStart)<=6 ? Number(c.weekStart) : 1;
@@ -42,7 +44,7 @@ function wkConfig(){
 function wkHasLimit(){ const c=wkConfig(); return !!(c && Number(c.amount)>0); }
 function wkSetLimit(amount, startDate, endDate){
   const prev=wkConfig()||{};
-  state.weeklyLimit={amount:Math.round(Number(amount)||0), startDate, endDate:endDate||'', excluded:prev.excluded||[], updatedAt:new Date().toISOString()};
+  state.weeklyLimit={amount:Math.round(Number(amount)||0), startDate, endDate:endDate||'', excluded:prev.excluded||[], kept:prev.kept||[], updatedAt:new Date().toISOString()};
   saveState();
 }
 
@@ -151,8 +153,11 @@ function wkCompute(todayRef){
   let zeroDays=0;
   for(let i=dayIdx-1;i>=0;i--){ if(days[i].spent<=0) zeroDays++; else break; }
   const biggest=counted.slice().sort((a,b)=>b.ars-a.ars)[0]||null;
+  // Gastos grandes (la mitad del límite o más) que todavía no dijiste si cuentan
+  const kept=new Set((c.kept||[]).map(String));
+  const bigPending=counted.filter(e=>e.ars>=Number(c.amount)*WK_BIG_SHARE && !kept.has(String(e.id))).sort((a,b)=>b.ars-a.ars);
 
-  return Object.assign(base, {phase:'active', weekNum:n+1, limit, weekDays:wk.days, start, end, startStr, endStr, dayIdx, daysLeft,
+  return Object.assign(base, {phase:'active', bigPending, weekNum:n+1, limit, weekDays:wk.days, start, end, startStr, endStr, dayIdx, daysLeft,
     spent, spentToday, spentBefore, left, todayBudget, todayLeft, perDayAfter, perDayNow, ideal, pct, pctTime, projection, status,
     days, dailyTarget, cats, prevSameDay, history, streak, zeroDays, biggest, isLastWeek:!!(total && n+1>=total),
     entries:entries.slice().sort((a,b)=>new Date(b.date)-new Date(a.date))});
@@ -282,7 +287,7 @@ function wkInsights(w){
     out.push({tone:'info', icon:'✓', title:'Vas en ritmo',
       text:'Te quedan '+wkMoney(w.left)+' para '+(w.daysLeft===1?'hoy, el último día':w.daysLeft+' días, contando hoy')+'. Mantené este ritmo y llegás bien.'});
   }
-  if(w.biggest && w.biggest.ars>=w.limit*0.25 && w.status!=='over'){
+  if(w.biggest && w.biggest.ars>=w.limit*0.25 && w.status!=='over' && !(w.bigPending||[]).some(e=>e.id===w.biggest.id)){
     out.push({tone:'warn', icon:'💸', title:'Un gasto se llevó el '+Math.round(w.biggest.ars/w.limit*100)+'% del límite',
       text:(w.biggest.description||'Un movimiento')+': '+wkMoney(w.biggest.ars)+'. Si fue algo planeado, tocalo en la lista para dejarlo afuera.'});
   }
@@ -387,6 +392,7 @@ function renderMobileSemana(){
   const insights=wkInsights(w);
   const todayTxt=w.todayLeft>=0?wkMoney(w.todayLeft):'−'+wkMoney(-w.todayLeft);
   shell.innerHTML=mxBand('Semana')
+    +wkBigAskHtml(w, true)
     +'<div class="mx-grid">'
       +'<div class="mx-w full wk-hero wk-'+w.status+'">'
         +'<div class="wk-hero-top"><div class="mx-lb">'+(over?'Te pasaste esta semana':'Te quedan esta semana')+'</div>'+chip+'</div>'
@@ -579,8 +585,8 @@ function wkToggleExcluded(id){
   const c=wkConfig(); if(!c) return;
   const k=String(id);
   const i=c.excluded.map(String).indexOf(k);
-  if(i>=0){ c.excluded.splice(i,1); showToast('Vuelve a contar en el límite','info'); }
-  else { c.excluded.push(k); showToast('Ya no cuenta en el límite','info'); }
+  if(i>=0){ c.excluded.splice(i,1); if(!c.kept.map(String).includes(k)) c.kept.push(k); showToast('Vuelve a contar en el límite','info'); }
+  else { c.excluded.push(k); c.kept=c.kept.filter(x=>String(x)!==k); showToast('Ya no cuenta en el límite','info'); }
   saveState();
   if(typeof mxKeepRowInPlace==='function' && mxIsMobile()) mxKeepRowInPlace(k, renderSemanaPage);
   else renderSemanaPage();
@@ -619,6 +625,7 @@ function renderSemanaDesktop(){
   root.innerHTML=`
   <div class="wk-d-shell">
     ${head(wkWeekTag(w)+' · '+wkRangeLabel(w)+' · día '+w.dayIdx+' de '+w.weekDays, editBtn)}
+    ${wkBigAskHtml(w, false)}
     <section class="wk-d-hero wk-${w.status}">
       <div class="wk-d-hero-main">
         <div class="wk-d-kicker">${over?'Te pasaste esta semana':'Te quedan esta semana'}</div>
@@ -699,4 +706,56 @@ function wkReset(){
   saveState();
   renderSemanaPage();
   showToast('Límite borrado. Podés poner uno nuevo cuando quieras','info');
+}
+
+// ── ¿Este gasto cuenta en el límite? ──
+// Un gasto grande (un préstamo que sacás con la tarjeta, una compra planeada) puede no ser
+// del día a día. Si es la mitad del límite o más, la pantalla pregunta antes de contarlo
+// "de verdad": "No cuenta" lo deja afuera; "Sí, cuenta" no vuelve a preguntar.
+// También se puede cambiar desde la lista de la semana o desde el movimiento.
+function wkBigAskHtml(w, mobile){
+  const e=(w.bigPending||[])[0];
+  if(!e) return '';
+  const more=(w.bigPending.length>1)?' (y '+(w.bigPending.length-1)+' más)':'';
+  const pct=Math.round(e.ars/w.amount*100);
+  const id=esc(String(e.id));
+  return '<div class="wk-ask'+(mobile?'':' desk')+'">'
+    +'<div class="wk-ask-top"><span class="wk-ask-ic">💸</span><div class="wk-ask-tx"><b>¿Este gasto entra en tu límite?</b>'
+      +'<span>'+esc(e.description||'Un movimiento')+' · '+esc(wkMoney(e.ars))+more+'</span></div></div>'
+    +'<div class="wk-ask-msg">Es el '+pct+'% de tu límite semanal. Si ya lo tenías previsto (un préstamo, una compra planeada o algo que no es del día a día), sacalo y no te come la semana.</div>'
+    +'<div class="wk-ask-btns"><button class="wk-ask-no" data-id="'+id+'" onclick="wkSetCounted(this.dataset.id,false)">No cuenta</button>'
+      +'<button class="wk-ask-yes" data-id="'+id+'" onclick="wkSetCounted(this.dataset.id,true)">Sí, cuenta</button></div>'
+  +'</div>';
+}
+function wkCountsInLimit(id){
+  const c=wkConfig(); if(!c) return true;
+  return !c.excluded.map(String).includes(String(id));
+}
+function wkSetCounted(id, counts, quiet){
+  const c=wkConfig(); if(!c) return;
+  const k=String(id);
+  c.excluded=c.excluded.filter(x=>String(x)!==k);
+  c.kept=(c.kept||[]).filter(x=>String(x)!==k);
+  if(counts) c.kept.push(k); else c.excluded.push(k);
+  saveState();
+  renderSemanaPage();
+  if(!quiet) showToast(counts?'Cuenta en el límite':'Listo: no cuenta en el límite semanal','info');
+}
+// Para la hoja del movimiento (celular): si el gasto entra en el límite semanal
+function wkTxnToggleHtml(t){
+  if(!t || !wkHasLimit()) return '';
+  if(typeof isCommitmentTxn==='function' && isCommitmentTxn(t)) return '';
+  if(t.isPendingCuota || t.isPendingSubscription || (Number(t.amount)||0)<=0) return '';
+  const on=wkCountsInLimit(t.id);
+  return '<div class="mx-cap">Límite semanal</div>'
+    +'<div class="mx-card wk-tog-card"><div class="wk-tog-tx"><b>Cuenta en el límite semanal</b><span id="wk-tog-sub">'+(on?'Se suma a lo que gastaste en la semana':'No se suma: lo dejaste afuera')+'</span></div>'
+    +'<button class="wk-switch'+(on?' on':'')+'" role="switch" aria-checked="'+on+'" data-id="'+esc(String(t.id))+'" onclick="wkToggleFromTxn(this)"><i></i></button></div>';
+}
+function wkToggleFromTxn(btn){
+  const on=!btn.classList.contains('on');
+  btn.classList.toggle('on', on);
+  btn.setAttribute('aria-checked', String(on));
+  const sub=document.getElementById('wk-tog-sub');
+  if(sub) sub.textContent=on?'Se suma a lo que gastaste en la semana':'No se suma: lo dejaste afuera';
+  wkSetCounted(btn.dataset.id, on, true);
 }

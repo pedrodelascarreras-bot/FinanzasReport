@@ -209,6 +209,26 @@ eq([cel.includes('Hoy podés gastar'), cel.includes('Día por día'), cel.includ
 renderSemanaDesktop();
 eq(shellHtml('wk-desktop').includes('Límite semanal'), true, 'compu');
 
+// 9b) Un gasto grande (el préstamo de Mercado Pago sacado con la tarjeta) pregunta si cuenta
+state.weeklyLimit = { amount: 390000, startDate: '2026-11-16', endDate: '', excluded: [] };
+state.transactions = [tx('mp', '2026-11-17', 'visa', 1300000, { description: 'MERPAGO*PRESTAMO' }), tx('c1', '2026-11-17', 'visa', 30000)];
+w = wkCompute(HOY);
+eq([w.bigPending.map(e => e.id), w.status], [['mp'], 'over'], 'el gasto grande queda pendiente de confirmar');
+eq(wkBigAskHtml(w, true).includes('¿Este gasto entra en tu límite?'), true, 'pregunta si entra en el límite');
+wkSetCounted('mp', false, true);
+w = wkCompute(HOY);
+eq([w.spent, w.bigPending.length, w.status], [30000, 0, 'great'], 'No cuenta: queda afuera y deja de preguntar');
+wkSetCounted('mp', true, true);
+w = wkCompute(HOY);
+eq([w.spent, w.bigPending.length], [1330000, 0], 'Sí, cuenta: suma y no vuelve a preguntar');
+eq(stored().weeklyLimit.kept, ['mp'], 'se guarda lo que confirmaste');
+// Desde la hoja del movimiento
+const tog = wkTxnToggleHtml(state.transactions[0]);
+eq([tog.includes('Cuenta en el límite semanal'), tog.includes('wk-switch on')], [true, true], 'la hoja del movimiento tiene el interruptor');
+eq(wkTxnToggleHtml(tx('q9', '2026-11-17', 'visa', 1000, { cuotaNum: 1, cuotaGroupId: 'g' })), '', 'en una cuota no aparece');
+wkSetCounted('mp', false, true);
+eq(wkTxnToggleHtml(state.transactions[0]).includes('wk-switch on'), false, 'apagado si lo dejaste afuera');
+renderMobileSemana();
 // 10) Borrar el límite y empezar de nuevo
 eq(shellHtml('mob-week-shell').includes('Borrar este límite') && shellHtml('mob-week-shell').includes('Empezar un límite nuevo'), true, 'abajo están las opciones de empezar de nuevo y borrar');
 wkReset();

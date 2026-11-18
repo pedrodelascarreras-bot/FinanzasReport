@@ -659,6 +659,7 @@ function mxOpenTxn(id){
         +'<div id="mx-hero-cat">'+mxHeroCat(current)+'</div></div>'
       +'<div class="mx-cap">Nombre</div>'
       +'<div class="mx-card"><input class="mx-name" type="text" id="mx-txn-name" value="'+esc(t.description||'')+'" autocomplete="off" enterkeyhint="done" placeholder="Nombre del movimiento"></div>'
+      +(typeof wkTxnToggleHtml==='function'?wkTxnToggleHtml(t):'')
       +'<div class="mx-cap">Categoría</div>'
       +'<label class="mx-search">'+MX_SEARCH+'<input type="search" id="mx-cat-q" placeholder="Buscar categoría" autocomplete="off" oninput="mxFilterCats(this.value)"></label>'
       +'<div id="mx-cats">'+mxCategoryRows('',current,false)+'</div>'
