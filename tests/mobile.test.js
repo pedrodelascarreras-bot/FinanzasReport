@@ -108,7 +108,7 @@ delete store['fin_last_google_at'];
 state.transactions.push(tx('u', dia(-1), 'visa', 10, { currency: 'USD' }));
 renderMobileTransactions();
 const movs = shellHtml('mob-txn-shell');
-eq([/onclick="(?!openMobDrawer|mxImportGmail|mxConnectGoogle|mxOpenSettings|mxOpenTxn)/.test(movs), movs.includes('mxOpenTxn'), movs.includes('USD 10'), movs.includes('Gasto d')], [false, true, true, false], 'cada movimiento se abre; el débito no aparece');
+eq([/onclick="(?!openMobDrawer|mxImportGmail|mxConnectGoogle|mxOpenSettings|mxOpenTxn|acmOpen)/.test(movs), movs.includes('mxOpenTxn'), movs.includes('USD 10'), movs.includes('Gasto d')], [false, true, true, false], 'cada movimiento se abre; el débito no aparece');
 eq([movs.includes('mx-day'), movs.includes('USD 10'), /\$1\.000 \+ USD 10/.test(movs)], [true, true, true], 'total del día al lado de la fecha (pesos + dólares)');
 // Lo nuevo dice "Nuevo" (nunca "Procesando"); lo viejo sin categoría dice "Sin categoría"
 state.transactions.push(tx('n', dia(-1), 'visa', 700, { category: 'Procesando...', importedAt: new Date().toISOString() }));
@@ -192,6 +192,39 @@ eq(store['fin_local_edited_at'], undefined, 'actualizar el dólar o cambiar de v
 state.transactions.push(tx('b', dia(-1), 'visa', 500)); saveState();
 eq(typeof store['fin_local_edited_at'], 'string', 'un gasto nuevo sí');
 eq(stored().savedAt, store['fin_local_edited_at'], 'y lo guardado lleva esa fecha');
+
+// Categorizar solo desde el celular: solo los sin categoría del período de Movimientos
+getTcCycles = cycles;
+reset();
+state.transactions = [
+  tx('k1', dia(-30), 'visa', 1000, { description: 'Kiosco Pepe', category: 'Kiosco', estado_revision: 'confirmado_por_usuario' }),
+  tx('k2', dia(-25), 'visa', 1000, { description: 'Kiosco Pepe', category: 'Kiosco', estado_revision: 'confirmado_por_usuario' }),
+  tx('p1', dia(-1), 'visa', 500, { description: 'Kiosco Pepe', category: 'Procesando...' }),
+  tx('p2', dia(-2), 'amex', 700, { description: 'Algo raro XYZ', category: 'Procesando...' }),
+  tx('p3', dia(-40), 'visa', 900, { description: 'Kiosco Pepe', category: 'Procesando...' }),
+  tx('p4', dia(-1), 'deb', 300, { description: 'Kiosco Pepe', category: 'Procesando...' })
+];
+eq(acmPendingCount(), 2, 'cuenta los pendientes del período con tarjeta (no los viejos ni el débito)');
+renderMobileTransactions();
+eq([shellHtml('mob-txn-shell').includes('acmOpen()'), shellHtml('mob-txn-shell').includes('2 gastos sin categoría')], [true, true], 'Movimientos muestra el botón con la cantidad');
+let hojaAc = '';
+mxOpenSheet = function(html){ hojaAc = html; };
+acmOpen();
+eq(_acRows.map(r => [r.id, r.category, r.checked]), [['p1', 'Kiosco', true], ['p2', '', false]], 'sugerencia segura tildada; la desconocida sin sugerencia');
+eq([hojaAc.includes('Categorizar solo'), hojaAc.includes('Aplicar (1)'), hojaAc.includes('Elegir categoría')], [true, true, true], 'la hoja lista las sugerencias');
+_acm.row = 1; acmPick('Delivery');
+eq([_acRows[1].category, _acRows[1].checked, _acRows[1].edited], ['Delivery', true, true], 'elegir una categoría a mano la tilda');
+acmToggle(0);
+eq(_acRows[0].checked, false, 'tocar un gasto lo destilda');
+acmToggle(0);
+acmApply();
+eq([state.transactions.find(t => t.id === 'p1').category, state.transactions.find(t => t.id === 'p2').category, state.transactions.find(t => t.id === 'p3').category], ['Kiosco', 'Delivery', 'Procesando...'], 'aplica solo a los del período');
+eq(acmPendingCount(), 0, 'ya no quedan pendientes');
+renderMobileTransactions();
+eq(shellHtml('mob-txn-shell').includes('acmOpen()'), false, 'sin pendientes no aparece el botón');
+acmUndo();
+eq(state.transactions.find(t => t.id === 'p1').category, 'Procesando...', 'deshacer vuelve atrás');
+getTcCycles = _gtc;
 
 if (errs.length) print('console.error: ' + errs.slice(0, 3).join(' | '));
 if (failures) { print('✗ ' + failures + ' fallaron, ' + passed + ' pruebas OK'); throw new Error(failures + ' pruebas fallaron'); }

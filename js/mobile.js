@@ -304,6 +304,7 @@ function renderMobileTransactions(){
       +'<div class="mx-w full"><div class="mx-lb">Total del período · Visa + Amex</div><div class="mx-big">'+esc(mxMoney(totals.totalArs))+'</div><div class="mx-sub">'+esc(mxPeriodLabel(period))+'</div></div>'
       +'<div class="mx-w tint"><div class="mx-lb">En pesos</div><div class="mx-md">'+esc(mxMoney(totals.ars))+'</div></div>'
       +'<div class="mx-w soft"><div class="mx-lb">En dólares</div><div class="mx-md">'+esc(mxMoney(totals.usd,'USD'))+'</div></div>'
+      +(typeof acmWidgetHtml==='function'?acmWidgetHtml():'')
     +'</div>'
     +(list||mxSh('Hoy','',true)+'<div class="mx-list"><div class="mx-none">Todavía no hay gastos en este período</div></div>');
 }

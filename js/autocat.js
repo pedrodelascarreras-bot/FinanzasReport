@@ -106,13 +106,15 @@ function acCurrentPeriod(todayRef=new Date()){
   const mk=getMonthKey(todayRef), r=getMonthRange(mk);
   return {start:r.startStr, end:r.endStr, label:todayRef.toLocaleDateString('es-AR',{month:'long'})};
 }
-function acPendingSuggestions(){
+// opts.period: otro período ({start, end, label}); opts.card: solo esa tarjeta ('tarjetas', 'visa'…)
+function acPendingSuggestions(opts={}){
   const model=acBuildModel();
   const order={alta:0, media:1, baja:2, none:3};
-  const period=acCurrentPeriod();
+  const period=opts.period||acCurrentPeriod();
   _acPeriod=period;
   return (state.transactions||[]).filter(t=>{
     if(!acIsPending(t)) return false;
+    if(opts.card && typeof payMethodMatchesCard==='function' && !payMethodMatchesCard(t.payMethod, opts.card)) return false;
     const d=dateToYMD(new Date(t.date));
     return d>=period.start && d<=period.end;
   }).map(t=>{
@@ -334,4 +336,129 @@ function acPickerChoose(k){
   const row=_acPicker.row;
   acClosePicker();
   acSetCategory(row, o.cat);
+}
+
+
+// ══ CATEGORIZAR SOLO · CELULAR ══
+// Lo mismo que en la compu (mismas sugerencias, mismo aprendizaje), en una hoja del celular.
+// Solo los gastos sin categoría del período que muestra Movimientos (el ciclo de las tarjetas).
+let _acm={view:'list', row:-1, q:''};
+function acmPeriod(){
+  const p=typeof mxPeriod==='function'?mxPeriod():null;
+  if(!p) return acCurrentPeriod();
+  return {start:p.start, end:p.end, label:'período del '+mxShortDate(p.start)+' al '+mxShortDate(p.end)};
+}
+function acmPendingCount(){
+  const period=acmPeriod();
+  return (state.transactions||[]).filter(t=>{
+    if(!acIsPending(t) || !payMethodMatchesCard(t.payMethod,'tarjetas')) return false;
+    const d=dateToYMD(new Date(t.date));
+    return d>=period.start && d<=period.end;
+  }).length;
+}
+// Tarjeta del widget en Movimientos (solo si hay pendientes)
+function acmWidgetHtml(){
+  const n=acmPendingCount();
+  if(!n) return '';
+  return '<div class="mx-w full acm-w"><div class="acm-w-l"><div class="acm-w-ic">✦</div><div><div class="acm-w-t">'+n+' gasto'+(n===1?'':'s')+' sin categoría</div>'
+    +'<div class="mx-sub">Te sugerimos la de cada uno</div></div></div>'
+    +'<button class="mx-go" onclick="acmOpen()">Categorizar</button></div>';
+}
+function acmOpen(){
+  _acRows=acPendingSuggestions({period:acmPeriod(), card:'tarjetas'});
+  _acLastApplied=[];
+  _acm={view:'list', row:-1, q:''};
+  if(!_acRows.length){ showToast('✓ No hay gastos sin categoría en este período','success'); return; }
+  mxOpenSheet('<div id="acm-root">'+acmInner()+'</div>', 'mx-tall acm-sheet');
+}
+function acmRefresh(){ const r=document.getElementById('acm-root'); if(r) r.innerHTML=acmInner(); }
+function acmInner(){
+  if(_acLastApplied.length){
+    const n=_acLastApplied.length;
+    return '<div class="mx-nav"><span></span><button class="strong" onclick="mxDismissSheet()">Listo</button></div>'
+      +'<div class="acm-done"><div class="acm-done-ic">'+MX_CHECK+'</div>'
+      +'<div class="acm-done-t">'+n+' gasto'+(n===1?'':'s')+' categorizado'+(n===1?'':'s')+'</div>'
+      +'<div class="acm-done-s">La app también aprendió de los que cambiaste vos.</div>'
+      +'<button class="mx-del ghost acm-undo" onclick="acmUndo()">Deshacer</button></div>';
+  }
+  if(_acm.view==='pick') return acmPickerInner();
+  const n=_acRows.filter(r=>r.checked && r.category).length;
+  const withSug=_acRows.filter(r=>r.category).length;
+  const groups=[['alta','Seguras'],['media','Para revisar'],['baja','Dudosas'],['none','Sin sugerencia']];
+  return '<div class="mx-nav"><button onclick="mxDismissSheet()">Cancelar</button><strong class="acm-title">Categorizar solo</strong>'
+      +'<button class="strong" onclick="acmApply()" '+(n?'':'disabled')+'>Aplicar'+(n?' ('+n+')':'')+'</button></div>'
+    +'<div class="mx-sheet-scroll">'
+      +'<div class="acm-sum">Encontré categoría para <b>'+withSug+' de '+_acRows.length+'</b>. Tocá un gasto para tildarlo o destildarlo, y la categoría para cambiarla.</div>'
+      +'<div class="acm-all"><button onclick="acmCheckAll(true)">Tildar todos</button><button onclick="acmCheckAll(false)">Destildar todos</button></div>'
+      +groups.map(([conf,title])=>{
+        const idx=_acRows.map((r,i)=>i).filter(i=>_acRows[i].confidence===conf);
+        if(!idx.length) return '';
+        return '<div class="mx-cap acm-cap">'+title+' <span>'+idx.length+'</span></div><div class="mx-list sheet acm-list">'+idx.map(i=>acmRowHtml(i)).join('')+'</div>';
+      }).join('')
+    +'</div>';
+}
+function acmRowHtml(i){
+  const r=_acRows[i];
+  const t=(state.transactions||[]).find(x=>x.id===r.id); if(!t) return '';
+  const on=r.checked && !!r.category;
+  const m=r.category?mxCatMeta(r.category):null;
+  const chip=r.category
+    ?'<button class="acm-chip" style="background:'+esc(mxTint(m.color,18))+';color:'+esc(m.color)+'" onclick="event.stopPropagation();acmOpenPicker('+i+')">'+esc((m.emoji?m.emoji+' ':'')+r.category)+' ⌄</button>'
+    :'<button class="acm-chip none" onclick="event.stopPropagation();acmOpenPicker('+i+')">＋ Elegir categoría</button>';
+  const why=r.edited?'Elegida por vos':AC_CONF_LABEL[r.confidence]+(r.reason?' · '+r.reason:'');
+  return '<div class="mx-it tap acm-row'+(on?'':' off')+'" role="button" onclick="acmToggle('+i+')">'
+    +'<span class="acm-ck'+(on?' on':'')+'">'+(on?MX_CHECK.replace(/width="20" height="20"/,'width="14" height="14"'):'')+'</span>'
+    +'<div class="mx-tx"><div class="mx-t">'+esc(t.description||'Movimiento')+'</div>'
+      +'<div class="mx-s">'+esc(mxShortDate(t.date))+' · '+esc(mxMoney(t.amount,t.currency))+'</div>'
+      +'<div class="acm-chips">'+chip+'</div>'
+      +'<div class="acm-why">'+esc(why)+'</div></div></div>';
+}
+function acmToggle(i){
+  const r=_acRows[i]; if(!r) return;
+  if(!r.category){ acmOpenPicker(i); return; }
+  r.checked=!r.checked;
+  acmRefresh();
+}
+function acmCheckAll(on){ _acRows.forEach(r=>{ r.checked=!!on && !!r.category; }); acmRefresh(); }
+function acmOpenPicker(i){ _acm={view:'pick', row:i, q:''}; acmRefresh(); setTimeout(()=>document.getElementById('acm-q')?.focus(),60); }
+function acmClosePicker(){ _acm={view:'list', row:-1, q:''}; acmRefresh(); }
+function acmPickerInner(){
+  const r=_acRows[_acm.row];
+  const t=r?(state.transactions||[]).find(x=>x.id===r.id):null;
+  return '<div class="mx-nav"><button onclick="acmClosePicker()">‹ Volver</button><strong class="acm-title">Categoría</strong><span></span></div>'
+    +'<div class="acm-pick-for">'+esc(t?t.description:'')+'</div>'
+    +'<label class="mx-search">'+MX_SEARCH+'<input type="search" id="acm-q" placeholder="Buscar categoría" autocomplete="off" value="'+esc(_acm.q)+'" oninput="acmFilter(this.value)"></label>'
+    +'<div class="mx-sheet-scroll" id="acm-cats">'+acmCatRows(_acm.q, r?r.category:'')+'</div>';
+}
+function acmCatRows(query, current){
+  const q=mxNorm(query);
+  const cats=mxCatList().filter(c=>!q || mxNorm(c.name).includes(q) || mxNorm(c.group).includes(q));
+  if(!cats.length) return '<div class="mx-cempty">No hay categorías con “'+esc(query)+'”</div>';
+  const row=c=>'<button class="mx-crow'+(c.name===current?' on':'')+'" data-cat="'+esc(c.name)+'" onclick="acmPick(this.dataset.cat)">'
+    +'<span class="mx-cic" style="background:'+esc(mxTint(c.color,22))+';color:'+esc(c.color)+'">'+esc(c.emoji||'•')+'</span>'
+    +'<span class="mx-ctx"><b>'+esc(c.name)+'</b>'+(q?'<small>'+esc(c.group)+'</small>':'')+'</span>'
+    +'<span class="mx-ck" style="color:'+esc(c.color)+'">'+MX_CHECK+'</span></button>';
+  if(q) return '<div class="mx-cgroup">'+cats.map(row).join('')+'</div>';
+  const groups=new Map();
+  cats.forEach(c=>{ if(!groups.has(c.group)) groups.set(c.group,[]); groups.get(c.group).push(c); });
+  return [...groups.entries()].map(([g,list])=>'<div class="mx-ch">'+esc((list[0].emoji||'')+' '+g)+'</div><div class="mx-cgroup">'+list.map(row).join('')+'</div>').join('');
+}
+function acmFilter(q){ _acm.q=q; const box=document.getElementById('acm-cats'); if(box){ const r=_acRows[_acm.row]; box.innerHTML=acmCatRows(q, r?r.category:''); } }
+function acmPick(cat){
+  const i=_acm.row;
+  _acm={view:'list', row:-1, q:''};
+  acSetCategory(i, cat); // también la propone para los otros gastos del mismo comercio
+  acmRefresh();
+}
+function acmApply(){
+  if(!_acRows.some(r=>r.checked && r.category)) return;
+  acApply();
+  acmRefresh();
+  if(typeof renderMobileTransactions==='function') renderMobileTransactions();
+  if(navigator.vibrate) try{ navigator.vibrate(10); }catch(_){}
+}
+function acmUndo(){
+  acUndo();
+  mxDismissSheet();
+  if(typeof renderMobileTransactions==='function') renderMobileTransactions();
 }

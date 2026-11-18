@@ -1,77 +1,107 @@
 // ══ LÍMITE SEMANAL ══
 // Un número para mirar todos los días: cuánto te queda para gastar esta semana. Vos ponés el
-// límite y el día en que arranca la semana; la app cuenta solo el gasto del día a día (todos
-// los medios de pago: tarjetas, débito y efectivo), sin cuotas, suscripciones ni gastos fijos,
-// que ya están comprometidos. Se actualiza solo con cada movimiento nuevo.
-// Además: cuánto podés gastar hoy para llegar, cómo venís contra el ritmo de la semana, el
-// gasto día por día, las semanas anteriores (y cuántas seguidas cumpliste) y consejos con tus
-// números (reglas, sin IA). Un movimiento se puede dejar afuera del límite (una compra
-// planeada, un pago que no es del día a día) tocándolo en la lista.
+// límite, la fecha en que arranca (por ejemplo, el día que abre la tarjeta) y, si querés, la
+// fecha en que termina. Las semanas son bloques de 7 días desde la fecha de arranque; si la
+// última queda más corta, su límite es proporcional a los días que tiene.
+// Cuenta solo el gasto del día a día (tarjetas, débito y efectivo), sin cuotas, suscripciones,
+// gastos fijos ni pagos de "Camino a cero", que ya están comprometidos. Se actualiza sola.
+// Además recomienda un límite para el resumen actual o el próximo: tu ingreso del mes menos
+// lo que ya está comprometido en ese período, repartido por semana.
 //
-// Datos: state.weeklyLimit = {amount, weekStart (0 dom … 6 sáb), excluded:[ids]}
+// Datos: state.weeklyLimit = {amount, startDate 'YYYY-MM-DD', endDate 'YYYY-MM-DD' | '', excluded:[ids]}
 
 const WK_DAY_SHORT=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
 const WK_DAY_LONG=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
 const WK_DAY_LETTER=['D','L','M','M','J','V','S'];
 const WK_HISTORY_WEEKS=8;
 
+// ── Fechas ──
+function wkNoon(d){ const x=d instanceof Date?new Date(d):new Date(String(d).slice(0,10)+'T12:00:00'); x.setHours(12,0,0,0); return x; }
+function wkAddDays(d, n){ const x=wkNoon(d); x.setDate(x.getDate()+n); return x; }
+function wkAddMonth(d){ const x=wkNoon(d); x.setMonth(x.getMonth()+1); return x; }
+function wkDiffDays(a, b){ return Math.round((wkNoon(b)-wkNoon(a))/86400000); }
+function wkValidYmd(v){ return /^\d{4}-\d{2}-\d{2}$/.test(String(v||'')) && !Number.isNaN(wkNoon(v).getTime()); }
+function wkMoney(n){ return '$'+Math.round(Number(n)||0).toLocaleString('es-AR'); }
+function wkDayMonth(d){ return wkNoon(d).toLocaleDateString('es-AR',{day:'numeric',month:'short'}).replace('.',''); }
+function wkDayLabel(d){ const x=wkNoon(d); return WK_DAY_SHORT[x.getDay()]+' '+wkDayMonth(x); }
+
 // ── Estado ──
 function wkConfig(){
   const c=state.weeklyLimit;
   if(!c || typeof c!=='object') return null;
   if(!Array.isArray(c.excluded)) c.excluded=[];
-  if(!(Number(c.weekStart)>=0 && Number(c.weekStart)<=6)) c.weekStart=1;
+  // Versión anterior: solo el día de la semana. Se pasa a una fecha: el último de ese día.
+  if(!wkValidYmd(c.startDate)){
+    const day=Number(c.weekStart)>=0 && Number(c.weekStart)<=6 ? Number(c.weekStart) : 1;
+    const t=wkNoon(new Date());
+    c.startDate=dateToYMD(wkAddDays(t, -((t.getDay()-day+7)%7)));
+  }
+  if(c.endDate && (!wkValidYmd(c.endDate) || c.endDate<c.startDate)) c.endDate='';
   return c;
 }
 function wkHasLimit(){ const c=wkConfig(); return !!(c && Number(c.amount)>0); }
-function wkSetLimit(amount, weekStart){
+function wkSetLimit(amount, startDate, endDate){
   const prev=wkConfig()||{};
-  state.weeklyLimit={amount:Math.round(Number(amount)||0), weekStart:Number(weekStart)||0, excluded:prev.excluded||[], updatedAt:new Date().toISOString()};
+  state.weeklyLimit={amount:Math.round(Number(amount)||0), startDate, endDate:endDate||'', excluded:prev.excluded||[], updatedAt:new Date().toISOString()};
   saveState();
 }
-// Un tope de partida si todavía no pusiste uno: el de "Camino a cero" llevado a 7 días
-function wkSuggestedLimit(){
-  const cap=Number(state.caminoPlan && state.caminoPlan.livingCapArs)||0;
-  return cap>0 ? Math.round(cap*7/30/1000)*1000 : 0;
-}
-
-// ── Fechas ──
-function wkNoon(d){ const x=new Date(d); x.setHours(12,0,0,0); return x; }
-function wkAddDays(d, n){ const x=wkNoon(d); x.setDate(x.getDate()+n); return x; }
-function wkWeekStartOf(date, startDay){
-  const d=wkNoon(date);
-  return wkAddDays(d, -((d.getDay()-startDay+7)%7));
-}
-function wkMoney(n){ return '$'+Math.round(Number(n)||0).toLocaleString('es-AR'); }
-function wkDayMonth(d){ return d.toLocaleDateString('es-AR',{day:'numeric',month:'short'}).replace('.',''); }
 
 // ── Gasto del día a día ──
-// Movimientos reales de cualquier medio de pago, sin compromisos ni los que dejaste afuera.
+// Pagos de "Camino a cero" (préstamos, deudas) ya están comprometidos: no cuentan.
+function wkIsPlanTxn(e){
+  if(typeof czIsPlanEntry!=='function' || typeof czLinkedSets!=='function' || !state.caminoPlan) return false;
+  try{ return czIsPlanEntry(e, czLinkedSets()); }catch(_){ return false; }
+}
+// Movimientos reales de cualquier medio de pago, sin compromisos; marca los que dejaste afuera.
 function wkEntries(startStr, endStr){
   if(typeof getPeriodExpenseEntries!=='function') return [];
   const c=wkConfig();
   const excluded=new Set((c && c.excluded||[]).map(String));
+  const rate=typeof _periodUsdRate==='function'?_periodUsdRate():1;
   return getPeriodExpenseEntries({startStr, endStr, includeProjected:false})
-    .filter(e=>!(typeof isCommitmentTxn==='function' && isCommitmentTxn(e.txn)))
-    .map(e=>{
-      const rate=typeof _periodUsdRate==='function'?_periodUsdRate():1;
-      return Object.assign({}, e, {ars:(Number(e.amount)||0)*((e.currency||'ARS')==='USD'?rate:1), excluded:excluded.has(String(e.id))});
-    });
+    .filter(e=>!(typeof isCommitmentTxn==='function' && isCommitmentTxn(e.txn)) && !wkIsPlanTxn(e))
+    .map(e=>Object.assign({}, e, {ars:(Number(e.amount)||0)*((e.currency||'ARS')==='USD'?rate:1), excluded:excluded.has(String(e.id))}));
 }
 function wkSum(entries){ return entries.filter(e=>!e.excluded).reduce((s,e)=>s+e.ars,0); }
+
+// ── Semanas del objetivo ──
+// Semana n (desde 0): arranca en startDate + 7n; la última se corta en endDate.
+function wkWeekAt(c, n){
+  const s=wkAddDays(c.startDate, 7*n);
+  let e=wkAddDays(s, 6);
+  if(c.endDate && dateToYMD(e)>c.endDate) e=wkNoon(c.endDate);
+  const days=wkDiffDays(s,e)+1;
+  return {n, start:s, end:e, startStr:dateToYMD(s), endStr:dateToYMD(e), days, limit:Number(c.amount)*days/7};
+}
+function wkWeekCount(c){ return c.endDate ? Math.floor(wkDiffDays(c.startDate, c.endDate)/7)+1 : null; }
 
 // ── Todo lo que muestra la pantalla, en un solo cálculo ──
 function wkCompute(todayRef){
   const c=wkConfig();
   if(!c || !(Number(c.amount)>0)) return null;
   const today=wkNoon(todayRef||new Date());
-  const limit=Number(c.amount);
-  const startDay=Number(c.weekStart)||0;
-  const start=wkWeekStartOf(today, startDay);
-  const end=wkAddDays(start, 6);
-  const todayStr=dateToYMD(today), startStr=dateToYMD(start), endStr=dateToYMD(end);
-  const dayIdx=Math.round((today-start)/86400000)+1; // 1…7
-  const daysLeft=8-dayIdx; // con hoy
+  const todayStr=dateToYMD(today);
+  const total=wkWeekCount(c);
+  const base={amount:Number(c.amount), startDate:c.startDate, endDate:c.endDate||'', totalWeeks:total, todayStr};
+
+  // Todavía no arrancó
+  if(todayStr<c.startDate){
+    return Object.assign(base, {phase:'upcoming', daysToStart:wkDiffDays(today, c.startDate), first:wkWeekAt(c,0)});
+  }
+  // Ya terminó: resumen del objetivo
+  if(c.endDate && todayStr>c.endDate){
+    const weeks=[];
+    for(let n=0;n<total;n++){ const wk=wkWeekAt(c,n); const sp=wkSum(wkEntries(wk.startStr, wk.endStr)); weeks.push(Object.assign(wk,{spent:sp, met:sp<=wk.limit})); }
+    const spent=weeks.reduce((a,w)=>a+w.spent,0), limit=weeks.reduce((a,w)=>a+w.limit,0);
+    return Object.assign(base, {phase:'ended', weeks, spent, limit, met:weeks.filter(w=>w.met).length});
+  }
+
+  const n=Math.floor(wkDiffDays(c.startDate, today)/7);
+  const wk=wkWeekAt(c,n);
+  const limit=wk.limit;
+  const start=wk.start, end=wk.end, startStr=wk.startStr, endStr=wk.endStr;
+  const dayIdx=wkDiffDays(start, today)+1;
+  const daysLeft=wk.days-dayIdx+1; // con hoy
 
   const entries=wkEntries(startStr, endStr).filter(e=>dateToYMD(e.date)<=todayStr);
   const counted=entries.filter(e=>!e.excluded);
@@ -82,75 +112,157 @@ function wkCompute(todayRef){
   // Hoy: lo que quedaba al empezar el día, repartido entre los días que faltan
   const todayBudget=Math.max(0, limit-spentBefore)/daysLeft;
   const todayLeft=todayBudget-spentToday;
-  // Desde mañana: lo que queda repartido entre los días que faltan después de hoy
   const perDayAfter=daysLeft>1 ? Math.max(0,left)/(daysLeft-1) : 0;
   const perDayNow=Math.max(0,left)/daysLeft;
-  const ideal=limit*dayIdx/7;
+  const ideal=limit*dayIdx/wk.days;
   const pct=limit?spent/limit*100:0;
-  const pctTime=dayIdx/7*100;
-  const projection=dayIdx>=2 ? spent/dayIdx*7 : null;
+  const pctTime=dayIdx/wk.days*100;
+  const projection=dayIdx>=2 ? spent/dayIdx*wk.days : null;
 
   let status='ok';
   if(spent>limit) status='over';
   else if(spent>ideal*1.05) status='warn';
   else if(spent<=ideal*0.7) status='great';
 
-  // Día por día
-  const dailyTarget=limit/7;
+  const dailyTarget=limit/wk.days;
   const days=[];
-  for(let i=0;i<7;i++){
+  for(let i=0;i<wk.days;i++){
     const d=wkAddDays(start,i); const ymd=dateToYMD(d);
-    const v=wkSum(entries.filter(e=>dateToYMD(e.date)===ymd));
-    days.push({ymd, date:d, letter:WK_DAY_LETTER[d.getDay()], short:WK_DAY_SHORT[d.getDay()], spent:v, isToday:ymd===todayStr, isFuture:ymd>todayStr});
+    days.push({ymd, date:d, letter:WK_DAY_LETTER[d.getDay()], short:WK_DAY_SHORT[d.getDay()], spent:wkSum(entries.filter(e=>dateToYMD(e.date)===ymd)), isToday:ymd===todayStr, isFuture:ymd>todayStr});
   }
 
-  // Categorías de la semana
   const byCat=new Map();
   counted.forEach(e=>{ const k=(!e.category||e.category==='Procesando...'||e.category==='Uncategorized')?'Sin categoría':e.category; byCat.set(k,(byCat.get(k)||0)+e.ars); });
   const cats=[...byCat.entries()].sort((a,b)=>b[1]-a[1]).map(([cat,v])=>({cat,v}));
 
-  // La semana pasada hasta el mismo día
+  // Los 7 días anteriores hasta el mismo día, para comparar
   const prevStart=wkAddDays(start,-7);
   const prevSameDay=wkSum(wkEntries(dateToYMD(prevStart), dateToYMD(wkAddDays(prevStart,dayIdx-1))));
 
-  // Semanas anteriores (con el límite de hoy) y racha de semanas cumplidas
+  // Semanas anteriores de este objetivo y racha de semanas cumplidas
   const history=[];
-  for(let w=1; w<=WK_HISTORY_WEEKS; w++){
-    const s=wkAddDays(start,-7*w), e=wkAddDays(s,6);
-    const all=wkEntries(dateToYMD(s), dateToYMD(e));
-    history.push({start:s, end:e, spent:wkSum(all), count:all.length, met:wkSum(all)<=limit});
+  for(let k=n-1; k>=0 && history.length<WK_HISTORY_WEEKS; k--){
+    const h=wkWeekAt(c,k);
+    const sp=wkSum(wkEntries(h.startStr, h.endStr));
+    history.push(Object.assign(h,{spent:sp, met:sp<=h.limit}));
   }
-  // Solo semanas con movimientos: antes de usar la app no hay con qué comparar
-  const firstTxn=(state.transactions||[]).reduce((m,t)=>{ const y=dateToYMD(t.date); return !m||y<m?y:m; }, '');
-  const historyKnown=history.filter(h=>firstTxn && dateToYMD(h.end)>=firstTxn);
-  let streak=0; for(const h of historyKnown){ if(h.met) streak++; else break; }
+  let streak=0; for(const h of history){ if(h.met) streak++; else break; }
 
-  // Días seguidos sin gastar, hasta hoy (hoy cuenta si todavía no gastaste)
   let zeroDays=0;
   for(let i=dayIdx-1;i>=0;i--){ if(days[i].spent<=0) zeroDays++; else break; }
-
   const biggest=counted.slice().sort((a,b)=>b.ars-a.ars)[0]||null;
 
-  return {limit, startDay, start, end, startStr, endStr, todayStr, dayIdx, daysLeft, spent, spentToday, spentBefore, left,
-    todayBudget, todayLeft, perDayAfter, perDayNow, ideal, pct, pctTime, projection, status, days, dailyTarget, cats,
-    prevSameDay, history:historyKnown, streak, zeroDays, biggest, entries:entries.slice().sort((a,b)=>new Date(b.date)-new Date(a.date))};
+  return Object.assign(base, {phase:'active', weekNum:n+1, limit, weekDays:wk.days, start, end, startStr, endStr, dayIdx, daysLeft,
+    spent, spentToday, spentBefore, left, todayBudget, todayLeft, perDayAfter, perDayNow, ideal, pct, pctTime, projection, status,
+    days, dailyTarget, cats, prevSameDay, history, streak, zeroDays, biggest, isLastWeek:!!(total && n+1>=total),
+    entries:entries.slice().sort((a,b)=>new Date(b.date)-new Date(a.date))});
+}
+
+// ── Límite recomendado ──
+// Ingreso del mes menos lo comprometido en el período del resumen (cuotas, suscripciones,
+// gastos fijos y pagos de "Camino a cero"), repartido por semana. En el resumen actual se
+// descuenta además lo que ya gastaste y se reparte entre los días que faltan.
+function wkMonthlyIncome(){
+  const rate=typeof _periodUsdRate==='function'?_periodUsdRate():1;
+  const months=(state.incomeMonths||[]).slice().sort((a,b)=>String(b.month).localeCompare(String(a.month)));
+  if(months.length && typeof getMonthTotalCombined==='function'){
+    const v=getMonthTotalCombined(months[0]);
+    if(v>0) return {ars:v, source:'Ingreso: '+(typeof fmtMonthLabel==='function'?fmtMonthLabel(months[0].month):months[0].month)};
+  }
+  const usd=Number(state.caminoPlan && state.caminoPlan.salaryUsd)||0;
+  if(usd>0) return {ars:usd*rate, source:'Ingreso: sueldo de Camino a cero'};
+  return {ars:0, source:''};
+}
+// Los períodos de la tarjeta principal (la Visa; si no hay, las dos juntas; si no, el mes)
+function wkCyclePeriods(todayRef){
+  const today=dateToYMD(wkNoon(todayRef||new Date()));
+  let list=[];
+  try{
+    for(const mode of ['visa','tarjetas']){
+      const cycles=(typeof getTcCycles==='function'?getTcCycles(mode):[])||[];
+      list=cycles.map((cy,i)=>({open:getTcCycleOpen(cycles,i), close:cy.closeDate})).filter(p=>p.open&&p.close)
+        .sort((a,b)=>a.close.localeCompare(b.close));
+      if(list.some(p=>today>=p.open && today<=p.close)) break;
+    }
+  }catch(_){ list=[]; }
+  const cur=list.find(p=>today>=p.open && today<=p.close);
+  if(cur){
+    const next=list.find(p=>p.open>cur.close)
+      || {open:dateToYMD(wkAddDays(cur.close,1)), close:dateToYMD(wkAddMonth(cur.close))};
+    return {current:cur, next, byCard:true};
+  }
+  const r=getMonthRange(getMonthKey(wkNoon(today)));
+  const r2=getMonthRange(getMonthKey(wkAddDays(r.endStr,1)));
+  return {current:{open:r.startStr, close:r.endStr}, next:{open:r2.startStr, close:r2.endStr}, byCard:false};
+}
+function wkCommitmentsInRange(startStr, endStr){
+  const rate=typeof _periodUsdRate==='function'?_periodUsdRate():1;
+  const toArs=(a,cur)=>(Number(a)||0)*((cur||'ARS')==='USD'?rate:1);
+  const out={cuotas:0, suscripciones:0, fijos:0, plan:0, items:[]};
+  const add=(group, name, ars, date)=>{ if(!(ars>0)) return; out[group]+=ars; out.items.push({group, name, ars, date}); };
+  const links=(typeof czLinkedSets==='function' && state.caminoPlan)?czLinkedSets():null;
+  // Cobros reales que ya entraron (cuotas, suscripciones, fijos)
+  (state.transactions||[]).forEach(t=>{
+    if(!t || t.isPendingCuota || t.isPendingSubscription) return;
+    const y=dateToYMD(t.date); if(y<startStr || y>endStr) return;
+    if(links && wkIsPlanTxn({txn:t})) return;
+    if(typeof isCommitmentTxn!=='function' || !isCommitmentTxn(t)) return;
+    const group=(t.cuotaNum||t.cuotaGroupId)?'cuotas':t.sourceSubscriptionId?'suscripciones':'fijos';
+    add(group, t.description||'', toArs(t.amount,t.currency), y);
+  });
+  // Los que todavía no se cobraron
+  if(typeof getProjectedCommitmentEntriesForRange==='function'){
+    getProjectedCommitmentEntriesForRange({startStr, endStr, txns:state.transactions||[]}).forEach(e=>{
+      if(!['cuotas','suscripciones','fijos'].includes(e.group)) return;
+      if(links && (links.groups.has(e.cuotaGroupId) || links.fixed.has(e.sourceFixedId))) return;
+      add(e.group, e.title||'', toArs(e.personalAmount!=null?e.personalAmount:e.amount, e.currency), dateToYMD(e.date));
+    });
+  }
+  // Pagos de "Camino a cero" (préstamos y deudas) que caen en el período
+  if(state.caminoPlan && typeof czSchedule==='function' && typeof czPlan==='function'){
+    czPlan().items.filter(i=>i.status!=='esperando' && i.status!=='pagado').forEach(item=>{
+      czSchedule(item).forEach(s=>{ const y=dateToYMD(s.date); if(y>=startStr && y<=endStr) add('plan', item.name||'', toArs(s.amount,s.currency), y); });
+    });
+  }
+  out.total=out.cuotas+out.suscripciones+out.fijos+out.plan;
+  return out;
+}
+function wkRecommend(which, todayRef){
+  const today=wkNoon(todayRef||new Date());
+  const periods=wkCyclePeriods(today);
+  const p=which==='current'?periods.current:periods.next;
+  const income=wkMonthlyIncome();
+  const com=wkCommitmentsInRange(p.open, p.close);
+  let startStr=p.open, spent=0;
+  if(which==='current'){
+    startStr=dateToYMD(today);
+    const before=dateToYMD(wkAddDays(today,-1));
+    spent=before>=p.open?wkSum(wkEntries(p.open, before)):0;
+  }
+  const days=wkDiffDays(startStr, p.close)+1;
+  const weeks=days/7;
+  const available=income.ars-com.total-spent;
+  const raw=weeks>0?available/weeks:0;
+  const weekly=raw>0?Math.floor(raw/5000)*5000:0;
+  return {which, open:p.open, close:p.close, startStr, endStr:p.close, days, weeks, byCard:periods.byCard,
+    income:income.ars, incomeSource:income.source, commitments:com, spent, available, weekly, raw};
 }
 
 // ── Consejos: los más importantes primero, como mucho cuatro ──
 function wkInsights(w){
-  if(!w) return [];
+  if(!w || w.phase!=='active') return [];
   const out=[];
   const endName=WK_DAY_LONG[w.end.getDay()];
-  const nextStartName=WK_DAY_LONG[w.startDay];
+  const nextName=WK_DAY_LONG[wkAddDays(w.end,1).getDay()];
   if(w.status==='over'){
     out.push({tone:'bad', icon:'✋', title:'Te pasaste '+wkMoney(-w.left)+' del límite',
-      text:'Lo mejor es no gastar más hasta el '+nextStartName+', que arranca una semana nueva. Lo que no gastes de acá al '+endName+' te ayuda a no repetirlo.'});
+      text:w.isLastWeek?'Es la última semana del objetivo: lo mejor es no gastar más hasta el '+endName+'.'
+        :'Lo mejor es no gastar más hasta el '+nextName+', que arranca una semana nueva.'});
   } else if(w.status==='warn'){
     out.push({tone:'warn', icon:'⚡', title:'Vas más rápido que el plan',
-      text:'Es el día '+w.dayIdx+' de 7 y ya usaste el '+Math.round(w.pct)+'%. Para llegar, no pases de '+wkMoney(w.daysLeft>1?w.perDayAfter:w.perDayNow)+' por día'+(w.daysLeft>1?' desde mañana':'')+'.'});
+      text:'Es el día '+w.dayIdx+' de '+w.weekDays+' y ya usaste el '+Math.round(w.pct)+'%. Para llegar, no pases de '+wkMoney(w.daysLeft>1?w.perDayAfter:w.perDayNow)+' por día'+(w.daysLeft>1?' desde mañana':'')+'.'});
   } else if(w.spent<=0 && w.dayIdx>=2){
-    out.push({tone:'good', icon:'🌱', title:'Día '+w.dayIdx+' y todavía no gastaste nada',
-      text:'Excelente. Así se arma una semana con margen.'});
+    out.push({tone:'good', icon:'🌱', title:'Día '+w.dayIdx+' y todavía no gastaste nada', text:'Excelente. Así se arma una semana con margen.'});
   } else if(w.status==='great'){
     const spare=w.projection!=null ? w.limit-w.projection : w.left;
     out.push({tone:'good', icon:'🎯', title:'Vas muy bien',
@@ -159,15 +271,11 @@ function wkInsights(w){
     out.push({tone:'info', icon:'✓', title:'Vas en ritmo',
       text:'Te quedan '+wkMoney(w.left)+' para '+(w.daysLeft===1?'hoy, el último día':w.daysLeft+' días, contando hoy')+'. Mantené este ritmo y llegás bien.'});
   }
-  // Un gasto que se llevó una parte grande del límite
   if(w.biggest && w.biggest.ars>=w.limit*0.25 && w.status!=='over'){
     out.push({tone:'warn', icon:'💸', title:'Un gasto se llevó el '+Math.round(w.biggest.ars/w.limit*100)+'% del límite',
       text:(w.biggest.description||'Un movimiento')+': '+wkMoney(w.biggest.ars)+'. Si fue algo planeado, tocalo en la lista para dejarlo afuera.'});
   }
-  if(w.zeroDays>=2 && w.spent>0){
-    out.push({tone:'good', icon:'🔥', title:w.zeroDays+' días seguidos sin gastar', text:'Seguí así: cada día sin gastos te deja más margen para el resto de la semana.'});
-  }
-  // Contra la semana pasada a esta altura
+  if(w.zeroDays>=2 && w.spent>0) out.push({tone:'good', icon:'🔥', title:w.zeroDays+' días seguidos sin gastar', text:'Seguí así: cada día sin gastos te deja más margen para el resto de la semana.'});
   if(w.prevSameDay>0 && w.dayIdx>=2){
     const diff=w.spent-w.prevSameDay;
     if(Math.abs(diff)>=w.limit*0.05){
@@ -176,7 +284,6 @@ function wkInsights(w){
         : {tone:'warn', icon:'📈', title:'Gastás más que la semana pasada', text:'A esta altura llevabas '+wkMoney(w.prevSameDay)+'. Hoy vas '+wkMoney(diff)+' arriba.'});
     }
   }
-  // Lo que más pesa
   if(w.cats.length && w.spent>0){
     const top=w.cats[0];
     out.push({tone:'info', icon:'🔎', title:'Lo que más pesa: '+top.cat, text:wkMoney(top.v)+', el '+Math.round(top.v/w.spent*100)+'% de lo que gastaste esta semana.'});
@@ -186,22 +293,22 @@ function wkInsights(w){
 }
 
 // ── Piezas comunes ──
-function wkStatusLabel(w){
-  return {over:'Te pasaste', warn:'Más rápido que el plan', great:'Vas muy bien', ok:'En ritmo'}[w.status];
-}
-function wkStatusColor(status){
-  return {over:'#E5383B', warn:'#E8730C', great:'#169C4B', ok:'#169C4B'}[status]||'#169C4B';
-}
-// Barra de la semana: lo gastado y una marca de dónde "deberías" estar hoy
+function wkStatusLabel(w){ return {over:'Te pasaste', warn:'Más rápido que el plan', great:'Vas muy bien', ok:'En ritmo'}[w.status]; }
+function wkStatusColor(status){ return {over:'#E5383B', warn:'#E8730C', great:'#169C4B', ok:'#169C4B'}[status]||'#169C4B'; }
 function wkProgressHtml(w, cls){
-  const used=Math.min(100, w.pct);
-  return '<div class="'+cls+'"><i style="width:'+used.toFixed(1)+'%;background:'+wkStatusColor(w.status)+'"></i>'
+  return '<div class="'+cls+'"><i style="width:'+Math.min(100,w.pct).toFixed(1)+'%;background:'+wkStatusColor(w.status)+'"></i>'
     +'<em style="left:'+Math.min(100,w.pctTime).toFixed(1)+'%" title="Hoy"></em></div>';
+}
+function wkShort(n){
+  n=Math.round(n);
+  if(n>=1000000) return '$'+(n/1000000).toFixed(n>=10000000?0:1).replace('.',',')+'M';
+  if(n>=1000) return '$'+Math.round(n/1000)+'k';
+  return '$'+n;
 }
 function wkDaysChartHtml(w, cls){
   const max=Math.max(w.dailyTarget*1.6, ...w.days.map(d=>d.spent), 1);
   const line=(w.dailyTarget/max*100).toFixed(1);
-  return '<div class="'+cls+'"><div class="wk-bars" role="img" aria-label="Gasto de cada día de la semana contra el promedio diario del límite">'
+  return '<div class="'+cls+'"><div class="wk-bars" style="grid-template-columns:repeat('+w.days.length+',1fr)" role="img" aria-label="Gasto de cada día de la semana contra el promedio diario del límite">'
     +w.days.map(d=>{
       const h=d.isFuture?0:Math.max(d.spent>0?4:0, d.spent/max*100);
       const color=d.spent>w.dailyTarget?'#E8730C':'var(--wk-c)';
@@ -212,13 +319,9 @@ function wkDaysChartHtml(w, cls){
     }).join('')
     +'</div><div class="wk-bars-foot"><span><i class="wk-dash"></i>Promedio por día: '+esc(wkMoney(w.dailyTarget))+'</span></div></div>';
 }
-function wkShort(n){
-  n=Math.round(n);
-  if(n>=1000000) return '$'+(n/1000000).toFixed(n>=10000000?0:1).replace('.',',')+'M';
-  if(n>=1000) return '$'+Math.round(n/1000)+'k';
-  return '$'+n;
-}
-function wkRangeLabel(w){ return WK_DAY_SHORT[w.start.getDay()]+' '+wkDayMonth(w.start)+' al '+WK_DAY_SHORT[w.end.getDay()]+' '+wkDayMonth(w.end); }
+function wkRangeLabel(w){ return wkDayLabel(w.start)+' al '+wkDayLabel(w.end); }
+function wkObjectiveLabel(w){ return 'Desde el '+wkDayLabel(w.startDate)+(w.endDate?' hasta el '+wkDayLabel(w.endDate):', sin fecha de fin'); }
+function wkWeekTag(w){ return 'Semana '+w.weekNum+(w.totalWeeks?' de '+w.totalWeeks:''); }
 
 // ── Pantalla ──
 function renderSemanaPage(){
@@ -227,19 +330,46 @@ function renderSemanaPage(){
 }
 
 // ══ Celular ══
+function wkMobileEmpty(){
+  const r=wkRecommend('next');
+  return mxBand('Semana')
+    +'<div class="mx-grid"><div class="mx-w full mx-empty wk-empty">'
+      +'<div class="wk-empty-ic">🎯</div>'
+      +'<div class="mx-md">Poné tu límite semanal</div>'
+      +'<div class="mx-sub">Elegís cuánto querés gastar por semana en el día a día, desde qué fecha y, si querés, hasta cuándo. Te vamos diciendo cuánto te queda, cuánto podés gastar hoy y cómo venís. Las cuotas, suscripciones y gastos fijos no cuentan: ya están comprometidos.</div>'
+      +(r.weekly>0?'<div class="wk-rec-mini">Para tu próximo resumen te recomendamos <b>'+esc(wkMoney(r.weekly))+'</b> por semana</div>':'')
+      +'<button class="mx-go wide" onclick="wkOpenEditor()">Poner límite</button>'
+    +'</div></div>';
+}
 function renderMobileSemana(){
   const shell=document.getElementById('mob-week-shell');
   if(!shell || typeof mxIsMobile!=='function' || !mxIsMobile()) return;
   if(typeof mxSyncThemeColor==='function') mxSyncThemeColor();
   const w=wkCompute();
-  if(!w){
+  if(!w){ shell.innerHTML=wkMobileEmpty(); return; }
+  const chip='<button class="wk-chip" onclick="wkOpenEditor()" aria-label="Cambiar límite">'+esc(wkShort(w.amount))+' / sem ✎</button>';
+  if(w.phase==='upcoming'){
     shell.innerHTML=mxBand('Semana')
-      +'<div class="mx-grid"><div class="mx-w full mx-empty wk-empty">'
-        +'<div class="wk-empty-ic">🎯</div>'
-        +'<div class="mx-md">Poné tu límite semanal</div>'
-        +'<div class="mx-sub">Elegís cuánto querés gastar por semana en el día a día y te vamos diciendo cuánto te queda, cuánto podés gastar hoy y cómo venís. Las cuotas, suscripciones y gastos fijos no cuentan: ya están comprometidos.</div>'
-        +'<button class="mx-go wide" onclick="wkOpenEditor()">Poner límite</button>'
-      +'</div></div>';
+      +'<div class="mx-grid"><div class="mx-w full wk-hero">'
+        +'<div class="wk-hero-top"><div class="mx-lb">Tu límite arranca '+(w.daysToStart===1?'mañana':'en '+w.daysToStart+' días')+'</div>'+chip+'</div>'
+        +'<div class="mx-big wk-amt">'+esc(wkMoney(w.first.limit))+'</div>'
+        +'<div class="mx-sub">Primera semana: '+esc(wkDayLabel(w.first.start))+' al '+esc(wkDayLabel(w.first.end))+'</div>'
+        +'<div class="wk-obj">'+esc(wkObjectiveLabel(w))+(w.totalWeeks?' · '+w.totalWeeks+' semana'+(w.totalWeeks===1?'':'s'):'')+'</div>'
+      +'</div></div>'
+      +'<div class="wk-foot">Hasta entonces no cuenta nada. Podés cambiar el monto o las fechas tocando el límite.</div>';
+    return;
+  }
+  if(w.phase==='ended'){
+    shell.innerHTML=mxBand('Semana')
+      +'<div class="mx-grid"><div class="mx-w full wk-hero">'
+        +'<div class="wk-hero-top"><div class="mx-lb">Terminó tu objetivo</div>'+chip+'</div>'
+        +'<div class="mx-big wk-amt">'+w.met+' de '+w.weeks.length+'</div>'
+        +'<div class="mx-sub">semanas cumplidas · gastaste '+esc(wkMoney(w.spent))+' de '+esc(wkMoney(w.limit))+'</div>'
+        +'<div class="wk-obj">'+esc(wkObjectiveLabel(w))+'</div>'
+        +'<button class="mx-go wide" onclick="wkOpenEditor(true)">Nuevo objetivo</button>'
+      +'</div></div>'
+      +mxSh('Cómo te fue', '', true)
+      +'<div class="mx-list">'+w.weeks.slice().reverse().map(h=>wkHistItem(h)).join('')+'</div>';
     return;
   }
   const over=w.left<0;
@@ -248,12 +378,12 @@ function renderMobileSemana(){
   shell.innerHTML=mxBand('Semana')
     +'<div class="mx-grid">'
       +'<div class="mx-w full wk-hero wk-'+w.status+'">'
-        +'<div class="wk-hero-top"><div class="mx-lb">'+(over?'Te pasaste esta semana':'Te quedan esta semana')+'</div>'
-          +'<button class="wk-chip" onclick="wkOpenEditor()" aria-label="Cambiar límite">'+esc(wkShort(w.limit))+' / sem ✎</button></div>'
+        +'<div class="wk-hero-top"><div class="mx-lb">'+(over?'Te pasaste esta semana':'Te quedan esta semana')+'</div>'+chip+'</div>'
         +'<div class="mx-big wk-amt">'+esc(wkMoney(Math.abs(w.left)))+'</div>'
         +wkProgressHtml(w,'wk-prog')
-        +'<div class="wk-prog-leg"><span>Gastaste <b>'+esc(wkMoney(w.spent))+'</b> de '+esc(wkMoney(w.limit))+'</span><span>Día '+w.dayIdx+' de 7</span></div>'
-        +'<div class="wk-pill" style="color:'+wkStatusColor(w.status)+';background:color-mix(in srgb, '+wkStatusColor(w.status)+' 12%, white)">'+esc(wkStatusLabel(w))+'</div>'
+        +'<div class="wk-prog-leg"><span>Gastaste <b>'+esc(wkMoney(w.spent))+'</b> de '+esc(wkMoney(w.limit))+'</span><span>Día '+w.dayIdx+' de '+w.weekDays+'</span></div>'
+        +'<div class="wk-hero-foot"><span class="wk-pill" style="color:'+wkStatusColor(w.status)+';background:color-mix(in srgb, '+wkStatusColor(w.status)+' 12%, white)">'+esc(wkStatusLabel(w))+'</span>'
+          +'<span class="wk-week-tag">'+esc(wkWeekTag(w))+'</span></div>'
       +'</div>'
       +'<div class="mx-w tint"><div class="mx-lb">Hoy podés gastar</div><div class="mx-md spaced">'+esc(over?'$0':todayTxt)+'</div>'
         +'<div class="mx-sub">'+(w.spentToday>0?'Ya gastaste '+esc(wkMoney(w.spentToday))+' hoy':'Para seguir en ritmo')+'</div></div>'
@@ -266,11 +396,7 @@ function renderMobileSemana(){
     +mxSh('Día por día', wkRangeLabel(w), true)
     +'<div class="mx-w wk-days-w">'+wkDaysChartHtml(w,'wk-days')+'</div>'
     +(w.history.length?mxSh('Semanas anteriores', w.streak?('🏆 '+w.streak+' seguida'+(w.streak===1?'':'s')):'', true)
-      +'<div class="mx-list">'+w.history.slice(0,6).map(h=>mxItem(
-          '<span class="wk-hist-ic '+(h.met?'ok':'bad')+'">'+(h.met?'✓':'✕')+'</span>',
-          wkDayMonth(h.start)+' al '+wkDayMonth(h.end),
-          h.met?'Cumpliste · sobraron '+wkMoney(w.limit-h.spent):'Te pasaste '+wkMoney(h.spent-w.limit),
-          wkMoney(h.spent), Math.round(h.spent/w.limit*100)+'% del límite', h.met?'ok':'wa', '')).join('').replace(/<div class="mx-ib"><span/g,'<div class="mx-ib wk-hist"><span')+'</div>':'')
+      +'<div class="mx-list">'+w.history.slice(0,6).map(h=>wkHistItem(h)).join('')+'</div>':'')
     +mxSh('Gastos de la semana', w.entries.length?w.entries.length+'':'', true)
     +'<div class="mx-list">'+(w.entries.length?w.entries.map(e=>{
         const tap='onclick="wkToggleExcluded(this.dataset.id)" data-id="'+esc(String(e.id))+'"';
@@ -280,42 +406,122 @@ function renderMobileSemana(){
           +'<div class="mx-tx"><div class="mx-t">'+esc(e.description||'Movimiento')+'</div><div class="mx-s">'+esc(mxDayLabel(dateToYMD(e.date)))+(e.excluded?' · No cuenta en el límite':'')+'</div></div>'
           +'<div class="mx-r">'+esc(wkMoney(e.ars))+'</div></div>';
       }).join(''):'<div class="mx-none">Todavía no hay gastos esta semana</div>')+'</div>'
-    +'<div class="wk-foot">Cuenta tarjetas, débito y efectivo. No cuenta cuotas, suscripciones ni gastos fijos. Tocá un gasto para dejarlo afuera del límite.</div>';
+    +'<div class="wk-foot">'+esc(wkObjectiveLabel(w))+'.<br>Cuenta tarjetas, débito y efectivo. No cuenta cuotas, suscripciones ni gastos fijos. Tocá un gasto para dejarlo afuera del límite.</div>';
+}
+function wkHistItem(h){
+  return '<div class="mx-it"><div class="mx-ib wk-hist"><span class="wk-hist-ic '+(h.met?'ok':'bad')+'">'+(h.met?'✓':'✕')+'</span></div>'
+    +'<div class="mx-tx"><div class="mx-t">'+esc(wkDayMonth(h.start)+' al '+wkDayMonth(h.end))+'</div>'
+    +'<div class="mx-s">'+esc(h.met?'Cumpliste · sobraron '+wkMoney(h.limit-h.spent):'Te pasaste '+wkMoney(h.spent-h.limit))+'</div></div>'
+    +'<div class="mx-r">'+esc(wkMoney(h.spent))+'<small class="'+(h.met?'ok':'wa')+'">'+Math.round(h.limit?h.spent/h.limit*100:0)+'% del límite</small></div></div>';
 }
 
-// Hoja para poner o cambiar el límite y el día en que arranca la semana
-let _wkStartPick=1;
-function wkOpenEditor(){
+// ── Hoja / ventana para poner el límite, las fechas y ver el recomendado ──
+let _wkForm=null;
+function wkOpenEditor(fresh){
   const c=wkConfig();
-  _wkStartPick=c?Number(c.weekStart):1;
-  const amount=c&&c.amount?c.amount:wkSuggestedLimit();
-  const inner=mxSheetTop('Límite semanal', '<button onclick="mxDismissSheet()">Cancelar</button>', '<button class="strong" onclick="wkSaveEditor()">Guardar</button>')
-    +'<div class="mx-sheet-stack">'
-      +'<div class="mx-w full"><div class="mx-lb">¿Cuánto querés gastar por semana?</div>'
-        +'<div class="wk-input"><span>$</span><input id="wk-amount" type="text" inputmode="numeric" autocomplete="off" placeholder="390.000" value="'+(amount?esc(Math.round(amount).toLocaleString('es-AR')):'')+'" oninput="wkFormatInput(this)"></div>'
-        +'<div class="mx-sub">Solo el gasto del día a día: comida, salidas, transporte, compras.</div></div>'
-      +'<div class="mx-w full"><div class="mx-lb">La semana arranca el</div><div class="wk-days-pick" id="wk-days-pick">'+wkStartPickHtml()+'</div></div>'
-    +'</div>';
-  if(typeof mxOpenSheet==='function' && mxIsMobile()) mxOpenSheet(inner, 'wk-sheet');
-  else wkOpenDesktopEditor(amount);
+  const today=dateToYMD(wkNoon(new Date()));
+  const keep=!!(c && Number(c.amount)>0 && !fresh);
+  _wkForm={amount:keep?c.amount:0, startDate:keep?c.startDate:today, endDate:keep?(c.endDate||''):'', rec:'next'};
+  if(!keep){ const r=wkRecommend('next'); if(r.weekly>0) _wkForm.amount=r.weekly; }
+  if(typeof mxOpenSheet==='function' && mxIsMobile()) mxOpenSheet(wkEditorInner(true), 'wk-sheet mx-tall');
+  else wkOpenDesktopEditor();
 }
-function wkStartPickHtml(){
-  return [1,2,3,4,5,6,0].map(d=>'<button class="'+(d===_wkStartPick?'active':'')+'" onclick="wkPickStart('+d+')">'+WK_DAY_SHORT[d]+'</button>').join('');
+function wkEditorInner(mobile){
+  const f=_wkForm;
+  const amountVal=f.amount?Math.round(f.amount).toLocaleString('es-AR'):'';
+  const top=mobile?mxSheetTop('Límite semanal', '<button onclick="mxDismissSheet()">Cancelar</button>', '<button class="strong" onclick="wkSaveEditor()">Guardar</button>'):'';
+  return top+'<div class="'+(mobile?'mx-sheet-scroll':'wk-dlg-scroll')+'"><div class="'+(mobile?'mx-sheet-stack':'wk-dlg-stack')+'">'
+    +'<div class="mx-w full wk-card"><div class="mx-lb">¿Cuánto querés gastar por semana?</div>'
+      +'<div class="wk-input"><span>$</span><input id="wk-amount" type="text" inputmode="numeric" autocomplete="off" placeholder="390.000" value="'+esc(amountVal)+'" oninput="wkFormatInput(this)"></div>'
+      +'<div class="mx-sub">Solo el gasto del día a día: comida, salidas, transporte, compras.</div></div>'
+    +'<div class="mx-w full wk-card"><div class="wk-date-row"><label for="wk-start">Arranca el</label><input id="wk-start" type="date" value="'+esc(f.startDate)+'" onchange="wkFormDates()"></div>'
+      +'<div class="wk-date-row"><label for="wk-end">Termina el <small>(opcional)</small></label><span class="wk-date-end"><input id="wk-end" type="date" value="'+esc(f.endDate)+'" min="'+esc(f.startDate)+'" onchange="wkFormDates()">'
+        +'<button class="wk-clear" onclick="wkClearEnd()" aria-label="Sin fecha de fin"'+(f.endDate?'':' hidden')+'>✕</button></span></div>'
+      +'<div class="mx-sub wk-date-hint" id="wk-date-hint">'+esc(wkFormHint())+'</div></div>'
+    +'<div id="wk-rec">'+wkRecHtml()+'</div>'
+  +'</div></div>';
 }
-function wkPickStart(d){ _wkStartPick=d; const el=document.getElementById('wk-days-pick'); if(el) el.innerHTML=wkStartPickHtml(); }
+function wkFormHint(){
+  const f=_wkForm; if(!wkValidYmd(f.startDate)) return 'Elegí la fecha de arranque.';
+  const d=WK_DAY_LONG[wkNoon(f.startDate).getDay()];
+  const d2=WK_DAY_LONG[wkAddDays(f.startDate,6).getDay()];
+  if(!f.endDate) return 'Cada semana va de '+d+' a '+d2+', sin fecha de fin.';
+  const span=wkDiffDays(f.startDate,f.endDate);
+  const n=Math.floor(span/7)+1, lastDays=span%7+1;
+  return n+' semana'+(n===1?'':'s')+' de '+d+' a '+d2+(lastDays<7?' (la última de '+lastDays+' día'+(lastDays===1?'':'s')+', con límite proporcional)':'')+'.';
+}
+function wkRecHtml(){
+  const f=_wkForm;
+  const r=wkRecommend(f.rec);
+  const seg='<div class="wk-seg"><button class="'+(f.rec==='current'?'active':'')+'" onclick="wkPickRec(\'current\')">'+(r.byCard?'Resumen actual':'Este mes')+'</button>'
+    +'<button class="'+(f.rec==='next'?'active':'')+'" onclick="wkPickRec(\'next\')">'+(r.byCard?'Próximo resumen':'Mes que viene')+'</button></div>';
+  const head='<div class="wk-rec-h">✨ Límite recomendado</div>';
+  if(!(r.income>0)){
+    return '<div class="mx-w full wk-card wk-rec">'+head+seg+'<div class="mx-sub">Para recomendarte un límite necesitamos tu ingreso: cargalo en Ingresos (o en Camino a cero) y volvé acá.</div></div>';
+  }
+  const row=(label, v, cls)=>'<div class="wk-rec-row'+(cls?' '+cls:'')+'"><span>'+esc(label)+'</span><b>'+esc(v)+'</b></div>';
+  const c=r.commitments;
+  const lines=[row('Ingreso del mes', wkMoney(r.income))];
+  if(c.cuotas) lines.push(row('Cuotas', '−'+wkMoney(c.cuotas), 'neg'));
+  if(c.plan) lines.push(row('Préstamos y deudas', '−'+wkMoney(c.plan), 'neg'));
+  if(c.suscripciones) lines.push(row('Suscripciones', '−'+wkMoney(c.suscripciones), 'neg'));
+  if(c.fijos) lines.push(row('Gastos fijos', '−'+wkMoney(c.fijos), 'neg'));
+  if(r.spent) lines.push(row('Ya gastado en el período', '−'+wkMoney(r.spent), 'neg'));
+  lines.push(row('Te queda para el día a día', wkMoney(r.available), 'sum'));
+  const wks=Math.round(r.weeks*10)/10;
+  const weeksTxt=wks.toLocaleString('es-AR')+' semana'+(wks===1?'':'s');
+  return '<div class="mx-w full wk-card wk-rec">'+head+seg
+    +'<div class="mx-sub wk-rec-period">'+esc(wkDayLabel(r.startStr)+' al '+wkDayLabel(r.endStr))+' · '+esc(weeksTxt)+'</div>'
+    +lines.join('')
+    +(r.weekly>0
+      ?'<div class="wk-rec-big"><span>Por semana</span><b>'+esc(wkMoney(r.weekly))+'</b></div>'
+        +'<button class="wk-rec-use" onclick="wkUseRec()">Usar '+esc(wkMoney(r.weekly))+' del '+esc(wkDayMonth(r.startStr))+' al '+esc(wkDayMonth(r.endStr))+'</button>'
+      :'<div class="wk-rec-warn">Con lo comprometido no queda margen para el día a día en este período.</div>')
+    +'<div class="wk-rec-note">'+esc(r.incomeSource)+'. Compromisos según lo cargado en Compromisos y Camino a cero.</div>'
+  +'</div>';
+}
+function wkReadForm(){
+  if(!_wkForm) return;
+  const a=document.getElementById('wk-amount'); if(a) _wkForm.amount=wkParseAmount(a.value);
+  const s=document.getElementById('wk-start'); if(s && s.value) _wkForm.startDate=s.value;
+  const e=document.getElementById('wk-end'); if(e) _wkForm.endDate=e.value||'';
+}
+function wkFormDates(){
+  wkReadForm();
+  if(_wkForm.endDate && _wkForm.endDate<_wkForm.startDate) _wkForm.endDate='';
+  const e=document.getElementById('wk-end'); if(e){ e.min=_wkForm.startDate; e.value=_wkForm.endDate; }
+  const clr=document.querySelector('.wk-clear'); if(clr) clr.hidden=!_wkForm.endDate;
+  const h=document.getElementById('wk-date-hint'); if(h) h.textContent=wkFormHint();
+}
+function wkClearEnd(){ const e=document.getElementById('wk-end'); if(e) e.value=''; wkFormDates(); }
+function wkPickRec(which){ wkReadForm(); _wkForm.rec=which; const el=document.getElementById('wk-rec'); if(el) el.innerHTML=wkRecHtml(); }
+function wkUseRec(){
+  wkReadForm();
+  const r=wkRecommend(_wkForm.rec);
+  if(!(r.weekly>0)) return;
+  _wkForm.amount=r.weekly; _wkForm.startDate=r.startStr; _wkForm.endDate=r.endStr;
+  const a=document.getElementById('wk-amount'); if(a) a.value=Math.round(r.weekly).toLocaleString('es-AR');
+  const s=document.getElementById('wk-start'); if(s) s.value=r.startStr;
+  const e=document.getElementById('wk-end'); if(e) e.value=r.endStr;
+  wkFormDates();
+  showToast('Listo: tocá Guardar para usarlo','info');
+}
 function wkFormatInput(el){
   const digits=String(el.value||'').replace(/\D/g,'').slice(0,12);
   el.value=digits?Number(digits).toLocaleString('es-AR'):'';
 }
 function wkParseAmount(v){ return Number(String(v||'').replace(/\D/g,''))||0; }
 function wkSaveEditor(){
-  const amount=wkParseAmount(document.getElementById('wk-amount')?.value);
-  if(!(amount>0)){ showToast('Poné un monto','error'); return; }
-  wkSetLimit(amount, _wkStartPick);
+  wkReadForm();
+  const f=_wkForm||{};
+  if(!(f.amount>0)){ showToast('Poné un monto','error'); return; }
+  if(!wkValidYmd(f.startDate)){ showToast('Elegí la fecha de arranque','error'); return; }
+  if(f.endDate && f.endDate<f.startDate){ showToast('La fecha de fin tiene que ser después del arranque','error'); return; }
+  wkSetLimit(f.amount, f.startDate, f.endDate);
   if(typeof mxDismissSheet==='function') mxDismissSheet();
   closeWkDesktopEditor();
   renderSemanaPage();
-  showToast('✓ Límite guardado: '+wkMoney(amount)+' por semana','success');
+  showToast('✓ Límite guardado: '+wkMoney(f.amount)+' por semana','success');
 }
 function wkToggleExcluded(id){
   const c=wkConfig(); if(!c) return;
@@ -333,11 +539,28 @@ function renderSemanaDesktop(){
   const root=document.getElementById('wk-desktop');
   if(!root) return;
   const w=wkCompute();
+  const head=(sub, btn)=>'<header class="wk-d-head"><div><h1>Límite semanal</h1><p>'+esc(sub)+'</p></div>'+(btn||'')+'</header>';
   if(!w){
-    root.innerHTML='<div class="wk-d-shell"><header class="wk-d-head"><div><h1>Límite semanal</h1><p>Un tope para el gasto del día a día, semana a semana.</p></div></header>'
+    const r=wkRecommend('next');
+    root.innerHTML='<div class="wk-d-shell">'+head('Un tope para el gasto del día a día, semana a semana.')
       +'<section class="wk-d-card wk-d-empty"><div class="wk-empty-ic">🎯</div><h2>Poné tu límite semanal</h2>'
-      +'<p>Elegís cuánto querés gastar por semana y te vamos diciendo cuánto te queda, cuánto podés gastar hoy y cómo venís. Las cuotas, suscripciones y gastos fijos no cuentan: ya están comprometidos.</p>'
+      +'<p>Elegís cuánto querés gastar por semana, desde qué fecha y, si querés, hasta cuándo. Te vamos diciendo cuánto te queda, cuánto podés gastar hoy y cómo venís. Las cuotas, suscripciones y gastos fijos no cuentan: ya están comprometidos.</p>'
+      +(r.weekly>0?'<p class="wk-rec-mini">Para tu próximo resumen te recomendamos <b>'+esc(wkMoney(r.weekly))+'</b> por semana.</p>':'')
       +'<button class="btn btn-primary" onclick="wkOpenEditor()">Poner límite</button></section></div>';
+    return;
+  }
+  const editBtn='<button class="btn btn-ghost btn-sm" onclick="wkOpenEditor()">✎ '+esc(wkMoney(w.amount))+' por semana</button>';
+  if(w.phase==='upcoming'){
+    root.innerHTML='<div class="wk-d-shell">'+head(wkObjectiveLabel(w), editBtn)
+      +'<section class="wk-d-hero wk-d-hero-one"><div class="wk-d-hero-main"><div class="wk-d-kicker">Tu límite arranca '+(w.daysToStart===1?'mañana':'en '+w.daysToStart+' días')+'</div>'
+      +'<div class="wk-d-amount">'+esc(wkMoney(w.first.limit))+'</div><div class="wk-d-muted">Primera semana: '+esc(wkDayLabel(w.first.start))+' al '+esc(wkDayLabel(w.first.end))+(w.totalWeeks?' · '+w.totalWeeks+' semana'+(w.totalWeeks===1?'':'s')+' en total':'')+'</div></div></section></div>';
+    return;
+  }
+  if(w.phase==='ended'){
+    root.innerHTML='<div class="wk-d-shell">'+head(wkObjectiveLabel(w), '<button class="btn btn-primary btn-sm" onclick="wkOpenEditor(true)">Nuevo objetivo</button>')
+      +'<section class="wk-d-hero wk-d-hero-one"><div class="wk-d-hero-main"><div class="wk-d-kicker">Terminó tu objetivo</div><div class="wk-d-amount">'+w.met+' de '+w.weeks.length+' semanas</div>'
+      +'<div class="wk-d-muted">Gastaste '+esc(wkMoney(w.spent))+' de '+esc(wkMoney(w.limit))+'</div></div></section>'
+      +'<section class="wk-d-card">'+wkDesktopHist(w.weeks.slice().reverse())+'</section></div>';
     return;
   }
   const over=w.left<0;
@@ -345,16 +568,14 @@ function renderSemanaDesktop(){
   const color=wkStatusColor(w.status);
   root.innerHTML=`
   <div class="wk-d-shell">
-    <header class="wk-d-head">
-      <div><h1>Límite semanal</h1><p>${esc(wkRangeLabel(w))} · día ${w.dayIdx} de 7</p></div>
-      <button class="btn btn-ghost btn-sm" onclick="wkOpenEditor()">✎ ${esc(wkMoney(w.limit))} por semana</button>
-    </header>
+    ${head(wkWeekTag(w)+' · '+wkRangeLabel(w)+' · día '+w.dayIdx+' de '+w.weekDays, editBtn)}
     <section class="wk-d-hero wk-${w.status}">
       <div class="wk-d-hero-main">
         <div class="wk-d-kicker">${over?'Te pasaste esta semana':'Te quedan esta semana'}</div>
         <div class="wk-d-amount" style="color:${over?color:'var(--text)'}">${esc(wkMoney(Math.abs(w.left)))}</div>
         ${wkProgressHtml(w,'wk-prog')}
         <div class="wk-prog-leg"><span>Gastaste <b>${esc(wkMoney(w.spent))}</b> de ${esc(wkMoney(w.limit))}</span><span class="wk-pill" style="color:${color};background:color-mix(in srgb, ${color} 13%, transparent)">${esc(wkStatusLabel(w))}</span></div>
+        <div class="wk-d-obj">${esc(wkObjectiveLabel(w))}</div>
       </div>
       <div class="wk-d-stats">
         <div><span>Hoy podés gastar</span><strong>${esc(over?'$0':(w.todayLeft>=0?wkMoney(w.todayLeft):'−'+wkMoney(-w.todayLeft)))}</strong><small>${w.spentToday>0?'Ya gastaste '+esc(wkMoney(w.spentToday))+' hoy':'Para seguir en ritmo'}</small></div>
@@ -371,27 +592,28 @@ function renderSemanaDesktop(){
         <div class="wk-d-card-head"><h2>Día por día</h2><span class="wk-d-muted">${esc(wkRangeLabel(w))}</span></div>
         ${wkDaysChartHtml(w,'wk-days')}
       </section>
-      <section class="wk-d-card">
-        <div class="wk-d-card-head"><h2>Semanas anteriores</h2>${w.streak?`<span class="wk-pill" style="color:#169C4B;background:color-mix(in srgb, #169C4B 13%, transparent)">🏆 ${w.streak} seguida${w.streak===1?'':'s'}</span>`:''}</div>
-        ${w.history.length?`<div class="wk-d-hist">${w.history.slice(0,6).map(h=>`<div class="wk-d-hrow"><span class="wk-hist-ic ${h.met?'ok':'bad'}">${h.met?'✓':'✕'}</span><span class="wk-d-hlab">${esc(wkDayMonth(h.start))} al ${esc(wkDayMonth(h.end))}</span><span class="wk-d-hbar"><i style="width:${Math.min(100,h.spent/w.limit*100).toFixed(1)}%;background:${h.met?'#169C4B':'#E5383B'}"></i></span><b>${esc(wkMoney(h.spent))}</b></div>`).join('')}</div>`:'<p class="wk-d-muted">Todavía no hay semanas anteriores.</p>'}
-      </section>
+      <section class="wk-d-card">${w.history.length?wkDesktopHist(w.history.slice(0,6), w.streak):'<div class="wk-d-card-head"><h2>Semanas anteriores</h2></div><p class="wk-d-muted">Es la primera semana del objetivo.</p>'}</section>
       <section class="wk-d-card">
         <div class="wk-d-card-head"><h2>Gastos de la semana</h2><span class="wk-d-muted">Clic para dejar uno afuera</span></div>
-        ${w.entries.length?`<div class="wk-d-list">${w.entries.map(e=>`<button class="wk-d-row${e.excluded?' wk-off':''}" onclick="wkToggleExcluded(this.dataset.id)" data-id="${esc(String(e.id))}"><span class="wk-d-rdate">${esc(WK_DAY_SHORT[wkNoon(e.date).getDay()])} ${esc(wkDayMonth(wkNoon(e.date)))}</span><span class="wk-d-rname">${esc(e.description||'Movimiento')}${e.excluded?' <em>no cuenta</em>':''}</span><span class="wk-d-rcat">${esc(e.category||'')}</span><b>${esc(wkMoney(e.ars))}</b></button>`).join('')}</div>`:'<p class="wk-d-muted">Todavía no hay gastos esta semana.</p>'}
+        ${w.entries.length?`<div class="wk-d-list">${w.entries.map(e=>`<button class="wk-d-row${e.excluded?' wk-off':''}" onclick="wkToggleExcluded(this.dataset.id)" data-id="${esc(String(e.id))}"><span class="wk-d-rdate">${esc(wkDayLabel(e.date))}</span><span class="wk-d-rname">${esc(e.description||'Movimiento')}${e.excluded?' <em>no cuenta</em>':''}</span><span class="wk-d-rcat">${esc(e.category||'')}</span><b>${esc(wkMoney(e.ars))}</b></button>`).join('')}</div>`:'<p class="wk-d-muted">Todavía no hay gastos esta semana.</p>'}
       </section>
     </div>
     <p class="wk-d-foot">Cuenta tarjetas, débito y efectivo. No cuenta cuotas, suscripciones ni gastos fijos.</p>
   </div>`;
 }
-function wkOpenDesktopEditor(amount){
+function wkDesktopHist(list, streak){
+  return '<div class="wk-d-card-head"><h2>'+(streak!=null?'Semanas anteriores':'Semana por semana')+'</h2>'
+    +(streak?'<span class="wk-pill" style="color:#169C4B;background:color-mix(in srgb, #169C4B 13%, transparent)">🏆 '+streak+' seguida'+(streak===1?'':'s')+'</span>':'')+'</div>'
+    +'<div class="wk-d-hist">'+list.map(h=>'<div class="wk-d-hrow"><span class="wk-hist-ic '+(h.met?'ok':'bad')+'">'+(h.met?'✓':'✕')+'</span><span class="wk-d-hlab">'+esc(wkDayMonth(h.start))+' al '+esc(wkDayMonth(h.end))+'</span>'
+      +'<span class="wk-d-hbar"><i style="width:'+Math.min(100,h.limit?h.spent/h.limit*100:0).toFixed(1)+'%;background:'+(h.met?'#169C4B':'#E5383B')+'"></i></span><b>'+esc(wkMoney(h.spent))+'</b></div>').join('')+'</div>';
+}
+function wkOpenDesktopEditor(){
   closeWkDesktopEditor();
   const el=document.createElement('div');
   el.id='wk-modal'; el.className='modal-overlay open';
-  el.innerHTML='<div class="modal" style="width:440px;"><div class="modal-title">Límite semanal</div>'
-    +'<div class="modal-sub">Cuánto querés gastar por semana en el día a día.</div>'
-    +'<div class="input-group"><label class="input-label">Monto por semana</label>'
-    +'<input id="wk-amount" class="input-field" type="text" inputmode="numeric" placeholder="390.000" value="'+(amount?esc(Math.round(amount).toLocaleString('es-AR')):'')+'" oninput="wkFormatInput(this)"></div>'
-    +'<div class="input-group" style="margin-top:14px;"><label class="input-label">La semana arranca el</label><div class="wk-days-pick" id="wk-days-pick">'+wkStartPickHtml()+'</div></div>'
+  el.innerHTML='<div class="modal wk-modal"><div class="modal-title">Límite semanal</div>'
+    +'<div class="modal-sub">Cuánto querés gastar por semana en el día a día, desde cuándo y hasta cuándo.</div>'
+    +wkEditorInner(false)
     +'<div class="modal-actions"><button class="btn btn-ghost" onclick="closeWkDesktopEditor()">Cancelar</button><button class="btn btn-primary" onclick="wkSaveEditor()">Guardar</button></div></div>';
   el.addEventListener('click', ev=>{ if(ev.target===el) closeWkDesktopEditor(); });
   document.body.appendChild(el);

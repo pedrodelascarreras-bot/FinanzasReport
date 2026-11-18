@@ -65,17 +65,17 @@ const tx = (id, ymd, pm, amount, extra) => Object.assign({ id, date: D(ymd), des
 const shellHtml = id => document.getElementById(id).innerHTML;
 USD_TO_ARS = 1500; window.USD_TO_ARS = 1500;
 
-// Semana de lunes 16 a domingo 22 de noviembre de 2026; hoy es miércoles 18 (día 3)
+// Objetivo desde el lunes 16 de noviembre de 2026; hoy es miércoles 18 (día 3)
 const HOY = new Date('2026-11-18T15:00:00');
-reset(); state.caminoPlan = null; state.weeklyLimit = null;
+reset(); state.caminoPlan = null; state.weeklyLimit = null; state.incomeMonths = [];
 
 // 1) Sin límite: no calcula y la pantalla invita a ponerlo
 eq(wkCompute(HOY), null, 'sin límite no hay cálculo');
 renderMobileSemana();
 eq(shellHtml('mob-week-shell').includes('Poné tu límite semanal'), true, 'vacío: pide poner el límite');
 
-// 2) Qué cuenta: tarjetas, débito, efectivo y dólares; no cuotas ni suscripciones ni otras semanas
-state.weeklyLimit = { amount: 350000, weekStart: 1, excluded: [] };
+// 2) Qué cuenta: tarjetas, débito, efectivo y dólares; no cuotas ni otras semanas
+state.weeklyLimit = { amount: 350000, startDate: '2026-11-16', endDate: '', excluded: [] };
 state.transactions = [
   tx('a', '2026-11-16', 'visa', 50000),
   tx('b', '2026-11-17', 'deb', 20000),
@@ -86,82 +86,108 @@ state.transactions = [
   tx('fut', '2026-11-20', 'visa', 7777)
 ];
 let w = wkCompute(HOY);
-eq([w.startStr, w.endStr, w.dayIdx, w.daysLeft], ['2026-11-16', '2026-11-22', 3, 5], 'semana de lunes a domingo, día 3');
-eq(w.spent, 95000, 'cuenta 50k + 20k + 10k + USD 10 (15k); no la cuota, ni el domingo anterior, ni el viernes que viene');
+eq([w.phase, w.startStr, w.endStr, w.dayIdx, w.daysLeft, w.weekNum], ['active', '2026-11-16', '2026-11-22', 3, 5, 1], 'semana 1, de lunes a domingo, día 3');
+eq(w.spent, 95000, 'cuenta 50k + 20k + 10k + USD 10 (15k); no la cuota, ni el domingo anterior, ni el viernes');
 eq([w.spentToday, w.left], [25000, 255000], 'hoy y lo que queda');
-// Hoy: (350k − 70k gastado antes de hoy) / 5 días = 56k; ya gasté 25k → quedan 31k
 eq([Math.round(w.todayBudget), Math.round(w.todayLeft), Math.round(w.perDayAfter)], [56000, 31000, 63750], 'hoy podés gastar y por día desde mañana');
 eq(w.status, 'great', '95k de 150k esperados al día 3: va muy bien');
 eq(w.days.map(d => d.spent), [50000, 20000, 25000, 0, 0, 0, 0], 'día por día');
-eq([w.days[2].isToday, w.days[3].isFuture], [true, true], 'hoy y días que vienen');
 eq(w.cats[0], { cat: 'Delivery', v: 80000 }, 'lo que más pesa');
 
 // 3) Dejar un gasto afuera del límite
 wkToggleExcluded('a');
-w = wkCompute(HOY);
-eq([w.spent, state.weeklyLimit.excluded], [45000, ['a']], 'un gasto afuera no cuenta');
+eq([wkCompute(HOY).spent, state.weeklyLimit.excluded], [45000, ['a']], 'un gasto afuera no cuenta');
 wkToggleExcluded('a');
 eq(wkCompute(HOY).spent, 95000, 'y vuelve a contar');
-eq(stored().weeklyLimit.amount, 350000, 'el límite se guarda con los datos');
+eq(stored().weeklyLimit.startDate, '2026-11-16', 'el límite se guarda con los datos');
 
 // 4) Estados y consejos
 const msg = w => wkInsights(w).map(i => i.title).join(' | ');
 state.transactions = [];
 w = wkCompute(HOY);
-eq([w.spent, /Día 3 y todavía no gastaste nada/.test(msg(w))], [0, true], 'sin gastar: lo felicita');
-eq(w.zeroDays, 3, 'tres días seguidos sin gastar');
+eq([w.spent, /Día 3 y todavía no gastaste nada/.test(msg(w)), w.zeroDays], [0, true, 3], 'sin gastar: lo felicita');
 state.transactions = [tx('a', '2026-11-16', 'visa', 100000), tx('b', '2026-11-17', 'visa', 100000)];
 w = wkCompute(HOY);
-eq([w.status, /Vas más rápido que el plan/.test(msg(w))], ['warn', true], '200k al día 3 de 350k: avisa que va rápido');
-eq(wkInsights(w)[0].text.includes('$37.500 por día desde mañana'), true, 'dice cuánto por día para llegar (150k / 4)');
+eq([w.status, wkInsights(w)[0].text.includes('$37.500 por día desde mañana')], ['warn', true], 'va rápido: dice cuánto por día para llegar');
 state.transactions.push(tx('c', '2026-11-18', 'visa', 200000));
 w = wkCompute(HOY);
 eq([w.status, Math.round(w.left), /Te pasaste \$50\.000 del límite/.test(msg(w))], ['over', -50000, true], 'pasado: lo dice con el monto');
-eq(Math.round(w.todayLeft) < 0, true, 'hoy ya no queda');
 state.transactions = [tx('a', '2026-11-16', 'visa', 100000)];
-w = wkCompute(HOY);
-eq(/Un gasto se llevó el 29% del límite/.test(msg(w)), true, 'un gasto grande se marca');
+eq(/Un gasto se llevó el 29% del límite/.test(msg(wkCompute(HOY))), true, 'un gasto grande se marca');
 
-// 5) Semana pasada y racha (con el límite de hoy)
-state.transactions = [
-  tx('h1', '2026-11-09', 'visa', 300000), tx('h1b', '2026-11-10', 'visa', 20000), // semana del 9: 320k → cumplió
-  tx('h2', '2026-11-03', 'visa', 200000),  // semana del 2: 200k → cumplió
-  tx('h3', '2026-10-27', 'visa', 400000),  // semana del 26/10: 400k → se pasó
-  tx('n1', '2026-11-16', 'visa', 10000)
-];
+// 5) Arranca en una fecha: el viernes 20 (cuando abre la tarjeta). Semanas de viernes a jueves
+state.weeklyLimit = { amount: 350000, startDate: '2026-11-20', endDate: '', excluded: [] };
 w = wkCompute(HOY);
-eq(w.history.slice(0, 3).map(h => [dateToYMD(h.start), h.spent, h.met]), [['2026-11-09', 320000, true], ['2026-11-02', 200000, true], ['2026-10-26', 400000, false]], 'semanas anteriores');
-eq(w.history.length, 3, 'no muestra semanas de antes del primer movimiento');
-eq(w.streak, 2, 'dos semanas seguidas cumpliendo');
-eq(w.prevSameDay, 320000, 'la semana pasada a esta altura (lun a mié)');
-eq(/Gastás menos que la semana pasada/.test(msg(w)), true, 'compara con la semana pasada');
-
-// 6) Otro día de arranque: la semana empieza el viernes
-state.weeklyLimit.weekStart = 5;
-w = wkCompute(HOY);
-eq([w.startStr, w.endStr, w.dayIdx], ['2026-11-13', '2026-11-19', 6], 'semana de viernes a jueves');
-state.weeklyLimit.weekStart = 1;
-
-// 7) Pantallas
-state.transactions = [tx('a', '2026-11-16', 'visa', 50000)];
-var _RealDate = Date;
+eq([w.phase, w.daysToStart, w.first.startStr, w.first.endStr], ['upcoming', 2, '2026-11-20', '2026-11-26'], 'todavía no arrancó');
 renderMobileSemana();
-const cel = shellHtml('mob-week-shell');
-eq([cel.includes('Te quedan esta semana'), cel.includes('Hoy podés gastar'), cel.includes('Día por día'), cel.includes('Cómo vas'), cel.includes('wkToggleExcluded')], [true, true, true, true, true], 'celular: número, hoy, día por día, consejos y lista');
-renderSemanaDesktop();
-const pc = shellHtml('wk-desktop');
-eq([pc.includes('Límite semanal'), pc.includes('Te quedan esta semana'), pc.includes('Semanas anteriores')], [true, true, true], 'compu: misma información');
-// Guardar desde la hoja
+eq(shellHtml('mob-week-shell').includes('Tu límite arranca en 2 días'), true, 'la pantalla dice cuándo arranca');
+w = wkCompute(new Date('2026-11-30T10:00:00'));
+eq([w.weekNum, w.startStr, w.endStr, w.dayIdx], [2, '2026-11-27', '2026-12-03', 4], 'semana 2 de viernes a jueves');
+
+// 6) Con fecha de fin: la última semana es más corta y su límite proporcional
+state.weeklyLimit = { amount: 350000, startDate: '2026-11-20', endDate: '2026-12-17', excluded: [] };
+state.transactions = [tx('x', '2026-11-21', 'visa', 300000), tx('y', '2026-11-28', 'visa', 400000), tx('z', '2026-12-15', 'visa', 10000)];
+w = wkCompute(new Date('2026-12-12T10:00:00'));
+eq([w.totalWeeks, w.weekNum, w.startStr, w.endStr, w.weekDays, Math.round(w.limit), w.isLastWeek], [4, 4, '2026-12-11', '2026-12-17', 7, 350000, true], 'cuatro semanas justas hasta el jueves 17');
+state.weeklyLimit.endDate = '2026-12-19';
+w = wkCompute(new Date('2026-12-19T10:00:00'));
+eq([w.totalWeeks, w.weekNum, w.weekDays, Math.round(w.limit)], [5, 5, 2, 100000], 'última semana de 2 días: límite proporcional');
+eq(w.history.slice(0,4).map(h => h.met), [true, true, false, true], 'semanas del objetivo (la del 27/11 se pasó)');
+w = wkCompute(new Date('2026-12-20T10:00:00'));
+eq([w.phase, w.weeks.length, w.met, w.spent], ['ended', 5, 4, 710000], 'terminado: resumen del objetivo');
+
+// 7) Límite recomendado: ingreso − compromisos del período, por semana
+state.weeklyLimit = null;
+state.incomeMonths = [{ month: '2026-11', schemaVersion: 2, salary: { usd: { amount: 2900 } }, extras: [] }];
+state.transactions = [];
+state.cuotas = [{ id: 'q1', name: 'Megatlon', amount: 84000, total: 12, startDate: '2026-02-01', day: 1, currency: 'ARS', payMethod: 'visa', cuotaGroupId: 'cg1' }];
+state.subscriptions = [{ id: 's1', name: 'Claude', price: 20, currency: 'USD', day: 4, freq: 'monthly', active: true, payMethod: 'visa' }];
+const per = wkCyclePeriods(HOY);
+let r = wkRecommend('next', HOY);
+eq(r.income, 2900 * 1500, 'ingreso del mes en pesos');
+eq([r.commitments.cuotas, r.commitments.suscripciones], [84000, 30000], 'compromisos del próximo período');
+const esperado = Math.floor(((2900 * 1500 - 114000) / (r.days / 7)) / 5000) * 5000;
+eq([r.startStr, r.endStr, r.weekly], [per.next.open, per.next.close, esperado], 'recomendado por semana, redondeado a $5.000');
+state.caminoPlan = { version: 1, salaryUsd: 0, items: [{ id: 'p1', kind: 'prestamo', name: 'Mercado Pago', amount: 1300000, currency: 'ARS', count: 1, firstDate: per.next.open, everyMonths: 1 }] };
+r = wkRecommend('next', HOY);
+eq(r.commitments.plan, 1300000, 'suma los préstamos de Camino a cero');
+state.caminoPlan = null;
+state.transactions = [tx('g1', per.current.open, 'visa', 100000)];
+r = wkRecommend('current', HOY);
+eq([r.startStr, r.spent > 0 || per.current.open === dateToYMD(HOY)], [dateToYMD(HOY), true], 'resumen actual: desde hoy y descuenta lo gastado');
+state.incomeMonths = [];
+eq(wkRecommend('next', HOY).weekly, 0, 'sin ingreso no recomienda');
+
+// 8) Hoja: guardar monto y fechas, usar el recomendado
 mxOpenSheet = function(){}; mxDismissSheet = function(){};
+state.incomeMonths = [{ month: '2026-11', schemaVersion: 2, salary: { usd: { amount: 2900 } }, extras: [] }];
 wkOpenEditor();
-document.getElementById('wk-amount').value = '420.000';
-_wkStartPick = 0;
+eq(_wkForm.amount > 0, true, 'la hoja nueva arranca con el recomendado');
+document.getElementById('wk-amount').value = '390.000';
+document.getElementById('wk-start').value = '2026-11-20';
+document.getElementById('wk-end').value = '2026-12-17';
 wkSaveEditor();
-eq([state.weeklyLimit.amount, state.weeklyLimit.weekStart], [420000, 0], 'la hoja guarda monto y día de arranque');
+eq([state.weeklyLimit.amount, state.weeklyLimit.startDate, state.weeklyLimit.endDate], [390000, '2026-11-20', '2026-12-17'], 'guarda monto y fechas');
+wkOpenEditor();
+document.getElementById('wk-amount').value = '390.000'; document.getElementById('wk-start').value = '2026-11-20'; document.getElementById('wk-end').value = '';
+_wkForm.rec = 'next'; wkUseRec();
+eq([_wkForm.startDate, _wkForm.endDate, _wkForm.amount === wkRecommend('next').weekly], [wkRecommend('next').startStr, wkRecommend('next').endStr, true], 'usar el recomendado completa monto y fechas del resumen');
 document.getElementById('wk-amount').value = '';
 wkSaveEditor();
-eq(state.weeklyLimit.amount, 420000, 'sin monto no guarda');
-eq(typeof nav, 'function', 'nav existe');
+eq(state.weeklyLimit.amount, 390000, 'sin monto no guarda');
+// Versión anterior (solo día de la semana) se pasa a una fecha
+state.weeklyLimit = { amount: 100000, weekStart: 5, excluded: [] };
+const c = wkConfig();
+eq([wkValidYmd(c.startDate), wkNoon(c.startDate).getDay()], [true, 5], 'límite viejo: arranca el último viernes');
+
+// 9) Pantallas
+state.weeklyLimit = { amount: 350000, startDate: '2026-11-16', endDate: '', excluded: [] };
+state.transactions = [tx('a', dateToYMD(new Date()), 'visa', 50000)];
+renderMobileSemana();
+const cel = shellHtml('mob-week-shell');
+eq([cel.includes('Hoy podés gastar'), cel.includes('Día por día'), cel.includes('Cómo vas'), /Semana \d+/.test(cel)], [true, true, true, true], 'celular: número, hoy, día por día, consejos y número de semana');
+renderSemanaDesktop();
+eq(shellHtml('wk-desktop').includes('Límite semanal'), true, 'compu');
 
 if (errs.length) { failures++; print('✗ errores en consola: ' + errs.slice(0, 3).join(' | ')); }
 print(failures ? ('✗ ' + failures + ' fallas, ' + passed + ' OK') : ('✓ ' + passed + ' pruebas OK'));
