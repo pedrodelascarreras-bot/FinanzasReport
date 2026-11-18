@@ -21,6 +21,9 @@ ingresos y ahorros. Los datos viven en el navegador; Google es opcional.
   Gastos compartidos: tu parte en todas las pantallas, salvo Tarjetas (monto completo).
 - **Proyección al cierre:** `getPeriodProjection` — extrapola solo el gasto variable;
   cuotas, suscripciones y fijos se suman una vez.
+- **Límite semanal** (`js/semana.js`): cuánto te queda para gastar en la semana. Cuenta
+  movimientos reales de cualquier medio de pago, sin cuotas, suscripciones ni fijos
+  (`isCommitmentTxn`); el límite y el día de arranque viven en `state.weeklyLimit`.
 - **Cuotas:** fuente única `state.cuotas`, cada una con su calendario
   (`getCuotaStatus` en `js/expenses.js`).
 

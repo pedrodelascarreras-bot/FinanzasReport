@@ -123,6 +123,7 @@ function getStateSnapshot(){
     _bankAccountsInitialized:!!state._bankAccountsInitialized,
     sharedExpenseContacts:state.sharedExpenseContacts||[],
     caminoPlan:state.caminoPlan||null,
+    weeklyLimit:state.weeklyLimit||null,
     dismissedCommitmentEntries:state.dismissedCommitmentEntries||[],
     tasks:state.tasks||[],
     txnCardFilter:state.txnCardFilter||'',
@@ -358,7 +359,7 @@ function hasUnsyncedLocalChanges(){
 }
 // Solo los datos del usuario: actualizar el dólar o cambiar de vista no es un cambio que deba
 // competir con lo que se hizo en otro dispositivo.
-const USER_DATA_KEYS=['transactions','categories','categoryGroups','income','tcCycles','hiddenTcCycles','imports','cuotas','autoCuotaConfig','subscriptions','fixedExpenses','incomeSources','incomeMonths','savAccounts','savGoals','savDeposits','savStages','savPlan','tcConfig','viewCycleConfig','catRules','nameRules','logoRules','catHistory','ccCards','ccCycles','gmailImportRules','bankProfiles','dismissedAutoCuotas','dismissedImportedSubs','gmailDeletedIds','gmailAnulados','caminoPlan','dismissedCommitmentEntries','tasks','smartTags','bankAccounts','sharedExpenseContacts'];
+const USER_DATA_KEYS=['transactions','categories','categoryGroups','income','tcCycles','hiddenTcCycles','imports','cuotas','autoCuotaConfig','subscriptions','fixedExpenses','incomeSources','incomeMonths','savAccounts','savGoals','savDeposits','savStages','savPlan','tcConfig','viewCycleConfig','catRules','nameRules','logoRules','catHistory','ccCards','ccCycles','gmailImportRules','bankProfiles','dismissedAutoCuotas','dismissedImportedSubs','gmailDeletedIds','gmailAnulados','caminoPlan','weeklyLimit','dismissedCommitmentEntries','tasks','smartTags','bankAccounts','sharedExpenseContacts'];
 let _dataFingerprint=null;
 function _stateFingerprint(snapshot){
   return JSON.stringify(USER_DATA_KEYS.map(k=>snapshot[k]));
@@ -695,6 +696,7 @@ async function loadFromDrive(){
     if(Array.isArray(s.bankAccounts)){ state.bankAccounts=s.bankAccounts; state._bankAccountsInitialized=!!s._bankAccountsInitialized||s.bankAccounts.length>0; }
     state.sharedExpenseContacts=s.sharedExpenseContacts||state.sharedExpenseContacts||[];
     state.caminoPlan=s.caminoPlan||state.caminoPlan||null;
+    state.weeklyLimit=s.weeklyLimit||state.weeklyLimit||null;
     state.dismissedNotifs=s.dismissedNotifs||state.dismissedNotifs||[];
     if(s.userName) state.userName=s.userName;
     state.dismissedCommitmentEntries=s.dismissedCommitmentEntries||[];
@@ -814,6 +816,7 @@ function loadState(){
     if(Array.isArray(s.bankAccounts)){ state.bankAccounts=s.bankAccounts; state._bankAccountsInitialized=!!s._bankAccountsInitialized||s.bankAccounts.length>0; }
     state.sharedExpenseContacts=s.sharedExpenseContacts||state.sharedExpenseContacts||[];
     state.caminoPlan=s.caminoPlan||state.caminoPlan||null;
+    state.weeklyLimit=s.weeklyLimit||state.weeklyLimit||null;
     state.dismissedNotifs=s.dismissedNotifs||state.dismissedNotifs||[];
     if(s.userName) state.userName=s.userName;
     state.dismissedCommitmentEntries=s.dismissedCommitmentEntries||[];
